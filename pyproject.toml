@@ -1,0 +1,15 @@
+[project]
+name = "arx-runner"
+version = "0.0.0"
+description = "Arx 自托管执行宿主：贴 NautilusTrader，声明式 reconcile + 遥测 Actor + 本地金库"
+requires-python = ">=3.11"
+dependencies = [
+    # Phase 1 启用：nautilus_trader, nats-py, cryptography(本地金库)
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
