@@ -16,9 +16,13 @@ import logging
 import signal
 import sys
 import time
+from pathlib import Path
 
 import uuid6
 
+from arx_runner.credential_vault import CredentialVault, SopsAgeVault
+from arx_runner.deployment_reconciler import DeploymentReconciler
+from arx_runner.enrollment import EnrollmentClient
 from arx_runner.nats_client import ArxNatsClient
 
 log = logging.getLogger("arx_runner")
@@ -34,6 +38,35 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=10.0,
         help="seconds between heartbeats",
+    )
+    # Plan 06 — enrollment / reconciler integration (opt-in):
+    parser.add_argument(
+        "--enrollment-token",
+        default=None,
+        help="One-shot pairing token (plaintext). Sent as sha256 hash to cloud.",
+    )
+    parser.add_argument(
+        "--enrollment-path",
+        type=Path,
+        default=Path.home() / ".arx-runner" / "enrollment.json",
+        help="Local enrollment record path (0600).",
+    )
+    parser.add_argument(
+        "--sops-file",
+        type=Path,
+        default=None,
+        help="sops-encrypted credentials file path. Required for live mode.",
+    )
+    parser.add_argument(
+        "--age-key-file",
+        type=Path,
+        default=None,
+        help="age private key file path (KEK; never leaves the runner host).",
+    )
+    parser.add_argument(
+        "--reconcile-strategy-id",
+        default=None,
+        help="Enable deployment reconciler bound to this strategy_id.",
     )
     return parser.parse_args(argv)
 
@@ -66,6 +99,25 @@ async def _heartbeat_loop(
             continue
 
 
+def _build_vault(args: argparse.Namespace) -> CredentialVault:
+    """Pick a vault implementation based on CLI args. sops/age 双参数齐全
+    → SopsAgeVault; 否则 MockVault (dev/paper) — fail-fast 不静默降级:
+    若只指定 sops_file 或只指定 age_key_file, 必报错 (CLAUDE.md 红线:
+    'Key/策略逻辑只在 runner 本地' + 半配置 → 拒)。"""
+    if args.sops_file is None and args.age_key_file is None:
+        return CredentialVault(tenant_id=args.tenant_id, initiator=args.runner_id)
+    if args.sops_file is None or args.age_key_file is None:
+        raise SystemExit(
+            "sops/age 必须同时指定 --sops-file + --age-key-file (半配置拒绝)"
+        )
+    return SopsAgeVault(
+        sops_file=args.sops_file,
+        age_key_file=args.age_key_file,
+        tenant_id=args.tenant_id,
+        initiator=args.runner_id,
+    )
+
+
 async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     client = ArxNatsClient(
@@ -81,9 +133,60 @@ async def _run(args: argparse.Namespace) -> int:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
 
+    tasks: list[asyncio.Task] = []
     try:
-        await _heartbeat_loop(client, args.heartbeat_interval, stop)
+        # Enrollment (first run): publish hash + persist locally.
+        if args.enrollment_token:
+            enroll_client = EnrollmentClient(
+                nats_client=client,
+                tenant_id=args.tenant_id,
+                runner_id=args.runner_id,
+                enrollment_path=args.enrollment_path,
+            )
+            await enroll_client.enroll(args.enrollment_token)
+
+        # Deployment reconciler (opt-in via --reconcile-strategy-id).
+        if args.reconcile_strategy_id:
+            vault = _build_vault(args)
+            # nautilus_host stub — 真实 NT host 在 Phase 1 后续 plan 接 (skeleton.md);
+            # 留个 ducktyped 占位让 reconciler 能跑通流程而不真起 NT 进程。
+            from arx_runner import nautilus_host as _nh_module  # noqa: F401
+            class _NoopHost:
+                async def deploy(self, spec: dict, credential: dict) -> str:
+                    log.info("nautilus_host_deploy_stub", extra={"spec_id": spec.get("spec_id")})
+                    return f"container-{spec.get('spec_id')}"
+
+                async def reconfigure(self, spec: dict) -> None:
+                    log.info("nautilus_host_reconfigure_stub", extra={"spec_id": spec.get("spec_id")})
+
+                async def stop(self, spec_id: str) -> None:
+                    log.info("nautilus_host_stop_stub", extra={"spec_id": spec_id})
+
+            reconciler = DeploymentReconciler(
+                nats_client=client,
+                tenant_id=args.tenant_id,
+                runner_id=args.runner_id,
+                nautilus_host=_NoopHost(),
+                credential_vault=vault,
+            )
+            tasks.append(
+                asyncio.create_task(
+                    reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
+                    name="arx-deployment-reconciler",
+                )
+            )
+
+        tasks.append(
+            asyncio.create_task(
+                _heartbeat_loop(client, args.heartbeat_interval, stop),
+                name="arx-heartbeat",
+            )
+        )
+        await asyncio.gather(*tasks, return_exceptions=True)
     finally:
+        for t in tasks:
+            if not t.done():
+                t.cancel()
         await client.close()
         log.info("runner_stopped")
     return 0

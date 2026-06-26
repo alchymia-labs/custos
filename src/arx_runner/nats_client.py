@@ -383,6 +383,77 @@ class ArxNatsClient:
             return
         await self._js.publish(subject, payload)
 
+    async def subscribe_deployment_spec(
+        self,
+        *,
+        strategy_id: str,
+    ) -> Any:
+        """Subscribe to ``arx.{tenant}.deployment_spec.{strategy_id}``.
+
+        Returns the underlying nats subscription so the caller can iterate
+        ``async for msg in sub.messages``. Spec stream is level-triggered by
+        generation — each message is a full DeploymentSpec snapshot, not a
+        delta (plan-index §6: "不含 ordering，level-triggered by generation").
+        """
+        if self._js is None:
+            raise RuntimeError(
+                "subscribe_deployment_spec called before connect()"
+            )
+        subject = build_subject(
+            self.tenant_id, "deployment_spec", strategy_id
+        )
+        return await self._js.subscribe(subject)
+
+    async def publish_deployment_status(
+        self,
+        *,
+        spec_id: str,
+        payload: dict,
+    ) -> None:
+        """At-least-once publish DeploymentStatus to
+        ``arx.{tenant}.deployment_status.{runner_id}.{spec_id}``.
+
+        Runner-reported observed state. Body wrapped in NatsEnvelope (no
+        ordering metadata — level-triggered, plan-index §6)."""
+        if self._js is None:
+            _log.warning(
+                "deployment_status_skipped_disconnected",
+                spec_id=spec_id,
+                runner_id=self.runner_id,
+            )
+            return
+        env = NatsEnvelope(
+            event_id=str(uuid6.uuid7()),
+            tenant_id=self.tenant_id,
+            occurred_at=_now_rfc3339_nanos(),
+            payload=payload,
+        )
+        subject = build_subject(
+            self.tenant_id,
+            "deployment_status",
+            self.runner_id,
+            spec_id,
+        )
+        await self._js.publish(subject, env.to_bytes())
+
+    async def publish_enrollment(self, *, payload: dict) -> None:
+        """At-least-once publish enrollment request to
+        ``arx.{tenant}.enrollment.{runner_id}`` (plan-index §6)."""
+        if self._js is None:
+            raise RuntimeError(
+                "publish_enrollment called before connect()"
+            )
+        env = NatsEnvelope(
+            event_id=str(uuid6.uuid7()),
+            tenant_id=self.tenant_id,
+            occurred_at=_now_rfc3339_nanos(),
+            payload=payload,
+        )
+        subject = build_subject(
+            self.tenant_id, "enrollment", self.runner_id
+        )
+        await self._js.publish(subject, env.to_bytes())
+
     async def _drain_wal(self) -> None:
         """Replay buffered messages one row at a time, forgetting each on
         successful publish. If any publish raises, log + break so the
