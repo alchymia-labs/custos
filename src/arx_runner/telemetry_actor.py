@@ -44,6 +44,70 @@ from arx_runner.nats_client import (
 _log = get_logger("arx_runner.telemetry_actor")
 
 
+# Money-field names that must arrive as ``str(Decimal)`` (or ``int``) at the
+# telemetry boundary. ``float`` is structurally lossy — binary fractions
+# silently corrupt the differential-test invariant against the Crucible
+# Python reference (ADR-008 red line). Extend this set when a new money
+# field joins the wire envelope; the rejection is fail-fast so a producer
+# regression cannot leak floats past this gate.
+MONEY_FIELD_NAMES: frozenset[str] = frozenset(
+    {
+        "equity",
+        "qty",
+        "price",
+        "pnl",
+        "notional",
+        "amount",
+        "source_amount",
+        "target_amount",
+        "hwm_equity",
+        "current_equity",
+        "day_start_equity",
+        "drawdown_pct",
+        "daily_loss",
+        "cumulative_pnl",
+    }
+)
+
+
+class MoneyFieldFloatRejected(TypeError):
+    """Raised when a money-typed field arrives as ``float`` (or ``bool``).
+
+    Money values must be supplied as ``str(Decimal(...))`` so the wire
+    representation is exact and the differential-test contract holds.
+    """
+
+    def __init__(self, field_name: str, value: object) -> None:
+        super().__init__(
+            f"telemetry money field {field_name!r} arrived as "
+            f"{type(value).__name__}={value!r}; use str(Decimal(...))"
+        )
+        self.field_name = field_name
+        self.value = value
+
+
+def _reject_floats_in_money_fields(
+    event_type: str, payload: dict[str, Any]
+) -> None:
+    """Raise ``MoneyFieldFloatRejected`` on the first money field carrying a
+    ``float``. ``bool`` is a ``float`` subclass and is rejected too — a
+    ``True`` slipping through would round-trip as ``1.0``."""
+    for key, value in payload.items():
+        if key not in MONEY_FIELD_NAMES:
+            continue
+        # bool is checked explicitly because ``isinstance(True, float)`` is
+        # False but ``isinstance(True, int)`` is True — the int-allowed
+        # branch below would let bools through otherwise.
+        if isinstance(value, bool) or isinstance(value, float):
+            _log.error(
+                "telemetry_money_field_float_rejected",
+                event_type=event_type,
+                field=key,
+                value_type=type(value).__name__,
+            )
+            raise MoneyFieldFloatRejected(key, value)
+
+
 class TelemetryPublisher(Protocol):
     """Minimal contract for the NATS client side. Real client is
     `ArxNatsClient`; tests inject a stub that records published bytes.
@@ -121,11 +185,15 @@ class TelemetryActor:
 
     def on_event(self, event_type: str, payload: dict[str, Any]) -> None:
         """Synchronous fast path called from the NT MessageBus thread.
-        Filters by whitelist, stamps with ordering metadata, and enqueues
-        for the async flush loop. Never raises — a malformed event must
-        not crash the trading loop. Cross-thread safe: seq mutation runs
-        under a lock and the queue handoff goes through
-        ``call_soon_threadsafe``."""
+        Filters by whitelist, runs the money-field contract gate, stamps
+        with ordering metadata, and enqueues for the async flush loop.
+
+        Raises :class:`MoneyFieldFloatRejected` if a money field arrives as
+        ``float`` or ``bool`` — fail-fast is intentional so a producer
+        regression cannot corrupt the wire (ADR-008 red line). Other
+        validation errors are not raised; the trading loop must keep
+        running. Cross-thread safe: seq mutation runs under a lock and the
+        queue handoff goes through ``call_soon_threadsafe``."""
         if event_type not in self.config.allowed_event_types:
             _log.debug(
                 "telemetry_event_dropped_whitelist",
@@ -133,6 +201,13 @@ class TelemetryActor:
                 reason="not_in_allowlist",
             )
             return
+
+        # Money-field contract gate. Floats / bools in money fields raise
+        # before the envelope is built so a buggy producer cannot smuggle
+        # binary fractions onto the wire (ADR-008 red line). The raise is
+        # intentional fail-fast — the trading loop should refuse to publish
+        # corrupt money values rather than continue silently.
+        _reject_floats_in_money_fields(event_type, payload)
 
         with self._seq_lock:
             self._seq += 1
