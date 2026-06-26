@@ -38,6 +38,7 @@ from arx_runner.nats_client import (
     NatsEnvelope,
     OrderingMeta,
     _now_rfc3339_nanos,
+    build_subject,
 )
 
 
@@ -413,13 +414,23 @@ class ArxNatsTelemetryAdapter:
     client: ArxNatsClient
 
     async def publish_telemetry(self, *, session_id: str, envelope: NatsEnvelope) -> None:
-        subject = f"arx.{self.client.tenant_id}.telemetry.{self.client.runner_id}.{session_id}"
+        # F4/IN-NATS-1: route every publish-site subject through
+        # build_subject so empty tokens raise instead of silently
+        # producing malformed "arx.acme.telemetry.." subjects.
+        subject = build_subject(
+            self.client.tenant_id,
+            "telemetry",
+            self.client.runner_id,
+            session_id,
+        )
         await self.client.publish_telemetry_envelope(subject, envelope)
 
     async def publish_heartbeat_fire_and_forget(
         self, *, session_id: str, envelope: NatsEnvelope
     ) -> None:
-        subject = f"arx.{self.client.tenant_id}.heartbeat.{self.client.runner_id}"
+        subject = build_subject(
+            self.client.tenant_id, "heartbeat", self.client.runner_id
+        )
         await self.client.publish_fire_and_forget(subject, envelope.to_bytes())
 
 

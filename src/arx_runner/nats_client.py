@@ -133,8 +133,10 @@ def build_heartbeat_envelope(
 
 
 def heartbeat_subject(tenant_id: str, runner_id: str) -> str:
-    """Canonical heartbeat subject (plan-index §6)."""
-    return f"arx.{tenant_id}.heartbeat.{runner_id}"
+    """Canonical heartbeat subject (plan-index §6). Routes through
+    :func:`build_subject` so empty tenant/runner ids raise instead of
+    silently producing ``arx..heartbeat.`` (F4/IN-NATS-1)."""
+    return build_subject(tenant_id, "heartbeat", runner_id)
 
 
 def build_subject(tenant: str, kind: str, *path_parts: str) -> str:
