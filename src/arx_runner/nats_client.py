@@ -21,9 +21,11 @@ flows extend the same envelope with their own subjects and delivery semantics
 from __future__ import annotations
 
 import json
+import sqlite3
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 try:  # pragma: no cover — exercised in production, mocked in unit tests
@@ -117,29 +119,107 @@ def heartbeat_subject(tenant_id: str, runner_id: str) -> str:
     return f"arx.{tenant_id}.heartbeat.{runner_id}"
 
 
+def build_subject(tenant: str, kind: str, *path_parts: str) -> str:
+    """Plan-index §6 subject builder. Used by the telemetry actor + adapter
+    to keep subject naming in one place. Raises on empty path parts so a
+    typo can't silently route to ``arx.{tenant}.telemetry..`` (NATS
+    forbids empty tokens)."""
+    if not tenant or not kind:
+        raise ValueError("tenant and kind are required")
+    parts = [tenant, kind, *path_parts]
+    if any(not p for p in parts):
+        raise ValueError("subject path parts must be non-empty")
+    return "arx." + ".".join(parts)
+
+
+class _OfflineWal:
+    """Local SQLite store of messages that couldn't be published because
+    NATS was disconnected. FIFO drained on reconnect — at-least-once
+    semantics for telemetry require we don't lose buffered events on a
+    transient outage. Heartbeats are not WAL-buffered (at-most-once,
+    plan-index §6 delivery)."""
+
+    def __init__(self, db_path: Path) -> None:
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(self.db_path)
+        self._conn.execute(
+            "CREATE TABLE IF NOT EXISTS pending_telemetry ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "subject TEXT NOT NULL, "
+            "payload BLOB NOT NULL, "
+            "queued_at TEXT NOT NULL)"
+        )
+        self._conn.commit()
+
+    def stash(self, subject: str, payload: bytes) -> None:
+        self._conn.execute(
+            "INSERT INTO pending_telemetry (subject, payload, queued_at) VALUES (?, ?, ?)",
+            (subject, payload, _now_rfc3339_nanos()),
+        )
+        self._conn.commit()
+
+    def drain(self) -> list[tuple[int, str, bytes]]:
+        cur = self._conn.execute(
+            "SELECT id, subject, payload FROM pending_telemetry ORDER BY id ASC"
+        )
+        return [(int(row[0]), str(row[1]), bytes(row[2])) for row in cur.fetchall()]
+
+    def forget(self, ids: list[int]) -> None:
+        if not ids:
+            return
+        placeholders = ",".join("?" * len(ids))
+        self._conn.execute(
+            f"DELETE FROM pending_telemetry WHERE id IN ({placeholders})",
+            ids,
+        )
+        self._conn.commit()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
 @dataclass
 class ArxNatsClient:
     """Minimal phone-home client. Owns the NATS connection + JetStream context,
     exposes one publish method per kind. Designed for extension — later
-    telemetry actors will reuse the same connection without re-instantiating."""
+    telemetry actors reuse the same connection without re-instantiating.
+
+    `wal_path` enables an offline write-ahead log for at-least-once
+    telemetry: if `publish_telemetry_envelope` finds the JetStream context
+    is missing (disconnected), the message is stashed and the local queue
+    is drained on the next successful connect()."""
 
     nats_url: str
     tenant_id: str
     runner_id: str
+    wal_path: Path | None = None
     _nc: Any = field(default=None, init=False, repr=False)
     _js: Any = field(default=None, init=False, repr=False)
+    _wal: _OfflineWal | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if self.wal_path is not None:
+            self._wal = _OfflineWal(self.wal_path)
 
     async def connect(self) -> None:
         if nats is None:  # pragma: no cover
             raise RuntimeError(f"nats-py is not installed: {_IMPORT_ERROR}")
         self._nc = await nats.connect(self.nats_url)
         self._js = self._nc.jetstream()
+        # Replay anything stashed while we were disconnected. FIFO order
+        # preserves the producer-side seq monotonicity the consumer
+        # watermark relies on.
+        await self._drain_wal()
 
     async def close(self) -> None:
         if self._nc is not None:
             await self._nc.drain()
             self._nc = None
             self._js = None
+        if self._wal is not None:
+            self._wal.close()
+            self._wal = None
 
     async def publish_heartbeat(self, *, health: str, seq: int, session_id: str) -> None:
         """Publish a heartbeat envelope. Fire-and-forget: we do not await ack."""
@@ -154,3 +234,39 @@ class ArxNatsClient:
         )
         subject = heartbeat_subject(self.tenant_id, self.runner_id)
         await self._js.publish(subject, env.to_bytes())
+
+    async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None:
+        """At-most-once publish via core NATS (not JetStream — no ack wait).
+        Used for heartbeat and other liveness signals where redelivery
+        would be louder than the loss. Silently no-ops when disconnected:
+        the next heartbeat will arrive on schedule and that's enough."""
+        if self._nc is None:
+            return
+        await self._nc.publish(subject, payload)
+
+    async def publish_telemetry_envelope(
+        self, subject: str, envelope: NatsEnvelope
+    ) -> None:
+        """At-least-once publish via JetStream. When disconnected, stash
+        in the offline WAL for replay on next connect()."""
+        payload = envelope.to_bytes()
+        if self._js is None:
+            if self._wal is None:
+                raise RuntimeError(
+                    "publish_telemetry_envelope called without a connection and no WAL configured"
+                )
+            self._wal.stash(subject, payload)
+            return
+        await self._js.publish(subject, payload)
+
+    async def _drain_wal(self) -> None:
+        if self._wal is None or self._js is None:
+            return
+        pending = self._wal.drain()
+        if not pending:
+            return
+        sent_ids: list[int] = []
+        for pid, subject, payload in pending:
+            await self._js.publish(subject, payload)
+            sent_ids.append(pid)
+        self._wal.forget(sent_ids)
