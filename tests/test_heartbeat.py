@@ -1,0 +1,46 @@
+"""ArxNatsClient.publish_heartbeat targets the canonical subject.
+
+Subject grammar (plan-index §6):
+    arx.{tenant}.heartbeat.{runner_id}
+
+Delivery semantics: at-most-once, fire-and-forget (no ack expected).
+We mock the JetStream context so the test runs without a live NATS server.
+"""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from arx_runner.nats_client import ArxNatsClient
+
+
+@pytest.mark.asyncio
+async def test_publish_heartbeat_uses_canonical_subject_and_envelope() -> None:
+    client = ArxNatsClient(
+        nats_url="nats://localhost:4222",
+        tenant_id="acme",
+        runner_id="runner-7",
+    )
+
+    fake_js = MagicMock()
+    fake_js.publish = AsyncMock()
+    client._js = fake_js  # bypass real connect for unit test
+
+    await client.publish_heartbeat(health="ok", seq=3, session_id="22222222-2222-2222-2222-222222222222")
+
+    fake_js.publish.assert_awaited_once()
+    args, kwargs = fake_js.publish.call_args
+    subject = args[0] if args else kwargs["subject"]
+    payload = args[1] if len(args) > 1 else kwargs["payload"]
+
+    assert subject == "arx.acme.heartbeat.runner-7"
+
+    decoded = json.loads(payload)
+    assert decoded["tenant_id"] == "acme"
+    assert decoded["payload"]["health"] == "ok"
+    assert decoded["payload"]["runner_id"] == "runner-7"
+    assert decoded["ordering"]["session_id"] == "22222222-2222-2222-2222-222222222222"
+    assert decoded["ordering"]["seq"] == 3
