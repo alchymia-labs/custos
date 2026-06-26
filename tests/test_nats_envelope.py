@@ -53,10 +53,14 @@ def test_heartbeat_envelope_includes_ordering() -> None:
         session_id="22222222-2222-2222-2222-222222222222",
         seq=42,
         health="ok",
+        uptime_secs=123,
+        active_deployments=1,
     )
     decoded = json.loads(env.to_bytes())
     assert decoded["payload"]["health"] == "ok"
     assert decoded["payload"]["runner_id"] == "runner-7"
+    assert decoded["payload"]["uptime_secs"] == 123
+    assert decoded["payload"]["active_deployments"] == 1
     assert decoded["ordering"]["session_id"] == "22222222-2222-2222-2222-222222222222"
     assert decoded["ordering"]["seq"] == 42
 
@@ -68,8 +72,12 @@ def test_heartbeat_envelope_event_id_is_uuid() -> None:
         session_id="22222222-2222-2222-2222-222222222222",
         seq=1,
         health="ok",
+        uptime_secs=0,
+        active_deployments=0,
     )
     assert UUID_RE.match(env.event_id), env.event_id
+    # UUIDv7 sets the version nibble to '7'.
+    assert env.event_id[14] == "7", env.event_id
 
 
 def test_heartbeat_envelope_occurred_at_is_rfc3339_ns() -> None:
@@ -79,6 +87,8 @@ def test_heartbeat_envelope_occurred_at_is_rfc3339_ns() -> None:
         session_id="22222222-2222-2222-2222-222222222222",
         seq=1,
         health="ok",
+        uptime_secs=0,
+        active_deployments=0,
     )
     assert RFC3339_NS_RE.match(env.occurred_at), env.occurred_at
 

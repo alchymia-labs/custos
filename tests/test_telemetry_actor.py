@@ -134,7 +134,30 @@ async def test_heartbeat_loop_emits_at_least_one_beat():
 
     assert len(pub.heartbeat_calls) >= 1
     _, env = pub.heartbeat_calls[0]
+    # Plan-index §6 + Rust HeartbeatPayload struct require all four fields.
     assert env.payload["runner_id"] == "runner-001"
+    assert "uptime_secs" in env.payload
+    assert "active_deployments" in env.payload
+    assert env.payload["health"] == "online"
+
+
+@pytest.mark.asyncio
+async def test_event_ids_are_uuid_v7():
+    actor, pub = make_actor()
+    actor.on_event("OrderFillReport", {"order_id": "o1"})
+    await actor.start()
+    await asyncio.sleep(0.05)
+    await actor.stop()
+
+    assert len(pub.telemetry_calls) == 1
+    _, env = pub.telemetry_calls[0]
+    # UUIDv7 sets the version nibble at the 13th hex char (offset 14 in
+    # the canonical hyphenated form: 8-4-[v]xxx-4-12).
+    assert env.event_id[14] == "7", env.event_id
+    assert env.ordering is not None
+    # session_id is also UUIDv7 so consumer-side watermark can compare
+    # session boundaries by the embedded unix_ts_ms prefix.
+    assert env.ordering.session_id[14] == "7", env.ordering.session_id
 
 
 @pytest.mark.asyncio

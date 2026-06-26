@@ -18,7 +18,9 @@ re-reconcile — domain-model §1 ③).
 from __future__ import annotations
 
 import asyncio
-import uuid
+import time
+
+import uuid6
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Protocol
 
@@ -66,9 +68,12 @@ class TelemetryActor:
     tenant_id: str
     runner_id: str
     config: TelemetryActorConfig
-    session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    # Time-ordered session_id (UUIDv7) — consumer-side watermark relies
+    # on the embedded 48-bit unix_ts_ms prefix to compare sessions.
+    session_id: str = field(default_factory=lambda: str(uuid6.uuid7()))
     _seq: int = 0
     _heartbeat_seq: int = 0
+    _started_at: float = field(default_factory=time.monotonic)
     _queue: asyncio.Queue[NatsEnvelope] = field(default_factory=asyncio.Queue)
     _flush_task: asyncio.Task[None] | None = None
     _heartbeat_task: asyncio.Task[None] | None = None
@@ -77,6 +82,12 @@ class TelemetryActor:
     def __post_init__(self) -> None:
         if self.config.batch_size < 1:
             raise ValueError("batch_size must be >= 1")
+
+    def active_deployment_count(self) -> int:
+        """Best-effort current active deployment count for heartbeat
+        payloads. v1 returns 0 — the NT host binding plan will surface
+        the real count from the engine session."""
+        return 0
 
     # ------------------------------------------------------------------
     # NT MessageBus hooks (called by `MessageBus.subscribe()` callbacks
@@ -92,7 +103,7 @@ class TelemetryActor:
             return
         self._seq += 1
         envelope = NatsEnvelope(
-            event_id=str(uuid.uuid4()),
+            event_id=str(uuid6.uuid7()),
             tenant_id=self.tenant_id,
             occurred_at=_now_rfc3339_nanos(),
             payload={"event_type": event_type, **payload},
@@ -175,10 +186,15 @@ class TelemetryActor:
     async def _send_heartbeat(self) -> None:
         self._heartbeat_seq += 1
         envelope = NatsEnvelope(
-            event_id=str(uuid.uuid4()),
+            event_id=str(uuid6.uuid7()),
             tenant_id=self.tenant_id,
             occurred_at=_now_rfc3339_nanos(),
-            payload={"runner_id": self.runner_id, "health": "online"},
+            payload={
+                "runner_id": self.runner_id,
+                "uptime_secs": int(time.monotonic() - self._started_at),
+                "active_deployments": self.active_deployment_count(),
+                "health": "online",
+            },
             ordering=OrderingMeta(
                 session_id=self.session_id, seq=self._heartbeat_seq
             ),

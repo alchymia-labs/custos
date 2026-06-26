@@ -18,7 +18,8 @@ data, so downstream tests cannot silently rely on a hard-coded fixture.
 from __future__ import annotations
 
 import logging
-import uuid
+
+import uuid6
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -105,18 +106,26 @@ class ReconcileUploader:
 
     def build_envelope(self, payload: dict, seq: int) -> NatsEnvelope:
         """Public for testing — wraps a payload into the envelope shape
-        Plan 04's telemetry actor will consume."""
+        the backend ``recon_result`` consumer expects.
+
+        The payload no longer carries a ``kind`` discriminator: the
+        dedicated ``recon_result`` subject (plan-index §6) already routes
+        the message, so the body is the payload directly.
+        """
         return NatsEnvelope(
-            event_id=str(uuid.uuid4()),
+            event_id=str(uuid6.uuid7()),
             tenant_id=self._tenant_id,
             occurred_at=_now_rfc3339(),
-            payload={"kind": "recon_result", "body": payload},
+            payload=payload,
             ordering=OrderingMeta(session_id=self._session_id, seq=seq),
         )
 
     def subject(self) -> str:
+        """Dedicated ``recon_result`` subject (plan-index §6 — WR-NATS-2
+        demux). Keeps reconciliation results off the telemetry stream so
+        the consumer dispatch table stays explicit."""
         return (
-            f"arx.{self._tenant_id}.telemetry."
+            f"arx.{self._tenant_id}.recon_result."
             f"{self._runner_id}.{self._session_id}"
         )
 

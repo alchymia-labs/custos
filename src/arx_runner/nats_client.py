@@ -24,6 +24,8 @@ import json
 import sqlite3
 import time
 import uuid
+
+import uuid6
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -103,13 +105,25 @@ def build_heartbeat_envelope(
     session_id: str,
     seq: int,
     health: str,
+    uptime_secs: int,
+    active_deployments: int,
 ) -> NatsEnvelope:
-    """Construct a heartbeat envelope with ordering metadata attached."""
+    """Construct a heartbeat envelope with ordering metadata attached.
+
+    Payload shape pinned by plan-index §6 and the Rust ``HeartbeatPayload``
+    struct in ``domain::execution::telemetry_envelope`` — all four fields
+    (runner_id / uptime_secs / active_deployments / health) are required.
+    """
     return NatsEnvelope(
-        event_id=str(uuid.uuid4()),
+        event_id=str(uuid6.uuid7()),
         tenant_id=tenant_id,
         occurred_at=_now_rfc3339_nanos(),
-        payload={"runner_id": runner_id, "health": health},
+        payload={
+            "runner_id": runner_id,
+            "uptime_secs": uptime_secs,
+            "active_deployments": active_deployments,
+            "health": health,
+        },
         ordering=OrderingMeta(session_id=session_id, seq=seq),
     )
 
@@ -221,8 +235,20 @@ class ArxNatsClient:
             self._wal.close()
             self._wal = None
 
-    async def publish_heartbeat(self, *, health: str, seq: int, session_id: str) -> None:
-        """Publish a heartbeat envelope. Fire-and-forget: we do not await ack."""
+    async def publish_heartbeat(
+        self,
+        *,
+        health: str,
+        seq: int,
+        session_id: str,
+        uptime_secs: int,
+        active_deployments: int,
+    ) -> None:
+        """Publish a heartbeat envelope. Fire-and-forget: we do not await ack.
+
+        ``uptime_secs`` / ``active_deployments`` are required by the
+        Rust ``HeartbeatPayload`` consumer struct (plan-index §6).
+        """
         if self._js is None:
             raise RuntimeError("ArxNatsClient.publish_heartbeat called before connect()")
         env = build_heartbeat_envelope(
@@ -231,6 +257,8 @@ class ArxNatsClient:
             session_id=session_id,
             seq=seq,
             health=health,
+            uptime_secs=uptime_secs,
+            active_deployments=active_deployments,
         )
         subject = heartbeat_subject(self.tenant_id, self.runner_id)
         await self._js.publish(subject, env.to_bytes())

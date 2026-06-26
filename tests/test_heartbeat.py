@@ -29,7 +29,13 @@ async def test_publish_heartbeat_uses_canonical_subject_and_envelope() -> None:
     fake_js.publish = AsyncMock()
     client._js = fake_js  # bypass real connect for unit test
 
-    await client.publish_heartbeat(health="ok", seq=3, session_id="22222222-2222-2222-2222-222222222222")
+    await client.publish_heartbeat(
+        health="ok",
+        seq=3,
+        session_id="22222222-2222-2222-2222-222222222222",
+        uptime_secs=42,
+        active_deployments=1,
+    )
 
     fake_js.publish.assert_awaited_once()
     args, kwargs = fake_js.publish.call_args
@@ -42,5 +48,7 @@ async def test_publish_heartbeat_uses_canonical_subject_and_envelope() -> None:
     assert decoded["tenant_id"] == "acme"
     assert decoded["payload"]["health"] == "ok"
     assert decoded["payload"]["runner_id"] == "runner-7"
+    assert decoded["payload"]["uptime_secs"] == 42
+    assert decoded["payload"]["active_deployments"] == 1
     assert decoded["ordering"]["session_id"] == "22222222-2222-2222-2222-222222222222"
     assert decoded["ordering"]["seq"] == 3

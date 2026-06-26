@@ -15,7 +15,9 @@ import asyncio
 import logging
 import signal
 import sys
-import uuid
+import time
+
+import uuid6
 
 from arx_runner.nats_client import ArxNatsClient
 
@@ -39,11 +41,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 async def _heartbeat_loop(
     client: ArxNatsClient, interval: float, stop: asyncio.Event
 ) -> None:
-    session_id = str(uuid.uuid4())
+    # Time-ordered UUIDv7 so the session boundary is comparable on the
+    # consumer side (plan-index §6 + lesson on session_id timeordering).
+    session_id = str(uuid6.uuid7())
+    started_at = time.monotonic()
     seq = 0
     while not stop.is_set():
         try:
-            await client.publish_heartbeat(health="ok", seq=seq, session_id=session_id)
+            await client.publish_heartbeat(
+                health="ok",
+                seq=seq,
+                session_id=session_id,
+                uptime_secs=int(time.monotonic() - started_at),
+                # v1 fallback heartbeat loop has no NT binding; the
+                # production telemetry actor reports the real count.
+                active_deployments=0,
+            )
         except Exception as exc:  # noqa: BLE001 — heartbeat loop must survive transient publish errors
             log.warning("heartbeat_publish_failed", extra={"error": str(exc), "seq": seq})
         seq += 1

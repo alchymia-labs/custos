@@ -56,13 +56,32 @@ def test_envelope_carries_ordering_metadata() -> None:
     env = uploader.build_envelope(sample_result().to_payload(), seq=42)
 
     assert env.tenant_id == "acme"
-    assert env.payload["kind"] == "recon_result"
+    # Subject demux (plan-index §6) routes recon_result; payload no
+    # longer carries a "kind" discriminator.
+    assert env.payload["dimension"] == "balance"
     assert env.ordering is not None
     assert env.ordering.seq == 42
     assert env.ordering.session_id == "11111111-1111-1111-1111-111111111111"
 
 
-def test_subject_follows_telemetry_naming() -> None:
+def test_event_id_is_uuid_v7() -> None:
+    client = ArxNatsClient(
+        nats_url="nats://localhost:4222",
+        tenant_id="acme",
+        runner_id="r-001",
+    )
+    uploader = ReconcileUploader(
+        nats_client=client,
+        tenant_id="acme",
+        runner_id="r-001",
+        session_id="11111111-1111-1111-1111-111111111111",
+    )
+    env = uploader.build_envelope(sample_result().to_payload(), seq=1)
+    # UUIDv7 sets the version nibble (13th hex char) to '7'.
+    assert env.event_id[14] == "7", env.event_id
+
+
+def test_subject_routes_to_recon_result_kind() -> None:
     client = ArxNatsClient(
         nats_url="nats://localhost:4222",
         tenant_id="acme",
@@ -74,4 +93,4 @@ def test_subject_follows_telemetry_naming() -> None:
         runner_id="r-001",
         session_id="sess-1",
     )
-    assert uploader.subject() == "arx.acme.telemetry.r-001.sess-1"
+    assert uploader.subject() == "arx.acme.recon_result.r-001.sess-1"
