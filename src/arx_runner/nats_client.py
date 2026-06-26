@@ -30,6 +30,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from arx_runner.log import get_logger
+
+_log = get_logger("arx_runner.nats_client")
+
 try:  # pragma: no cover — exercised in production, mocked in unit tests
     import nats
     from nats.js import JetStreamContext
@@ -151,10 +155,30 @@ class _OfflineWal:
     NATS was disconnected. FIFO drained on reconnect — at-least-once
     semantics for telemetry require we don't lose buffered events on a
     transient outage. Heartbeats are not WAL-buffered (at-most-once,
-    plan-index §6 delivery)."""
+    plan-index §6 delivery).
 
-    def __init__(self, db_path: Path) -> None:
+    Size and age caps prevent the WAL from growing unbounded during long
+    outages — when ``max_rows`` is exceeded the oldest rows are trimmed
+    and the trim is reported through a structured event so the operator
+    can decide whether to extend capacity.
+    """
+
+    _DEFAULT_MAX_ROWS: int = 100_000
+    _DEFAULT_MAX_AGE_SECS: int = 7 * 86400
+
+    def __init__(
+        self,
+        db_path: Path,
+        max_rows: int = _DEFAULT_MAX_ROWS,
+        max_age_secs: int = _DEFAULT_MAX_AGE_SECS,
+    ) -> None:
+        if max_rows < 1:
+            raise ValueError("max_rows must be >= 1")
+        if max_age_secs < 1:
+            raise ValueError("max_age_secs must be >= 1")
         self.db_path = db_path
+        self.max_rows = max_rows
+        self.max_age_secs = max_age_secs
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path)
         self._conn.execute(
@@ -162,16 +186,26 @@ class _OfflineWal:
             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
             "subject TEXT NOT NULL, "
             "payload BLOB NOT NULL, "
-            "queued_at TEXT NOT NULL)"
+            "queued_at TEXT NOT NULL, "
+            "queued_at_ns INTEGER NOT NULL DEFAULT 0)"
         )
         self._conn.commit()
 
     def stash(self, subject: str, payload: bytes) -> None:
+        now_ns = time.time_ns()
         self._conn.execute(
-            "INSERT INTO pending_telemetry (subject, payload, queued_at) VALUES (?, ?, ?)",
-            (subject, payload, _now_rfc3339_nanos()),
+            "INSERT INTO pending_telemetry "
+            "(subject, payload, queued_at, queued_at_ns) VALUES (?, ?, ?, ?)",
+            (subject, payload, _now_rfc3339_nanos(), now_ns),
         )
         self._conn.commit()
+        _log.info(
+            "wal_stash",
+            subject=subject,
+            payload_bytes=len(payload),
+            depth=self.depth(),
+        )
+        self._trim(now_ns)
 
     def drain(self) -> list[tuple[int, str, bytes]]:
         cur = self._conn.execute(
@@ -188,6 +222,48 @@ class _OfflineWal:
             ids,
         )
         self._conn.commit()
+
+    def depth(self) -> int:
+        """Current number of buffered rows. Hook for ops metrics."""
+        cur = self._conn.execute("SELECT COUNT(*) FROM pending_telemetry")
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
+
+    def _trim(self, now_ns: int) -> None:
+        """Enforce ``max_rows`` (drop oldest) and ``max_age_secs`` (drop
+        anything older than the cutoff). Reports the count dropped via a
+        structured event so silent loss never escapes notice."""
+        cutoff_ns = now_ns - self.max_age_secs * 1_000_000_000
+        aged_cur = self._conn.execute(
+            "DELETE FROM pending_telemetry WHERE queued_at_ns < ? AND queued_at_ns > 0",
+            (cutoff_ns,),
+        )
+        aged = aged_cur.rowcount or 0
+        if aged > 0:
+            self._conn.commit()
+            _log.warning(
+                "wal_trim_aged",
+                dropped=aged,
+                cutoff_ns=cutoff_ns,
+                max_age_secs=self.max_age_secs,
+            )
+
+        depth = self.depth()
+        if depth > self.max_rows:
+            overflow = depth - self.max_rows
+            # Trim from the head (oldest id) — keep the most recent ``max_rows``
+            # to preserve fresh telemetry at the expense of the oldest.
+            self._conn.execute(
+                "DELETE FROM pending_telemetry WHERE id IN ("
+                "SELECT id FROM pending_telemetry ORDER BY id ASC LIMIT ?)",
+                (overflow,),
+            )
+            self._conn.commit()
+            _log.warning(
+                "wal_trim_overflow",
+                dropped=overflow,
+                max_rows=self.max_rows,
+            )
 
     def close(self) -> None:
         self._conn.close()
@@ -208,13 +284,19 @@ class ArxNatsClient:
     tenant_id: str
     runner_id: str
     wal_path: Path | None = None
+    wal_max_rows: int = _OfflineWal._DEFAULT_MAX_ROWS
+    wal_max_age_secs: int = _OfflineWal._DEFAULT_MAX_AGE_SECS
     _nc: Any = field(default=None, init=False, repr=False)
     _js: Any = field(default=None, init=False, repr=False)
     _wal: _OfflineWal | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.wal_path is not None:
-            self._wal = _OfflineWal(self.wal_path)
+            self._wal = _OfflineWal(
+                self.wal_path,
+                max_rows=self.wal_max_rows,
+                max_age_secs=self.wal_max_age_secs,
+            )
 
     async def connect(self) -> None:
         if nats is None:  # pragma: no cover
@@ -223,8 +305,13 @@ class ArxNatsClient:
         self._js = self._nc.jetstream()
         # Replay anything stashed while we were disconnected. FIFO order
         # preserves the producer-side seq monotonicity the consumer
-        # watermark relies on.
-        await self._drain_wal()
+        # watermark relies on. We don't block connect() on the full drain
+        # — a large WAL backlog would defer healthy publish indefinitely;
+        # the background task forgets each row immediately on success so
+        # progress is visible even if drain doesn't reach the tail.
+        import asyncio
+
+        asyncio.create_task(self._drain_wal(), name="arx-wal-drain")
 
     async def close(self) -> None:
         if self._nc is not None:
@@ -266,9 +353,16 @@ class ArxNatsClient:
     async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None:
         """At-most-once publish via core NATS (not JetStream — no ack wait).
         Used for heartbeat and other liveness signals where redelivery
-        would be louder than the loss. Silently no-ops when disconnected:
-        the next heartbeat will arrive on schedule and that's enough."""
+        would be louder than the loss. Drops silently when disconnected
+        (the next heartbeat will arrive on schedule and that's enough) but
+        the drop is reported through a structured event so the runner is
+        never silent about lost liveness signals."""
         if self._nc is None:
+            _log.warning(
+                "nats_fire_and_forget_noop_disconnected",
+                subject=subject,
+                payload_bytes=len(payload),
+            )
             return
         await self._nc.publish(subject, payload)
 
@@ -288,13 +382,29 @@ class ArxNatsClient:
         await self._js.publish(subject, payload)
 
     async def _drain_wal(self) -> None:
+        """Replay buffered messages one row at a time, forgetting each on
+        successful publish. If any publish raises, log + break so the
+        remaining rows stay buffered for the next reconnect — at-least-once
+        semantics demand we don't drop unsent telemetry on a transient
+        broker error."""
         if self._wal is None or self._js is None:
             return
         pending = self._wal.drain()
         if not pending:
             return
-        sent_ids: list[int] = []
+        _log.info("wal_drain_start", pending=len(pending))
+        sent = 0
         for pid, subject, payload in pending:
-            await self._js.publish(subject, payload)
-            sent_ids.append(pid)
-        self._wal.forget(sent_ids)
+            try:
+                await self._js.publish(subject, payload)
+            except Exception as exc:  # noqa: BLE001 — survive broker hiccups
+                _log.error(
+                    "wal_drain_failed",
+                    subject=subject,
+                    sent_before_failure=sent,
+                    error=str(exc),
+                )
+                break
+            self._wal.forget([pid])
+            sent += 1
+        _log.info("wal_drain_finish", sent=sent, remaining=self._wal.depth())

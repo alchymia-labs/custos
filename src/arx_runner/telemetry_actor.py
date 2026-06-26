@@ -8,28 +8,40 @@ MessageBus or a fake. Production code wires `on_event` to
 `MessageBus.subscribe()` callbacks at startup; tests call it directly.
 
 The actor enforces a schema whitelist (only event names declared at
-construction time leak out to NATS), batches events through an
+construction time leak out to NATS), batches events through a bounded
 asyncio.Queue + periodic flush, and stamps each outgoing message with a
 monotonic seq within a single session_id (a fresh session_id is minted on
 on_start so a runner restart forces the consumer-side watermark to
 re-reconcile — domain-model §1 ③).
+
+Cross-thread safety: ``on_event`` runs on whatever thread the NT
+MessageBus dispatches from; the queue lives on the asyncio loop. The
+actor uses ``loop.call_soon_threadsafe`` to hand off envelopes safely and
+serialises seq mutation behind a ``threading.Lock`` so two concurrent
+callbacks never produce duplicate or out-of-order seq numbers.
 """
 
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 
 import uuid6
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Protocol
 
+from arx_runner.config import TelemetryQueueConfig
+from arx_runner.log import get_logger
 from arx_runner.nats_client import (
     ArxNatsClient,
     NatsEnvelope,
     OrderingMeta,
     _now_rfc3339_nanos,
 )
+
+
+_log = get_logger("arx_runner.telemetry_actor")
 
 
 class TelemetryPublisher(Protocol):
@@ -46,15 +58,17 @@ class TelemetryPublisher(Protocol):
 
 @dataclass(frozen=True)
 class TelemetryActorConfig:
-    """Knobs for the actor. `allowed_event_types` is the schema whitelist
-    — only matching events are forwarded; everything else is silently
-    dropped (so adding a new NT event type does not accidentally leak
-    PII before the operator opts in)."""
+    """Knobs for the actor. ``allowed_event_types`` is the schema whitelist
+    — only matching events are forwarded; everything else is dropped at
+    the boundary (so adding a new NT event type does not accidentally
+    leak PII before the operator opts in). ``queue`` bounds the in-process
+    buffer + per-publish batch size."""
 
     allowed_event_types: frozenset[str]
     batch_size: int = 50
     flush_interval_secs: float = 1.0
     heartbeat_interval_secs: float = 10.0
+    queue: TelemetryQueueConfig = field(default_factory=TelemetryQueueConfig)
 
 
 @dataclass
@@ -72,22 +86,33 @@ class TelemetryActor:
     # on the embedded 48-bit unix_ts_ms prefix to compare sessions.
     session_id: str = field(default_factory=lambda: str(uuid6.uuid7()))
     _seq: int = 0
+    _seq_lock: threading.Lock = field(default_factory=threading.Lock)
     _heartbeat_seq: int = 0
+    _drop_counter: int = 0
     _started_at: float = field(default_factory=time.monotonic)
-    _queue: asyncio.Queue[NatsEnvelope] = field(default_factory=asyncio.Queue)
+    _queue: asyncio.Queue[NatsEnvelope] = field(init=False)
     _flush_task: asyncio.Task[None] | None = None
     _heartbeat_task: asyncio.Task[None] | None = None
     _stopping: asyncio.Event = field(default_factory=asyncio.Event)
+    _loop: asyncio.AbstractEventLoop | None = None
 
     def __post_init__(self) -> None:
         if self.config.batch_size < 1:
             raise ValueError("batch_size must be >= 1")
+        if self.config.queue.max_queue_size < 1:
+            raise ValueError("max_queue_size must be >= 1")
+        self._queue = asyncio.Queue(maxsize=self.config.queue.max_queue_size)
 
     def active_deployment_count(self) -> int:
         """Best-effort current active deployment count for heartbeat
-        payloads. v1 returns 0 — the NT host binding plan will surface
-        the real count from the engine session."""
+        payloads. v1 returns 0 — the NT host binding will surface the real
+        count from the engine session in a later integration step."""
         return 0
+
+    def drop_count(self) -> int:
+        """Total envelopes dropped due to queue overflow. Hook for ops
+        metrics."""
+        return self._drop_counter
 
     # ------------------------------------------------------------------
     # NT MessageBus hooks (called by `MessageBus.subscribe()` callbacks
@@ -98,81 +123,168 @@ class TelemetryActor:
         """Synchronous fast path called from the NT MessageBus thread.
         Filters by whitelist, stamps with ordering metadata, and enqueues
         for the async flush loop. Never raises — a malformed event must
-        not crash the trading loop."""
+        not crash the trading loop. Cross-thread safe: seq mutation runs
+        under a lock and the queue handoff goes through
+        ``call_soon_threadsafe``."""
         if event_type not in self.config.allowed_event_types:
+            _log.debug(
+                "telemetry_event_dropped_whitelist",
+                event_type=event_type,
+                reason="not_in_allowlist",
+            )
             return
-        self._seq += 1
+
+        with self._seq_lock:
+            self._seq += 1
+            seq = self._seq
+
         envelope = NatsEnvelope(
             event_id=str(uuid6.uuid7()),
             tenant_id=self.tenant_id,
             occurred_at=_now_rfc3339_nanos(),
             payload={"event_type": event_type, **payload},
-            ordering=OrderingMeta(session_id=self.session_id, seq=self._seq),
+            ordering=OrderingMeta(session_id=self.session_id, seq=seq),
         )
-        # `put_nowait` is safe because asyncio.Queue defaults to unbounded;
-        # if we ever bound it, treat full-queue as fail-fast logging, not silent drop.
-        self._queue.put_nowait(envelope)
+
+        if self._loop is not None and not self._loop_is_current():
+            # NT thread → hand off to the asyncio loop thread-safely.
+            self._loop.call_soon_threadsafe(self._try_enqueue, envelope, event_type)
+        else:
+            # Same thread (e.g. tests calling on_event from the loop) →
+            # direct enqueue is safe.
+            self._try_enqueue(envelope, event_type)
+
+    def _loop_is_current(self) -> bool:
+        """True iff we're currently executing inside the actor's loop.
+        Returns False when there is no running loop (NT MessageBus
+        thread)."""
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        return running is self._loop
+
+    def _try_enqueue(self, envelope: NatsEnvelope, event_type: str) -> None:
+        """Enqueue or drop-newest with structured log + counter increment."""
+        try:
+            self._queue.put_nowait(envelope)
+        except asyncio.QueueFull:
+            self._drop_counter += 1
+            _log.warning(
+                "telemetry_event_dropped_queue_full",
+                event_type=event_type,
+                reason="queue_full",
+                drop_count_total=self._drop_counter,
+                max_queue_size=self.config.queue.max_queue_size,
+            )
 
     async def start(self) -> None:
         if self._flush_task is not None:
             raise RuntimeError("TelemetryActor already started")
         self._stopping.clear()
-        loop = asyncio.get_running_loop()
-        self._flush_task = loop.create_task(self._flush_loop(), name="telemetry-flush")
-        self._heartbeat_task = loop.create_task(
+        self._loop = asyncio.get_running_loop()
+        self._flush_task = self._loop.create_task(
+            self._flush_loop(), name="telemetry-flush"
+        )
+        self._heartbeat_task = self._loop.create_task(
             self._heartbeat_loop(), name="telemetry-heartbeat"
         )
 
     async def stop(self) -> None:
+        """Stop in a strict order: signal → cancel tasks → await → final
+        drain. Cancelling first prevents the flush loop from racing the
+        drain. The final drain pulls anything still buffered so the
+        at-least-once promise holds across shutdown."""
         self._stopping.set()
-        # Drain remaining queue items before cancelling — at-least-once
-        # semantics demand we don't drop buffered telemetry on shutdown.
-        await self._drain_queue()
+
         for task in (self._flush_task, self._heartbeat_task):
-            if task is not None:
-                task.cancel()
-                try:
-                    await task
-                except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                    pass
+            if task is None:
+                continue
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:  # noqa: BLE001 — capture stop-time crashes
+                _log.error(
+                    "telemetry_actor_task_died_during_stop",
+                    task=task.get_name(),
+                    error=str(exc),
+                )
+
         self._flush_task = None
         self._heartbeat_task = None
+        # Drain remaining queue items after cancellation so we don't drop
+        # buffered telemetry on shutdown.
+        await self._drain_queue()
 
     # ------------------------------------------------------------------
     # Internal loops
     # ------------------------------------------------------------------
 
     async def _flush_loop(self) -> None:
+        """Block on queue.get() for the first envelope, then drain to a
+        configurable batch ceiling. No polling sleep — the loop wakes the
+        instant an envelope arrives."""
         while not self._stopping.is_set():
             try:
-                await asyncio.wait_for(
-                    self._wait_for_batch_or_interval(),
+                first = await asyncio.wait_for(
+                    self._queue.get(),
                     timeout=self.config.flush_interval_secs,
                 )
             except asyncio.TimeoutError:
-                pass
-            await self._drain_batch()
+                # Heartbeat tick — nothing to flush, just loop.
+                continue
+            await self._drain_batch_starting_with(first)
 
-    async def _wait_for_batch_or_interval(self) -> None:
-        # Wake up as soon as we have at least `batch_size` items queued.
-        while self._queue.qsize() < self.config.batch_size:
-            await asyncio.sleep(0.01)
+    async def _drain_batch_starting_with(self, first: NatsEnvelope) -> None:
+        """Publish ``first`` then drain whatever else is queued, up to the
+        per-publish batch ceiling. Survives publish exceptions: a failure
+        logs + counts but the flush task keeps running (JetStream
+        redelivery handles at-least-once)."""
+        batch_cap = self.config.queue.max_batch_size_per_publish
+        envelopes: list[NatsEnvelope] = [first]
+        while len(envelopes) < batch_cap:
+            try:
+                envelopes.append(self._queue.get_nowait())
+            except asyncio.QueueEmpty:
+                break
 
-    async def _drain_batch(self) -> None:
-        sent = 0
-        while sent < self.config.batch_size and not self._queue.empty():
-            env = self._queue.get_nowait()
-            await self.publisher.publish_telemetry(
-                session_id=self.session_id, envelope=env
-            )
-            sent += 1
+        for env in envelopes:
+            try:
+                await self.publisher.publish_telemetry(
+                    session_id=self.session_id, envelope=env
+                )
+            except Exception as exc:  # noqa: BLE001 — survive publish errors
+                self._drop_counter += 1
+                _log.error(
+                    "telemetry_publish_failed",
+                    event_id=env.event_id,
+                    seq=env.ordering.seq if env.ordering else None,
+                    error=str(exc),
+                )
 
     async def _drain_queue(self) -> None:
-        while not self._queue.empty():
-            env = self._queue.get_nowait()
-            await self.publisher.publish_telemetry(
-                session_id=self.session_id, envelope=env
-            )
+        """Single-threaded final drain run after the flush loop is
+        cancelled in ``stop()``. Same publish-survives-error guarantee as
+        the in-flight flush — at-least-once relies on JetStream
+        redelivery."""
+        while True:
+            try:
+                env = self._queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            try:
+                await self.publisher.publish_telemetry(
+                    session_id=self.session_id, envelope=env
+                )
+            except Exception as exc:  # noqa: BLE001
+                self._drop_counter += 1
+                _log.error(
+                    "telemetry_publish_failed_during_stop",
+                    event_id=env.event_id,
+                    error=str(exc),
+                )
 
     async def _heartbeat_loop(self) -> None:
         while not self._stopping.is_set():
@@ -199,9 +311,16 @@ class TelemetryActor:
                 session_id=self.session_id, seq=self._heartbeat_seq
             ),
         )
-        await self.publisher.publish_heartbeat_fire_and_forget(
-            session_id=self.session_id, envelope=envelope
-        )
+        try:
+            await self.publisher.publish_heartbeat_fire_and_forget(
+                session_id=self.session_id, envelope=envelope
+            )
+        except Exception as exc:  # noqa: BLE001 — heartbeat must never crash the loop
+            _log.warning(
+                "heartbeat_publish_failed",
+                seq=self._heartbeat_seq,
+                error=str(exc),
+            )
 
 
 # ----------------------------------------------------------------------
