@@ -24,6 +24,7 @@ from arx_runner.credential_vault import CredentialVault, SopsAgeVault
 from arx_runner.deployment_reconciler import DeploymentReconciler
 from arx_runner.enrollment import EnrollmentClient
 from arx_runner.nats_client import ArxNatsClient
+from arx_runner.nt_risk_engine import NtRiskEngineBridge
 
 log = logging.getLogger("arx_runner")
 
@@ -174,6 +175,21 @@ async def _run(args: argparse.Namespace) -> int:
                     reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
                     name="arx-deployment-reconciler",
                 )
+            )
+
+            # Single-order pre-trade reject bridge. Constructed alongside the
+            # NT host path; it begins forwarding NT `OrderDenied` events once a
+            # live NT MessageBus is available. The stub host has no MessageBus,
+            # so we record that the bridge is staged and awaiting NT rather than
+            # fail-fast on a `None` bus.
+            pre_trade_bridge = NtRiskEngineBridge(
+                client=client,
+                tenant_id=args.tenant_id,
+                runner_id=args.runner_id,
+            )
+            log.info(
+                "pre_trade_bridge_pending_nt_messagebus",
+                extra={"subject": pre_trade_bridge.subject()},
             )
 
         tasks.append(
