@@ -333,13 +333,13 @@ class ArxNatsClient:
         uptime_secs: int,
         active_deployments: int,
     ) -> None:
-        """Publish a heartbeat envelope. Fire-and-forget: we do not await ack.
+        """Publish a heartbeat envelope via core NATS (at-most-once,
+        plan-index §6 delivery). Heartbeats are not JetStream-acked —
+        the next interval will arrive on schedule and that's enough.
 
         ``uptime_secs`` / ``active_deployments`` are required by the
         Rust ``HeartbeatPayload`` consumer struct (plan-index §6).
         """
-        if self._js is None:
-            raise RuntimeError("ArxNatsClient.publish_heartbeat called before connect()")
         env = build_heartbeat_envelope(
             tenant_id=self.tenant_id,
             runner_id=self.runner_id,
@@ -350,7 +350,7 @@ class ArxNatsClient:
             active_deployments=active_deployments,
         )
         subject = heartbeat_subject(self.tenant_id, self.runner_id)
-        await self._js.publish(subject, env.to_bytes())
+        await self.publish_fire_and_forget(subject, env.to_bytes())
 
     async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None:
         """At-most-once publish via core NATS (not JetStream — no ack wait).
