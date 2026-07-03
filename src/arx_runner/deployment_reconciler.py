@@ -22,8 +22,35 @@ from typing import Any, Protocol
 
 from arx_runner.log import get_logger
 from arx_runner.nats_client import ArxNatsClient
+from arx_runner.nautilus_host import NoopHost
 
 _log = get_logger("arx_runner.deployment_reconciler")
+
+
+def _check_g6_gate(host: object, spec: dict) -> None:
+    """G6 gate: refuse live deployment when host is NoopHost.
+
+    NoopHost 是 stub —— 它会静默接受 live execution spec 却不实际执行, 等于把
+    live 单子丢进黑洞。live mode 下检测到 NoopHost 立即 fail-fast, 逼真实
+    NtTradingNodeHost 落地后才可上 live。paper / sim mode 的 spec 一律放行,
+    stub 在那些 mode 下是预期形态 (承重墙: live 通道不能落到 stub 上)。
+
+    trading_mode 大小写不敏感比对: Rust `TradingMode` enum 默认 serde 序列化为
+    PascalCase (`"Live"`), Python/oracle 侧用小写 (`"live"`); 两侧 wire 表示都
+    要能命中, 否则 gate 沦为 dead gate。
+    """
+    mode = str(spec.get("trading_mode") or "").lower()
+    if mode == "live" and isinstance(host, NoopHost):
+        _log.error(
+            "g6_gate_live_noophost_rejected",
+            spec_id=spec.get("spec_id"),
+            trading_mode=spec.get("trading_mode"),
+        )
+        raise RuntimeError(
+            f"G6 gate: spec {spec.get('spec_id')!r} requests live mode but "
+            "nautilus_host is NoopHost — implement NtTradingNodeHost first "
+            "(see CLAUDE.md G6 gate + plan-index §3)"
+        )
 
 
 class NautilusHostProtocol(Protocol):
@@ -207,6 +234,8 @@ class DeploymentReconciler:
         if lifecycle in ("stopped", "archived"):
             await self.nautilus_host.stop(spec_id)
             return ""
+        # G6 gate: live mode 下 stub host 立即拒绝 (deploy/reconfigure 前)。
+        _check_g6_gate(self.nautilus_host, spec)
         # 新部署: container_id 未知 → deploy + decrypt credential。
         if state.container_id is None:
             credential_id = (

@@ -149,19 +149,10 @@ async def _run(args: argparse.Namespace) -> int:
         # Deployment reconciler (opt-in via --reconcile-strategy-id).
         if args.reconcile_strategy_id:
             vault = _build_vault(args)
-            # nautilus_host stub — 真实 NT host 在 Phase 1 后续 plan 接 (skeleton.md);
-            # 留个 ducktyped 占位让 reconciler 能跑通流程而不真起 NT 进程。
-            from arx_runner import nautilus_host as _nh_module  # noqa: F401
-            class _NoopHost:
-                async def deploy(self, spec: dict, credential: dict) -> str:
-                    log.info("nautilus_host_deploy_stub", extra={"spec_id": spec.get("spec_id")})
-                    return f"container-{spec.get('spec_id')}"
-
-                async def reconfigure(self, spec: dict) -> None:
-                    log.info("nautilus_host_reconfigure_stub", extra={"spec_id": spec.get("spec_id")})
-
-                async def stop(self, spec_id: str) -> None:
-                    log.info("nautilus_host_stop_stub", extra={"spec_id": spec_id})
+            # nautilus_host stub — paper/dev 用 NoopHost 让 reconciler 跑通流程而不
+            # 真起 NT 进程; live mode 由 deployment_reconciler 的 G6 gate 拒绝。真实
+            # NT host 由后续 adapter plan 落地后替换。
+            from arx_runner.nautilus_host import NoopHost as _NoopHost  # G6 gate uses isinstance
 
             reconciler = DeploymentReconciler(
                 nats_client=client,
