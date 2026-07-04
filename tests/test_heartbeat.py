@@ -25,9 +25,15 @@ async def test_publish_heartbeat_uses_canonical_subject_and_envelope() -> None:
         runner_id="runner-7",
     )
 
-    fake_js = MagicMock()
-    fake_js.publish = AsyncMock()
-    client._js = fake_js  # bypass real connect for unit test
+    # Heartbeat delivery is at-most-once fire-and-forget through core NATS
+    # (`self._nc.publish`), not JetStream — so we mock `_nc`, not `_js`. The
+    # disconnect branch keys on `_nc is None` and emits
+    # `nats_fire_and_forget_noop_disconnected` (lesson #21 zero-silent);
+    # mocking the wrong attribute would trip that branch and silently pass
+    # a stale contract.
+    fake_nc = MagicMock()
+    fake_nc.publish = AsyncMock()
+    client._nc = fake_nc  # bypass real connect for unit test
 
     await client.publish_heartbeat(
         health="ok",
@@ -37,8 +43,8 @@ async def test_publish_heartbeat_uses_canonical_subject_and_envelope() -> None:
         active_deployments=1,
     )
 
-    fake_js.publish.assert_awaited_once()
-    args, kwargs = fake_js.publish.call_args
+    fake_nc.publish.assert_awaited_once()
+    args, kwargs = fake_nc.publish.call_args
     subject = args[0] if args else kwargs["subject"]
     payload = args[1] if len(args) > 1 else kwargs["payload"]
 
