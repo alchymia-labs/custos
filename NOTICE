@@ -1,0 +1,20 @@
+Custos — Non-Custodial Self-Hosted Execution Runner
+Copyright 2026 The Alephain Guild
+
+This product is part of The Alephain Guild ecosystem
+(https://github.com/the-alephain-guild), a philosophy-driven, AI-augmented
+quantitative research and trading platform.
+
+Custos is the self-hosted execution host of the ecosystem: a daemon that
+operators run on their own infrastructure, holding their own venue API keys
+in a local vault. It is published as open source (Apache-2.0) from day one so
+that operators can audit the code before entrusting it with their keys — the
+verifiable fulfillment of the ecosystem's non-custodial red line.
+
+This software is licensed under the Apache License, Version 2.0. You may
+obtain a copy of the License in the accompanying LICENSE file or at
+http://www.apache.org/licenses/LICENSE-2.0.
+
+Portions of this software originated in the `arx` subsystem
+(tesseract-trading/arx) and were extracted into this independent repository
+with their commit history preserved.

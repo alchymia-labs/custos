@@ -1,0 +1,108 @@
+# Custos
+
+**Custos** (Latin: *guardian*) is the non-custodial, self-hosted execution
+runner of [The Alephain Guild](https://github.com/the-alephain-guild)
+ecosystem. It is the daemon an operator installs on their own infrastructure
+to run backtested NautilusTrader strategies against live venues — holding
+their own API keys in a local vault, never surrendering them to any cloud
+product. Custos pairs with **arx** (the ecosystem's coordination gateway),
+pulling its desired deployment state and phoning execution telemetry home.
+
+## Why Public Open Source
+
+Custos is Apache-2.0 and public from day one. This is not incidental — it is
+the *verifiable fulfillment* of the ecosystem's **non-custodial** red line.
+The runner holds the operator's venue keys and executes real trades on their
+infrastructure; an operator can only rationally trust such a daemon if they
+can read exactly what it does with those keys. Open source turns "Key and
+strategy logic stay local" from a design claim into an engineering fact the
+operator can audit line by line. (See
+[ADR-012 v4 §Custos](https://github.com/the-alephain-guild) and
+[ADR-014 v6 §Non-Custodial Trust Model].)
+
+## Trust Boundary
+
+The trust boundary of the whole ecosystem is *the Custos line*:
+
+- **Keys and strategy logic never leave the operator's machine.** The only
+  data leaving Custos is execution telemetry and status reports.
+- **Control is declarative, not imperative.** Custos *pulls* the desired
+  deployment state and reconciles the local NautilusTrader process to match
+  it — the product plane writes desired state, it never `docker run`s into
+  the operator's box. This declarative reconciliation is what makes Custos a
+  genuine self-hosted runner rather than a remote-controlled agent.
+- **Cloud outage degrades gracefully.** Organization-level cross-account
+  circuit-breaking is aggregated in the cloud when reachable, but each runner
+  retains a local fallback breaker (per-strategy / per-account drawdown) plus
+  a structural `max_notional_per_runner` cap. A cloud outage never stops
+  local trading or removes local protection.
+
+## Modules (六件套)
+
+Custos is organized as six core modules, each documented under `docs/`:
+
+| Module | Responsibility | Design doc |
+|--------|----------------|------------|
+| **enrollment** | One-time EnrollmentToken pairing; `runner_id` persistence; `paper_only` default | [docs/enrollment.md](docs/enrollment.md) |
+| **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [docs/reconcile.md](docs/reconcile.md) |
+| **nautilus_host** | NautilusTrader process supervision + `ExecutionEngineAdapter` (CEX/NT) + G6 host gate | [docs/nautilus_host.md](docs/nautilus_host.md) |
+| **telemetry_actor** | NT MessageBus → whitelisted, buffered NATS uplink with schema versioning | [docs/telemetry_actor.md](docs/telemetry_actor.md) |
+| **credential_vault** | sops+age local key vault; KEK never leaves the box; `trade_no_withdraw` scope | [docs/credential_vault.md](docs/credential_vault.md) |
+| **nats_client** | NATS JetStream client + transport envelope schema + subject naming | [docs/nats_client.md](docs/nats_client.md) |
+
+The domain vocabulary shared across these modules is described in
+[docs/domain.md](docs/domain.md).
+
+## Quick Start
+
+```bash
+uv sync --extra dev
+python -m arx_runner --tenant-id acme --runner-id runner-7
+```
+
+> The Python import package is currently named `arx_runner` (unchanged by the
+> repository extraction). Renaming it to `custos_runner` is tracked as a
+> follow-up — it is a boundary-constant rename touching ~40 import sites and
+> is deliberately kept out of the extraction change set. The pip distribution
+> name is `custos-runner`.
+
+## Contract with Arx (Gateway)
+
+Custos does **not** expose any API directly to end users, API clients, or
+dashboards. Its direct counterparty is **arx**, the coordination gateway:
+
+- Custos reports `heartbeat` / execution telemetry / reconcile status to arx
+  over NATS/HTTP, and pulls its `DeploymentSpec` from arx.
+- arx, in turn, aligns with **Crucible** (the ecosystem's production
+  execution-of-record) on the operator's behalf. Custos never talks to
+  Crucible directly — arx mediates.
+- The contract is maintained as a versioned API (OpenAPI / JSON Schema)
+  against arx's `ExecutionEngineAdapter` protocol.
+
+**Single external exit:** arx is the *only* external entry point to the
+ecosystem and the access-control layer for it. Any external access to Custos
+state must pass arx's tenancy `gatekeeper` and be mediated by arx's
+coordination `CustosGateway` inbound handler. Custos itself is never exposed
+to external clients.
+
+## License & Versioning
+
+- **License:** Apache-2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)).
+- **Versioning:** strict [SemVer](https://semver.org/) with a long-term
+  support window (EOL ≥ 12 months per release line).
+
+## Not Included Yet
+
+The following are deliberately out of scope for the initial extraction and
+tracked as follow-ups:
+
+- **CI + signed release pipeline** — signed wheel + signed docker image
+  (`ghcr.io/...`) + reproducible build (ADR-012 v4 stage-3 action items).
+- **Contract versioning mechanism** — custos ↔ arx OpenAPI/JSON Schema
+  registry + SemVer tagging.
+- **`CONTRIBUTING.md` + `SECURITY.md`** — public-repo façade completion.
+- **Python package rename** — `arx_runner` → `custos_runner` (boundary
+  constant fanout).
+- **`NtTradingNodeHost` real implementation** — the G6 live-host gate is
+  currently satisfied only by `NoopHost`; live deploy stays blocked until the
+  real implementation lands here.
