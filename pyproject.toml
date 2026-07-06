@@ -1,0 +1,27 @@
+[project]
+name = "arx-runner"
+version = "0.0.0"
+description = "Arx self-hosted execution host: NautilusTrader-adjacent, declarative reconcile + telemetry actor + local key vault"
+requires-python = ">=3.11"
+dependencies = [
+    "nats-py>=2.9",
+    "pydantic>=2.5",
+    "structlog>=24",
+    "uuid6>=2024.1.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
