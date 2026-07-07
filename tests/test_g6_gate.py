@@ -1,13 +1,17 @@
-"""G6 gate — live mode 下 NoopHost 部署拦截 (failure-mode 覆盖契约)。
+"""G6 gate — live-mode capability gate exercised through the reconciler.
 
-三场景 (失败模式覆盖 + 每层独立可测):
-- live + NoopHost → 拒 (RuntimeError "G6 gate") + structlog error
-- paper + NoopHost → 允许 (deploy 正常, 不回归)
-- live + 非 NoopHost (协议兼容 NtHost stub) → 允许 (relaxed double 证明 gate 只挡 NoopHost)
+Reconciler-integration view (unit-level layer isolation lives in
+test_g6_gate_capability_e2e.py):
+- live + NoopHost → refused (RuntimeError "G6 gate") + structlog error, across
+  trading_mode case variants (Rust TradingMode serialises PascalCase "Live")
+- paper + NoopHost → allowed (deploy proceeds; no regression)
+- live + a live-capable host with every layer valid → allowed (relaxed double
+  proving the gate only refuses hosts that lack capability, not all live specs)
 
-gate 位于 DeploymentReconciler._apply_spec 的 deploy/reconfigure 分支前 (stop 分支
-豁免: 停止一个 live+stub 部署是安全的)。测试直接调 _apply_spec —— 这是 gate 所在
-的 guard 层; handle_spec 的 broad except 会吞异常, 故在此层断言 raise 才可观测。
+The gate sits in DeploymentReconciler._apply_spec before deploy/reconfigure
+(stop is exempt: tearing a live+stub deployment down is safe). Tests drive
+_apply_spec directly — the gate's guard layer; handle_spec's broad except would
+swallow the raise, so this layer is where a rejection is observable.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from dataclasses import dataclass, field
 import pytest
 import structlog
 
+from arx_runner._strategy_loader import compute_strategy_dir_hash
 from arx_runner.deployment_reconciler import DeploymentReconciler, _ReconcileState
 from arx_runner.nautilus_host import NoopHost
 
@@ -24,7 +29,11 @@ from arx_runner.nautilus_host import NoopHost
 @dataclass
 class _FakeVault:
     def decrypt(self, credential_id: str) -> dict:
-        return {"credential_id": credential_id, "secret": "<fake>"}
+        return {
+            "credential_id": credential_id,
+            "permission_scope": "trade_no_withdraw",
+            "secret": "<fake>",
+        }
 
 
 @dataclass
@@ -35,11 +44,12 @@ class _FakeNats:
 
 @dataclass
 class _FakeNtHost:
-    """Non-NoopHost 协议兼容 stub — 作为 NtTradingNodeHost 占位过 G6 gate。
+    """Non-NoopHost host that declares live + Binance capability — stands in for
+    NtTradingNodeHost so a live spec that clears every gate layer is admitted.
 
-    relaxed double: 故意不是 NoopHost, 证明 gate 只拦 NoopHost 而非拦所有 live
-    (inner guard 是 live guard 而非 dead branch)。
-    """
+    relaxed double: declaring capability (not being a NoopHost) is what lets it
+    through, proving the gate refuses on missing capability rather than on all
+    live specs (the inner layers are live guards, not a dead branch)."""
 
     deploy_calls: list = field(default_factory=list)
 
@@ -52,6 +62,12 @@ class _FakeNtHost:
 
     async def stop(self, spec_id: str) -> None:
         return None
+
+    def supports_live(self) -> bool:
+        return True
+
+    def supports_venue(self, venue: str) -> bool:
+        return venue.lower() in {"binance", "binance_perpetual"}
 
 
 def _make_reconciler(host) -> DeploymentReconciler:
@@ -74,17 +90,34 @@ def _spec(spec_id: str, trading_mode: str) -> dict:
     }
 
 
+def _live_spec(spec_id: str, trading_mode: str, strategy_dir) -> dict:
+    spec = _spec(spec_id, trading_mode)
+    spec["connector"] = "binance_perpetual"
+    spec["strategy_path"] = str(strategy_dir / "strategy.py")
+    spec["code_hash"] = compute_strategy_dir_hash(strategy_dir)
+    return spec
+
+
+@pytest.fixture
+def strategy_dir(tmp_path):
+    d = tmp_path / "supertrend"
+    d.mkdir()
+    (d / "strategy.py").write_text("class SupertrendStrategy:\n    pass\n")
+    return d
+
+
 @pytest.mark.parametrize("mode", ["Live", "live", "LIVE"])
 @pytest.mark.asyncio
 async def test_g6_gate_rejects_live_noophost(mode: str) -> None:
-    # "Live" 是 Rust TradingMode enum 默认 serde 序列化 (PascalCase) 的真实 wire 值;
-    # 大小写变体一并断言, 防 gate 因大小写失配沦为 dead gate。
+    # "Live" is the real Rust TradingMode serde wire value (PascalCase); case
+    # variants are asserted together so a case mismatch can't turn the gate into
+    # a dead gate. NoopHost is refused at layer 1 (supports_live()=False).
     reconciler = _make_reconciler(NoopHost())
     with structlog.testing.capture_logs() as logs:
         with pytest.raises(RuntimeError, match="G6 gate"):
             await reconciler._apply_spec(_spec("s1", mode), _ReconcileState())
     events = [entry.get("event") for entry in logs]
-    assert "g6_gate_live_noophost_rejected" in events
+    assert "g6_gate_live_capability_denied" in events
 
 
 @pytest.mark.asyncio
@@ -95,10 +128,13 @@ async def test_g6_gate_allows_paper_noophost() -> None:
 
 
 @pytest.mark.asyncio
-async def test_g6_gate_allows_live_nt_host() -> None:
+async def test_g6_gate_allows_live_nt_host(strategy_dir) -> None:
     host = _FakeNtHost()
     reconciler = _make_reconciler(host)
-    # 真实 live wire 值 "Live" + 非 NoopHost → gate 放行 (relaxed double)。
-    container_id = await reconciler._apply_spec(_spec("s3", "Live"), _ReconcileState())
+    # Real live wire value "Live" + a live-capable host clearing every layer →
+    # gate admits (relaxed double).
+    container_id = await reconciler._apply_spec(
+        _live_spec("s3", "Live", strategy_dir), _ReconcileState()
+    )
     assert container_id == "container-s3"
     assert len(host.deploy_calls) == 1

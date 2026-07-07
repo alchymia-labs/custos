@@ -23,6 +23,9 @@ import structlog
 
 pytest.importorskip("nautilus_trader")
 
+from nautilus_trader.adapters.binance.factories import BinanceLiveExecClientFactory  # noqa: E402
+from nautilus_trader.adapters.sandbox.factory import SandboxLiveExecClientFactory  # noqa: E402
+
 from arx_runner import nautilus_host  # noqa: E402
 from arx_runner.nautilus_host import NtTradingNodeHost  # noqa: E402
 
@@ -149,6 +152,74 @@ async def test_deploy_sandbox_success(monkeypatch) -> None:
         assert type(node.trader.strategies[0]).__name__ == "MinimalSupertrendStrategy"
     finally:
         await host.stop("spec-42")
+
+
+@pytest.mark.asyncio
+async def test_deploy_sandbox_uses_sandbox_exec_factory(monkeypatch) -> None:
+    # Mode dispatch: sandbox routes to the locally-simulated exec factory, never
+    # a real Binance one (regression guard on the mode fan-out).
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost()
+    await host.deploy(_spec("sb-1", trading_mode="sandbox"), _credential())
+    try:
+        node = _FakeTradingNode.instances[-1]
+        assert node.exec_factories[0][1] is SandboxLiveExecClientFactory
+    finally:
+        await host.stop("sb-1")
+
+
+@pytest.mark.asyncio
+async def test_deploy_testnet_uses_binance_exec_factory(monkeypatch) -> None:
+    # testnet routes to the real Binance exec factory (against the testnet endpoint),
+    # not the sandbox simulator.
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost()
+    await host.deploy(_spec("tn-1", trading_mode="testnet"), _credential())
+    try:
+        node = _FakeTradingNode.instances[-1]
+        assert node.exec_factories[0][1] is BinanceLiveExecClientFactory
+        assert node.exec_factories[0][1] is not SandboxLiveExecClientFactory
+    finally:
+        await host.stop("tn-1")
+
+
+@pytest.mark.asyncio
+async def test_deploy_live_success_with_approvers(monkeypatch) -> None:
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost()
+    spec = _spec("live-ok", trading_mode="live", approved_by=["alice", "bob"])
+    with structlog.testing.capture_logs() as logs:
+        await host.deploy(spec, _credential())
+    try:
+        node = _FakeTradingNode.instances[-1]
+        assert node.exec_factories[0][1] is BinanceLiveExecClientFactory
+        assert "nt_live_deploy_requested" in [e.get("event") for e in logs]
+    finally:
+        await host.stop("live-ok")
+
+
+@pytest.mark.asyncio
+async def test_deploy_live_rejects_missing_approvers(monkeypatch) -> None:
+    # Separation of duties: a live deploy without >= 2 approvers is refused before
+    # any node is constructed (sod_approval_missing).
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost()
+    with pytest.raises(RuntimeError, match="sod_approval_missing"):
+        await host.deploy(_spec("live-bad", trading_mode="live"), _credential())
+    assert _FakeTradingNode.instances == []
+    assert host._active_nodes == {}
+
+
+@pytest.mark.asyncio
+async def test_deploy_unknown_trading_mode_rejected(monkeypatch) -> None:
+    # An unrecognised trading_mode is refused at dispatch (no silent fallback to a
+    # default execution path), before any node is constructed.
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost()
+    with pytest.raises(RuntimeError, match="unsupported trading_mode"):
+        await host.deploy(_spec("weird-1", trading_mode="paper_trading"), _credential())
+    assert _FakeTradingNode.instances == []
+    assert host._active_nodes == {}
 
 
 @pytest.mark.asyncio

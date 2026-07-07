@@ -1,0 +1,15 @@
+{
+  "spec_id": "supertrend-btc-testnet-001",
+  "generation": 1,
+  "trading_mode": "testnet",
+  "lifecycle_state": "running",
+  "strategy_path": "/app/strategy/strategy.py",
+  "code_hash": null,
+  "connector": "binance_perpetual",
+  "pairs": ["BTC-USDT"],
+  "leverage": 2,
+  "log_level": "INFO",
+  "provenance_ref": {
+    "credential_id": "binance-testnet"
+  }
+}

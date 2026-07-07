@@ -1,18 +1,22 @@
 """Binance venue-config assembly (pure functions, no IO, no side effects).
 
 Turns a DeploymentSpec parameter dict + a decrypted credential dict into
-NautilusTrader client-config objects. Sandbox mode pairs a real-time Binance
-*data* feed with a locally simulated *execution* venue
-(``SandboxExecutionClientConfig`` + ``SandboxLiveExecClientFactory``), so no
-real orders reach the exchange.
+NautilusTrader client-config objects. Three execution modes:
+- sandbox: real-time Binance *data* feed + a locally simulated *execution* venue
+  (``SandboxExecutionClientConfig`` + ``SandboxLiveExecClientFactory``), so no
+  real orders reach the exchange.
+- testnet: real Binance exec (``BinanceExecClientConfig`` with environment
+  TESTNET) against the Binance testnet endpoint, with a testnet data feed.
+- live: same but environment LIVE against the real exchange; a live exec config
+  cannot be built without separation-of-duties approval (>= 2 approvers).
 
 non-custodial 红线 0.1: this module only forwards the caller-supplied
 credential fields into NT config objects and returns them. It never logs,
 prints, or publishes credential material — keep it that way.
 
 Only Binance (spot + USDT-perpetual) is wired here; other venues are rejected
-explicitly. Testnet / live promotion is a later plan; sandbox data uses the
-LIVE Binance feed because simulated execution needs real prices.
+explicitly. Sandbox data uses the LIVE Binance feed because simulated execution
+needs real prices; testnet uses the testnet feed so instruments match the venue.
 """
 
 from __future__ import annotations
@@ -23,7 +27,11 @@ from nautilus_trader.adapters.binance.common.enums import (
     BinanceAccountType,
     BinanceEnvironment,
 )
-from nautilus_trader.adapters.binance.config import BinanceDataClientConfig, BinanceKeyType
+from nautilus_trader.adapters.binance.config import (
+    BinanceDataClientConfig,
+    BinanceExecClientConfig,
+    BinanceKeyType,
+)
 from nautilus_trader.adapters.sandbox.config import SandboxExecutionClientConfig
 from nautilus_trader.config import InstrumentProviderConfig
 from nautilus_trader.model.identifiers import InstrumentId
@@ -42,6 +50,40 @@ _BINANCE_CONNECTORS: dict[str, str] = {
     "binance": "spot",
     "binance_perpetual": "futures",
 }
+
+# trading_mode -> the Binance data-feed environment. Sandbox simulates fills
+# locally against real-time LIVE prices; testnet must feed testnet market data
+# so instruments match its exec venue; live feeds live.
+_DATA_ENVIRONMENT_BY_MODE: dict[str, BinanceEnvironment] = {
+    "sandbox": BinanceEnvironment.LIVE,
+    "testnet": BinanceEnvironment.TESTNET,
+    "live": BinanceEnvironment.LIVE,
+}
+
+# Distinct approvers a live spec must carry (separation of duties). The approval
+# decision is the cloud's (arx, approver != applicant); custos only checks the
+# spec carries enough before a real live order path is built.
+_LIVE_MIN_APPROVERS = 2
+
+
+def data_environment_for_mode(mode: str) -> BinanceEnvironment:
+    """Data-feed environment for a trading_mode (defaults to LIVE prices)."""
+    return _DATA_ENVIRONMENT_BY_MODE.get(mode.lower(), BinanceEnvironment.LIVE)
+
+
+def require_live_dual_approval(spec: dict) -> None:
+    """Refuse a live deploy lacking separation-of-duties approval.
+
+    Raises (not logs) to keep this module side-effect free; the caller / reconciler
+    surfaces the reason_code. Duplicate approver ids collapse to one, so two
+    entries by the same principal is still not dual approval.
+    """
+    approvers = {a for a in (spec.get("approved_by") or []) if a}
+    if len(approvers) < _LIVE_MIN_APPROVERS:
+        raise RuntimeError(
+            f"sod_approval_missing: live spec {spec.get('spec_id')!r} requires "
+            f">= {_LIVE_MIN_APPROVERS} distinct approvers, got {len(approvers)}"
+        )
 
 
 def _binance_exchange_type(connector: str) -> str:
@@ -95,8 +137,12 @@ def build_futures_leverages(spec: dict) -> dict[InstrumentId, Decimal]:
     }
 
 
-def build_data_client_config(spec: dict, credential: dict) -> BinanceDataClientConfig:
-    """Real-time Binance data feed config (sandbox uses live market data)."""
+def build_data_client_config(
+    spec: dict,
+    credential: dict,
+    environment: BinanceEnvironment = BinanceEnvironment.LIVE,
+) -> BinanceDataClientConfig:
+    """Binance data-feed config for the given environment (defaults to LIVE prices)."""
     connector = spec["connector"]
     exchange_type = _binance_exchange_type(connector)
     # Fail-fast on a malformed credential before any NT object is built.
@@ -111,7 +157,7 @@ def build_data_client_config(spec: dict, credential: dict) -> BinanceDataClientC
         api_secret=api_secret,
         key_type=key_type,
         account_type=account_type,
-        environment=BinanceEnvironment.LIVE,
+        environment=environment,
         instrument_provider=InstrumentProviderConfig(
             load_all=False,
             load_ids=build_instrument_ids(spec),
@@ -145,3 +191,46 @@ def build_exec_client_config_sandbox(
         oms_type=_OMS_TYPE_NETTING,
         leverages=leverages,
     )
+
+
+def _build_binance_exec_config(
+    spec: dict,
+    credential: dict,
+    environment: BinanceEnvironment,
+) -> BinanceExecClientConfig:
+    """Real Binance exec-client config (testnet / live) for the given environment.
+
+    Fills are placed on the exchange, so the live credential is forwarded into
+    the NT config here (never logged / published). starting_balances is not set:
+    real account balances come from the exchange, not a seeded sim wallet.
+    """
+    connector = spec["connector"]
+    exchange_type = _binance_exchange_type(connector)
+    api_key = credential["api_key"]
+    api_secret = credential["api_secret"]
+    key_type = BinanceKeyType[str(credential.get("key_type", "HMAC")).upper()]
+    account_type = (
+        BinanceAccountType.USDT_FUTURES if exchange_type == "futures" else BinanceAccountType.SPOT
+    )
+    return BinanceExecClientConfig(
+        api_key=api_key,
+        api_secret=api_secret,
+        key_type=key_type,
+        account_type=account_type,
+        environment=environment,
+        instrument_provider=InstrumentProviderConfig(
+            load_all=False,
+            load_ids=build_instrument_ids(spec),
+        ),
+    )
+
+
+def build_exec_client_config_testnet(spec: dict, credential: dict) -> BinanceExecClientConfig:
+    """Real Binance exec against the testnet endpoint (test funds)."""
+    return _build_binance_exec_config(spec, credential, BinanceEnvironment.TESTNET)
+
+
+def build_exec_client_config_live(spec: dict, credential: dict) -> BinanceExecClientConfig:
+    """Real Binance exec against the live endpoint — refused without dual approval."""
+    require_live_dual_approval(spec)
+    return _build_binance_exec_config(spec, credential, BinanceEnvironment.LIVE)

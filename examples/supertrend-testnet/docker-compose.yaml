@@ -1,0 +1,46 @@
+# custos supertrend-testnet example.
+#
+# One custos runner reconciling a single Binance *testnet* deployment, plus a
+# local NATS with JetStream. No Redis / external state store — custos v1 has no
+# persistent external dependency.
+#
+# Copy .env.example to .env and adjust the NON-secret runtime config. Exchange
+# API keys are NOT in .env — they live in a sops+age encrypted vault mounted
+# read-only (see README). The age key never leaves your host / this mount.
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js"] # JetStream: deployment_spec + telemetry streams
+    ports:
+      - "4222:4222"
+
+  runner:
+    build:
+      context: ../.. # repo root — custos is built from source (not on PyPI yet)
+      dockerfile: examples/supertrend-testnet/Dockerfile
+    depends_on:
+      - nats
+    environment:
+      # age private key path inside the container (mounted read-only below).
+      SOPS_AGE_KEY_FILE: /vault/age.key
+    volumes:
+      # Your reviewed / backtested strategy directory (read-only).
+      - ./strategy:/app/strategy:ro
+      # sops-encrypted credentials + age key. Read-only; keys never leave here.
+      - ./vault:/vault:ro
+    command:
+      - --tenant-id
+      - ${ARX_TENANT_ID}
+      - --runner-id
+      - ${ARX_RUNNER_ID}
+      - --nats-url
+      - ${ARX_NATS_URL}
+      - --reconcile-strategy-id
+      - ${ARX_STRATEGY_ID}
+      # Select the real NautilusTrader host so testnet execution actually runs.
+      # The G6 gate still guards every live deploy regardless of this flag.
+      - --use-nt-host
+      - --sops-file
+      - /vault/credentials.enc.json
+      - --age-key-file
+      - /vault/age.key

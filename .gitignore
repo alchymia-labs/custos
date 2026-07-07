@@ -61,6 +61,12 @@ examples/**/.env
 !examples/*/.env.example
 !examples/**/.env.example
 
+# examples/ 用户真实 vault: age 私钥 + sops 加密凭证 blob 永不入 git.
+# vault-fixture/ 是模板目录 (无真 key, 名字不同不被命中), 必须入 git.
+examples/**/vault/
+# sops encrypt 前的明文凭证中间产物
+*.plain.json
+
 # 顶层 .env (若存在也是 secret, 但 .env.example 保留)
 .env
 .env.local

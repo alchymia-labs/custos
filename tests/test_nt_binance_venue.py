@@ -23,11 +23,31 @@ from nautilus_trader.adapters.binance.common.enums import (  # noqa: E402
 from nautilus_trader.model.identifiers import InstrumentId  # noqa: E402
 
 from arx_runner._nt_binance_venue import (  # noqa: E402
+    _BINANCE_CONNECTORS,
     build_data_client_config,
+    build_exec_client_config_live,
     build_exec_client_config_sandbox,
+    build_exec_client_config_testnet,
     build_futures_leverages,
     build_instrument_ids,
+    data_environment_for_mode,
+    require_live_dual_approval,
 )
+
+
+def _approved_spec(connector: str = "binance_perpetual") -> dict:
+    spec = _spec(connector)
+    spec["approved_by"] = ["alice", "bob"]
+    return spec
+
+
+def test_supported_venues_matches_wired_connectors() -> None:
+    # Drift guard: NtTradingNodeHost declares its live-venue capability with an
+    # NT-free constant; it must equal the set of connectors this module actually
+    # wires, or the G6 gate would advertise a venue with no exec config behind it.
+    from arx_runner.nautilus_host import _SUPPORTED_VENUES
+
+    assert _SUPPORTED_VENUES == frozenset(_BINANCE_CONNECTORS)
 
 
 def _spec(connector: str = "binance_perpetual") -> dict:
@@ -125,3 +145,68 @@ def test_unsupported_connector_notimpl() -> None:
     # Failure-mode contract: non-binance connector -> NotImplementedError (explicit).
     with pytest.raises(NotImplementedError, match="okx"):
         build_data_client_config(_spec("okx_perpetual"), _credential())
+
+
+def test_testnet_env_pin() -> None:
+    cfg = build_exec_client_config_testnet(_spec("binance_perpetual"), _credential())
+    assert cfg.environment == BinanceEnvironment.TESTNET
+    assert cfg.account_type == BinanceAccountType.USDT_FUTURES
+    assert cfg.api_key == "test-key"
+
+
+def test_testnet_env_pin_spot() -> None:
+    cfg = build_exec_client_config_testnet(_spec("binance"), _credential())
+    assert cfg.environment == BinanceEnvironment.TESTNET
+    assert cfg.account_type == BinanceAccountType.SPOT
+
+
+def test_live_env_pin() -> None:
+    cfg = build_exec_client_config_live(_approved_spec("binance_perpetual"), _credential())
+    assert cfg.environment == BinanceEnvironment.LIVE
+    assert cfg.account_type == BinanceAccountType.USDT_FUTURES
+
+
+def test_live_missing_approvers_rejected() -> None:
+    # Failure-mode contract: a live exec config cannot be built without >= 2
+    # approvers (separation of duties); the reason_code is sod_approval_missing.
+    with pytest.raises(RuntimeError, match="sod_approval_missing"):
+        build_exec_client_config_live(_spec("binance_perpetual"), _credential())
+
+
+def test_live_single_approver_rejected() -> None:
+    spec = _spec("binance_perpetual")
+    spec["approved_by"] = ["alice"]
+    with pytest.raises(RuntimeError, match="sod_approval_missing"):
+        build_exec_client_config_live(spec, _credential())
+
+
+def test_live_duplicate_approvers_rejected() -> None:
+    # Two entries but one distinct approver is not separation of duties.
+    spec = _spec("binance_perpetual")
+    spec["approved_by"] = ["alice", "alice"]
+    with pytest.raises(RuntimeError, match="sod_approval_missing"):
+        require_live_dual_approval(spec)
+
+
+def test_data_environment_for_mode() -> None:
+    # Sandbox drives local sim with real-time live prices; testnet must feed
+    # testnet market data so instruments match the testnet exec venue.
+    assert data_environment_for_mode("sandbox") == BinanceEnvironment.LIVE
+    assert data_environment_for_mode("testnet") == BinanceEnvironment.TESTNET
+    assert data_environment_for_mode("live") == BinanceEnvironment.LIVE
+
+
+def test_data_environment_for_mode_unknown_maps_live() -> None:
+    # An unknown mode maps to LIVE data here, but that is never reached for a real
+    # deploy: NtTradingNodeHost._build_exec_plan rejects an unknown trading_mode at
+    # dispatch (test_deploy_unknown_trading_mode_rejected), so this default only
+    # guards the data-env lookup in isolation — asserted explicitly so the safe
+    # default is intentional, not accidental.
+    assert data_environment_for_mode("paper_trading") == BinanceEnvironment.LIVE
+
+
+def test_build_data_client_config_testnet_env() -> None:
+    cfg = build_data_client_config(
+        _spec("binance_perpetual"), _credential(), BinanceEnvironment.TESTNET
+    )
+    assert cfg.environment == BinanceEnvironment.TESTNET

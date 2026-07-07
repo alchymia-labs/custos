@@ -53,6 +53,24 @@ Custos is organized as six core modules, each documented under `docs/`:
 The domain vocabulary shared across these modules is described in
 [docs/domain.md](docs/domain.md).
 
+## Supported Trading Modes
+
+`spec.trading_mode` selects the execution path. The G6 host gate guards the live
+transition; paper / dev runs use the `NoopHost` stub (default), while
+`--use-nt-host` selects the real NautilusTrader host needed for sandbox / testnet
+/ live.
+
+| Mode | Execution | Status | Notes |
+|------|-----------|--------|-------|
+| `sandbox` | Real-time Binance data, locally simulated fills (no exchange contact) | ✅ | Seed balances via `sandbox.starting_balances`. |
+| `testnet` | Real Binance exec against the testnet endpoint (test funds) | ✅ | See [examples/supertrend-testnet](examples/supertrend-testnet/). |
+| `live` | Real Binance exec against the live exchange | ⚠️ | Must clear the 4-layer G6 gate (host capability, venue, `code_hash`, credential scope) **and** carry cloud-side dual approval (`>= 2` distinct `approved_by`). Per-order telemetry is not uplinked to arx until the telemetry bridge lands (see Not Included Yet). |
+
+> All three real-execution modes require `--use-nt-host` to select the real
+> `NtTradingNodeHost`. Without it the runner uses the `NoopHost` stub (paper /
+> dev only); a `live` spec on the stub is refused by the G6 gate, and a
+> `sandbox` / `testnet` spec on the stub is a no-op (no real NT node starts).
+
 ## Quick Start
 
 ```bash
@@ -103,6 +121,6 @@ tracked as follow-ups:
 - **`CONTRIBUTING.md` + `SECURITY.md`** — public-repo façade completion.
 - **Python package rename** — `arx_runner` → `custos_runner` (boundary
   constant fanout).
-- **`NtTradingNodeHost` real implementation** — the G6 live-host gate is
-  currently satisfied only by `NoopHost`; live deploy stays blocked until the
-  real implementation lands here.
+- **Telemetry uplink bridge** — the NT `MessageBus` → arx telemetry actor is not
+  wired yet, so per-order execution events (fills / `OrderDenied`) are observable
+  only in the runner's local logs, not uplinked to the cloud.

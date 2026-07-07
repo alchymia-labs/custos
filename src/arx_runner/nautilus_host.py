@@ -2,9 +2,10 @@
 
 Two hosts satisfy NautilusHostProtocol (deployment_reconciler.py):
 - NoopHost: stub for paper / dev / sim — the G6 gate rejects it on live.
-- NtTradingNodeHost: real NautilusTrader host. v1 covers Binance sandbox mode
-  (real-time data + locally simulated execution); testnet / live is a later
-  plan and stays blocked by the G6 gate until then.
+- NtTradingNodeHost: real NautilusTrader host. deploy dispatches on
+  spec.trading_mode: sandbox (real-time data + locally simulated execution),
+  testnet (real Binance exec on the testnet endpoint), and live (real exchange,
+  gated by the G6 host gate + separation-of-duties approval).
 
 NautilusTrader is an optional runtime (`nt-runtime` extra, Python 3.12+). This
 module import-guards it so the reconciler can import NoopHost on a base install
@@ -21,13 +22,17 @@ from arx_runner._strategy_loader import load_strategy_class
 from arx_runner.log import get_logger
 
 try:
-    from nautilus_trader.adapters.binance.factories import BinanceLiveDataClientFactory
+    from nautilus_trader.adapters.binance.factories import (
+        BinanceLiveDataClientFactory,
+        BinanceLiveExecClientFactory,
+    )
     from nautilus_trader.adapters.sandbox.factory import SandboxLiveExecClientFactory
     from nautilus_trader.config import LiveExecEngineConfig, LoggingConfig, TradingNodeConfig
     from nautilus_trader.live.node import TradingNode
     from nautilus_trader.model.identifiers import TraderId
 except ImportError:  # nt-runtime extra absent (audit / paper install) — deploy fails fast
     BinanceLiveDataClientFactory = None
+    BinanceLiveExecClientFactory = None
     SandboxLiveExecClientFactory = None
     LiveExecEngineConfig = None
     LoggingConfig = None
@@ -41,6 +46,11 @@ _log = get_logger("arx_runner.nautilus_host")
 
 _DEFAULT_STARTING_BALANCES = ["10_000 USDT"]
 _STOP_TIMEOUT_SECS = 30.0
+
+# Venues NtTradingNodeHost can execute. Declared NT-free here so the G6 gate can
+# query capability on a base install, and kept in sync with the venue-config
+# module's wired connectors by a drift-guard test (test_nt_binance_venue.py).
+_SUPPORTED_VENUES = frozenset({"binance", "binance_perpetual"})
 
 # Substrings that flag an exception message as possibly carrying credential
 # material (NT config repr, adapter auth errors) — such messages are redacted
@@ -72,7 +82,7 @@ class NoopHost:
     adapter 落地后替换本 stub。
 
     方法签名与 NautilusHostProtocol（deployment_reconciler.py）逐字一致，
-    使 reconciler 可 ducktype 依赖，G6 gate 可 isinstance 命中。
+    使 reconciler 可 ducktype 依赖，G6 gate 查 supports_live 立即拒绝。
     """
 
     async def deploy(self, spec: dict, credential: dict) -> str:
@@ -86,13 +96,22 @@ class NoopHost:
     async def stop(self, spec_id: str) -> None:
         _log.info("nautilus_host_stop_stub", spec_id=spec_id)
 
+    def supports_live(self) -> bool:
+        # Fail-safe: a stub that neither routes orders nor holds venue state must
+        # never claim live capability — the G6 gate rejects it on live.
+        return False
+
+    def supports_venue(self, venue: str) -> bool:
+        return False
+
 
 class NtTradingNodeHost:
-    """Real NautilusTrader host for Binance sandbox deployments.
+    """Real NautilusTrader host for Binance sandbox / testnet / live deployments.
 
-    deploy assembles a TradingNode (real-time Binance data + locally simulated
-    execution) and runs it in a background asyncio task so the reconcile loop is
-    never blocked. stop tears the node down gracefully with a bounded timeout.
+    deploy assembles a TradingNode (Binance data + an execution client chosen by
+    spec.trading_mode) and runs it in a background asyncio task so the reconcile
+    loop is never blocked. stop tears the node down gracefully with a bounded
+    timeout.
 
     non-custodial 红线 0.1: the decrypted credential is used only to build the
     NT data-client config and is never stored on the host, logged, or published.
@@ -110,6 +129,12 @@ class NtTradingNodeHost:
                 "NautilusTrader not installed — install `custos-runner[nt-runtime]` "
                 "(needs Python 3.12+) to run NtTradingNodeHost"
             )
+
+    def supports_live(self) -> bool:
+        return True
+
+    def supports_venue(self, venue: str) -> bool:
+        return venue.lower() in _SUPPORTED_VENUES
 
     async def deploy(self, spec: dict, credential: dict) -> str:
         self._ensure_nt_available()
@@ -129,25 +154,27 @@ class NtTradingNodeHost:
         # Imported lazily: _nt_binance_venue imports NautilusTrader at module top.
         from arx_runner import _nt_binance_venue as venue
 
-        data_cfg = venue.build_data_client_config(spec, credential)
-        starting_balances = (spec.get("sandbox") or {}).get(
-            "starting_balances"
-        ) or _DEFAULT_STARTING_BALANCES
-        exec_cfg = venue.build_exec_client_config_sandbox(spec, credential, starting_balances)
+        trading_mode = str(spec.get("trading_mode") or "sandbox").lower()
+        data_cfg = venue.build_data_client_config(
+            spec, credential, venue.data_environment_for_mode(trading_mode)
+        )
+        exec_cfg, exec_factory, reconciliation = self._build_exec_plan(
+            trading_mode, spec, credential, venue
+        )
 
         node_config = TradingNodeConfig(
             trader_id=TraderId(self._trader_id(spec_id)),
             logging=LoggingConfig(log_level=str(spec.get("log_level", "INFO"))),
             data_clients={venue.BINANCE_VENUE: data_cfg},
             exec_clients={venue.BINANCE_VENUE: exec_cfg},
-            # Sandbox venue has no prior account state to reconcile against.
-            exec_engine=LiveExecEngineConfig(reconciliation=False),
+            # Real venues reconcile against exchange account state; the sandbox has none.
+            exec_engine=LiveExecEngineConfig(reconciliation=reconciliation),
         )
 
         try:
             node = TradingNode(config=node_config)
             node.add_data_client_factory(venue.BINANCE_VENUE, BinanceLiveDataClientFactory)
-            node.add_exec_client_factory(venue.BINANCE_VENUE, SandboxLiveExecClientFactory)
+            node.add_exec_client_factory(venue.BINANCE_VENUE, exec_factory)
             node.build()
         except Exception as exc:  # noqa: BLE001 — reconciler maps this to degraded status
             _log.error("nt_startup_failure", spec_id=spec_id, **_sanitize_exception(exc))
@@ -162,11 +189,43 @@ class NtTradingNodeHost:
         _log.info(
             "nt_deploy_started",
             spec_id=spec_id,
+            trading_mode=trading_mode,
             connector=spec.get("connector"),
             permission_scope=credential.get("permission_scope"),
             strategy=type(strategy).__name__,
         )
         return spec_id
+
+    def _build_exec_plan(self, trading_mode: str, spec: dict, credential: dict, venue):
+        """Resolve (exec_config, exec_factory, reconciliation) for the trading mode.
+
+        sandbox fills locally against live prices (no exchange contact); testnet /
+        live place real orders on the Binance testnet / live endpoints. Real venues
+        reconcile against exchange account state, the sandbox has none. A live plan
+        emits an operational warning and cannot be built without dual approval
+        (enforced inside build_exec_client_config_live).
+        """
+        if trading_mode == "sandbox":
+            starting_balances = (spec.get("sandbox") or {}).get(
+                "starting_balances"
+            ) or _DEFAULT_STARTING_BALANCES
+            exec_cfg = venue.build_exec_client_config_sandbox(spec, credential, starting_balances)
+            return exec_cfg, SandboxLiveExecClientFactory, False
+        if trading_mode == "testnet":
+            exec_cfg = venue.build_exec_client_config_testnet(spec, credential)
+            return exec_cfg, BinanceLiveExecClientFactory, True
+        if trading_mode == "live":
+            _log.warning(
+                "nt_live_deploy_requested",
+                spec_id=spec.get("spec_id"),
+                connector=spec.get("connector"),
+                approver_count=len({a for a in (spec.get("approved_by") or []) if a}),
+            )
+            exec_cfg = venue.build_exec_client_config_live(spec, credential)
+            return exec_cfg, BinanceLiveExecClientFactory, True
+        raise RuntimeError(
+            f"unsupported trading_mode {trading_mode!r} (expected sandbox / testnet / live)"
+        )
 
     async def stop(self, spec_id: str) -> None:
         entry = self._active_nodes.pop(spec_id, None)

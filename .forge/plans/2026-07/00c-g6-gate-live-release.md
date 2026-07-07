@@ -1,6 +1,6 @@
 # 00c - G6 gate 逻辑放宽 (capability-based) + Binance testnet/live 逐级放行 + docker compose e2e
 
-> **Status**: 🔲 Todo (blocked by Plan 00a + 00b close-out)
+> **Status**: ✅ Completed (2026-07-07)
 > **Created**: 2026-07-07
 > **Project**: custos (`tesseract-trading/custos/`)
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -161,11 +161,89 @@
 
 ## 偏离与改进日志 (Deviation Log)
 
-(执行阶段填写)
+### DEVIATION: DEP-SKIP-CEO-OVERRIDE (DEV-00c-DEP-SKIP-CEO-OVERRIDE)
+- **等级**: 高 (CEO override, lesson #38 记录路径)
+- **原因**: Plan 00c 头部声明 blocked by Plan 00a + 00b; 00b (telemetry 桥) 未 close-out。CEO wukai 2026-07-07 经 `/forge:execute-team` AskUserQuestion 显式选择 Plan 00c 优先实施 (核心是 G6 gate capability 化 + testnet/live 分支, 与 00b 遥测桥独立)。
+- **影响**: 提前放行 00c, 依赖 00a only。Task 4 e2e 观测面部分启用 (无 00b telemetry 桥, testnet 真跑 fill/OrderDenied 只走本地 structlog, 不上报云端 arx) — 已在 examples/supertrend-testnet/README.md 顶部明写此局限。
+- **决定**: 走 lesson #38 CEO override 4 件套记录路径 (①CEO 决定 handoff packet §0 ②本 DEV 条 ③.forge/README.md 索引 00c 行脚注 ④historical-lessons.md C1)。四件套齐全, 非静默偏离。
+- **更新的文档**: 本 plan 偏离日志 + `.forge/README.md` 00c 行 + `.claude/rules/historical-lessons.md` C1。
+
+### DEVIATION: HOST-WIRING (DEV-00c-HOST-WIRING)
+- **等级**: 中 (入口改动, 安全相邻; 非红线违反) — team-lead 已批准 (grep 实证 `__main__.py:151-157` 硬编码 NoopHost; 根因是 plan Task 4 File Inventory Foundation Scan 遗漏 CLI wiring, lesson #33b 层次维)
+- **原因**: `src/arx_runner/__main__.py` reconciler 硬编码 `NoopHost()`, testnet/live spec 经 CLI 永远走 NoopHost stub (testnet 非 live → G6 gate 提前 return → NoopHost 静默 stub 不真跑)。Task 4 example "真跑 testnet" 目标无法达成; Plan 00c "G6 live release" 若无 CLI 入口 wiring 则 gate+capability 落地却无法经 CLI 触达。plan Task 4 File Inventory 遗漏此点 (声明"纯配置无源码改动")。
+- **影响**: `__main__.py` 加 `--use-nt-host` flag (默认 NoopHost 向后兼容; 置位选 NtTradingNodeHost) + `_build_host` helper + 3-case 单测。
+- **命名决定** (team-lead soft 建议, executor 决定): flag 名从初版 `--nt-host` 改为 `--use-nt-host` (bool store_true), 语义比 noun-y 的 `--nt-host` 更直白 (公开 CLU 面向外部用户)。本 plan 只需 noop / nautilus 两选一, 未来 flavour (Hummingbot/freqtrade) 是长期项, 走 YAGNI 不提前引 `--host {choice}`。rename fanout 已 grep 实证 (lesson #35): `__main__.py` / test / docker-compose.yaml / README, 无残留 `--nt-host`。
+- **决定**: 加 flag 是 G6 live release 自然收口。**非红线 0.2 违反 / 非 packet §10 dispute**: `--use-nt-host` 只选真 host, 不绕过 gate — G6 gate 仍对每个 live deploy 4 层强制; NtTradingNodeHost.supports_live=True 但 venue/code_hash/scope 三层照查; NT 缺失时 deploy 仍 fail-fast。SendMessage 报备 team-lead (task #6 跟踪)。
+- **safety-validator 复核锚点** (逐一可勾):
+  - ✅ 默认 = NoopHost (向后兼容, 不带 flag 行为不变) — `_build_host` else 分支 + `test_build_host_defaults_to_noop`
+  - ✅ 显式 `--use-nt-host` 才启用 NtTradingNodeHost (非 opt-out env var, 无 `SKIP_G6=1` 类) — grep `SKIP_G6/BYPASS` 无命中
+  - ✅ G6 gate 4 层对每个 live deploy 全程强制 (启用真 host 不代表放行 live) — gate 在 reconciler `_apply_spec` deploy 路径, 与 host 选择正交
+  - ✅ NT 缺失时 `--use-nt-host` + deploy 仍 fail-fast (`_ensure_nt_available`) — `test_build_host_nt_without_runtime_fails_fast`
+  - ✅ `_build_host` TDD 3 case: 默认 NoopHost / `--use-nt-host` 选 NtTradingNodeHost / NT 缺失 + `--use-nt-host` + deploy → RuntimeError "nt-runtime"
+- **更新的文档** (中风险偏离强制 docs 同步, team-lead 动作项 2): `docs/design/nautilus_host.md` (新增 §CLI 入口 + G6 gate 段 isinstance→capability 4 层同步 + NtTradingNodeHost 真实现落地状态刷新, 顺带修残留 Plan 00a 未同步的"尚未落地"陈旧) + `docs/design/reconcile.md` (NautilusHostProtocol capability 方法 + G6 gate 描述 + host 选择交叉引用) + `README.md` Supported Trading Modes 脚注 (三档均需 `--use-nt-host`) + examples README/docker-compose。
+
+### DEVIATION: EXAMPLE-VAULT (DEV-00c-EXAMPLE-VAULT)
+- **等级**: 中 (偏离 plan 明示设计决策, 但为守红线 0.1)
+- **原因**: plan "关键设计决策" 表定 e2e 示例用 "mock vault (env var)"。实证 `CredentialVault.decrypt` (mock) 返回 `secret: "<mock>"` 占位, **无 api_key/api_secret** → 到 `build_data_client_config` 会 KeyError, 无法真跑。造一个读 env var 明文 key 的新 vault (a) 是新源码模块 (超 Task 4 纯配置范围) (b) 把明文 key 放 env 违反 non-custodial 红线 0.1 精神。
+- **影响**: 示例改用已 ship 的 `SopsAgeVault` (非托管正道): `.env` 只放非密运行配置, exchange key 走 sops+age 加密文件 + 挂载的 age 私钥 (永不出本地)。vault-fixture/credentials.example.json 是无真 key 的凭证 shape 模板。
+- **决定**: 用 sops+age 既守红线又是更 on-brand 的示例 (展示 custos 非托管安全模型)。README 完整文档化步骤 + 生产提示。
+- **更新的文档**: examples/supertrend-testnet/README.md + .gitignore (examples vault/ + *.plain.json 忽略)。
+
+### DEVIATION: TESTNET-DATA-ENV (DEV-00c-TESTNET-DATA-ENV)
+- **等级**: 低 (Task 3 范围内正确性扩展)
+- **原因**: Task 3 File Inventory 只列 exec config, 但 testnet 真跑若 data feed 仍走 LIVE 环境 → live 价格喂 testnet 执行, instrument 不匹配。
+- **影响**: `build_data_client_config` 加 `environment` 参数 (默认 LIVE 保持 sandbox + 现有测试兼容) + `data_environment_for_mode` 映射 (sandbox→LIVE, testnet→TESTNET, live→LIVE)。
+- **决定**: 属 testnet 正确性必需, 在 Task 3 精神内。加测试 `test_data_environment_for_mode` + `test_build_data_client_config_testnet_env`。
+
+### DEVIATION: FOUNDATION-SCAN-MISS (DEV-00c-FOUNDATION-SCAN-MISS)
+- **等级**: 低 (我方 lesson #9 复发, 诚实记录; 无功能影响, Task 4 grep 时自查纠正)
+- **原因**: 起工 Foundation Scan 时 `ls -la examples/ 2>/dev/null || echo "不存在"` 中 `ls` 被 shell alias 成 `eza` 而 eza 未安装 (`command not found: eza`), `||` 误把工具报错当"examples/ 不存在"。实际 `examples/supertrend-sandbox/` 由 Plan 00a 提交存在。违反 lesson #9 "grep/ls 空≠不存在" (此处是工具报错≠不存在)。
+- **影响**: Task 4 grep 无真 key 时命中 supertrend-sandbox 暴露此漏。已对齐: testnet 示例改用 sandbox 约定 (`spec-example.json` 命名 + 去掉误加的 `strategy_id` 字段, code_hash: null + log_level), 同步 sandbox README 陈旧引用 ("live/testnet 仍被 G6 gate 阻塞" → 已落地)。
+- **决定**: 记入教训。预防: `ls`/`find` 空结果先跑已知命中 sanity check (common-errors.md §Foundation Scan 陷阱), 且 `2>/dev/null || echo` 会吞工具报错 → 改用 `find` 或不吞 stderr。
+
+### DEVIATION: CEO-LESSON-37-PACKET-DRIFT (DEV-00c-CEO-LESSON-37-PACKET-DRIFT)
+- **等级**: 低 (packet 措辞漂移, 无功能影响)
+- **原因**: handoff packet §5 + 本 plan §失败模式表 point 名 `test_case_variants (已有)`, 但仓库现有真实函数是 `test_g6_gate_rejects_live_noophost` (参数化 Live/live/LIVE)。packet 假名与实际漂移 (lesson #37 spawner 元层未 grep 实证测试名)。
+- **影响**: 无。executor 按 lesson #9/#25 用真实测试名建契约表, 不照抄 packet 假名。
+- **决定**: heartbeat 报备 team-lead (task #5 跟踪)。契约表 test 名以仓库实存为准。
+
+### DEVIATION: PEER-FOLLOWUP-F1F2F3 (DEV-00c-PEER-FOLLOWUP-F1F2F3)
+- **等级**: 低 (codex L1 peer review stretch 补丁, 不改主契约; APPROVE_WITH_FOLLOW_UPS 无 blocker)
+- **来源**: `.forge/reviews/2026-07/00c-peer-codex.md` (codex-cli high effort, reviewed @ `3375af3`)
+- **内容**:
+  - **F1** base-install NT-missing fail-fast test: 现有 `test_nt_trading_node_host.py` 有 `importorskip("nautilus_trader")`, 缺 NT 环境下恰好 skip 掉它声称覆盖的 missing-NT 场景。补 `test_main_host_selection.py::test_build_host_nt_without_runtime_fails_fast` (无 importorskip, monkeypatch `TradingNode=None` → deploy → RuntimeError "nt-runtime")。commit `93365c7` (随 HOST-WIRING rename 一并落)。
+  - **F2** undeclared capability structured reject: `host.supports_live()` 直调对未声明 capability 的第三方 host 抛 AttributeError 而非 structured `g6_gate_live_capability_denied` (observability 断)。改 `_host_capability(host, method, *args)` getattr-default-False helper (supports_live + supports_venue 同源)。与 packet §10 正交: shipped hosts 仍显式实现 Protocol, getattr 只兜未声明 host (defense-in-depth 非替代显式契约)。test `test_undeclared_capability_host_gets_structured_reject`。commit `5f7bf12`。
+  - **F3** unknown-mode 严格 test: `data_environment_for_mode` unknown 兜底返 LIVE (dispatch `_build_exec_plan` 已拒未知 mode 兜底)。**决定保留 LIVE fallback 不改 raise** (dispatch 已 fail-fast, 此处 raise 冗余且改契约); 加两个显式 boundary test: `test_deploy_unknown_trading_mode_rejected` (dispatch 拒绝 + 无 node 构造, commit `5f7bf12`) + `test_data_environment_for_mode_unknown_maps_live` (显式断言安全默认非意外)。
+- **决定**: F1-F3 是加固补丁 (无功能回归), 主契约不变。因 mailbox 异步 (executor 主动读 codex 报告先修, team-lead 转达 findings 后到), F1-F3 分落 `93365c7`/`5f7bf12` 而非单 commit; team-lead 要求的单 commit 语义被时序覆盖, 功能结果一致且全 committed。本 delta (F3 显式 data_env 测试 + 本 DEV 条) 单 commit 收口。全绿: `make verify` + `make test-nt` (181→182)。
 
 ## 完成报告 (Close-out Report)
 
-(执行完成填写)
+- **完成日期**: 2026-07-07
+- **总 Task 数**: 5 (+ Task 4a `--use-nt-host` host wiring + review followups: HOST-WIRING 3 动作项 + codex L1 F1-F3)
+- **偏离数**: 7 (DEP-SKIP-CEO-OVERRIDE 高 / HOST-WIRING 中 / EXAMPLE-VAULT 中 / TESTNET-DATA-ENV 低 / FOUNDATION-SCAN-MISS 低 / CEO-LESSON-37-PACKET-DRIFT 低 / PEER-FOLLOWUP-F1F2F3 低)
+- **验证结果**: 全部通过 — `make verify` (base) + `make test-nt` (real nautilus-trader 1.230, hard preflight) **182 passed** / ruff fmt+lint All checks passed。
+- **实施 commit 范围**: `19b7aba..53bf037` (14 commits = 8 初次 close-out + 6 review followup)
+  - **初次 close-out (8)**: `19b7aba` T1 host capability / `8b00006` T2 G6 gate capability 4 层 / `19ebc16` T3 testnet+live 分支 / `416d182` T4a CLI host wiring / `17cfcbb` T4 docker compose 示例 / `e4cb3fb` T5 README / `7513d97` self-reflect code_hash 守卫 / `3375af3` mark completed
+  - **review followup (6)**: `93365c7` `--nt-host`→`--use-nt-host` rename + codex F1 / `0d8c96a` HOST-WIRING docs 同步 + 安全锚点 / `5f7bf12` codex F2+F3 / `fed918f` marker refresh / `c693504` codex F3 显式 data_env 测试 + DEV 条 / `53bf037` marker refresh
+- **契约影响**: 无跨模块契约破坏。docs 同步 (HOST-WIRING 中风险偏离 mandatory): `docs/design/nautilus_host.md` (§CLI 入口 + G6 gate isinstance→capability 4 层同步 + NtTradingNodeHost 落地状态刷新, 顺带修残留 Plan 00a "尚未落地" 陈旧) + `docs/design/reconcile.md` (NautilusHostProtocol capability 方法 + G6 gate 描述 + host 选择交叉引用) + `README.md` (Supported Trading Modes 表 + `--use-nt-host` 脚注) + examples README。
+- **红线守护**: Non-Custodial 4 红线全数守住 (grep 记录, CEO 侧独立 grep 复核 0 命中):
+  - 0.1 Key/KEK 不出进程: testnet/live exec config forward key 进 NT config, 不 log/publish; `_sanitize_exception` 覆盖 testnet/live 分支; grep `log.*api_key` 无命中。
+  - 0.2 G6 gate 不绕过: isinstance → 4 层 capability fail-fast **加强** (含未声明 capability 结构化拒绝 F2); 无 opt-out env var (grep SKIP_G6/BYPASS 无命中); `--use-nt-host` 选真 host 不绕 gate。
+  - 0.3 失联≠停止: reconcile loop disconnect 逻辑未改; grep stop_all_strategies 无命中。
+  - 0.4 Money math Decimal: 本 plan 触碰 3 文件 grep float( 无命中。
+- **codex L1 peer review**: APPROVE_WITH_FOLLOW_UPS 无 blocker (`.forge/reviews/2026-07/00c-peer-codex.md`); F1-F3 全 fix (见 DEV-00c-PEER-FOLLOWUP-F1F2F3); 8 项独立确认全绿。
+- **失败模式覆盖** (契约 + review followup 扩展, 全 grep 实存 + 全绿):
+  - `g6_gate_live_capability_denied` — test_layer1_capability_relaxed_double
+  - `g6_gate_venue_unsupported` — test_layer2_venue_unsupported_relaxed_double
+  - `g6_gate_code_hash_mismatch` — test_layer3_code_hash_mismatch_relaxed_double + test_layer3_code_hash_missing_relaxed_double + test_layer3_missing_strategy_path_refused (self-reflect)
+  - `g6_gate_credential_scope_violation` — test_layer4_credential_scope_violation_relaxed_double
+  - `sod_approval_missing` — test_live_missing_approvers_rejected / test_deploy_live_rejects_missing_approvers
+  - trading_mode 大小写 dead-gate 防护 — test_g6_gate_rejects_live_noophost[Live/live/LIVE] (lesson #36 保留)
+  - venue_auth_failed — test_venue_auth_failure (Plan 00a 已覆盖, 无新增)
+  - 补: test_layer4_skipped_when_no_credential (reconfigure) + test_non_live_mode_bypasses_all_layers
+  - review followup (F1/F2/F3): test_build_host_nt_without_runtime_fails_fast (base-install NT 缺失 fail-fast) + test_undeclared_capability_host_gets_structured_reject (未声明 capability 结构化拒绝) + test_deploy_unknown_trading_mode_rejected + test_data_environment_for_mode_unknown_maps_live
+- **relaxed-double 独立可测 (lesson #22/#28)**: G6 gate 4 层各有 relaxed-double test 保持其余层有效只翻转目标层, 证明是 live guard 非 dead branch。全绿。
+- **遗留项**: telemetry uplink bridge (Plan 00b) — NT MessageBus → arx telemetry actor 未落地, testnet/live 真跑 fill/OrderDenied 只本地可观测 (README "Not Included Yet" + examples README 已声明)。OKX venue / arx_runner→custos_runner rename / 签名 release 见 plan §下一步。
 
 ## 下一步 (Next)
 

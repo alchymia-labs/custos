@@ -69,6 +69,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Enable deployment reconciler bound to this strategy_id.",
     )
+    parser.add_argument(
+        "--use-nt-host",
+        action="store_true",
+        help="Use the real NautilusTrader host (needs the nt-runtime extra) "
+        "instead of the NoopHost stub. Required to run sandbox / testnet / live "
+        "execution; the G6 gate still guards every live deploy.",
+    )
     return parser.parse_args(argv)
 
 
@@ -115,6 +122,23 @@ def _build_vault(args: argparse.Namespace) -> CredentialVault:
     )
 
 
+def _build_host(args: argparse.Namespace):
+    """Pick the NautilusHost. Default NoopHost (paper / dev); --use-nt-host
+    selects the real NtTradingNodeHost so sandbox / testnet / live execution runs.
+
+    Selecting the real host enables the execution path — it does not bypass the
+    G6 gate, which still guards every live deploy in the reconciler. If nt-runtime
+    is absent, NtTradingNodeHost.deploy fails fast on the first spec.
+    """
+    if args.use_nt_host:
+        from arx_runner.nautilus_host import NtTradingNodeHost
+
+        return NtTradingNodeHost()
+    from arx_runner.nautilus_host import NoopHost
+
+    return NoopHost()
+
+
 async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     client = ArxNatsClient(
@@ -145,16 +169,14 @@ async def _run(args: argparse.Namespace) -> int:
         # Deployment reconciler (opt-in via --reconcile-strategy-id).
         if args.reconcile_strategy_id:
             vault = _build_vault(args)
-            # nautilus_host stub — paper/dev 用 NoopHost 让 reconciler 跑通流程而不
-            # 真起 NT 进程; live mode 由 deployment_reconciler 的 G6 gate 拒绝。真实
-            # NT host 由后续 adapter plan 落地后替换。
-            from arx_runner.nautilus_host import NoopHost as _NoopHost  # G6 gate uses isinstance
-
+            # Default NoopHost (paper / dev) declares supports_live()=False, so the
+            # G6 gate refuses it on live; --use-nt-host selects the real
+            # NtTradingNodeHost to actually run sandbox / testnet / live execution.
             reconciler = DeploymentReconciler(
                 nats_client=client,
                 tenant_id=args.tenant_id,
                 runner_id=args.runner_id,
-                nautilus_host=_NoopHost(),
+                nautilus_host=_build_host(args),
                 credential_vault=vault,
             )
             tasks.append(

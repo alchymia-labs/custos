@@ -12,10 +12,14 @@
 
 - **`NoopHost`（stub）**：不真起 NT 进程，只记结构化日志后返回占位
   （`container-{spec_id}`）。方法签名与 `NautilusHostProtocol`
-  （`deployment_reconciler.py`）**逐字一致**，使 reconciler 可 duck-type 依赖、G6
-  gate 可 `isinstance` 命中。
-- **`NtTradingNodeHost`（真实实现，follow-up）**：真起 NT `TradingNode` 的宿主，
-  尚未落地——**本模块迁移只搬 NoopHost 现有代码**，真实实现是独立 follow-up plan。
+  （`deployment_reconciler.py`）**逐字一致**，使 reconciler 可 duck-type 依赖。它显式
+  声明 `supports_live() -> False` / `supports_venue() -> False`，G6 gate 据此在 live
+  下拒绝它（fail-safe：stub 永不上真 venue）。
+- **`NtTradingNodeHost`（真实实现）**：真起 NT `TradingNode` 的宿主。`deploy` 按
+  `spec.trading_mode` 分派三档执行通道 —— `sandbox`（实时 Binance 数据 + 本地模拟撮合）
+  / `testnet`（真 Binance exec 走 testnet 端点，测试资金）/ `live`（真交易所，过 G6 gate
+  + 云端双人审批）。它声明 `supports_live() -> True` / `supports_venue(name)`（Binance
+  connector 集）。
 
 ## 关键接口
 
@@ -29,7 +33,10 @@
 | `NoopHost.deploy` | `async deploy(spec: dict, credential: dict) -> str` | stub 起进程，返回 `container-{spec_id}` |
 | `NoopHost.reconfigure` | `async reconfigure(spec: dict) -> None` | stub 重配 |
 | `NoopHost.stop` | `async stop(spec_id: str) -> None` | stub 停 |
-| `NautilusHostProtocol` | `deploy` / `reconfigure` / `stop`（见 `deployment_reconciler.py`） | reconciler 依赖的 host 契约；`NtTradingNodeHost` 与 `NoopHost` 均须满足 |
+| `NtTradingNodeHost.deploy` | `async deploy(spec: dict, credential: dict) -> str` | 按 `spec.trading_mode` 分派 sandbox / testnet / live；组装 `TradingNode` 后台任务运行 |
+| `<host>.supports_live` | `def supports_live() -> bool`（sync） | 显式 capability 契约：host 是否支持 live 执行。G6 gate 层 1 查询 |
+| `<host>.supports_venue` | `def supports_venue(venue: str) -> bool`（sync） | host 是否支持该 venue（connector）。G6 gate 层 2 查询 |
+| `NautilusHostProtocol` | `deploy` / `reconfigure` / `stop` / `supports_live` / `supports_venue`（见 `deployment_reconciler.py`） | reconciler 依赖的 host 契约；`NtTradingNodeHost` 与 `NoopHost` 均须满足。capability 方法是显式契约面（非 hasattr 兜底） |
 
 `NoopHost` 仅供 paper / dev / sim mode 让 reconcile 流程跑通。live mode 下由 G6 gate
 拒绝——因为 stub 会**静默接受** live execution spec 却不实际执行，等于把 live 单子丢进
@@ -48,17 +55,29 @@
 
 | gate | 与本模块的关系 | 触发时机 |
 |------|----------------|----------|
-| **G6**（live 前 NT host 真实实现）**【主载体】** | `_check_g6_gate(host, spec)`：`trading_mode == "live"` 且 `isinstance(host, NoopHost)` → `RuntimeError` fail-fast。`trading_mode` 大小写不敏感比对（Rust `TradingMode` serde 序列化为 PascalCase `"Live"`，Python/oracle 侧小写 `"live"`，两侧 wire 都要命中，否则沦为 dead gate — lesson #36 dogfood） | 每次处理 live mode `DeploymentSpec` 时 |
-| **G-SoD**（高敏感动作双人审批） | live 部署审批 approver ≠ applicant | 云端 arx 审批 live deploy 时 |
+| **G6**（live 前 host capability 校验）**【主载体】** | `_check_g6_gate(host, spec, credential)`：`trading_mode == "live"` 时四层 fail-fast，缺一即 `RuntimeError` + 结构化 error（reason_code = event 名）：层 1 `host.supports_live()`（`g6_gate_live_capability_denied`）/ 层 2 `host.supports_venue(connector)`（`g6_gate_venue_unsupported`）/ 层 3 `code_hash` 与本地源目录哈希一致（`g6_gate_code_hash_mismatch`）/ 层 4 `credential.permission_scope == trade_no_withdraw`（`g6_gate_credential_scope_violation`，vault 已守，此为兜底）。`trading_mode` 大小写不敏感（Rust `TradingMode` serde PascalCase `"Live"` + Python 小写，两侧 wire 都命中否则 dead gate — lesson #36）。每层各有 relaxed-double 测试证明是 live guard 非 dead branch（lesson #22/#28） | 每次处理 live mode `DeploymentSpec` 时 |
+| **G-SoD**（高敏感动作双人审批） | live 部署审批 approver ≠ applicant（云端决策）；custos 侧 `NtTradingNodeHost` 构建 live exec config 前校验 `spec.approved_by` ≥ 2 distinct，缺则 `sod_approval_missing` | 云端 arx 审批 + custos live 部署预检 |
 
-> **G6 当前状态（as-of 2026-07-05）**：`NoopHost` reject 校验 + `isinstance` 校验 +
-> `trading_mode` PascalCase dead-gate 修已落地（Plan 46）；`NtTradingNodeHost` 真实
-> 实现尚未落地——**live deploy 按 G6 暂禁**，paper / sim 放行。
+> **G6 当前状态（as-of 2026-07-07）**：从 `isinstance(NoopHost)` 单点升级为 **capability-based
+> 4 层校验**（Plan 00c）。`NtTradingNodeHost` 真实实现已落地（Plan 00a sandbox + Plan 00c
+> testnet/live），live deploy 过 4 层 gate + 云端双人审批后放行；`NoopHost` 声明
+> `supports_live() -> False` 仍在 live 下被层 1 拒绝。
+
+## CLI 入口
+
+runner 入口（`python -m arx_runner`）在 reconciler 构造时绑定单一 host：
+
+- **默认 `NoopHost`**（paper / dev）：不带 flag 时行为不变（向后兼容）；live spec 被 G6 gate
+  层 1 拒，sandbox / testnet spec 落 stub 为 no-op（不真起 NT）。
+- **`--use-nt-host`**：显式选 `NtTradingNodeHost`，启用 sandbox / testnet / live 真执行。
+  这是**启用真执行通道**，**非绕过 G6 gate** —— gate 4 层对每个 live deploy 仍全程强制；
+  nt-runtime 未装时 `deploy` fail-fast（`_ensure_nt_available`）。无 opt-out env var 绕过
+  gate（红线 0.2）。
 
 ## 未来演化路线
 
-- **短期**：`NtTradingNodeHost` 真实实现落地（起 NT `TradingNode` + 进程监管 +
-  健康探针），替换 `NoopHost`，解锁 live deploy 的 G6 门。
+- **短期**：telemetry uplink 桥（NT `MessageBus` → arx telemetry actor，Plan 00b）——落地后
+  testnet / live 真跑的 fill / `OrderDenied` 才对外上报云端；当前只本地 structlog 可观测。
 - **中期**：`ExecutionEngineAdapter` 抽象补全 CEX 侧对账 / 下单 / 撤单 / 查询接口，
   与 NT 的 `ExecEngine` 对齐。
 - **长期**：多引擎 flavour（`custos-nt` / `custos-hummingbot` / `custos-freqtrade`），

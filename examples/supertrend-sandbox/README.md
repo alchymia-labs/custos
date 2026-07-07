@@ -25,7 +25,7 @@ the runner over NATS. The reconcile loop applies it and calls
 
 | Field | Meaning |
 |-------|---------|
-| `trading_mode` | `sandbox` — real data, simulated fills. `live` is still blocked by the G6 gate. |
+| `trading_mode` | `sandbox` — real data, simulated fills. `testnet` / `live` place real orders (see the [supertrend-testnet example](../supertrend-testnet/)); the G6 gate guards live. |
 | `strategy_path` | Absolute path to the strategy source on the runner host. |
 | `code_hash` | sha256 of the strategy directory. `null` skips the check (sandbox only, audited); live must pin it. |
 | `connector` | `binance_perpetual` (USDT futures) or `binance` (spot). Other venues are rejected. |
@@ -56,5 +56,9 @@ The vault rejects any credential whose scope is not `trade_no_withdraw`.
    task so the reconcile loop is never blocked.
 4. `stop` tears the node down gracefully with a bounded timeout.
 
-Live / testnet promotion and the NT MessageBus → telemetry bridge are follow-up
-plans; until then live deployments stay blocked by the G6 gate.
+Testnet / live promotion has landed — see the
+[supertrend-testnet example](../supertrend-testnet/). The NT MessageBus →
+telemetry bridge is still a follow-up, so per-order execution telemetry is not
+yet uplinked to the cloud. A `live` deploy must clear the G6 gate (host
+capability, venue, `code_hash`, credential scope) and carry cloud-side dual
+approval.

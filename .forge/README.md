@@ -33,7 +33,14 @@
 |---|------|--------|-----------|--------|------|
 | [00a](plans/2026-07/00a-nt-trading-node-host-sandbox.md) | NtTradingNodeHost + Binance sandbox | ✅ Completed (2026-07-07) | arx Plan 60 (已 close-out) | Plan 00b | NoopHost → 真 TradingNode; sandbox 策略打通 (codex peer review 落地 F2-F6) |
 | [00b](plans/2026-07/00b-telemetry-bridge-nt-messagebus.md) | telemetry_actor 接 NT MessageBus | 🔲 Todo (blocked by 00a) | Plan 00a | Plan 00c | NT MessageBus → telemetry uplink; OrderDenied 桥 |
-| [00c](plans/2026-07/00c-g6-gate-live-release.md) | G6 gate 放宽 + Binance testnet/live 逐级 | 🔲 Todo (blocked by 00a+00b) | Plan 00a + 00b | (live 放行终点) | capability-based G6 + docker compose e2e |
+| [00c](plans/2026-07/00c-g6-gate-live-release.md) | G6 gate 放宽 + Binance testnet/live 逐级 | ✅ Completed (2026-07-07) | Plan 00a + 00b ¹ | (live 放行终点) | capability-based G6 + docker compose e2e |
+
+> ¹ Plan 00b (telemetry 桥) close-out 前, 由 CEO override 提前放行 00c
+> (`DEV-00c-DEP-SKIP-CEO-OVERRIDE`, lesson #38 CEO override 4 件套记录路径)。
+> 后果: e2e 观测面部分启用 — testnet 真跑 fill/OrderDenied 只走 custos 本地
+> structlog, 00b telemetry 桥落地后才对外上报云端 arx。见
+> [Plan 00c §偏离日志](plans/2026-07/00c-g6-gate-live-release.md#偏离与改进日志-deviation-log)
+> + [historical-lessons C1](../.claude/rules/historical-lessons.md)。
 | [01](plans/2026-07/01-forge-bootstrap.md) | Forge 基础设施 bootstrap | ✅ Completed (2026-07-07) | 无 | (逻辑上先于 00a-c) | `.gitignore` / `.claude/rules/` / `Makefile` / `docs/design/ops/guides/` / `CLAUDE.md` |
 
 ### 编号顺序说明
