@@ -1,25 +1,120 @@
 # custos — AI 助手项目上下文
 
-> 由 `/forge:bootstrap --teams` 于 2026-07-07 生成最小骨架 (仅 forge Agent Teams onboard
-> 标记 + 项目定位一段). **完整导航图** (子系统边界 / 6 模块导航 / 红线速览 / 常用命令) 由
-> **Plan 01 Task 4** 落地 refine (见 `.forge/plans/2026-07/01-forge-bootstrap.md`).
+> 会话开始自动加载的**导航图**. 本文件只给定位与指针; 各子系统与红线细节在
+> `docs/` 与 `.claude/rules/`, 不在此重复.
+
+---
 
 ## 1. 这是什么
 
 **custos** (拉丁语: *guardian*) 是 [The Alephain Guild](https://github.com/the-alephain-guild)
 生态的 **non-custodial、自托管** 执行 runner. 用户在自己的基础设施上运行本 daemon,
-让它跑经过回测的 NautilusTrader 策略, 本地持有交易所 API Key, **永不上云端**. custos
-与生态云端协调器 **arx** 配对: pull 期望态 `DeploymentSpec`, 回报执行遥测. 它是
-"Key 和策略只在用户本地" 红线从**设计声明**升级为**工程可验证**的**唯一路径**.
+让它跑经过回测的 NautilusTrader 策略, **本地**持有交易所 API Key, **永不上云端**.
 
-详见: [`README.md`](README.md) · [`docs/domain.md`](docs/domain.md) · 6 module docs
-在 [`docs/`](docs/) (Plan 01 后迁 `docs/design/`).
+它是 "Key 和策略只在用户本地" 红线从**设计声明**升级为**工程可验证**的**唯一路径** —
+外部审计员单仓 clone 即可读全部代码, 验证承诺.
 
-## 2. Forge 工作流入口
+**License**: Apache-2.0 (day 1 公开). 详见 [`README.md`](README.md) · [`LICENSE`](LICENSE).
 
-- `.forge/plans/2026-07/` — 现有 4 份 plan (00a/00b/00c 执行阶段 + 01 基础设施 bootstrap)
-- `.forge/README.md` — plan 索引 (Plan 01 Task 3 落地)
-- `.claude/rules/` — custos 独立规则集 (Plan 01 Task 2 落地; 独立开源仓库不依赖 workspace root)
+---
+
+## 2. 子系统边界 (custos ↔ arx / Crucible)
+
+```
+用户机器 (audit-able, 开源)          云端 (闭源生态)
+┌─────────────────────┐             ┌─────────────────────┐
+│  custos daemon      │  NATS/HTTP  │  arx (gateway)      │
+│  - credential_vault │◄───────────►│  - CustosGateway    │
+│  - NT TradingNode   │  DeployStat │  - tenancy gate     │
+│  - telemetry actor  │  telemetry  │                     │
+│  - reconcile loop   │  heartbeat  │        ↕            │
+└─────────────────────┘             │  Crucible           │
+        │                            │  (execution record) │
+    交易所 (Binance/OKX)             └─────────────────────┘
+        ↑
+    API key 只在用户机器
+```
+
+- **custos → arx**: pull `DeploymentSpec` + push 遥测/heartbeat/reconcile status
+- **custos ↛ Crucible**: 从不直接对话, arx 中介
+- **单一外部入口**: 所有外部访问 custos 状态必须经 arx 的 `gatekeeper` 与 `CustosGateway`
+
+详见 [`README.md#Contract with Arx`](README.md) + [`docs/domain.md`](docs/domain.md) §分层信任边界.
+
+---
+
+## 3. 六模块导航 (六件套)
+
+| 模块 | 职责 | 设计文档 | 承担红线 |
+|------|------|---------|---------|
+| **enrollment** | 一次性 `EnrollmentToken` 配对; `runner_id`; `paper_only` 默认 | [`docs/design/enrollment.md`](docs/design/enrollment.md) | Token 一次性 |
+| **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [`docs/design/reconcile.md`](docs/design/reconcile.md) | 失联≠停止 (红线 0.3) |
+| **nautilus_host** | NT 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | [`docs/design/nautilus_host.md`](docs/design/nautilus_host.md) | **G6 不绕过 (红线 0.2)** |
+| **telemetry_actor** | NT MessageBus → 白名单 + 脱敏 + 版本化 NATS uplink | [`docs/design/telemetry_actor.md`](docs/design/telemetry_actor.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
+| **credential_vault** | sops+age 本地 KEK vault; `trade_no_withdraw` scope | [`docs/design/credential_vault.md`](docs/design/credential_vault.md) | KEK 不出进程 (红线 0.1) |
+| **nats_client** | JetStream client + envelope schema + subject naming | [`docs/design/nats_client.md`](docs/design/nats_client.md) | schema 版本化 |
+
+顶层 domain 词汇: [`docs/domain.md`](docs/domain.md).
+
+---
+
+## 4. Forge 工作流入口
+
+- **plan 索引**: [`.forge/README.md`](.forge/README.md)
+- **plan 目录**: [`.forge/plans/YYYY-MM/`](.forge/plans/)
+- **teams 配置**: [`.forge/teams.yaml`](.forge/teams.yaml) (Agent Teams schema)
+- **常用命令**: `/forge:plan` · `/forge:execute` · `/forge:review` · `/forge:fix`
+- **进度状态**: 🔲 Todo / ⏳ In Progress / ✅ Done / ❌ Blocked (见 `.claude/rules/progress-management.md`)
+
+---
+
+## 5. Non-Custodial 4 红线 (速览)
+
+以下四条**不可绕过**, 违反 = CRITICAL. 详见 [`.claude/rules/mandatory-rules.md`](.claude/rules/mandatory-rules.md) §0:
+
+1. **Key / KEK 永不出进程** — 禁 log / publish / send raw key material; 禁 cloud SDK
+2. **G6 host gate 不绕过** — live venue 必须过 `NtTradingNodeHost` G6 gate; `NoopHost` 只允许 paper/sim
+3. **Reconcile 失联 ≠ 停止** — 云端断线时本地 fallback breaker + `max_notional_per_runner` cap 继续守护
+4. **Money math 用 `Decimal`, wire 用 `str`** — 禁 `float()` 参与 money 路径
+
+紧急预案是**降级到 paper**, 不是绕过红线. 见 [`.claude/rules/deviation-protocol.md`](.claude/rules/deviation-protocol.md) §紧急偏离.
+
+---
+
+## 6. 常用命令
+
+| 用途 | 命令 |
+|------|------|
+| 装依赖 (dev extra) | `make install` (= `uv sync --extra dev`) |
+| 跑测试 (完整, 含已知 fail) | `make test` |
+| 跑测试 (可绿基线) | `make test-baseline` |
+| 格式化 | `make fmt` |
+| 格式检查 | `make fmt-check` |
+| Lint | `make lint` |
+| 发布门 | `make verify` (= `check + test-baseline`) |
+| 列全部 target | `make help` |
+| 单跑 G6 gate 测试 | `uv run pytest tests/test_g6_gate.py -v` |
+| Non-Custodial 红线 grep | 见 `.claude/rules/verification.md` §红线专项检查 |
+
+---
+
+## 7. 规则集 / 权威文档 / 教训
+
+- **规则**: [`.claude/rules/`](.claude/rules/) — 9 份 rule 文件, 会话开始自动加载
+- **权威文档路径清单**: [`.claude/rules/authority-docs.md`](.claude/rules/authority-docs.md)
+- **技术栈**: [`.claude/rules/tech-stack.md`](.claude/rules/tech-stack.md) (Python 3.11+/uv/nats-py/Pydantic v2)
+- **代码风格**: [`.claude/rules/code-style.md`](.claude/rules/code-style.md) (ruff 88, 脱敏日志, Decimal money)
+- **常见错误**: [`.claude/rules/common-errors.md`](.claude/rules/common-errors.md) (uv/pip 混用, NT lifecycle, async silent drop)
+- **历史教训**: [`.claude/rules/historical-lessons.md`](.claude/rules/historical-lessons.md) (生态精华继承)
+- **验证入口**: [`.claude/rules/verification.md`](.claude/rules/verification.md)
+
+## 8. 独立开源仓库自足纪律
+
+custos 是**独立仓库**, 外部审计员会 clone 单仓查代码:
+
+- `.claude/rules/` 是**自足**的 — 不引 workspace root, 不假设 monorepo 存在
+- 规则思想与生态 `the-alephain-guild/.claude/rules/` 一致, 但文本独立维护
+- workspace 场景开发者仍可参考 `../../.claude/rules/*.md` (生态原文), 但独立场景以本仓规则集为准
 
 ---
 
@@ -42,3 +137,7 @@
 - planner_team.drafters_per_session=2, codex_audit.max_calls_per_plan=3 (预算收紧, arx 是 4/5)
 - architect_team.experts=`[domain, safety, python]` (无 rust / web 专家)
 - opus 强角色显式 pin `claude-opus-4-7[1m]` (禁裸 `opus`, CEO 2026-07-06 禁)
+
+---
+
+*方法论权威在 [`docs/domain.md`](docs/domain.md), 红线权威在 [`.claude/rules/mandatory-rules.md`](.claude/rules/mandatory-rules.md).*
