@@ -16,6 +16,17 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
 ]
+# Production NautilusTrader host runtime. Heavy; kept optional so audit-only /
+# paper-mode installs (NoopHost) don't pull it. NautilusTrader 1.227+ only
+# supports Python >=3.12, so it is gated behind an environment marker: the base
+# package stays installable on Python 3.11 (audit / paper), while nt-runtime
+# resolves NautilusTrader only on 3.12+. Install with
+# `uv sync --extra nt-runtime` (needs a 3.12+ interpreter) or
+# `pip install custos-runner[nt-runtime]`.
+nt-runtime = [
+    "nautilus-trader>=1.227; python_version >= '3.12'",
+    "pyyaml>=6",
+]
 
 [build-system]
 requires = ["hatchling"]

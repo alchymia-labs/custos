@@ -45,9 +45,10 @@ custos-vault/
 *.age.key
 *-key.txt
 
-# forge 临时物件 (scratchpad / handoff packet 是会话内产出物, 不入 git)
+# forge 临时物件 (scratchpad / handoff packet / worktree 是会话内产出物, 不入 git)
 .forge/scratch/
 .forge/handoff/
+.forge/worktrees/
 
 # examples/ 环境变量: 每个 example 目录的 .env 用于本地开发, 但 .env.example
 # 是模板必须入 git — lesson #26 boundary constant 显式反向豁免

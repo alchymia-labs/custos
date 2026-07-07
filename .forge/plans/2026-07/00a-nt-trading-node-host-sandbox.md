@@ -1,6 +1,6 @@
 # 00a - NtTradingNodeHost 真实现 + Binance sandbox 打通 (supertrend 首策略)
 
-> **Status**: 🔲 Todo
+> **Status**: ✅ Completed (2026-07-07)
 > **Created**: 2026-07-07
 > **Project**: custos (`tesseract-trading/custos/`)
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -198,28 +198,109 @@ DeploymentReconciler._apply_spec (unchanged)
 
 ## 验收清单 (Acceptance Criteria)
 
-- [ ] `uv sync --extra nt-runtime` 成功装 NT 1.227+
-- [ ] `NoopHost` 类保留不动, 现有测试 (`test_nautilus_host` 若有 / 各现有测试) 全绿
-- [ ] `NtTradingNodeHost.deploy/reconfigure/stop` 三方法签名逐字满足 `NautilusHostProtocol` (`deployment_reconciler.py:56-63`)
-- [ ] 8 处失败模式全部 pytest 覆盖 (契约表 8 行 8 test)
-- [ ] G6 gate 逻辑未改动 (`deployment_reconciler.py:30-53` diff 无变化; live mode + NtTradingNodeHost 组合此 plan 内**仍被拒** — Plan 00c 才放行)
-- [ ] sandbox mode 集成测试跑通 supertrend 策略装载 (从 ps 目录拷贝 fixture)
-- [ ] `pytest tests/` 全绿 (包括现有 20 test file)
-- [ ] `examples/supertrend-sandbox/` 有可跑的 spec + README
+- [x] `uv sync --extra nt-runtime` 成功装 NT 1.227+ (实装 1.230.0; 需 py3.12+, 见 DEV-00a-PY312-NT-GATE)
+- [x] `NoopHost` 类保留不动, 现有测试全绿 (NoopHost 逐字不变, baseline 142 passed 无回归)
+- [x] `NtTradingNodeHost.deploy/reconfigure/stop` 三方法签名逐字满足 `NautilusHostProtocol` (`deployment_reconciler.py:56-63`)
+- [x] 失败模式全部 pytest 覆盖 (契约表 10 test 全 grep 实存 + 跑绿)
+- [x] G6 gate 逻辑未改动 (`deployment_reconciler.py` `git diff main` 零变化; live + NtTradingNodeHost 组合本 plan 不涉及, 仍由 Plan 00c 放行)
+- [x] sandbox mode 集成测试跑通策略装载 (自包含 NT fixture, DEV-00a-FIXTURE-SELFCONTAINED; 真 NT node build + SimulatedExchange + strategy 注册)
+- [x] `pytest tests/` 全绿 (test-baseline 142 passed; wire_shapes 9 known-fail 属 Plan 01 遗留, baseline 已 `--ignore`)
+- [x] `examples/supertrend-sandbox/` 有可跑的 spec + README
 
 ## 偏离与改进日志 (Deviation Log)
 
-(执行阶段填写; 空白 = 无偏离)
+### DEVIATION: DEV-00a-PY312-NT-GATE
+- **等级**: 中
+- **原因**: plan 假设 `nautilus-trader>=1.227` 与 custos `requires-python>=3.11` 兼容, 实际
+  NT 1.227~1.230 全要求 `Python>=3.12,<3.15` → uv 解析不可满足, NT 装不上。这是 plan-vs-reality
+  环境漂移 (lesson #33 类)。
+- **影响**: `pyproject.toml` (nt-runtime extra 加 PEP508 marker) / `.python-version` (新, 3.13) /
+  `uv.lock` / `.claude/rules/tech-stack.md` / `Makefile` (test 目标 nt-runtime-aware)。
+- **决定**: nt-runtime extra 用 marker `"nautilus-trader>=1.227; python_version >= '3.12'"` 门控 —
+  base 包在 py3.11 仍可装 (NoopHost/paper/审计场景不破坏, `requires-python>=3.11` 不变),
+  nt-runtime 在 3.12+ 拉真 NT 1.230.0。dev/CI 用 `.python-version=3.13` pin。Makefile gate 分离:
+  `make verify` (base, test-baseline 不强依赖 NT, importorskip 跳过) + `make verify-nt` (NT, --extra
+  nt-runtime 真跑 NT host 测试) + `make install-nt`。已实测: py3.11 base 可装 (NT skip) + py3.13 真 NT
+  1.230 装成功 + baseline 142 passed 无回归 (verify + verify-nt 双绿)。4 红线全未触及。team-lead APPROVE。
+- **更新的文档**: `.claude/rules/tech-stack.md` (语言运行时表保 custos runner >=3.11 + nt-runtime py3.12+
+  脚注 + 可选依赖段 nautilus-trader 行) + `Makefile` (install-nt / test-nt / verify-nt target)。
+
+### DEVIATION: DEV-00a-FIXTURE-SELFCONTAINED
+- **等级**: 中 (team-lead APPROVE)
+- **原因**: ps `trend/supertrend/refinement/nautilus/strategy.py` 深度耦合 ps `shared/` 包
+  (`from shared.nautilus import NautilusTradingStrategy` 3400 行基类 + `shared.config`/`shared.signals`/
+  `shared.nautilus.indicators`, ps shared 6000+ 行)。custos 红线禁 runtime 依赖 ps 研究代码
+  (plan Key Design "copy+适配不反向依赖 ps"), 无法直接加载真 supertrend 作 fixture。
+- **影响**: `tests/fixtures/minimal_supertrend_strategy.py` (新, 自包含 SuperTrend-shaped NT Strategy,
+  ~110 LOC: ATR band + trend-flip market entry + `create_strategy` factory)。
+  连带暴露 + 修复: `_strategy_loader._import_module_from_path` 注册 module 进 sys.modules (唯一名) +
+  `nautilus_host._instantiate_strategy` 用 `sys.modules.get(cls.__module__)` (原 `inspect.getmodule` 对
+  importlib 动态加载类返回 None, 使需 config 的 factory 策略无法实例化) — richer fixture 暴露的真实缺陷。
+- **决定**: Task 6 集成测试用自包含 SuperTrend-shaped minimal `nautilus_trader.trading.Strategy` 子类
+  fixture, 无 ps shared 依赖; test docstring 语义注明 (lesson #15: 不写 DEV 号入源码)。契约表 test 名
+  (`test_full_lifecycle_sandbox_supertrend`) 保留 (lesson #35 boundary constant), 意图 (host 生命周期 +
+  strategy 装载 + stop) + 失败模式覆盖不变。已实测真 NT node build + strategy 注册跑通。team-lead 双 APPROVE。
+
+### DEVIATION: DEV-00a-SANDBOX-EXEC-ENUM-STR
+- **等级**: 低 (内部实现)
+- **原因**: `SandboxExecutionClientConfig` 构造接受 `AccountType`/`OmsType` enum, 但 `node.build()`
+  报 `expected str, got OmsType` — 字段实际要 enum 名字符串 (lesson #17: config 构造过 != 真 build 过)。
+- **影响**: `src/arx_runner/_nt_binance_venue.py` (account_type/oms_type 改传 str "MARGIN"/"CASH"/"NETTING")。
+- **决定**: offline `node.build()` 验证发现并修正 (commit 458dc66); 测试断言同步为 str, 加 regression 注释。
+
+### DEVIATION: DEV-00a-INTEG-NO-DISPOSE
+- **等级**: 低 (测试策略)
+- **原因**: 真 NT `node.dispose()` 在运行中的 asyncio loop 内会试图停 loop (为 NT 自己的 `run()` 设计);
+  集成测试 stub `run_async` (避免连 binance) 后 kernel 未真启动, dispose 在 pytest loop 内崩溃。
+  生产路径 (真 run_async) 不受影响。
+- **影响**: `tests/test_nt_trading_node_host_integration.py`。
+- **决定**: 集成测试验证真实 assembly (真 venue configs → TradingNode → build → SimulatedExchange →
+  strategy 注册, 经 `node.trader.strategies()` 断言), teardown 用 cancel+drain (不 dispose)。
+  host.stop() 优雅 stop_async/dispose/timeout 路径由 fake-node 单测充分覆盖 (test_stop_idempotent /
+  test_stop_timeout_forces_dispose)。
+
+## Peer Review 修复 (Codex L1, `.forge/reviews/2026-07/00a-peer-codex.md`)
+
+6 findings, 5 fix-now (1 commit round → 2 commit) + 1 follow-up:
+
+| # | 等级 | 内容 | 修复 | commit |
+|---|------|------|------|--------|
+| F2 | high (红线 0.1) | exception 日志未脱敏, NT 内部异常 repr 可能间接泄漏 credential | `_sanitize_exception` helper 脱敏 (nt_startup_failure + nt_node_loop_failed) + redact/passthrough 双分支 test | 1a5f09e |
+| F3 | medium | 同 spec_id 重复 deploy 覆盖旧 node 引用泄漏 | deploy 头部 idempotency guard 抛 RuntimeError 要求先 stop | 1a5f09e |
+| F4 | medium | `_on_node_task_done` 不清 `_active_nodes` 死条目 | callback 内 task 身份匹配后 pop (防 spec_id 复用误清) | 1a5f09e |
+| F5 | medium | `node.build()` 后 add_strategy fail 泄漏 built node | `_instantiate_strategy` 提前到 build 之前 (只需 strategy_cls) | 1a5f09e |
+| F6 | medium (test-quality) | `verify-nt` 可能被 importorskip 静默 skip 假绿 | Makefile `test-nt` 加 import nautilus_trader 硬 preflight | e5e322a |
+| F1 | high (观察) | TradingNode 内存间接持有 credential | **不阻塞** — Lead 判定 NT↔exchange 通信设计必要 (红线限 I/O 边界, in-process 内存持有不违反); 记入 `.forge/README.md` Plan 03 候选 (credential lifecycle test suite) | follow-up |
+
+新增 5 test → **总 147 passed** (make verify + verify-nt 双绿)。红线复检 clean。
 
 ## 完成报告 (Close-out Report)
 
-- **完成日期**: (待填)
-- **总 Task 数**: 6
-- **偏离数**: (待填)
-- **验证结果**: (待填)
-- **遗留项**: 
+- **完成日期**: 2026-07-07
+- **总 Task 数**: 6 (全部完成)
+- **偏离数**: 4 (DEV-00a-PY312-NT-GATE 中风险 / DEV-00a-FIXTURE-SELFCONTAINED 低 /
+  DEV-00a-SANDBOX-EXEC-ENUM-STR 低 / DEV-00a-INTEG-NO-DISPOSE 低; 详见偏离日志)
+- **验证结果**: 全部通过。`make verify` (base) + `make verify-nt` (NT, 真 NT 1.230.0) 双绿, 各
+  **147 passed / 0 failed** (含本 plan 27 task 测试 + codex peer review 5 新增 = 32 新增测试);
+  完整 `make test` 147 passed + 9 known-fail (test_wire_shapes.py, Plan 01 DEV-01-WIRE-FIXTURES,
+  baseline 已 `--ignore`)。真 NT 1.230.0 在 py3.13 集成测试跑通。
+- **实施 commit 范围**: `cdfc754..<close-out sha>` (task 8 commit + close-out + review-followup 3 +
+  peer-review 2 commit); 见 marker.commits。
+- **契约影响**: `.claude/rules/tech-stack.md` 更新 (nt-runtime Python 3.12+ 约束)。`docs/design/nautilus_host.md`
+  未改 (NtTradingNodeHost 落地兑现其"短期项", 契约面未变); NautilusHostProtocol 三方法签名逐字满足, 未改。
+- **红线守护**: Non-Custodial 4 红线全数守住 (grep 记录: 0.1 无 raw key log/publish; 0.2 deployment_reconciler.py
+  零改动 = G6 gate 未动; 0.3 deploy 用 create_task 后台跑不 block reconciler; 0.4 money path 无 float,
+  sandbox 走 NT 内部 Decimal + starting_balances str)。
+- **失败模式覆盖**: 契约表 10 test 全 grep 实存 + 跑绿 (test_missing_api_key_raises /
+  test_unsupported_connector_notimpl / test_deploy_missing_nt_extra_fails_fast /
+  test_build_failure_records_startup_error / test_hash_mismatch_rejected / test_stop_idempotent /
+  test_stop_timeout_forces_dispose / test_reconfigure_structural_raises /
+  test_full_lifecycle_sandbox_supertrend / test_deploy_code_hash_mismatch_rejected)。
+- **遗留项**:
   - Plan 00b 承接: NT MessageBus → telemetry_actor 桥
   - Plan 00c 承接: G6 gate 逻辑放宽 + live/testnet 放行
+  - 真 run_async→stop_async→dispose 全 lifecycle 需真 exchange 连接, 集成测试当前只覆盖 assembly
+    (见 DEV-00a-INTEG-NO-DISPOSE); testnet 集成或可在 Plan 00c 补真连接 e2e。
 
 ## 下一步 (Next)
 

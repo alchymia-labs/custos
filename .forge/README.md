@@ -31,7 +31,7 @@
 
 | # | Slug | Status | Depends on | Blocks | 说明 |
 |---|------|--------|-----------|--------|------|
-| [00a](plans/2026-07/00a-nt-trading-node-host-sandbox.md) | NtTradingNodeHost + Binance sandbox | 🔲 Todo | arx Plan 60 (已 close-out) | Plan 00b | NoopHost → 真 TradingNode; supertrend 策略首打通 sandbox |
+| [00a](plans/2026-07/00a-nt-trading-node-host-sandbox.md) | NtTradingNodeHost + Binance sandbox | ✅ Completed (2026-07-07) | arx Plan 60 (已 close-out) | Plan 00b | NoopHost → 真 TradingNode; sandbox 策略打通 (codex peer review 落地 F2-F6) |
 | [00b](plans/2026-07/00b-telemetry-bridge-nt-messagebus.md) | telemetry_actor 接 NT MessageBus | 🔲 Todo (blocked by 00a) | Plan 00a | Plan 00c | NT MessageBus → telemetry uplink; OrderDenied 桥 |
 | [00c](plans/2026-07/00c-g6-gate-live-release.md) | G6 gate 放宽 + Binance testnet/live 逐级 | 🔲 Todo (blocked by 00a+00b) | Plan 00a + 00b | (live 放行终点) | capability-based G6 + docker compose e2e |
 | [01](plans/2026-07/01-forge-bootstrap.md) | Forge 基础设施 bootstrap | ✅ Completed (2026-07-07) | 无 | (逻辑上先于 00a-c) | `.gitignore` / `.claude/rules/` / `Makefile` / `docs/design/ops/guides/` / `CLAUDE.md` |
@@ -66,6 +66,13 @@ Plan close-out 后 (Status: ✅ Completed):
 
 Plan 01 close-out 之后:
 
-- **02+**: 按需起 (如 `pyright` 集成 / `nt-runtime` extra 加入 / OKX venue 支持 /
-  签名 release pipeline / Python 模块 rename `arx_runner` → `custos_runner`)
+- **02+**: 按需起 (如 `pyright` 集成 / OKX venue 支持 / 签名 release pipeline /
+  Python 模块 rename `arx_runner` → `custos_runner`)
+- **03 候选 `03-nt-host-hardening.md`** (来自 00a codex peer review F1, high red-line 观察):
+  NtTradingNodeHost 通过 `_active_nodes` 的 `node` 引用间接内存持有 credential (via
+  data/exec config)。Lead 判定这是 NT ↔ exchange 通信的**设计必要** (custos daemon 本就要
+  本地持 key), 红线 0.1 原文限 log/publish/send I/O 边界, in-process 内存持有不违反 —
+  **不阻塞 00a close-out**。后续 plan 加 credential lifecycle test suite, 验证三层 invariant:
+  no credential in (1) `node` repr / (2) `node.__dict__` recursive dump / (3) structlog
+  processor output。
 - 编号沿用 `02` `03` ..., 不复用 `00` / `01`
