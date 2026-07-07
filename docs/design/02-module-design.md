@@ -52,8 +52,9 @@
 ### telemetry_actor ↔ nats_client
 
 - telemetry_actor 生成 `TransportEnvelope[HeartbeatEvent | TelemetrySnapshot | ...]`
-- nats_client `SubjectBuilder` 生成 `arx.<tenant_id>.<subject_suffix>` (BC 命名一致性
-  由 `test_subject_builder_contract.py` 守)
+- nats_client `build_subject(tenant, kind, *parts)` 生成 `arx.<tenant_id>.<kind>[/…]`
+  (BC 命名一致性由 `test_subject_builder_contract.py` 守; 契约测试文件名保留
+  `subject_builder` 是 python module 命名习惯, 实际是函数不是类)
 - envelope schema 版本化 (`payload_schema_version`) 由 nats_client 声明契约
 
 ## Wire contract 测试

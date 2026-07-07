@@ -91,7 +91,7 @@ Level-triggered reconcile 的核心不变量:
 | **本地 Vault** | `VaultNamespace` / `EncryptedKey` / `MasterKey` / `KEK` | derived → active → cleared (TTL) | [`credential_vault.md`](credential_vault.md) |
 | **NT 执行适配** | `NTAdapter` / `TradingNodeConfig` / `StrategyMirror` | INITIALIZED → STARTED → STOPPED → DISPOSED | [`nautilus_host.md`](nautilus_host.md) |
 | **上报事件** | `HeartbeatEvent` / `StatusReport` / `FailureEvent` / `TelemetrySnapshot` | 无状态 (immutable 事件) | [`telemetry_actor.md`](telemetry_actor.md) |
-| **NATS 通道** | `NatsClient` / `EnvelopeSchema` / `SubjectBuilder` | connected → reconnecting (auto) | [`nats_client.md`](nats_client.md) |
+| **NATS 通道** | `NatsClient` / `EnvelopeSchema` / `build_subject()` | connected → reconnecting (auto) | [`nats_client.md`](nats_client.md) |
 
 ## 8. 用户验证路径
 

@@ -61,7 +61,8 @@
 - **防护**: smart constructor 收口 invariant; 边界裸用前 `validate_*_for_<sink>` 拦截
 - **custos 特化**:
   - `TenantId` / `RunnerId` / `StrategyId` 不裸 str 拼 NATS subject
-  - `nats.subject` 构造用 `SubjectBuilder` (参考 `test_subject_builder_contract.py`)
+  - `nats.subject` 构造用 `build_subject(tenant, kind, *parts)` 函数收口 (参考
+    `test_subject_builder_contract.py`), 拼接前对每个 part 校验字符集/长度
 
 ## #27 commit scope discipline — 前必 `git status --short`
 

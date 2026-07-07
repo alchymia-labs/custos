@@ -44,7 +44,7 @@ custos/
 │   ├── config.py              ← DeploymentSpec / TransportEnvelope Pydantic 模型
 │   ├── enrollment.py          ← EnrollmentToken 配对 + runner_id 持久
 │   ├── credential_vault.py    ← sops+age 本地 KEK vault
-│   ├── nats_client.py         ← JetStream client + SubjectBuilder
+│   ├── nats_client.py         ← JetStream client + build_subject() 函数
 │   ├── reconcile.py           ← ReconcileLoop (level-triggered)
 │   ├── deployment_reconciler.py ← reconcile 高层编排
 │   ├── nautilus_host.py       ← NoopHost + NtTradingNodeHost + G6 gate
