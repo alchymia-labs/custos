@@ -77,9 +77,7 @@ async def test_publish_telemetry_envelope_goes_to_jetstream_when_connected():
     js = _FakeJetStream()
     client._js = js  # type: ignore[attr-defined]
     client._nc = _FakeCore()  # type: ignore[attr-defined]
-    await client.publish_telemetry_envelope(
-        "arx.acme.telemetry.r1.s1", _envelope()
-    )
+    await client.publish_telemetry_envelope("arx.acme.telemetry.r1.s1", _envelope())
     assert len(js.published) == 1
     subject, payload = js.published[0]
     assert subject == "arx.acme.telemetry.r1.s1"
@@ -114,9 +112,7 @@ async def test_wal_stashes_telemetry_while_disconnected_and_drains_on_connect(tm
     )
 
     # Disconnected publish → goes to WAL.
-    await client.publish_telemetry_envelope(
-        "arx.acme.telemetry.r1.s1", _envelope()
-    )
+    await client.publish_telemetry_envelope("arx.acme.telemetry.r1.s1", _envelope())
     assert wal_file.exists()
 
     # Reconnect: install fake jetstream, run the private drain.
@@ -155,9 +151,7 @@ async def test_wal_replays_in_fifo_order(tmp_path: Path):
             payload={"order_id": f"o{i}"},
             ordering=OrderingMeta(session_id="s1", seq=i + 1),
         )
-        await client.publish_telemetry_envelope(
-            f"arx.acme.telemetry.r1.s1.msg-{i}", env
-        )
+        await client.publish_telemetry_envelope(f"arx.acme.telemetry.r1.s1.msg-{i}", env)
 
     js = _FakeJetStream()
     client._js = js  # type: ignore[attr-defined]

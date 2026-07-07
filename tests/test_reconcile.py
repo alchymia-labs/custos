@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from arx_runner.nats_client import ArxNatsClient
@@ -11,7 +11,7 @@ from arx_runner.reconcile import ReconcileUploader, ReconResult
 
 
 def sample_result() -> ReconResult:
-    now = datetime(2026, 6, 26, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 6, 26, 12, 0, 0, tzinfo=UTC)
     return ReconResult(
         dimension="balance",
         domain="cex",

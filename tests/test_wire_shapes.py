@@ -13,16 +13,8 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
-FIXTURE_DIR = (
-    REPO_ROOT
-    / "backend"
-    / "crates"
-    / "telemetry"
-    / "tests"
-    / "wire_shapes"
-)
+FIXTURE_DIR = REPO_ROOT / "backend" / "crates" / "telemetry" / "tests" / "wire_shapes"
 
 FIXTURE_NAMES = ("heartbeat", "telemetry_snapshot", "recon_result")
 
@@ -49,9 +41,7 @@ def test_envelope_keys_complete(name: str) -> None:
 @pytest.mark.parametrize("name", FIXTURE_NAMES)
 def test_envelope_uses_payload_schema_version_not_legacy(name: str) -> None:
     env = _load(name)
-    assert (
-        "schema_version" not in env
-    ), f"{name} regressed to legacy schema_version key"
+    assert "schema_version" not in env, f"{name} regressed to legacy schema_version key"
 
 
 def test_heartbeat_payload_complete() -> None:

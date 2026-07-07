@@ -18,12 +18,12 @@ data, so downstream tests cannot silently rely on a hard-coded fixture.
 from __future__ import annotations
 
 import logging
-
-import uuid6
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Literal
+
+import uuid6
 
 from .nats_client import ArxNatsClient, NatsEnvelope, OrderingMeta
 
@@ -72,16 +72,16 @@ class ReconResult:
 
 def _rfc3339(dt: datetime) -> str:
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     else:
-        dt = dt.astimezone(timezone.utc)
+        dt = dt.astimezone(UTC)
     base = dt.strftime("%Y-%m-%dT%H:%M:%S")
     micros = dt.microsecond
     return f"{base}.{micros:06d}000Z"
 
 
 def _now_rfc3339() -> str:
-    return _rfc3339(datetime.now(tz=timezone.utc))
+    return _rfc3339(datetime.now(tz=UTC))
 
 
 class ReconcileUploader:
@@ -124,18 +124,13 @@ class ReconcileUploader:
         """Dedicated ``recon_result`` subject (plan-index §6 — WR-NATS-2
         demux). Keeps reconciliation results off the telemetry stream so
         the consumer dispatch table stays explicit."""
-        return (
-            f"arx.{self._tenant_id}.recon_result."
-            f"{self._runner_id}.{self._session_id}"
-        )
+        return f"arx.{self._tenant_id}.recon_result.{self._runner_id}.{self._session_id}"
 
     async def upload_recon_result(self, result: ReconResult, seq: int) -> None:
         """Serialise + publish one comparison."""
         env = self.build_envelope(result.to_payload(), seq)
         if self._nats._js is None:  # noqa: SLF001 — Plan 04 will expose publish_telemetry
-            raise RuntimeError(
-                "ArxNatsClient.upload_recon_result called before connect()"
-            )
+            raise RuntimeError("ArxNatsClient.upload_recon_result called before connect()")
         await self._nats._js.publish(self.subject(), env.to_bytes())  # noqa: SLF001
 
     async def run_reconciliation_cycle(self) -> list[ReconResult]:

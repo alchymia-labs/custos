@@ -27,9 +27,7 @@ class _Recorder:
     telemetry_calls: list[tuple[str, NatsEnvelope]] = field(default_factory=list)
     heartbeat_calls: list[tuple[str, NatsEnvelope]] = field(default_factory=list)
 
-    async def publish_telemetry(
-        self, *, session_id: str, envelope: NatsEnvelope
-    ) -> None:
+    async def publish_telemetry(self, *, session_id: str, envelope: NatsEnvelope) -> None:
         self.telemetry_calls.append((session_id, envelope))
 
     async def publish_heartbeat_fire_and_forget(

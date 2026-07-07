@@ -23,12 +23,11 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
-import uuid
-
-import uuid6
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+
+import uuid6
 
 from arx_runner.log import get_logger
 
@@ -368,9 +367,7 @@ class ArxNatsClient:
             return
         await self._nc.publish(subject, payload)
 
-    async def publish_telemetry_envelope(
-        self, subject: str, envelope: NatsEnvelope
-    ) -> None:
+    async def publish_telemetry_envelope(self, subject: str, envelope: NatsEnvelope) -> None:
         """At-least-once publish via JetStream. When disconnected, stash
         in the offline WAL for replay on next connect()."""
         payload = envelope.to_bytes()
@@ -396,12 +393,8 @@ class ArxNatsClient:
         delta (plan-index §6: "不含 ordering，level-triggered by generation").
         """
         if self._js is None:
-            raise RuntimeError(
-                "subscribe_deployment_spec called before connect()"
-            )
-        subject = build_subject(
-            self.tenant_id, "deployment_spec", strategy_id
-        )
+            raise RuntimeError("subscribe_deployment_spec called before connect()")
+        subject = build_subject(self.tenant_id, "deployment_spec", strategy_id)
         return await self._js.subscribe(subject)
 
     async def publish_deployment_status(
@@ -440,18 +433,14 @@ class ArxNatsClient:
         """At-least-once publish enrollment request to
         ``arx.{tenant}.enrollment.{runner_id}`` (plan-index §6)."""
         if self._js is None:
-            raise RuntimeError(
-                "publish_enrollment called before connect()"
-            )
+            raise RuntimeError("publish_enrollment called before connect()")
         env = NatsEnvelope(
             event_id=str(uuid6.uuid7()),
             tenant_id=self.tenant_id,
             occurred_at=_now_rfc3339_nanos(),
             payload=payload,
         )
-        subject = build_subject(
-            self.tenant_id, "enrollment", self.runner_id
-        )
+        subject = build_subject(self.tenant_id, "enrollment", self.runner_id)
         await self._js.publish(subject, env.to_bytes())
 
     async def _drain_wal(self) -> None:

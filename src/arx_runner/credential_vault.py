@@ -25,7 +25,7 @@ import json
 import logging
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -68,7 +68,7 @@ class _BaseVault:
         credential_id reference. Audit writer downstream consumes the
         structured log event and chains it (Plan 07 audit三件套)。
         """
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         _log.info(
             "credential_decrypted",
             extra={
@@ -148,9 +148,7 @@ class SopsAgeVault(_BaseVault):
         if not self._sops_file.exists():
             raise FileNotFoundError(f"sops file not found: {self._sops_file}")
         if not self._age_key_file.exists():
-            raise FileNotFoundError(
-                f"age key file not found: {self._age_key_file}"
-            )
+            raise FileNotFoundError(f"age key file not found: {self._age_key_file}")
 
         env = dict(os.environ)
         env["SOPS_AGE_KEY_FILE"] = str(self._age_key_file)
@@ -201,9 +199,7 @@ class SopsAgeVault(_BaseVault):
                     "available_ids_count": len(cred_raw) if isinstance(cred_raw, dict) else 0,
                 },
             )
-            raise KeyError(
-                f"credential {credential_id!r} not present in sops file"
-            )
+            raise KeyError(f"credential {credential_id!r} not present in sops file")
 
         self._verify_permission_scope(cred, credential_id)
         self._emit_decrypt_audit(credential_id)

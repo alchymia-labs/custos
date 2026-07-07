@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any
 
 import pytest
 
@@ -39,9 +38,7 @@ def _envelope() -> NatsEnvelope:
         occurred_at="2026-06-26T10:00:00.000000000Z",
         payload_schema_version=1,
         payload={"runner_id": "r-001", "health": "online"},
-        ordering=OrderingMeta(
-            session_id="01900000-0000-7000-8000-000000000001", seq=1
-        ),
+        ordering=OrderingMeta(session_id="01900000-0000-7000-8000-000000000001", seq=1),
     )
 
 
@@ -75,9 +72,7 @@ class _FakeNatsClient:
     runner_id: str
     published_subjects: list[str] = field(default_factory=list)
 
-    async def publish_telemetry_envelope(
-        self, subject: str, envelope: NatsEnvelope
-    ) -> None:
+    async def publish_telemetry_envelope(self, subject: str, envelope: NatsEnvelope) -> None:
         self.published_subjects.append(subject)
 
     async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None:
@@ -99,15 +94,11 @@ def test_adapter_publish_telemetry_uses_build_subject():
         ("acme", "r-001", ""),
     ],
 )
-def test_adapter_publish_telemetry_rejects_empty_tokens(
-    tenant: str, runner: str, session: str
-):
+def test_adapter_publish_telemetry_rejects_empty_tokens(tenant: str, runner: str, session: str):
     client = _FakeNatsClient(tenant_id=tenant, runner_id=runner)
     adapter = ArxNatsTelemetryAdapter(client=client)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
-        asyncio.run(
-            adapter.publish_telemetry(session_id=session, envelope=_envelope())
-        )
+        asyncio.run(adapter.publish_telemetry(session_id=session, envelope=_envelope()))
     assert client.published_subjects == [], "no publish on malformed subject"
 
 
@@ -115,9 +106,7 @@ def test_adapter_publish_heartbeat_uses_build_subject():
     client = _FakeNatsClient(tenant_id="acme", runner_id="r-001")
     adapter = ArxNatsTelemetryAdapter(client=client)  # type: ignore[arg-type]
     asyncio.run(
-        adapter.publish_heartbeat_fire_and_forget(
-            session_id="sess-1", envelope=_envelope()
-        )
+        adapter.publish_heartbeat_fire_and_forget(session_id="sess-1", envelope=_envelope())
     )
     assert client.published_subjects == ["arx.acme.heartbeat.r-001"]
 
@@ -131,9 +120,7 @@ def test_adapter_publish_heartbeat_rejects_empty_tokens(tenant: str, runner: str
     adapter = ArxNatsTelemetryAdapter(client=client)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         asyncio.run(
-            adapter.publish_heartbeat_fire_and_forget(
-                session_id="sess-1", envelope=_envelope()
-            )
+            adapter.publish_heartbeat_fire_and_forget(session_id="sess-1", envelope=_envelope())
         )
     assert client.published_subjects == [], "no publish on malformed subject"
 

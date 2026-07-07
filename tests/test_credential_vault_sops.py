@@ -48,9 +48,7 @@ def _fake_run(stdout: bytes, returncode: int = 0):
                 cmd=cmd,
                 stderr=b"sops: error decrypting (no plaintext here)",
             )
-        return subprocess.CompletedProcess(
-            args=cmd, returncode=0, stdout=stdout, stderr=b""
-        )
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=stdout, stderr=b"")
 
     return runner
 
@@ -87,8 +85,7 @@ def test_decrypt_returns_credential_dict(
     # KEK 不泄漏: caplog 不含 plaintext API key
     log_text = "\n".join(rec.getMessage() for rec in caplog.records)
     log_text_extras = "\n".join(
-        json.dumps({k: getattr(rec, k, None) for k in ("secret",)})
-        for rec in caplog.records
+        json.dumps({k: getattr(rec, k, None) for k in ("secret",)}) for rec in caplog.records
     )
     assert "TOP-SECRET-API-KEY-DO-NOT-LEAK" not in log_text
     assert "TOP-SECRET-API-KEY-DO-NOT-LEAK" not in log_text_extras
@@ -129,9 +126,7 @@ def test_decrypt_emits_audit_event(
     assert audit[0].credential_id == "cred-123"
 
 
-def test_rejects_unsafe_permission_scope(
-    sops_file: Path, age_key_file: Path
-) -> None:
+def test_rejects_unsafe_permission_scope(sops_file: Path, age_key_file: Path) -> None:
     plaintext = json.dumps(
         {
             "cred-bad": {
@@ -154,9 +149,7 @@ def test_rejects_unsafe_permission_scope(
             vault.decrypt("cred-bad")
 
 
-def test_credential_id_not_in_file_raises_key_error(
-    sops_file: Path, age_key_file: Path
-) -> None:
+def test_credential_id_not_in_file_raises_key_error(sops_file: Path, age_key_file: Path) -> None:
     plaintext = json.dumps({"other-cred": {}}).encode("utf-8")
     vault = SopsAgeVault(
         sops_file=sops_file,
@@ -169,9 +162,7 @@ def test_credential_id_not_in_file_raises_key_error(
             vault.decrypt("missing-cred")
 
 
-def test_sops_binary_missing_raises_runtime_error(
-    sops_file: Path, age_key_file: Path
-) -> None:
+def test_sops_binary_missing_raises_runtime_error(sops_file: Path, age_key_file: Path) -> None:
     vault = SopsAgeVault(
         sops_file=sops_file,
         age_key_file=age_key_file,
@@ -206,9 +197,7 @@ def test_sops_decrypt_failure_raises_runtime_error(
     assert any("sops_decrypt_failed" in r.getMessage() for r in failures)
 
 
-def test_sops_output_non_json_raises(
-    sops_file: Path, age_key_file: Path
-) -> None:
+def test_sops_output_non_json_raises(sops_file: Path, age_key_file: Path) -> None:
     vault = SopsAgeVault(
         sops_file=sops_file,
         age_key_file=age_key_file,
@@ -220,9 +209,7 @@ def test_sops_output_non_json_raises(
             vault.decrypt("cred-123")
 
 
-def test_missing_sops_file_raises_file_not_found(
-    tmp_path: Path, age_key_file: Path
-) -> None:
+def test_missing_sops_file_raises_file_not_found(tmp_path: Path, age_key_file: Path) -> None:
     vault = SopsAgeVault(
         sops_file=tmp_path / "missing.json",
         age_key_file=age_key_file,
@@ -233,9 +220,7 @@ def test_missing_sops_file_raises_file_not_found(
         vault.decrypt("cred-123")
 
 
-def test_missing_age_key_file_raises(
-    sops_file: Path, tmp_path: Path
-) -> None:
+def test_missing_age_key_file_raises(sops_file: Path, tmp_path: Path) -> None:
     vault = SopsAgeVault(
         sops_file=sops_file,
         age_key_file=tmp_path / "missing-age.key",

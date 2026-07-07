@@ -67,7 +67,7 @@ class PreTradeRuleConfig:
     dedup_window_ms: int
 
     @classmethod
-    def from_dict(cls, raw: dict) -> "PreTradeRuleConfig":
+    def from_dict(cls, raw: dict) -> PreTradeRuleConfig:
         """Parse a rule row (as returned by the cloud rules endpoint). Money
         strings parse straight to ``Decimal`` so no float ever touches the
         value."""
@@ -118,9 +118,7 @@ def build_nt_risk_engine_config(rules: list[PreTradeRuleConfig]) -> dict:
     }
 
 
-def order_fingerprint(
-    symbol: str, side: str, quantity: str, price: str, ts_seconds: int
-) -> str:
+def order_fingerprint(symbol: str, side: str, quantity: str, price: str, ts_seconds: int) -> str:
     """SHA-256 content digest over ``symbol|side|qty|price|ts_seconds`` — the
     same canonical recipe the Rust service uses (correlation handle, not the
     tamper-evidence anchor; that's the audit chain HMAC)."""
@@ -279,8 +277,6 @@ async def bootstrap_from_rules(
         rule_count=len(rules),
         symbols=sorted(config["max_notionals_per_order"].keys()),
     )
-    bridge = NtRiskEngineBridge(
-        client=client, tenant_id=tenant_id, runner_id=runner_id
-    )
+    bridge = NtRiskEngineBridge(client=client, tenant_id=tenant_id, runner_id=runner_id)
     bridge.bootstrap(message_bus)
     return bridge

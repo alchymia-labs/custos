@@ -18,7 +18,7 @@ import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Protocol
 
 from arx_runner.log import get_logger
 from arx_runner.nats_client import ArxNatsClient
@@ -111,9 +111,7 @@ class DeploymentReconciler:
             strategy_id=strategy_id,
         )
         try:
-            sub = await self.nats_client.subscribe_deployment_spec(
-                strategy_id=strategy_id
-            )
+            sub = await self.nats_client.subscribe_deployment_spec(strategy_id=strategy_id)
         except Exception as exc:  # noqa: BLE001
             _log.error(
                 "deployment_reconciler_subscribe_failed",
@@ -128,7 +126,7 @@ class DeploymentReconciler:
                     sub.next_msg(timeout=self.poll_interval_secs),
                     timeout=self.poll_interval_secs * 2,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except Exception as exc:  # noqa: BLE001 — NATS 抖动不停止 loop
                 _log.warning(
@@ -239,8 +237,7 @@ class DeploymentReconciler:
         # 新部署: container_id 未知 → deploy + decrypt credential。
         if state.container_id is None:
             credential_id = (
-                spec.get("provenance_ref", {})
-                .get("credential_id")
+                spec.get("provenance_ref", {}).get("credential_id")
                 if isinstance(spec.get("provenance_ref"), dict)
                 else None
             ) or spec_id  # fallback: use spec_id as opaque cred ref

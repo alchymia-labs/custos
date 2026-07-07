@@ -12,7 +12,7 @@ import logging
 
 import pytest
 
-from arx_runner.credential_vault import CredentialVault, AuditEvent
+from arx_runner.credential_vault import AuditEvent, CredentialVault
 
 
 def test_decrypt_returns_mock_credential() -> None:

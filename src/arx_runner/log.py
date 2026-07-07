@@ -19,7 +19,6 @@ from typing import Any
 
 import structlog
 
-
 _CONFIGURED = False
 
 

@@ -26,10 +26,11 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+from typing import Any, Protocol
 
 import uuid6
-from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Protocol
 
 from arx_runner.config import TelemetryQueueConfig
 from arx_runner.log import get_logger
@@ -40,7 +41,6 @@ from arx_runner.nats_client import (
     _now_rfc3339_nanos,
     build_subject,
 )
-
 
 _log = get_logger("arx_runner.telemetry_actor")
 
@@ -87,9 +87,7 @@ class MoneyFieldFloatRejected(TypeError):
         self.value = value
 
 
-def _reject_floats_in_money_fields(
-    event_type: str, payload: dict[str, Any]
-) -> None:
+def _reject_floats_in_money_fields(event_type: str, payload: dict[str, Any]) -> None:
     """Raise ``MoneyFieldFloatRejected`` on the first money field carrying a
     ``float``. ``bool`` is a ``float`` subclass and is rejected too — a
     ``True`` slipping through would round-trip as ``1.0``."""
@@ -259,9 +257,7 @@ class TelemetryActor:
             raise RuntimeError("TelemetryActor already started")
         self._stopping.clear()
         self._loop = asyncio.get_running_loop()
-        self._flush_task = self._loop.create_task(
-            self._flush_loop(), name="telemetry-flush"
-        )
+        self._flush_task = self._loop.create_task(self._flush_loop(), name="telemetry-flush")
         self._heartbeat_task = self._loop.create_task(
             self._heartbeat_loop(), name="telemetry-heartbeat"
         )
@@ -308,7 +304,7 @@ class TelemetryActor:
                     self._queue.get(),
                     timeout=self.config.flush_interval_secs,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Heartbeat tick — nothing to flush, just loop.
                 continue
             await self._drain_batch_starting_with(first)
@@ -328,9 +324,7 @@ class TelemetryActor:
 
         for env in envelopes:
             try:
-                await self.publisher.publish_telemetry(
-                    session_id=self.session_id, envelope=env
-                )
+                await self.publisher.publish_telemetry(session_id=self.session_id, envelope=env)
             except Exception as exc:  # noqa: BLE001 — survive publish errors
                 self._drop_counter += 1
                 _log.error(
@@ -351,9 +345,7 @@ class TelemetryActor:
             except asyncio.QueueEmpty:
                 return
             try:
-                await self.publisher.publish_telemetry(
-                    session_id=self.session_id, envelope=env
-                )
+                await self.publisher.publish_telemetry(session_id=self.session_id, envelope=env)
             except Exception as exc:  # noqa: BLE001
                 self._drop_counter += 1
                 _log.error(
@@ -368,7 +360,7 @@ class TelemetryActor:
                 await asyncio.wait_for(
                     self._stopping.wait(), timeout=self.config.heartbeat_interval_secs
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await self._send_heartbeat()
 
     async def _send_heartbeat(self) -> None:
@@ -383,9 +375,7 @@ class TelemetryActor:
                 "active_deployments": self.active_deployment_count(),
                 "health": "online",
             },
-            ordering=OrderingMeta(
-                session_id=self.session_id, seq=self._heartbeat_seq
-            ),
+            ordering=OrderingMeta(session_id=self.session_id, seq=self._heartbeat_seq),
         )
         try:
             await self.publisher.publish_heartbeat_fire_and_forget(
@@ -428,9 +418,7 @@ class ArxNatsTelemetryAdapter:
     async def publish_heartbeat_fire_and_forget(
         self, *, session_id: str, envelope: NatsEnvelope
     ) -> None:
-        subject = build_subject(
-            self.client.tenant_id, "heartbeat", self.client.runner_id
-        )
+        subject = build_subject(self.client.tenant_id, "heartbeat", self.client.runner_id)
         await self.client.publish_fire_and_forget(subject, envelope.to_bytes())
 
 

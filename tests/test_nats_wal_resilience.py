@@ -63,9 +63,7 @@ async def test_wal_drain_keeps_unsent_rows_on_publish_failure(tmp_path: Path):
 
     # Stash 10 messages while disconnected.
     for i in range(1, 11):
-        await client.publish_telemetry_envelope(
-            f"arx.acme.telemetry.r1.s1.msg-{i}", _envelope(i)
-        )
+        await client.publish_telemetry_envelope(f"arx.acme.telemetry.r1.s1.msg-{i}", _envelope(i))
     assert client._wal.depth() == 10  # type: ignore[union-attr]
 
     # Reconnect with a flaky jetstream — fails on call 5 → rows 1..4 must

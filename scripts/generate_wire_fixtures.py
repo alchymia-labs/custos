@@ -11,11 +11,9 @@ fixtures git-stable; only producer-side schema drift will move them.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from arx_runner.nats_client import NatsEnvelope, OrderingMeta
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_DIR = REPO_ROOT / "backend" / "crates" / "telemetry" / "tests" / "wire_shapes"

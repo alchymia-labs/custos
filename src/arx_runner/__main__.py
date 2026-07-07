@@ -72,9 +72,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-async def _heartbeat_loop(
-    client: ArxNatsClient, interval: float, stop: asyncio.Event
-) -> None:
+async def _heartbeat_loop(client: ArxNatsClient, interval: float, stop: asyncio.Event) -> None:
     # Time-ordered UUIDv7 so the session boundary is comparable on the
     # consumer side (plan-index §6 + lesson on session_id timeordering).
     session_id = str(uuid6.uuid7())
@@ -96,7 +94,7 @@ async def _heartbeat_loop(
         seq += 1
         try:
             await asyncio.wait_for(stop.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             continue
 
 
@@ -108,9 +106,7 @@ def _build_vault(args: argparse.Namespace) -> CredentialVault:
     if args.sops_file is None and args.age_key_file is None:
         return CredentialVault(tenant_id=args.tenant_id, initiator=args.runner_id)
     if args.sops_file is None or args.age_key_file is None:
-        raise SystemExit(
-            "sops/age 必须同时指定 --sops-file + --age-key-file (半配置拒绝)"
-        )
+        raise SystemExit("sops/age 必须同时指定 --sops-file + --age-key-file (半配置拒绝)")
     return SopsAgeVault(
         sops_file=args.sops_file,
         age_key_file=args.age_key_file,
