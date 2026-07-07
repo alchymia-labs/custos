@@ -1,0 +1,76 @@
+# custos .gitignore
+#
+# 独立开源仓库自足 gitignore, 不假设 monorepo 根 gitignore 存在.
+# Non-custodial 承重墙延伸: user 本地开发环境物件不进 git 历史.
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+ENV/
+
+# 打包 / 发布
+dist/
+build/
+wheels/
+*.whl
+
+# 测试 / 类型缓存
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# ---- custos 特化 ----
+# credential_vault 本地 KEK / age key / sops 加密 blob (non-custodial 红线:
+# 用户机器上的 ~/.custos/ 内容永不进 git).
+# 注意: ~/ 展开在 gitignore 中不生效, 这里仅对仓库内路径生效; 用户 $HOME 下
+# 的 ~/.custos/vault/ 不在本仓库范围, 无需 ignore.
+.custos/
+custos-vault/
+*.age
+*.age.key
+*-key.txt
+
+# forge 临时物件 (scratchpad / handoff packet 是会话内产出物, 不入 git)
+.forge/scratch/
+.forge/handoff/
+
+# examples/ 环境变量: 每个 example 目录的 .env 用于本地开发, 但 .env.example
+# 是模板必须入 git — lesson #26 boundary constant 显式反向豁免
+examples/*/.env
+examples/**/.env
+!examples/*/.env.example
+!examples/**/.env.example
+
+# 顶层 .env (若存在也是 secret, 但 .env.example 保留)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---- IDE / 编辑器 ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ---- 日志 / 临时 ----
+*.log
+tmp/
+temp/
