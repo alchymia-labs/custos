@@ -21,6 +21,7 @@ shim (cross-language wire contract).
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from dataclasses import dataclass
 from decimal import Decimal
@@ -156,6 +157,13 @@ class NtRiskEngineBridge:
         self._client = client
         self._tenant_id = tenant_id
         self._runner_id = runner_id
+        # Runner loop captured at bootstrap so the sync MessageBus callback can
+        # schedule the async publish (NT dispatches handlers synchronously).
+        self._loop: asyncio.AbstractEventLoop | None = None
+        # Strong refs to in-flight publish futures — without them the loop only
+        # weakly references a scheduled task and could GC it mid-publish,
+        # silently dropping a rejection (对账不静默 红线).
+        self._pending: set = set()
 
     def subject(self) -> str:
         """``arx.{tenant}.pre_trade_reject.{runner_id}`` (plan-index §6 grammar
@@ -166,7 +174,12 @@ class NtRiskEngineBridge:
     def bootstrap(self, message_bus: _MessageBus | None) -> None:
         """Wire the bridge to NT's MessageBus. A missing bus is a fail-fast
         error (NT RiskEngine cannot be observed) — surfaced loudly, never a
-        silent no-op."""
+        silent no-op.
+
+        NT publishes order events on ``events.order.{strategy_id}`` and invokes
+        handlers synchronously, so the bridge subscribes to the ``*`` wildcard
+        (a literal ``events.order.OrderDenied`` topic never matches) and routes
+        through a sync dispatcher that schedules the async publish."""
         if message_bus is None:
             _log.error(
                 "nt_message_bus_unavailable",
@@ -176,20 +189,74 @@ class NtRiskEngineBridge:
             raise RuntimeError(
                 "NT MessageBus unavailable — cannot bootstrap pre-trade reject bridge"
             )
-        message_bus.subscribe("events.order.OrderDenied", self.on_order_denied)
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
+        message_bus.subscribe("events.order.*", self._on_order_event)
         _log.info(
             "nt_risk_engine_bridge_bootstrapped",
             runner_id=self._runner_id,
             subject=self.subject(),
         )
 
+    def _on_order_event(self, event: Any) -> None:
+        """Sync MessageBus callback for the ``events.order.*`` stream. Only
+        ``OrderDenied`` is republished; submits / accepts / fills are ignored
+        (they ride the telemetry channel). The async publish is scheduled on
+        the captured runner loop because NT invokes this handler synchronously
+        on the engine thread."""
+        if type(event).__name__ != "OrderDenied":
+            return
+        coro = self.on_order_denied(event)
+        loop = self._loop
+        if loop is not None and not self._loop_is_current(loop):
+            fut: Any = asyncio.run_coroutine_threadsafe(coro, loop)
+        else:
+            fut = asyncio.ensure_future(coro)
+        self._pending.add(fut)
+        fut.add_done_callback(self._on_publish_done)
+
+    @staticmethod
+    def _loop_is_current(loop: asyncio.AbstractEventLoop) -> bool:
+        try:
+            return asyncio.get_running_loop() is loop
+        except RuntimeError:
+            return False
+
+    def _on_publish_done(self, fut: Any) -> None:
+        # A denied-order publish that dies must never be silent (对账不静默 红线).
+        self._pending.discard(fut)
+        try:
+            exc = fut.exception()
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001 — reaping the scheduled future
+            return
+        if exc is not None:
+            _log.error("pre_trade_reject_publish_failed", error=str(exc))
+
     async def on_order_denied(self, denied: _OrderDenied) -> None:
         """Translate one NT ``OrderDenied`` into a ``PreTradeRejected`` envelope
         and publish it at-least-once. Unknown NT reasons map to ``max_qty``'s
         sibling set only when recognised; an unmapped reason is published as-is
         but logged so the catalog gap is visible."""
-        reason = _map_reject_reason(getattr(denied, "reason", ""))
+        # Shape guard: a real NT OrderDenied always carries reason + instrument;
+        # a drifted / malformed event that lost them is skipped (never publish a
+        # garbage rejection built from empty defaults).
+        if not hasattr(denied, "reason") or not hasattr(denied, "instrument_id"):
+            _log.warning(
+                "pre_trade_reject_event_shape_mismatch",
+                event_type=type(denied).__name__,
+                has_reason=hasattr(denied, "reason"),
+                has_instrument_id=hasattr(denied, "instrument_id"),
+            )
+            return
+
+        reason = _map_reject_reason(str(getattr(denied, "reason", "") or ""))
         symbol = str(getattr(denied, "instrument_id", "") or "")
+        # NT OrderDenied carries no rule_id (our pre-trade rule catalog is
+        # runner-side); it publishes empty and the cloud correlates by symbol +
+        # fingerprint. side / quantity / price are likewise absent on the NT
+        # event — the fingerprint degrades to a (symbol, ts) correlation handle.
         rule_id = str(getattr(denied, "rule_id", "") or "")
 
         # Reference price may be absent (NT didn't have a quote) — the collar
@@ -206,7 +273,7 @@ class NtRiskEngineBridge:
         side = str(getattr(denied, "side", "") or "")
         quantity = str(getattr(denied, "quantity", "") or "")
         price = str(getattr(denied, "price", "") or "")
-        ts_seconds = int(getattr(denied, "ts_seconds", 0) or 0)
+        ts_seconds = _denied_ts_seconds(denied)
         fingerprint = order_fingerprint(symbol, side, quantity, price, ts_seconds)
 
         payload = {
@@ -230,6 +297,20 @@ class NtRiskEngineBridge:
             symbol=symbol,
             reject_reason=reason,
         )
+
+
+def _denied_ts_seconds(denied: Any) -> int:
+    """Event time in whole seconds for the fingerprint. A real NT OrderDenied
+    exposes ``ts_event`` in nanoseconds; the runner-side test doubles use a
+    plain ``ts_seconds``. Prefer the real NT field, fall back to the test one,
+    default 0."""
+    ts_seconds = getattr(denied, "ts_seconds", None)
+    if ts_seconds is not None:
+        return int(ts_seconds)
+    ts_event_ns = getattr(denied, "ts_event", None)
+    if ts_event_ns is not None:
+        return int(ts_event_ns) // 1_000_000_000
+    return 0
 
 
 def _map_reject_reason(nt_reason: str) -> str:

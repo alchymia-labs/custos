@@ -14,6 +14,7 @@ the MessageBus so these run without the engine. JetStream is mocked.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from decimal import Decimal
@@ -138,7 +139,10 @@ async def test_bootstrap_from_rules_fails_fast_when_bus_none() -> None:
 
 
 @pytest.mark.asyncio
-async def test_bootstrap_subscribes_when_bus_present() -> None:
+async def test_bootstrap_subscribes_order_wildcard_topic() -> None:
+    # NT publishes order events on events.order.{strategy_id}; a literal
+    # events.order.OrderDenied topic never matches (dead subscription). The
+    # bridge must subscribe with the wildcard tail (DEV-00B-DEAD-SUBSCRIPTION).
     client, _ = _client()
     bus = MagicMock()
     bridge = await bootstrap_from_rules(
@@ -149,7 +153,87 @@ async def test_bootstrap_subscribes_when_bus_present() -> None:
         runner_id="runner-7",
     )
     bus.subscribe.assert_called_once()
+    topic = bus.subscribe.call_args.args[0]
+    assert topic == "events.order.*"
     assert bridge.subject() == "arx.acme.pre_trade_reject.runner-7"
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_ignores_non_denied_order_events() -> None:
+    # The order-event stream carries submits / accepts / fills too; only
+    # OrderDenied is republished. The type filter is a live guard — a fill
+    # must never publish a pre-trade reject.
+    client, fake_js = _client()
+    bus = MagicMock()
+    bridge = NtRiskEngineBridge(client=client, tenant_id="acme", runner_id="runner-7")
+    bridge.bootstrap(bus)
+
+    class OrderAccepted:  # order event that is not a denial
+        pass
+
+    bridge._on_order_event(OrderAccepted())
+    await asyncio.sleep(0.01)
+    fake_js.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_forwards_real_order_denied() -> None:
+    # lesson #25: prove the bridge fires against a REAL NT OrderDenied (the
+    # actual 1.230 event), not just the hand-written fake. The sync MessageBus
+    # callback schedules the async publish on the captured runner loop.
+    pytest.importorskip("nautilus_trader")
+    from nautilus_trader.core.uuid import UUID4
+    from nautilus_trader.model.events import OrderDenied
+    from nautilus_trader.model.identifiers import (
+        ClientOrderId,
+        InstrumentId,
+        StrategyId,
+        TraderId,
+    )
+
+    client, fake_js = _client()
+    bus = MagicMock()
+    bridge = NtRiskEngineBridge(client=client, tenant_id="acme", runner_id="runner-7")
+    bridge.bootstrap(bus)
+
+    denied = OrderDenied(
+        trader_id=TraderId("CUSTOS-1"),
+        strategy_id=StrategyId("ST-1"),
+        instrument_id=InstrumentId.from_str("BTCUSDT.BINANCE"),
+        client_order_id=ClientOrderId("O-1"),
+        reason="MAX_NOTIONAL exceeded",
+        event_id=UUID4(),
+        ts_init=1_700_000_000_000_000_000,
+    )
+    bridge._on_order_event(denied)
+    await asyncio.sleep(0.05)  # let the scheduled publish task run
+
+    fake_js.publish.assert_awaited_once()
+    args, kwargs = fake_js.publish.call_args
+    subject = args[0] if args else kwargs["subject"]
+    payload_bytes = args[1] if len(args) > 1 else kwargs["payload"]
+    assert subject == "arx.acme.pre_trade_reject.runner-7"
+    decoded = json.loads(payload_bytes)
+    assert decoded["payload"]["symbol"] == "BTCUSDT.BINANCE"
+    assert decoded["payload"]["reject_reason"] == "max_notional"
+    assert set(decoded["payload"].keys()) == set(PRE_TRADE_REJECTED_FIELDS)
+
+
+@pytest.mark.asyncio
+async def test_denied_shape_mismatch() -> None:
+    # An OrderDenied-typed event missing the defining fields (NT version drift)
+    # is skipped with a structured log, never publishing a garbage rejection.
+    client, fake_js = _client()
+    bridge = NtRiskEngineBridge(client=client, tenant_id="acme", runner_id="runner-7")
+
+    class OrderDenied:  # right type name, wrong shape (no reason / instrument_id)
+        pass
+
+    with structlog.testing.capture_logs() as logs:
+        await bridge.on_order_denied(OrderDenied())
+
+    assert "pre_trade_reject_event_shape_mismatch" in [e.get("event") for e in logs]
+    fake_js.publish.assert_not_awaited()
 
 
 @pytest.mark.asyncio

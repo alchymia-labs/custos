@@ -24,7 +24,6 @@ from arx_runner.credential_vault import CredentialVault, SopsAgeVault
 from arx_runner.deployment_reconciler import DeploymentReconciler
 from arx_runner.enrollment import EnrollmentClient
 from arx_runner.nats_client import ArxNatsClient
-from arx_runner.nt_risk_engine import NtRiskEngineBridge
 
 log = logging.getLogger("arx_runner")
 
@@ -122,18 +121,26 @@ def _build_vault(args: argparse.Namespace) -> CredentialVault:
     )
 
 
-def _build_host(args: argparse.Namespace):
+def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
     """Pick the NautilusHost. Default NoopHost (paper / dev); --use-nt-host
     selects the real NtTradingNodeHost so sandbox / testnet / live execution runs.
 
     Selecting the real host enables the execution path — it does not bypass the
     G6 gate, which still guards every live deploy in the reconciler. If nt-runtime
     is absent, NtTradingNodeHost.deploy fails fast on the first spec.
+
+    ``client`` (when given) wires the real host's telemetry + pre-trade reject
+    bridges so deployed strategies uplink fills / positions / denials; the
+    NoopHost path ignores it.
     """
     if args.use_nt_host:
         from arx_runner.nautilus_host import NtTradingNodeHost
 
-        return NtTradingNodeHost()
+        return NtTradingNodeHost(
+            telemetry_client=client,
+            tenant_id=args.tenant_id,
+            runner_id=args.runner_id,
+        )
     from arx_runner.nautilus_host import NoopHost
 
     return NoopHost()
@@ -172,11 +179,14 @@ async def _run(args: argparse.Namespace) -> int:
             # Default NoopHost (paper / dev) declares supports_live()=False, so the
             # G6 gate refuses it on live; --use-nt-host selects the real
             # NtTradingNodeHost to actually run sandbox / testnet / live execution.
+            # The real NT host wires the telemetry + pre-trade reject bridges to
+            # each deployment's MessageBus inside deploy() (that is where the bus
+            # exists); the NoopHost path has no MessageBus and no bridges.
             reconciler = DeploymentReconciler(
                 nats_client=client,
                 tenant_id=args.tenant_id,
                 runner_id=args.runner_id,
-                nautilus_host=_build_host(args),
+                nautilus_host=_build_host(args, client),
                 credential_vault=vault,
             )
             tasks.append(
@@ -184,21 +194,6 @@ async def _run(args: argparse.Namespace) -> int:
                     reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
                     name="arx-deployment-reconciler",
                 )
-            )
-
-            # Single-order pre-trade reject bridge. Constructed alongside the
-            # NT host path; it begins forwarding NT `OrderDenied` events once a
-            # live NT MessageBus is available. The stub host has no MessageBus,
-            # so we record that the bridge is staged and awaiting NT rather than
-            # fail-fast on a `None` bus.
-            pre_trade_bridge = NtRiskEngineBridge(
-                client=client,
-                tenant_id=args.tenant_id,
-                runner_id=args.runner_id,
-            )
-            log.info(
-                "pre_trade_bridge_pending_nt_messagebus",
-                extra={"subject": pre_trade_bridge.subject()},
             )
 
         tasks.append(

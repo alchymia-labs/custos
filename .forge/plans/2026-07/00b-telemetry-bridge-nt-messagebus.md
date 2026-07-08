@@ -1,6 +1,6 @@
 # 00b - telemetry_actor 接 NT MessageBus + pre_trade_bridge 接 NT OrderDenied
 
-> **Status**: 🔲 Todo (blocked by Plan 00a close-out)
+> **Status**: ✅ Completed (2026-07-08)
 > **Created**: 2026-07-07
 > **Project**: custos (`tesseract-trading/custos/`)
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -110,14 +110,17 @@ Plan 00a 完成后 `NtTradingNodeHost` 会真起 `TradingNode`, `node.kernel.msg
 
 ## 失败模式覆盖契约表 (lesson #17)
 
+> 触发点 / 测试位置以 Q1=A 实现为准 (原表按 Q1=B "TelemetryActor 子类" 假设写；实现走 duck-typed bridge，真实位置如下，lesson #25 反 fabricated)。
+
 | 失败模式 | 触发点 | 测试文件:函数 | reason_code |
 |---|---|---|---|
-| NATS publish 失败 | `TelemetryActor._on_event` | `test_nt_telemetry_e2e.py::test_nats_publish_fail_does_not_crash_actor` | log `telemetry_publish_failed` |
-| NT event 结构不匹配 | `TelemetryActor._normalize` | `test_telemetry_actor.py::test_shape_mismatch_skipped` | log `telemetry_event_shape_mismatch` |
-| pre_trade_reject event 结构不匹配 | `NtRiskEngineBridge._on_denied` | `test_nt_risk_engine.py::test_denied_shape_mismatch` | log `pre_trade_reject_event_shape_mismatch` |
-| telemetry actor attach 失败 | `NtTradingNodeHost.deploy` | `test_nt_trading_node_host.py::test_deploy_survives_telemetry_attach_failure` | log `telemetry_actor_attach_failed`, deploy 继续 |
-| multi-spec envelope 混流 (isolation 失守) | `TelemetryActor.session_id` | `test_nt_telemetry_e2e.py::test_multiple_specs_isolated_by_session_id` | (invariant test) |
-| NT MessageBus 断连 (dev / test 环境) | `TelemetryActor.on_stop` | `test_telemetry_actor_failure_modes.py` (已有, 扩展) | log `nt_messagebus_disconnected` |
+| NATS publish 失败 | `TelemetryActor._drain_batch_starting_with` | `test_nt_telemetry_e2e.py::test_nats_publish_fail_does_not_crash_actor` | log `telemetry_publish_failed` |
+| NT event 结构不匹配 | `NtTelemetryBridge._forward` (normalize KeyError) | `test_telemetry_nt_bridge.py::test_shape_mismatch_skipped` | log `telemetry_event_shape_mismatch` |
+| pre_trade_reject event 结构不匹配 | `NtRiskEngineBridge.on_order_denied` (shape guard) | `test_nt_risk_engine.py::test_denied_shape_mismatch` | log `pre_trade_reject_event_shape_mismatch` |
+| telemetry actor attach 失败 | `NtTradingNodeHost._attach_observability` | `test_nt_trading_node_host.py::test_deploy_survives_telemetry_attach_failure` | log `telemetry_actor_attach_failed`, deploy 继续 |
+| multi-spec envelope 混流 (isolation 失守) | `TelemetryActor.session_id` (per-spec 实例) | `test_nt_telemetry_e2e.py::test_multiple_specs_isolated_by_session_id` | (invariant test) |
+| NT MessageBus 断连 / unavailable | `NtTelemetryBridge.bootstrap` (None bus fail-fast) | `test_telemetry_nt_bridge.py::test_nt_messagebus_disconnected_logs_and_degrades` | log `nt_messagebus_disconnected` |
+| telemetry forward 触达 NT thread 崩溃 (额外) | `NtTelemetryBridge._forward` (on_event raise) | `test_telemetry_nt_bridge.py::test_bridge_forward_never_crashes_on_actor_error` | log `telemetry_forward_failed` (红线 0.3) |
 
 ## File Inventory
 
@@ -127,31 +130,101 @@ Plan 00a 完成后 `NtTradingNodeHost` 会真起 `TradingNode`, `node.kernel.msg
 | `src/arx_runner/nt_risk_engine.py` | 改 | 接 NT OrderDenied 事件订阅 |
 | `src/arx_runner/nautilus_host.py` | 改 | deploy 时 attach TelemetryActor + NtRiskEngineBridge |
 | `src/arx_runner/__main__.py` | 改 | 撤销 pre_trade_bridge_pending log |
-| `tests/test_telemetry_envelope.py` | 扩 | 加 payload schema 断言 |
-| `tests/test_telemetry_actor.py` | 扩 | 加 NT Actor 集成 case |
-| `tests/test_telemetry_actor_failure_modes.py` | 扩 | 加 MessageBus 断连 case |
-| `tests/test_nt_risk_engine.py` | 扩 | 加 OrderDenied 场景 |
-| `tests/test_nt_trading_node_host.py` | 扩 | 加 attach 集成 test |
-| `tests/test_nt_telemetry_e2e.py` | 新建 | e2e mock 测试 |
+| `tests/test_telemetry_nt_bridge.py` | 新建 (实际) | normalizer money-safe + bridge dispatch/filter/shape/disconnect (Task 1+2) — 替代不存在的 `test_telemetry_envelope.py` |
+| `tests/test_nt_risk_engine.py` | 扩 | wildcard topic + dispatcher filter + real-NT OrderDenied + shape mismatch |
+| `tests/test_nt_trading_node_host.py` | 扩 | deploy attach + attach-failure survives + skip-without-client + stop |
+| `tests/test_nt_telemetry_e2e.py` | 新建 | e2e 数据路径 (fill/denied/publish-fail/isolation) + real-NT 变体 |
+| ~~`tests/test_telemetry_envelope.py`~~ | DRIFT | plan 说"已存在"，实际不存在；envelope 契约由 `test_nats_envelope.py`+`test_telemetry_money_contract.py` 覆盖，payload 契约落 `test_telemetry_nt_bridge.py` |
+| ~~`tests/test_telemetry_actor.py` / `_failure_modes.py`~~ | 未改 | Q1=A 保留 duck-typed，14 个现有 test 不动 (契约稳定验证) |
 
 ## 验收清单
 
-- [ ] Foundation Scan 重扫 (Plan 00a close-out 后 `nautilus_host.py` 实际状态) 完成, 契约锚点更新
-- [ ] `TelemetryActor` 继承 NT `Actor` 通过 grep 实证的类名 (不用推理名)
-- [ ] `OrderDenied` event 字段名从 NT 源码 grep 实证
-- [ ] 6 处失败模式全 pytest 覆盖
-- [ ] `NtTradingNodeHost.deploy` attach telemetry/risk bridge, `stop` 干净收敛
-- [ ] session_id 隔离多 spec (subject 分离)
-- [ ] `pytest tests/` 全绿
-- [ ] silent path (except / skip) 全接 structlog (lesson #21 grep 探针 0 命中)
+- [x] Foundation Scan Round 4+ 完成 (NT 1.230 msgbus/Actor/OrderDenied 实证), 契约锚点更新 (见偏离日志 Foundation Scan iteration log)
+- [x] TelemetryActor 集成 NT MessageBus 通过实证的 subscribe API (Q1=A duck-typed bridge，非 Actor 子类；`events.order.*`/`events.position.*` wildcard 经 grep+empirical 实证)
+- [x] `OrderDenied` event 字段名从 NT 源码 grep 实证 (无 side/qty/price/rule_id/ts_seconds；真实 = reason/instrument_id/client_order_id/ts_event)
+- [x] 6 处失败模式全 pytest 覆盖 (+1 额外 forward-crash guard；契约表点名 test 全 grep 实存)
+- [x] `NtTradingNodeHost.deploy` attach telemetry/risk bridge, `stop` 干净收敛 (drain + cancel actor loops)
+- [x] session_id 隔离多 spec (per-spec TelemetryActor 各自 uuid7 session_id + subject 分离)
+- [x] `make verify` 全绿 (base 156 pass/7 skip；NT 205 pass/0 skip)
+- [x] silent path (except / skip) 全接 structlog (lesson #21 grep 探针 0 命中)
+- [x] 契约表点名 `test_*` 函数 grep 实存 (lesson #25，6/6 命中)
 
 ## 偏离与改进日志 (Deviation Log)
 
-(执行阶段填写)
+### Foundation Scan iteration log (Round 4+, executor, as-of Plan 00a/00c close-out)
+
+NT 1.230.0 installed (`--extra nt-runtime`, py3.13). Round 4 grep + empirical probes against site-packages:
+
+- **NT API (lesson #25/#37 实证)**: `MessageBus` = `nautilus_trader.common.component.MessageBus`; `subscribe(topic, handler, priority=0)`, topic supports `*`/`?` wildcards (empirically: `events.order.*` dispatches a publish on `events.order.ST-1`). `node.kernel.msgbus` is the subscribe path (`node.kernel` is an instance attr set in node.py:71). `node.trader.add_actor(actor)` exists.
+- **NT publish topics** (execution/engine.pyx:910/918/926): order events → `events.order.{strategy_id}`; position → `events.position.{strategy_id}`; fills → `events.fills.{instrument_id}`.
+- **NT event `to_dict`** is the static form `type(event).to_dict(event)` (instance `.to_dict()` raises). Money fields arrive as `str`; enums via `*_to_str` ("BUY", not `str(OrderSide.BUY)=='1'`). So the telemetry normalizer must use `to_dict`, never raw `str(property)`.
+- **OrderDenied real fields** (order.pyx): `trader_id / strategy_id / instrument_id / client_order_id / venue_order_id / account_id / reason / reconciliation / id / ts_event / ts_init`. No `side / quantity / price / rule_id / reference_price / ts_seconds`.
+
+### DEVIATION: DEV-00B-ARCH-DECISIONS (Q1/Q2/Q3)
+- **等级**: 低
+- **原因**: handoff §3 三个架构决策交 executor 判定
+- **决定**:
+  - **Q1 = A (duck-typed on_event + NT MessageBus subscribe adapter)** — 现有 `TelemetryActor.on_event(str, dict)` 契约不变, 14 个现有 telemetry test 全绿, telemetry_actor.py 保持 NT-import-free (base install 可测试), money gate 留在 on_event 边界. 方案 B (继承 NT Actor) 无红线必要且破坏现有单测.
+  - **Q2 = A (dict payload, 不引入 dataclass)** — normalizer 在边界产出 money-safe dict, key 用 MONEY_FIELD_NAMES 兼容名 (qty/price/pnl) 让现有 money gate 校验; dataclass 无 wire 边界收益 (money 已在 gate 校验).
+  - **Q3 = deploy-per-spec** — NT MessageBus 仅在 `node.build()` 后存在于 deploy 内, `__main__.py` 全局单例无法订阅 per-node msgbus; per-spec TelemetryActor 天然 session_id 隔离. `__main__.py` pending-log bridge 实例化改为 deploy 内 attach.
+- **更新的文档**: 本 plan; 关键设计决策表 Q1 已与实现对齐
+
+### DEVIATION: DEV-00B-DEAD-SUBSCRIPTION (nt_risk_engine reject bridge 双重死 / doubly dead)
+- **等级**: 中 (修正既有 correctness bug, 不改 wire 契约)
+- **原因 (双根因, 任一独立致死 — reject bridge 事实上从不触发)**:
+  - **根因 A — literal topic mismatch**: `nt_risk_engine.py:179` 订阅字面量 `"events.order.OrderDenied"`, 但 NT 所有 order event 都发到 `events.order.{strategy_id}` (`execution/engine.pyx:910` + `:1341-1343` 实证) — 字面 topic 永不匹配 = dead subscription. `test_bootstrap_subscribes_when_bus_present` 只断言 subscribe 被调用, 未断言 topic (happy-path gap, lesson #17), 让 bug 潜伏.
+  - **根因 B — async handler on sync MessageBus**: NT `MessageBus` 同步调用 handler (`common/component.pyx:2834 sub.handler(msg)`, 无 `await`/coroutine 检查). 原代码把 `async def on_order_denied` 直接 subscribe → handler 返回一个从不被 await 的 coroutine → 静默丢弃. 即便根因 A 修好, publish 也永不发生.
+- **决定**:
+  - 根因 A: 订阅改 `events.order.*` (wildcard, NT `portfolio.pyx:197` / `risk/engine.pyx:189` 同惯用 pattern); 强化 bootstrap test 断言 topic == `events.order.*`.
+  - 根因 B: 加同步 dispatcher `_on_order_event`, 用 **concrete type discriminator** `type(event).__name__ == "OrderDenied"` 过滤, 再 `run_coroutine_threadsafe` (off-loop) / `ensure_future` (on-loop) 双路调度 async `on_order_denied`, publish 失败 log (`pre_trade_reject_publish_failed`, 对账不静默).
+  - **type discriminator 硬约束 (safety-validator block-level 实证)**: NT `order.pyx` 有 4 个 order event 类共享 `reason` 字段 (OrderDenied / OrderRejected / OrderModifyRejected / OrderCancelRejected), **禁** `hasattr(reason)` / attribute-set / duck-typed 判据 (会误分类 OrderRejected 为 pre-trade denial → 伪造 reject 语义污染). 用 concrete 类名匹配 (dev-friendly optional-NT-import 场景用字符串 fallback, 已获 approve). `on_order_denied` 内的 `hasattr` 是**已 type-matched 之后的 shape guard**, 非分类器, 不违反此约束.
+  - 测试: dispatcher 过滤 live-guard (`test_dispatcher_ignores_non_denied_order_events`) + real-NT OrderDenied (`test_dispatcher_forwards_real_order_denied`, lesson #25 跑真 NT 对象).
+- **实证记录**: tdd-enforcer close-out report (独立跑真 NT OrderDenied 对象 + grep `order.pyx:637-680 OrderDenied.__init__` 核验真实字段) 为第一手证据.
+- **更新的文档**: 本 plan; nt_risk_engine.py; test_nt_risk_engine.py
+
+### DEVIATION: DEV-00B-ORDERDENIED-FIELDS (OrderDenied 无 side/qty/price/rule_id)
+- **等级**: 低
+- **原因**: 骨架 `on_order_denied` getattr 了 `side/quantity/price/rule_id/reference_price/ts_seconds` — 真实 NT OrderDenied 无这些字段, getattr 静默默认.
+- **决定**: 保持 ducktyped getattr (real 事件缺字段优雅降级为空, fake 测试仍绿); `ts_seconds` 改为优先读 real `ts_event`(ns)→秒派生; 5 字段 wire 契约不变 (fingerprint 退化为 (symbol, ts) 相关句柄, docstring 已声明非 tamper-evidence anchor). 加 real-NT OrderDenied test 证明对真实契约生效.
+- **更新的文档**: 本 plan; nt_risk_engine.py
+
+### DRIFT (plan 锚点): `test_telemetry_envelope.py` 不存在
+- plan Task 1 说 "tests/test_telemetry_envelope.py (已存在, 扩展)", 实际 tests/ 无此文件; envelope 契约由 `test_nats_envelope.py` + `test_telemetry_money_contract.py` 覆盖. Task 1 的 payload 契约测试落到 telemetry 侧 (money-safe normalizer test)，不新建 test_telemetry_envelope.py。
+
+### DEVIATION: DEV-00B-LESSON-29-EXTENSION (git 历史查询副作用覆盖工作区 — 生态 lesson #29 扩展)
+- **等级**: 低 (编排事故, 已即时修复, 无产出损失)
+- **事件**: 实施期间 tdd-enforcer-00b 为对比历史版本用了 `git stash` + `git checkout 232c5a6 -- .` (后者非只读, 覆盖工作区), 意外把 executor 未 commit 的 plan 偏离日志编辑挪进 stash 且把 `src/arx_runner/telemetry_actor.py` 覆盖回旧版. tdd-enforcer 立即 `git checkout HEAD -- telemetry_actor.py` + `git stash pop` 修复, grep 核验三段 deviation 完整. executor close-out 前二次核对 (`git show HEAD:<plan>` grep 4 段 deviation 全在 + telemetry_actor 4 符号全在 + 工作树 clean) 确认无 stash-pop 遗漏.
+- **根因**: `git checkout <ref> -- .` 与 `git stash` 组合不是只读操作, 会覆盖工作区 — 与生态 lesson #29 "校验类操作副作用覆盖 host" 同源 (AI 默认某操作只读, 实际有写副作用).
+- **预防**: 历史版本查询用 `git show <ref>:<path>` (stdout only, 零副作用) 或 `git diff <ref1> <ref2> -- <path>`; 绝不用 `git checkout <ref> -- .` / `git checkout <ref> -- <path>` 做"只读对比" (它写工作区).
+- **Binding**: 生态 `historical-lessons.md` #29 加 "git 历史查询" 子条; custos 侧 `.claude/rules/historical-lessons.md` #29 可加 alias. tdd-enforcer (事故 dogfood 受害者+受益者) 与 executor close-out 阶段协作署名补写扩展文本.
+- **更新的文档**: 本 plan; close-out marker acknowledge; (lesson 文本扩展由 tdd-enforcer 主笔, executor 收口 acknowledge)
 
 ## 完成报告 (Close-out Report)
 
-(执行完成填写)
+- **完成日期**: 2026-07-08
+- **总 Task 数**: 5 (+ Foundation Scan Round 4+ + self-reflect)
+- **偏离数**: 3 (DEV-00B-ARCH-DECISIONS / DEV-00B-DEAD-SUBSCRIPTION / DEV-00B-ORDERDENIED-FIELDS) + 1 plan-anchor DRIFT (test_telemetry_envelope.py 不存在)
+- **验证结果**: 全部通过
+- **实施 commit 范围**: `93dc631`..`e688242` (6 commits)
+  - `93dc631` telemetry NT event normalizers + event-type whitelist (Task 1)
+  - `6a8768f` NtTelemetryBridge — NT MessageBus order/position → TelemetryActor (Task 2)
+  - `7a329b3` NtRiskEngineBridge dead subscription + real OrderDenied fields (Task 3)
+  - `bf02ad5` NtTradingNodeHost.deploy attaches telemetry + reject bridges (Task 4)
+  - `fc5e3d8` end-to-end telemetry + pre-trade-reject flow (Task 5)
+  - `e688242` self-reflect round 1 — hold refs to fire-and-forget tasks
+  - (close-out docs commit 随后，仍在 worktree branch 内)
+- **契约影响**: 无 wire 契约变更 (telemetry envelope + PreTradeRejected 5 字段不变)。新增内部 API: `normalize_fill_event` / `normalize_position_event` / `NtTelemetryBridge` / `DEFAULT_TELEMETRY_EVENT_TYPES` (telemetry_actor.py)；`NtTradingNodeHost` 增可选 telemetry 装配参数。设计文档 `docs/design/*.md` 未改 (本 plan 未触碰 6 模块契约边界的对外声明；telemetry_actor/nautilus_host 内部实现)。
+- **红线守护**: Non-Custodial 4 红线全数守住 (grep 记录 0 命中):
+  - 0.1 Key/KEK 不出进程: telemetry payload 只 curated 摘要字段 (symbol/side/qty/price/pnl/fee/ts)，无 credential；异常日志经 `_sanitize_exception` 脱敏
+  - 0.2 G6 gate 不绕过: 未触碰 G6 逻辑；attach 在 deploy 内、G6 前置于 reconciler 不变
+  - 0.3 失联≠停止: telemetry/risk 上报失败 → log + counter，不 crash NT 线程 (bridge `_forward` catch + deploy attach fail-safe)
+  - 0.4 Money Decimal + wire str: normalizer 用 `to_dict` 取 str money，Money 拆 value+ccy 去后缀，`fee` 入 MONEY_FIELD_NAMES gate；0 处 float money
+- **失败模式覆盖**: 7 个 (契约表 6 + forward-crash guard 1)，全 pytest 实存 (lesson #25 grep 6/6 命中)。新增测试文件: `test_telemetry_nt_bridge.py` (10)、`test_nt_telemetry_e2e.py` (5)；扩展 `test_nt_risk_engine.py` (+4)、`test_nt_trading_node_host.py` (+4)
+- **验证证据**: base (no NT) `make verify` = 156 passed / 7 skipped；NT `make verify` + `make test-nt` = 205 passed / 0 failed；ruff fmt+lint clean。`test_wire_shapes.py` 排除于 baseline (Plan 01 DEV-01-WIRE-FIXTURES，非本 plan 引入)
+- **遗留项 / follow-up (peer-review candidates)**:
+  - **F1 heartbeat 冗余**: 每个 deploy 的 TelemetryActor 各发 heartbeat (默认 10s)，与 `__main__.py` runner fallback `_heartbeat_loop` 同 subject 并存 (多 session_id)。v1 无害 (consumer 按 session dedup)，但可整合为单一 liveness 源 (__main__ docstring 声明"actor lands 后 retire fallback loop"—— 本 plan per-spec 多 actor 使该整合非平凡，留 follow-up)
+  - **F2 fingerprint 弱化**: 真实 OrderDenied 无 side/qty/price，fingerprint 退化为 (symbol, ts) 相关句柄；如需强 fingerprint，未来可从 NT order cache 按 client_order_id 补全 (需扩 wire 契约，中风险)
+  - **F3 tenant_id 空兜底**: `_attach_observability` 用 `self._tenant_id or ""`；CLI 恒传 tenant_id，空值仅防御 (build_subject 会在 publish 时对空 token fail-fast)
 
 ## 下一步 (Next)
 

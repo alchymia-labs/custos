@@ -61,6 +61,19 @@ class _FakeTrader:
         self.strategies.append(strategy)
 
 
+class _FakeMsgBus:
+    def __init__(self) -> None:
+        self.subscriptions: list = []
+
+    def subscribe(self, topic, handler) -> None:
+        self.subscriptions.append((topic, handler))
+
+
+class _FakeKernel:
+    def __init__(self) -> None:
+        self.msgbus = _FakeMsgBus()
+
+
 class _FakeTradingNode:
     """Stand-in for nautilus_trader TradingNode: records calls, no network."""
 
@@ -73,6 +86,7 @@ class _FakeTradingNode:
         self.data_factories: list = []
         self.exec_factories: list = []
         self.trader = _FakeTrader()
+        self.kernel = _FakeKernel()
         self._stop = asyncio.Event()
         self.build_raises = False
         self.build_error_msg = "nt build boom"
@@ -352,6 +366,89 @@ async def test_task_done_callback_cleans_active_entry(monkeypatch) -> None:
     await task
     await asyncio.sleep(0.01)  # let the done-callback run
     assert "self-term" not in host._active_nodes
+
+
+def _telemetry_client():
+    from arx_runner.nats_client import ArxNatsClient
+
+    return ArxNatsClient(nats_url="nats://localhost:4222", tenant_id="acme", runner_id="runner-7")
+
+
+@pytest.mark.asyncio
+async def test_deploy_attaches_telemetry_and_risk_bridge(monkeypatch) -> None:
+    # A host constructed with a telemetry client attaches the telemetry bridge
+    # (events.order.* + events.position.*) and the pre-trade reject bridge
+    # (events.order.*) to the built node's MessageBus, and starts the actor.
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost(
+        telemetry_client=_telemetry_client(), tenant_id="acme", runner_id="runner-7"
+    )
+    await host.deploy(_spec("obs-1"), _credential())
+    try:
+        node = _FakeTradingNode.instances[-1]
+        topics = [t for t, _ in node.kernel.msgbus.subscriptions]
+        assert topics.count("events.order.*") == 2  # telemetry fill filter + risk denial filter
+        assert "events.position.*" in topics
+        # telemetry actor is live (registered + running flush loop)
+        assert "obs-1" in host._telemetry_actors
+        assert host._telemetry_actors["obs-1"]._flush_task is not None
+    finally:
+        await host.stop("obs-1")
+
+
+@pytest.mark.asyncio
+async def test_deploy_survives_telemetry_attach_failure(monkeypatch) -> None:
+    # 红线 0.3: observability is secondary to the trade path. If attach fails
+    # (here: the MessageBus is unavailable), deploy logs telemetry_actor_attach_failed
+    # and still completes — the node runs, telemetry is simply not attached.
+    def _factory(config):
+        node = _FakeTradingNode(config)
+        node.kernel.msgbus = None  # attach will fail-fast on a None bus
+        return node
+
+    monkeypatch.setattr(nautilus_host, "TradingNode", _factory)
+    host = NtTradingNodeHost(
+        telemetry_client=_telemetry_client(), tenant_id="acme", runner_id="runner-7"
+    )
+    with structlog.testing.capture_logs() as logs:
+        container_id = await host.deploy(_spec("obs-fail"), _credential())
+    try:
+        assert container_id == "obs-fail"
+        assert "obs-fail" in host._active_nodes  # deploy still succeeded
+        assert "obs-fail" not in host._telemetry_actors  # no actor registered
+        assert "telemetry_actor_attach_failed" in [e.get("event") for e in logs]
+    finally:
+        await host.stop("obs-fail")
+
+
+@pytest.mark.asyncio
+async def test_deploy_without_telemetry_client_skips_attach(monkeypatch) -> None:
+    # A host without a telemetry client (G6 capability checks / unit tests) never
+    # touches the MessageBus — attach is opt-in on telemetry wiring being present.
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost()
+    await host.deploy(_spec("no-obs"), _credential())
+    try:
+        node = _FakeTradingNode.instances[-1]
+        assert node.kernel.msgbus.subscriptions == []
+        assert host._telemetry_actors == {}
+    finally:
+        await host.stop("no-obs")
+
+
+@pytest.mark.asyncio
+async def test_stop_stops_attached_telemetry_actor(monkeypatch) -> None:
+    # stop() tears down the attached telemetry actor (drains + cancels its loops)
+    # so a stopped deployment leaks no background tasks.
+    monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
+    host = NtTradingNodeHost(
+        telemetry_client=_telemetry_client(), tenant_id="acme", runner_id="runner-7"
+    )
+    await host.deploy(_spec("obs-stop"), _credential())
+    actor = host._telemetry_actors["obs-stop"]
+    await host.stop("obs-stop")
+    assert "obs-stop" not in host._telemetry_actors
+    assert actor._flush_task is None  # actor stopped its loops
 
 
 @pytest.mark.asyncio

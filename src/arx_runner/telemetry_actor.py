@@ -67,7 +67,22 @@ MONEY_FIELD_NAMES: frozenset[str] = frozenset(
         "drawdown_pct",
         "daily_loss",
         "cumulative_pnl",
+        "fee",
     }
+)
+
+# NT event class names the telemetry bridge forwards. Order fills and position
+# lifecycle events are the trading footprint the cloud needs (domain-model §1.5
+# summary uplink); OrderDenied is deliberately absent — a denial rides the
+# separate pre_trade_reject subject via NtRiskEngineBridge, not the telemetry
+# channel. The set doubles as the actor's schema whitelist so a drifting NT
+# event name cannot silently start (or stop) leaking.
+TELEMETRY_ORDER_EVENT_TYPES: frozenset[str] = frozenset({"OrderFilled"})
+TELEMETRY_POSITION_EVENT_TYPES: frozenset[str] = frozenset(
+    {"PositionOpened", "PositionChanged", "PositionClosed"}
+)
+DEFAULT_TELEMETRY_EVENT_TYPES: frozenset[str] = (
+    TELEMETRY_ORDER_EVENT_TYPES | TELEMETRY_POSITION_EVENT_TYPES
 )
 
 
@@ -387,6 +402,129 @@ class TelemetryActor:
                 seq=self._heartbeat_seq,
                 error=str(exc),
             )
+
+
+# ----------------------------------------------------------------------
+# NT event → telemetry payload normalizers.
+#
+# NT serialises each event through ``type(event).to_dict(event)`` (a static
+# method; the instance ``.to_dict()`` form raises). Quantity / Price fields
+# come back as pure decimal strings; Money fields come back as
+# ``"<decimal> <CCY>"``. Enums come back via ``*_to_str`` ("BUY"), never the
+# raw ``str(OrderSide.BUY) == "1"``. The normalizers pick only string / int
+# keys and split Money into a pure-decimal value + currency so the wire stays
+# ``str(Decimal)`` with no float and no currency suffix (红线 0.4).
+# ----------------------------------------------------------------------
+
+
+def _split_money(money_str: str) -> tuple[str, str | None]:
+    """Split an NT Money serialisation ``"<decimal> <CCY>"`` into its
+    pure-decimal value and currency code. Quantity / Price serialise without a
+    suffix, so only call this on Money-typed fields (commission / realized_pnl).
+    """
+    value, _, ccy = money_str.partition(" ")
+    return value, (ccy or None)
+
+
+def normalize_fill_event(event: Any) -> dict[str, Any]:
+    """Summarise an NT ``OrderFilled`` for the telemetry channel. Money fields
+    (``qty`` / ``price`` / ``fee``) are strings so the money-field gate passes
+    them straight through."""
+    d = type(event).to_dict(event)
+    fee, fee_ccy = _split_money(d["commission"])
+    return {
+        "client_order_id": d["client_order_id"],
+        "symbol": d["instrument_id"],
+        "side": d["order_side"],
+        "qty": d["last_qty"],
+        "price": d["last_px"],
+        "fee": fee,
+        "fee_ccy": fee_ccy,
+        "ts_event": d["ts_event"],
+    }
+
+
+def normalize_position_event(event: Any) -> dict[str, Any]:
+    """Summarise an NT position lifecycle event (Opened / Changed / Closed).
+    ``realized_pnl`` is a Money serialisation, split into ``pnl`` (pure decimal)
+    + ``pnl_ccy`` so the wire money stays suffix-free."""
+    d = type(event).to_dict(event)
+    pnl, pnl_ccy = _split_money(d["realized_pnl"])
+    return {
+        "symbol": d["instrument_id"],
+        "side": d["side"],
+        "qty": d["quantity"],
+        "pnl": pnl,
+        "pnl_ccy": pnl_ccy,
+        "ts_event": d["ts_event"],
+    }
+
+
+# ----------------------------------------------------------------------
+# NT MessageBus → TelemetryActor bridge.
+# ----------------------------------------------------------------------
+
+
+@dataclass
+class NtTelemetryBridge:
+    """Subscribes to the NT MessageBus order + position event topics and
+    forwards a money-safe summary of each whitelisted event into
+    ``TelemetryActor.on_event``.
+
+    NT publishes order events on ``events.order.{strategy_id}`` and position
+    events on ``events.position.{strategy_id}`` (execution engine), so the
+    bridge subscribes with the ``*`` wildcard tail and filters by event class
+    name — a literal type-named topic would never match. Ducktyped over the
+    MessageBus (no nautilus_trader import) so unit tests drive it without the
+    engine.
+
+    Handler exceptions are logged, never propagated: a telemetry hiccup must
+    not crash the NT trading thread (non-custodial 红线 0.3). OrderDenied is
+    intentionally not forwarded here — it rides the pre_trade_reject subject
+    via ``NtRiskEngineBridge``.
+    """
+
+    actor: TelemetryActor
+
+    def bootstrap(self, message_bus: Any | None) -> None:
+        """Subscribe the bridge to the NT MessageBus. A missing bus is a
+        fail-fast error surfaced loudly; the deploy-level attach guard catches
+        it and degrades to observability loss rather than crashing the deploy
+        (红线 0.3)."""
+        if message_bus is None:
+            _log.error("nt_messagebus_disconnected", runner_id=self.actor.runner_id)
+            raise RuntimeError("NT MessageBus unavailable — cannot bootstrap telemetry bridge")
+        message_bus.subscribe("events.order.*", self._on_order_event)
+        message_bus.subscribe("events.position.*", self._on_position_event)
+        _log.info("nt_telemetry_bridge_bootstrapped", runner_id=self.actor.runner_id)
+
+    def _on_order_event(self, event: Any) -> None:
+        event_type = type(event).__name__
+        if event_type in TELEMETRY_ORDER_EVENT_TYPES:
+            self._forward(event_type, event, normalize_fill_event)
+
+    def _on_position_event(self, event: Any) -> None:
+        event_type = type(event).__name__
+        if event_type in TELEMETRY_POSITION_EVENT_TYPES:
+            self._forward(event_type, event, normalize_position_event)
+
+    def _forward(
+        self,
+        event_type: str,
+        event: Any,
+        normalizer: Callable[[Any], dict[str, Any]],
+    ) -> None:
+        try:
+            payload = normalizer(event)
+        except (KeyError, AttributeError, TypeError, ValueError) as exc:
+            # NT event shape drift (renamed / dropped field) — skip this event
+            # with a structured log rather than crash the trading thread.
+            _log.warning("telemetry_event_shape_mismatch", event_type=event_type, error=str(exc))
+            return
+        try:
+            self.actor.on_event(event_type, payload)
+        except Exception as exc:  # noqa: BLE001 — 红线 0.3: never crash the NT engine thread
+            _log.error("telemetry_forward_failed", event_type=event_type, error=str(exc))
 
 
 # ----------------------------------------------------------------------

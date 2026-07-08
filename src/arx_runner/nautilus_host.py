@@ -20,6 +20,15 @@ from pathlib import Path
 
 from arx_runner._strategy_loader import load_strategy_class
 from arx_runner.log import get_logger
+from arx_runner.nats_client import ArxNatsClient
+from arx_runner.nt_risk_engine import NtRiskEngineBridge
+from arx_runner.telemetry_actor import (
+    DEFAULT_TELEMETRY_EVENT_TYPES,
+    ArxNatsTelemetryAdapter,
+    NtTelemetryBridge,
+    TelemetryActor,
+    TelemetryActorConfig,
+)
 
 try:
     from nautilus_trader.adapters.binance.factories import (
@@ -115,12 +124,30 @@ class NtTradingNodeHost:
 
     non-custodial 红线 0.1: the decrypted credential is used only to build the
     NT data-client config and is never stored on the host, logged, or published.
+
+    Observability (telemetry + pre-trade reject bridges) is opt-in: pass a NATS
+    client + identity to wire it. Without one (G6 capability probes, unit tests)
+    deploy runs the trade path only and never touches the MessageBus.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        telemetry_client: ArxNatsClient | None = None,
+        tenant_id: str | None = None,
+        runner_id: str | None = None,
+    ) -> None:
         # spec_id -> (TradingNode, background run task). Never holds credentials.
         self._active_nodes: dict[str, tuple] = {}
+        # spec_id -> live TelemetryActor, so stop() drains + cancels its loops.
+        self._telemetry_actors: dict[str, TelemetryActor] = {}
+        # Strong refs to fire-and-forget actor-teardown tasks scheduled from the
+        # sync done-callback, so the loop doesn't GC them mid-shutdown.
+        self._cleanup_tasks: set = set()
         self._stop_timeout_secs = _STOP_TIMEOUT_SECS
+        self._telemetry_client = telemetry_client
+        self._tenant_id = tenant_id
+        self._runner_id = runner_id
 
     @staticmethod
     def _ensure_nt_available() -> None:
@@ -180,6 +207,10 @@ class NtTradingNodeHost:
             _log.error("nt_startup_failure", spec_id=spec_id, **_sanitize_exception(exc))
             raise
 
+        # Attach observability once the MessageBus exists (post-build), before
+        # the strategy starts emitting events. Best-effort — see docstring.
+        await self._attach_observability(node, spec_id)
+
         node.trader.add_strategy(strategy)
 
         task = asyncio.create_task(node.run_async())
@@ -227,6 +258,52 @@ class NtTradingNodeHost:
             f"unsupported trading_mode {trading_mode!r} (expected sandbox / testnet / live)"
         )
 
+    async def _attach_observability(self, node, spec_id: str) -> None:
+        """Attach the telemetry + pre-trade-reject bridges to a built node's
+        MessageBus and start the telemetry actor.
+
+        Best-effort: an attach failure degrades to observability loss (logged as
+        ``telemetry_actor_attach_failed``), never aborts the deploy — the trade
+        path is primary and losing the uplink must not stop trading (红线 0.3).
+        No-op when the host was constructed without a telemetry client (G6
+        capability probes / unit tests).
+        """
+        if self._telemetry_client is None:
+            return
+        actor = TelemetryActor(
+            publisher=ArxNatsTelemetryAdapter(self._telemetry_client),
+            tenant_id=self._tenant_id or "",
+            runner_id=self._runner_id or "",
+            config=TelemetryActorConfig(allowed_event_types=DEFAULT_TELEMETRY_EVENT_TYPES),
+        )
+        try:
+            msgbus = node.kernel.msgbus
+            # Start before subscribing so the actor loop owns the loop reference
+            # before the first event can arrive.
+            await actor.start()
+            NtTelemetryBridge(actor=actor).bootstrap(msgbus)
+            NtRiskEngineBridge(
+                client=self._telemetry_client,
+                tenant_id=self._tenant_id or "",
+                runner_id=self._runner_id or "",
+            ).bootstrap(msgbus)
+        except Exception as exc:  # noqa: BLE001 — 红线 0.3: observability loss must not abort deploy
+            _log.error("telemetry_actor_attach_failed", spec_id=spec_id, **_sanitize_exception(exc))
+            await self._safe_stop_actor(actor)
+            return
+        self._telemetry_actors[spec_id] = actor
+        _log.info(
+            "nt_observability_attached",
+            spec_id=spec_id,
+            telemetry_session_id=actor.session_id,
+        )
+
+    async def _safe_stop_actor(self, actor: TelemetryActor) -> None:
+        try:
+            await actor.stop()
+        except Exception as exc:  # noqa: BLE001 — stop-time cleanup must not raise into caller
+            _log.error("telemetry_actor_stop_failed", error=str(exc))
+
     async def stop(self, spec_id: str) -> None:
         entry = self._active_nodes.pop(spec_id, None)
         if entry is None:
@@ -246,6 +323,11 @@ class NtTradingNodeHost:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001 — reaping the run task
                 pass
+        # Drain + cancel the telemetry actor after the engine has stopped so any
+        # final buffered events still flush.
+        actor = self._telemetry_actors.pop(spec_id, None)
+        if actor is not None:
+            await self._safe_stop_actor(actor)
         _log.info("nt_stop_completed", spec_id=spec_id)
 
     async def reconfigure(self, spec: dict) -> None:
@@ -297,6 +379,13 @@ class NtTradingNodeHost:
         entry = self._active_nodes.get(spec_id)
         if entry is not None and entry[1] is task:
             self._active_nodes.pop(spec_id, None)
+            # Tear down the telemetry actor for a self-terminated node so its
+            # flush / heartbeat loops don't linger (scheduled: we're on the loop).
+            actor = self._telemetry_actors.pop(spec_id, None)
+            if actor is not None:
+                cleanup = asyncio.ensure_future(self._safe_stop_actor(actor))
+                self._cleanup_tasks.add(cleanup)
+                cleanup.add_done_callback(self._cleanup_tasks.discard)
         if task.cancelled():
             return
         exc = task.exception()
