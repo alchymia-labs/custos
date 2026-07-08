@@ -33,7 +33,8 @@
 |---|------|--------|-----------|--------|------|
 | [00a](plans/2026-07/00a-nt-trading-node-host-sandbox.md) | NtTradingNodeHost + Binance sandbox | ✅ Completed (2026-07-07) | arx Plan 60 (已 close-out) | Plan 00b | NoopHost → 真 TradingNode; sandbox 策略打通 (codex peer review 落地 F2-F6) |
 | [00b](plans/2026-07/00b-telemetry-bridge-nt-messagebus.md) | telemetry_actor 接 NT MessageBus | 🔲 Todo (blocked by 00a) | Plan 00a | Plan 00c | NT MessageBus → telemetry uplink; OrderDenied 桥 |
-| [00c](plans/2026-07/00c-g6-gate-live-release.md) | G6 gate 放宽 + Binance testnet/live 逐级 | ✅ Completed (2026-07-07) | Plan 00a + 00b ¹ | (live 放行终点) | capability-based G6 + docker compose e2e |
+| [00c](plans/2026-07/00c-g6-gate-live-release.md) | G6 gate 放宽 + Binance testnet/live 逐级 | ✅ Completed (2026-07-07) | Plan 00a + 00b ¹ | Plan 03 (硬化候选) | capability-based G6 + docker compose e2e |
+| [03](plans/2026-07/03-nt-host-hardening.md) | NT host hardening (credential lifecycle test + capability integration + mode/host matrix) | 🔲 Todo (candidate skeleton) | Plan 00a + 00c ✅ | (无硬 block) | 来自 00a F1 defer + 00c HIGH triage new-plan 决定 (2026-07-08) |
 
 > ¹ Plan 00b (telemetry 桥) close-out 前, 由 CEO override 提前放行 00c
 > (`DEV-00c-DEP-SKIP-CEO-OVERRIDE`, lesson #38 CEO override 4 件套记录路径)。
