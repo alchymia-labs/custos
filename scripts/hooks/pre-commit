@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# pre-commit hook wrapper.
+# Installed by scripts/install-hooks.sh into .git/hooks/pre-commit as a symlink.
+# Runs all repository-level pre-commit checks. Any failure blocks the commit.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+PYTHON_BIN="python3"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+fi
+
+# 1. Enforce English-only comments / logs in source code (`.claude/rules/code-style.md` §6).
+"$PYTHON_BIN" scripts/check-code-english.py
