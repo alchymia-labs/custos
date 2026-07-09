@@ -112,6 +112,21 @@
 - **custos 特化**: Python module 名 `arx_runner` → `custos_runner` (README 已声明 follow-up)
   必须走此协议, 涉及 40+ import site fanout
 
+## #40 含 defer 决策的红线 gate close-out 声明必须显式降级 partial scope — code test 覆盖 ≠ runtime wire 兑现
+
+- **触发**: plan close-out 涉及红线 gate (mandatory-rules §0) 且 plan 内含 defer 决策 (DEV-* 记录)
+- **防护**: close-out 声明必须**显式区分三层** —
+  (a) **code-level test coverage** (unit / integration 覆盖了什么逻辑) /
+  (b) **runtime wire 接线兑现** (composition root 是否真接线) /
+  (c) **defer scope** (哪些接线延后到 follow-up plan)。
+  不能承袭红线名 (如"Key 不出进程" / "G6 不绕过") 当兑现声明 — 红线名是设计意图 (vision),
+  兑现声明是能力实现 (reality), 两者严禁混淆
+- **custos 特化**: plan 模板 "完成报告" 章节固定含 "红线 gate 满足度" 表 —
+  每条红线一行: `red_line | code_coverage | runtime_wire | defer_status | follow_up_plan_ref`。
+  Plan 03 是本 lesson 落地**模板样本** (`FailureEvent.reason_code` 撤除标注 "契约认知修正" 非 defer)
+- **与 #17/#22/#28 合并适用**: #17 缺失失败模式测试 / #28 分句借位无 guard / #22 dead-branch
+  遮蔽 / **#40 unit-test ≠ runtime wire (close-out 声明侧, 接线 defer 时必须显式降级)**
+
 ## 生态 lesson 完整清单
 
 以下 workspace lesson 与 custos 关联度较低, 但保留编号占位便于跨引用:
