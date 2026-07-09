@@ -141,3 +141,24 @@ custos 是**独立仓库**, 外部审计员会 clone 单仓查代码:
 ---
 
 *方法论权威在 [`docs/domain.md`](docs/domain.md), 红线权威在 [`.claude/rules/mandatory-rules.md`](.claude/rules/mandatory-rules.md).*
+
+---
+
+## Language Policy (Code Artifacts) — RED LINE
+
+Global CLAUDE.md already sets this; executors have historically drifted, so it is restated here at project scope for last-mile compliance.
+
+**English MUST** (source code and runtime artifacts):
+- Identifiers: variables, functions, types, files, modules, table/column names
+- Comments: inline (`//`, `#`), doc (`///`, `"""..."""`, `/** ... */`)
+- Log messages: `structlog` / `tracing` / `println!` / `logger.*`
+- Error / panic messages, `unimplemented!()` / `todo!()` payloads
+- Commit messages (Conventional Commits scope + subject in English)
+- Public API strings: JSON keys, HTTP error bodies, MCP tool names/args
+
+**Chinese MAY**:
+- End-user UI copy and product docs aimed at Chinese users
+- Planning docs under `.planning/` (existing project convention)
+- AI ↔ user conversation (global rule; unchanged)
+
+**Enforcement**: rewrite the offending artifact in English; do not translate in-line or leave `// TODO: translate` markers. Review-time slips are grounds for a rework commit, not a follow-up TODO.
