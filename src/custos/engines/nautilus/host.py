@@ -178,8 +178,8 @@ class NtTradingNodeHost:
         # leaves a built-but-unregistered node leaked.
         strategy = self._instantiate_strategy(strategy_cls, spec)
 
-        # Imported lazily: _nt_binance_venue imports NautilusTrader at module top.
-        from custos import _nt_binance_venue as venue
+        # Imported lazily: venue_binance imports NautilusTrader at module top.
+        from custos.engines.nautilus import venue_binance as venue
 
         trading_mode = str(spec.get("trading_mode") or "sandbox").lower()
         data_cfg = venue.build_data_client_config(
