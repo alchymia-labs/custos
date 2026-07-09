@@ -192,8 +192,15 @@ class NtTradingNodeHost:
             raise RuntimeError(f"spec {spec_id!r} already deployed; call stop first")
 
         # Red line layer 1: verify code_hash before any strategy code is imported.
+        # strategy_registry_name (optional) turns on the second-line check that
+        # the ps toolkit registry binds the operator-supplied name to the class
+        # the loader picked — see load_strategy_class docstring.
         strategy_path = Path(spec["strategy_path"])
-        strategy_cls = load_strategy_class(strategy_path, spec.get("code_hash"))
+        strategy_cls = load_strategy_class(
+            strategy_path,
+            spec.get("code_hash"),
+            expected_registry_name=spec.get("strategy_registry_name"),
+        )
         # Instantiate before building the node so a strategy-config failure never
         # leaves a built-but-unregistered node leaked.
         strategy = self._instantiate_strategy(strategy_cls, spec)
@@ -209,14 +216,33 @@ class NtTradingNodeHost:
             trading_mode, spec, credential, venue
         )
 
-        node_config = TradingNodeConfig(
-            trader_id=TraderId(self._trader_id(spec_id)),
-            logging=LoggingConfig(log_level=str(spec.get("log_level", "INFO"))),
-            data_clients={venue.BINANCE_VENUE: data_cfg},
-            exec_clients={venue.BINANCE_VENUE: exec_cfg},
+        # ps runner.py._create_node_config exposes the NT startup timeouts and the
+        # reconciliation lookback to strategy authors; custos accepts the same
+        # knobs via a plain nautilus_config dict-key so operators can tune a slow
+        # exchange without needing a code change. Every knob is optional — an
+        # absent key falls through to the NT internal default.
+        nautilus_cfg = spec.get("nautilus_config") or {}
+        node_kwargs: dict = {
+            "trader_id": TraderId(self._trader_id(spec_id)),
+            "logging": LoggingConfig(log_level=str(spec.get("log_level", "INFO"))),
+            "data_clients": {venue.BINANCE_VENUE: data_cfg},
+            "exec_clients": {venue.BINANCE_VENUE: exec_cfg},
             # Real venues reconcile against exchange account state; the sandbox has none.
-            exec_engine=LiveExecEngineConfig(reconciliation=reconciliation),
-        )
+            "exec_engine": LiveExecEngineConfig(
+                reconciliation=reconciliation,
+                reconciliation_lookback_mins=nautilus_cfg.get("reconciliation_lookback_mins"),
+            ),
+        }
+        for timeout_key in (
+            "timeout_connection",
+            "timeout_reconciliation",
+            "timeout_portfolio",
+            "timeout_disconnection",
+        ):
+            if timeout_key in nautilus_cfg:
+                node_kwargs[timeout_key] = nautilus_cfg[timeout_key]
+
+        node_config = TradingNodeConfig(**node_kwargs)
 
         try:
             node = TradingNode(config=node_config)

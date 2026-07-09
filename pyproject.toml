@@ -26,6 +26,12 @@ dev = [
 nt-runtime = [
     "nautilus-trader>=1.227; python_version >= '3.12'",
     "pyyaml>=6",
+    # Transitive pins for the vendored pandas_ta indicator library
+    # (toolkit/vendor/pandas_ta). It imports `from pkg_resources import ...`
+    # (removed from setuptools 70+) and `from packaging import ...`; without
+    # these pins the vendored library fails to import at runtime.
+    "setuptools>=50,<70",
+    "packaging",
 ]
 
 [build-system]
@@ -48,6 +54,12 @@ asyncio_mode = "auto"
 # 也在 100 上下, 减少 subtree split 后无谓 fmt sweep.
 line-length = 100
 target-version = "py311"
+# Vendored trees under toolkit/ are byte-identical snapshots of upstream
+# projects (philosophers-stone shared/, MIT-licensed pandas_ta). Reformatting or
+# linting them would drift them from the pinned upstreams and defeat the
+# provenance-sync workflow (see TOOLKIT_PROVENANCE.md). Auditors read them as
+# their own upstreams, not as custos code.
+extend-exclude = ["src/custos/engines/nautilus/toolkit/shared", "src/custos/engines/nautilus/toolkit/vendor"]
 
 [tool.ruff.lint]
 select = [

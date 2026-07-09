@@ -56,12 +56,31 @@ def compute_strategy_dir_hash(strategy_dir: Path) -> str:
     return digest.hexdigest()
 
 
-def load_strategy_class(strategy_path: Path, expected_code_hash: str | None) -> type:
+def load_strategy_class(
+    strategy_path: Path,
+    expected_code_hash: str | None,
+    expected_registry_name: str | None = None,
+) -> type:
     """Verify code_hash then dynamically import the strategy class.
 
     ``expected_code_hash=None`` (sandbox) skips verification but audits the
     skip. A mismatch raises ``CodeHashMismatch`` before any code is imported —
     untrusted source is never executed.
+
+    ``expected_registry_name`` (optional) turns on a second-line check: after
+    the strategy module is imported and its ``register_strategy`` decorators
+    have run, ask the ps toolkit registry which class is bound to the name
+    and require the answer to equal the class the loader picked. The
+    heuristic (single ``*Strategy`` class per module) is deliberately lenient
+    so tests can ship stubs; the registry check is the deliberate guardrail
+    for production specs where the operator knows the strategy's registered
+    identity and can pin it.
+
+    Any ``ModuleNotFoundError`` during the strategy import — including the
+    ps ``shared.*`` dependency graph reaching outside the vendored toolkit's
+    supported closure — surfaces as a structured
+    ``strategy_toolkit_import_failed`` event before it propagates, so it
+    isn't a silent degradation.
     """
     strategy_path = Path(strategy_path)
     if not strategy_path.exists():
@@ -83,8 +102,68 @@ def load_strategy_class(strategy_path: Path, expected_code_hash: str | None) -> 
                 f"(expected {expected_code_hash[:12]}…, got {actual[:12]}…)"
             )
 
-    module = _import_module_from_path(strategy_path)
-    return _find_strategy_class(module, strategy_path)
+    try:
+        module = _import_module_from_path(strategy_path)
+    except ModuleNotFoundError as exc:
+        _log.error(
+            "strategy_toolkit_import_failed",
+            strategy_path=str(strategy_path),
+            missing_module=exc.name,
+        )
+        raise
+
+    strategy_cls = _find_strategy_class(module, strategy_path)
+
+    if expected_registry_name is not None:
+        _verify_registry_binding(expected_registry_name, strategy_cls, strategy_path)
+
+    return strategy_cls
+
+
+def _verify_registry_binding(name: str, strategy_cls: type, strategy_path: Path) -> None:
+    """Assert the ps toolkit registry binds ``name`` to ``strategy_cls``.
+
+    Called as a deliberate second look after the loader's heuristic picks a
+    class: the registry is the ground truth for "which class does the
+    operator mean by this name," and disagreeing with it is worth refusing
+    rather than shipping a wrong-class load. The registry itself lives in the
+    vendored toolkit (``toolkit/shared/nautilus/registry.py``); importing it
+    lazily keeps the loader usable when the toolkit isn't required (unit
+    tests with a stub strategy).
+    """
+    # Bootstrap the vendored toolkit's sys.path shim first; without this the
+    # bare ``shared.nautilus`` import on the following line has nowhere to
+    # resolve to. Ordering here is load-bearing.
+    import custos.engines.nautilus.toolkit  # noqa: F401, I001 — sys.path bootstrap must precede shared.*
+    from shared.nautilus import registry as ps_registry
+
+    if not ps_registry.is_registered(name):
+        available = ps_registry.list_strategies()
+        _log.error(
+            "strategy_registry_name_unknown",
+            strategy_path=str(strategy_path),
+            requested_name=name,
+            available=available,
+        )
+        raise ValueError(
+            f"strategy_registry_name={name!r} is not registered in the ps toolkit; "
+            f"available: {available}"
+        )
+
+    info = ps_registry.get_strategy_info(name)
+    registered_cls = info["strategy_class"]
+    if registered_cls is not strategy_cls:
+        _log.error(
+            "strategy_registry_name_class_mismatch",
+            strategy_path=str(strategy_path),
+            requested_name=name,
+            registered_class=registered_cls.__name__,
+            loaded_class=strategy_cls.__name__,
+        )
+        raise ValueError(
+            f"strategy_registry_name={name!r} maps to {registered_cls.__name__!r}, "
+            f"which does not match the loaded strategy class {strategy_cls.__name__!r}"
+        )
 
 
 def _import_module_from_path(strategy_path: Path):
@@ -92,6 +171,16 @@ def _import_module_from_path(strategy_path: Path):
     # in sys.modules, and so the class's __module__ resolves back to this module.
     path_tag = hashlib.sha256(str(strategy_path.resolve()).encode("utf-8")).hexdigest()[:8]
     module_name = f"custos_strategy_{strategy_path.stem}_{path_tag}"
+    # Reuse a previously loaded copy — re-executing the same path drops us into
+    # module-level side effects (ps ``register_strategy`` decorators, indicator
+    # class definitions) that either raise on the second run or hand out a new
+    # class object the toolkit registry no longer knows about. code_hash is
+    # checked in load_strategy_class before we reach here, so a hit on
+    # sys.modules is safe: the on-disk source can't have drifted from the last
+    # time we imported it without the hash check catching it.
+    cached = sys.modules.get(module_name)
+    if cached is not None:
+        return cached
     spec = importlib.util.spec_from_file_location(module_name, strategy_path)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot build import spec for {strategy_path}")
@@ -99,7 +188,14 @@ def _import_module_from_path(strategy_path: Path):
     # Register before exec so the class's __module__ is retrievable via sys.modules
     # (inspect.getmodule returns None for these dynamically-loaded modules).
     sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        # If module execution failed we mustn't leave the empty shell behind —
+        # a later attempt would return the empty cached module and silently
+        # succeed instead of surfacing the real load error.
+        sys.modules.pop(module_name, None)
+        raise
     return module
 
 
