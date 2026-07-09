@@ -28,6 +28,7 @@ from arx_runner.nt_risk_engine import (
     PRE_TRADE_REJECTED_FIELDS,
     NtRiskEngineBridge,
     PreTradeRuleConfig,
+    _denied_ts_seconds,
     bootstrap_from_rules,
     build_nt_risk_engine_config,
     order_fingerprint,
@@ -217,6 +218,17 @@ async def test_dispatcher_forwards_real_order_denied() -> None:
     assert decoded["payload"]["symbol"] == "BTCUSDT.BINANCE"
     assert decoded["payload"]["reject_reason"] == "max_notional"
     assert set(decoded["payload"].keys()) == set(PRE_TRADE_REJECTED_FIELDS)
+    # The correlation handle folds in client_order_id — the stable field a real
+    # OrderDenied carries (side / quantity / price are absent on the NT event).
+    # Recomputing with the same id matches; a different id diverges, proving the
+    # dispatch path fed "O-1" into the fingerprint.
+    ts = _denied_ts_seconds(denied)
+    assert decoded["payload"]["order_fingerprint"] == order_fingerprint(
+        "BTCUSDT.BINANCE", "O-1", "", "", "", ts
+    )
+    assert decoded["payload"]["order_fingerprint"] != order_fingerprint(
+        "BTCUSDT.BINANCE", "O-2", "", "", "", ts
+    )
 
 
 @pytest.mark.asyncio
@@ -267,11 +279,14 @@ def test_warm_start_config_is_deterministic() -> None:
 
 
 def test_fingerprint_is_stable_and_hex() -> None:
-    a = order_fingerprint("BTCUSDT", "Buy", "11", "100", 1_700_000_000)
-    b = order_fingerprint("BTCUSDT", "Buy", "11", "100", 1_700_000_000)
-    c = order_fingerprint("BTCUSDT", "Sell", "11", "100", 1_700_000_000)
+    a = order_fingerprint("BTCUSDT", "O-1", "Buy", "11", "100", 1_700_000_000)
+    b = order_fingerprint("BTCUSDT", "O-1", "Buy", "11", "100", 1_700_000_000)
+    c = order_fingerprint("BTCUSDT", "O-1", "Sell", "11", "100", 1_700_000_000)
+    d = order_fingerprint("BTCUSDT", "O-2", "Buy", "11", "100", 1_700_000_000)
     assert a == b
     assert a != c
+    # client_order_id participates in the correlation handle (uniqueness lift).
+    assert a != d
     assert len(a) == 64
 
 

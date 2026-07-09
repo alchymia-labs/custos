@@ -59,6 +59,27 @@ plan-index §6 WR-NATS-2 demux），不混在 telemetry 流里，让 consumer di
 | **G5-A**（money math differential 已收敛） | `ReconResult` 的金额差分对账依赖 Crucible Python 已收敛的对账逻辑 | 上报 `recon_result` 时；arx 聚合层 live 由 G5-A 不阻塞 |
 | **G5-B**（arx Rust internal BC 平替切换） | reconciliation crate 当前仅 smoke harness，按 G5-B arx Rust internal 视角暂禁 live，仍 paper/sim | crucible-rust 平替触发时（休眠中） |
 
+## Undeclared capability traceability
+
+当一个 host 不具备 live 能力（`NoopHost` 声明 `supports_live()=False`，或第三方 host
+未声明 capability 契约），G6 gate 在层 1 拒绝并记 `g6_gate_live_capability_denied`
+（`deployment_reconciler.py:79-88`）。该拒绝**不打断 reconcile loop**：`handle_spec`
+的 broad `except`（`deployment_reconciler.py:316-337`）是 `失联≠停止` 式 fail-safe——
+一个被拒的 spec 不能让守护其他部署的 loop 崩溃。它接住异常后:
+
+- 记 `deployment_reconcile_failed`（reconciler 包装层，`deployment_reconciler.py:318-324`）
+- 发布 `DeploymentStatus` 且 `phase=degraded` / `health=unhealthy`
+  （`deployment_reconciler.py:325-331`）
+
+因此结构化拒绝信号走 **`DeploymentStatus` phase=degraded + 双层 structlog 事件名**
+（`g6_gate_live_capability_denied` gate 层 + `deployment_reconcile_failed` 包装层），
+**而非独立的 `FailureEvent`**。`FailureEvent`（含 `reason_code` 枚举）是 `docs/domain.md`
+§1.5 的纸面设计，`src/arx_runner/` 尚未 first-class 实现——`_report_status()`
+（`deployment_reconciler.py:364-393`）发布的 `DeploymentStatus` payload 无 `reason_code`
+字段。真正的 first-class `FailureEvent` uplink 属独立功能面（FailureEvent first-class
+实现 follow-up plan 候选）。集成层覆盖见
+`tests/test_g6_gate_capability_integration.py`。
+
 ## 未来演化路线
 
 - **短期**：`run_reconciliation_cycle` 接通 NT 的 `Reconciler` / `AccountState`

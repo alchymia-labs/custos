@@ -42,6 +42,8 @@ def test_envelope_keys_complete(name: str) -> None:
 def test_envelope_uses_payload_schema_version_not_legacy(name: str) -> None:
     env = _load(name)
     assert "schema_version" not in env, f"{name} regressed to legacy schema_version key"
+    # Pin the wire version: a silent bump would break the Rust consumer's decode.
+    assert env["payload_schema_version"] == 1, f"{name} payload_schema_version must stay 1"
 
 
 def test_heartbeat_payload_complete() -> None:

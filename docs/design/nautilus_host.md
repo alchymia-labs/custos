@@ -51,6 +51,31 @@
 - **Key 只在本地**：`deploy` 收到的 `credential` 由 credential_vault 本地解密而来，
   KEK 永不出主机（见 [credential_vault.md](credential_vault.md)）。
 
+## Credential lifecycle invariants
+
+`deploy` 收到的解密 credential 只用于构造 NT client config，绝不落在 host 状态里、不 log、
+不 publish（non-custodial 红线 0.1）。三层 defence-in-depth invariant 各有测试守：
+
+| # | invariant | 覆盖测试 |
+|---|-----------|----------|
+| #1 | `repr(host._active_nodes)` 不泄露 credential | `test_nt_trading_node_host.py::test_deploy_does_not_retain_credential` |
+| #2 | `node.__dict__` 深度 5 递归 walk 不泄露 credential（key 只存于 NT msgspec config 的 `__slots__`，`__dict__` walk 不下降到 slots） | `test_credential_lifecycle.py::test_node_dict_recursive_no_credential` |
+| #3 | structlog 异常日志经 `_sanitize_exception` 脱敏可能含 key 的消息 | `test_nt_trading_node_host.py::test_exception_log_redacts_credential_material` |
+
+真 NT client 在内存里持有 key 以签名请求是必需且合规的——红线是 I/O 边界（log / publish /
+network），非内存 client 状态。
+
+## Pre-trade reject correlation handle
+
+pre-trade 拒绝走 `nt_risk_engine.on_order_denied()` → `PreTradeRejected` wire。其中
+`order_fingerprint` 是 SHA-256 over `symbol|client_order_id|side|qty|price|ts_seconds`，
+是 **correlation handle，不是 tamper-evidence anchor**：真正的防篡改锚点是云端 audit chain
+的 per-tenant HMAC（governance），custos non-custodial 承重墙不实现、也不该有可见性。真 NT
+`OrderDenied` 只携带 `client_order_id`（side / quantity / price 恒空），故 handle 折入
+`client_order_id` 提升唯一性，避免退化为 `(symbol, ts)` 二元组。覆盖测试
+`test_nt_risk_engine.py::test_fingerprint_is_stable_and_hex` +
+`::test_dispatcher_forwards_real_order_denied`。
+
 ## 相关 gate
 
 | gate | 与本模块的关系 | 触发时机 |
@@ -74,10 +99,30 @@ runner 入口（`python -m arx_runner`）在 reconciler 构造时绑定单一 ho
   nt-runtime 未装时 `deploy` fail-fast（`_ensure_nt_available`）。无 opt-out env var 绕过
   gate（红线 0.2）。
 
+## Host mode × trading_mode matrix
+
+`--use-nt-host`（host 选择）× `spec.trading_mode` 是一个 6 格空间。非 live 三格（sandbox /
+testnet）由各自 host 通道自洽；live 两格是承重墙——落到 stub 上即被 G6 gate 层 1 拒。
+每格的期望行为与覆盖测试:
+
+| trading_mode | host | 期望行为 | 覆盖测试 |
+|--------------|------|----------|----------|
+| sandbox | NoopHost | stub 静默接受（`nautilus_host_deploy_stub`），reconcile 报 `phase=running` / `health=healthy` | `test_host_mode_matrix.py::test_mode_host_matrix[sandbox-NoopHost]` |
+| sandbox | NtTradingNodeHost | 真跑 sandbox（`SandboxLiveExecClientFactory`，本地模拟撮合），`phase=running` / `health=healthy` | `test_host_mode_matrix.py::test_mode_host_matrix[sandbox-NtTradingNodeHost]` |
+| testnet | NoopHost | G6 gate 非 live 旁路，stub 静默接受，`phase=running` / `health=healthy` | `test_host_mode_matrix.py::test_mode_host_matrix[testnet-NoopHost]` |
+| testnet | NtTradingNodeHost | 真跑 testnet（`BinanceLiveExecClientFactory` + `BinanceEnvironment.TESTNET`），`phase=running` / `health=healthy` | `test_host_mode_matrix.py::test_mode_host_matrix[testnet-NtTradingNodeHost]` |
+| live | NoopHost | G6 gate 层 1 拒（`g6_gate_live_capability_denied`）；`_apply_spec` `RuntimeError`，经 `handle_spec` 则 `phase=degraded` | `test_g6_gate.py::test_g6_gate_rejects_live_noophost` |
+| live | NtTradingNodeHost | G6 gate 4 层 + SoD ≥ 2 审批全通过则真跑 live，`phase=running` | `test_g6_gate.py::test_g6_gate_allows_live_nt_host` |
+
+成功部署走 reconcile 成功路径 `_report_status(phase="running", health="healthy")`
+（`deployment_reconciler.py:309-315`）——`phase` 是 `running`（非 `healthy`），`health` 才是
+`healthy`。
+
 ## 未来演化路线
 
-- **短期**：telemetry uplink 桥（NT `MessageBus` → arx telemetry actor，Plan 00b）——落地后
-  testnet / live 真跑的 fill / `OrderDenied` 才对外上报云端；当前只本地 structlog 可观测。
+- **短期（已落地）**：telemetry uplink 桥（NT `MessageBus` → arx telemetry actor）已随
+  `_attach_observability()` 落地（Plan 00b close-out）——testnet / live 真跑的 fill /
+  `OrderDenied` 现通过遥测桥对外上报云端，不再只本地 structlog 可观测。
 - **中期**：`ExecutionEngineAdapter` 抽象补全 CEX 侧对账 / 下单 / 撤单 / 查询接口，
   与 NT 的 `ExecEngine` 对齐。
 - **长期**：多引擎 flavour（`custos-nt` / `custos-hummingbot` / `custos-freqtrade`），

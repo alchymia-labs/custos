@@ -290,6 +290,7 @@ class ArxNatsClient:
     _nc: Any = field(default=None, init=False, repr=False)
     _js: Any = field(default=None, init=False, repr=False)
     _wal: _OfflineWal | None = field(default=None, init=False, repr=False)
+    _wal_drain_task: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.wal_path is not None:
@@ -312,7 +313,9 @@ class ArxNatsClient:
         # progress is visible even if drain doesn't reach the tail.
         import asyncio
 
-        asyncio.create_task(self._drain_wal(), name="arx-wal-drain")
+        # Hold a strong ref so the loop can't GC the drain task mid-flight — a
+        # dropped WAL replay silently loses buffered telemetry (对账不静默 红线).
+        self._wal_drain_task = asyncio.create_task(self._drain_wal(), name="arx-wal-drain")
 
     async def close(self) -> None:
         if self._nc is not None:

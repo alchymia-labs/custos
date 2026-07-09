@@ -1,6 +1,6 @@
 # 03 — NT host hardening (credential lifecycle + capability traceability + correlation handle 精度 + GC-safety invariant)
 
-> **Status**: 🔲 Todo (Phase 2 精细化后可执行; 未起 executor)
+> **Status**: ✅ Completed (2026-07-09 runner-executor; 全 11 Task, make verify + verify-nt 全绿 214 passed)
 > **Created**: 2026-07-08 (Plan 00c close-out 追加, DEV-00c-DEP-SKIP-CEO-OVERRIDE HIGH triage 决定 = new-plan)
 > **Refined**: 2026-07-09 (`/forge:plan-team 精细化` — Phase 2 evidence-scout + plan-drafter 深化)
 > **Project**: custos (`tesseract-trading/custos/`)
@@ -106,6 +106,10 @@ src/arx_runner/
   (invariant #2)
 - **决策**: skeleton "3 test suite ~120 LOC" 缩窄为 **1 test ~50 LOC** (只补 invariant #2);
   invariant #1/#3 用 docstring 交叉引用已有测试, 不重复造轮子 (evidence-scout §5 建议)
+  - **脚注 (impl peer review Path B)**: Task 1 实际 walk `TradingNodeConfig` 而非
+    `TradingNode.__dict__` (**narrower scope — config surface only**), 因原生 node 二次构造
+    触发 SIGABRT; 完整 node 对象图 walk 推 Plan 05 candidate, 见
+    DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE
 - **交付**: `tests/test_credential_lifecycle.py` (新, ~50 LOC, 1 test + `_walk_dict` util)
 
 ### Track 2 — Undeclared capability traceability at reconciler level (描述范围降级)
@@ -361,7 +365,7 @@ invariants" 段
 
 | # | 失败模式 | 触发点 | 测试文件:函数 | reason_code / invariant |
 |---|---------|--------|--------------|-------------------------|
-| F1 | credential leak in `node.__dict__` recursive walk (深度 5) | T1 Task 1 | `test_credential_lifecycle.py::test_node_dict_recursive_no_credential` (**新建**) | invariant #2 (red line 0.1 深化) |
+| F1 | credential leak in `node.__dict__` recursive walk (深度 5) | T1 Task 1 | `test_credential_lifecycle.py::test_node_dict_recursive_no_credential` (**新建**) | invariant #2 (red line 0.1 深化) (**narrower scope — config surface only**, 见 DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE) |
 | F2 | credential leak in `repr(node)` | 已有 | `test_nt_trading_node_host.py::test_deploy_does_not_retain_credential` (**已存在, grep 实证 line:240**) | invariant #1 (交叉引用, 不重复) |
 | F3 | credential leak in structlog `_sanitize_exception` output | 已有 | `test_nt_trading_node_host.py::test_exception_log_redacts_credential_material` (**已存在, grep 实证 line:301**) | invariant #3 (交叉引用, 不重复) |
 | F4 | undeclared host capability → `handle_spec` 层降级信号 | T2 Task 2 | `test_g6_gate_capability_integration.py::test_undeclared_host_at_reconciler_layer_degrades` (**新建**) | `phase=degraded` + structlog `g6_gate_live_capability_denied` + `deployment_reconcile_failed` (**不断言** `FailureEvent.reason_code`) |
@@ -404,21 +408,23 @@ invariants" 段
 
 ## 验收清单
 
-- [ ] T1 (Task 1): `test_credential_lifecycle.py::test_node_dict_recursive_no_credential` 全绿, credential material 不出现在深度 5 递归 walk 结果
-- [ ] T2 (Task 2+3): `test_g6_gate_capability_integration.py` 全绿, `handle_spec` 层降级信号 (`phase=degraded` + structlog 双层) 断言通过; `docs/design/reconcile.md` "Undeclared capability traceability" 段落地
-- [ ] T3 (Task 4+5): `test_host_mode_matrix.py` 4 cell 参数化全绿; `docs/design/nautilus_host.md` "Host mode × trading_mode matrix" 段落地
-- [ ] T5 (Task 6+7+8): `order_fingerprint()` 签名扩加 `client_order_id`; `on_order_denied()` 调用点更新; `test_fingerprint_is_stable_and_hex` + `test_dispatcher_forwards_real_order_denied` 更新后全绿; **envelope schema 不 bump** 验证 (`grep -n 'payload_schema_version' tests/test_wire_shapes.py` 保持 =1)
-- [ ] T6 (Task 9+10): `nats_client._wal_drain_task` 强引用落地; `test_gc_safety_invariant.py` 3 test 全绿
-- [ ] Orphan (Task 11): `docs/design/nautilus_host.md:79-80` drift 订正 (删 "当前只本地 structlog 可观测"); "Credential lifecycle invariants" + "Pre-trade reject correlation handle" 2 段落地
-- [ ] `make verify` 全绿 (含 fmt-check + lint + baseline test)
-- [ ] Non-Custodial 4 红线 grep 全绿 (见 §红线 gate 满足度表)
-- [ ] 契约表 (F1-F14) 中标 "新建" 的 10 个 `test_*` 函数 `grep -rn 'def test_X' tests/` 实存实证 (lesson #25)
+- [x] T1 (Task 1): `test_credential_lifecycle.py::test_node_dict_recursive_no_credential` 全绿, credential material 不出现在深度 5 递归 walk 结果 (walk 真 `TradingNodeConfig`, 见 DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE)
+- [x] T2 (Task 2+3): `test_g6_gate_capability_integration.py` 全绿, `handle_spec` 层降级信号 (`phase=degraded` + structlog 双层) 断言通过; `docs/design/reconcile.md` "Undeclared capability traceability" 段落地
+- [x] T3 (Task 4+5): `test_host_mode_matrix.py` 4 cell 参数化全绿; `docs/design/nautilus_host.md` "Host mode × trading_mode matrix" 段落地
+- [x] T5 (Task 6+7+8): `order_fingerprint()` 签名扩加 `client_order_id`; `on_order_denied()` 调用点更新; `test_fingerprint_is_stable_and_hex` + `test_dispatcher_forwards_real_order_denied` 更新后全绿; **envelope schema 不 bump** 验证 (`payload_schema_version` 保持 =1, diff 无 schema version 改动)
+- [x] T6 (Task 9+10): `nats_client._wal_drain_task` 强引用落地; `test_gc_safety_invariant.py` 3 test 全绿
+- [x] Orphan (Task 11): `docs/design/nautilus_host.md` drift 订正 (删 "当前只本地 structlog 可观测"); "Credential lifecycle invariants" + "Pre-trade reject correlation handle" 2 段落地
+- [x] `make verify` 全绿 (含 fmt-check + lint + baseline test; 214 passed) + `make verify-nt` 全绿 (真跑 NT, 214 passed)
+- [x] Non-Custodial 4 红线 grep 全绿 (见 §红线 gate 满足度表; 4 组 grep 全 0 命中)
+- [x] 契约表 (F1-F14) 实存实证 (lesson #25): 5 新建 def + 4 已存在 cross-ref grep 命中; F5-F8 collect-only 4 node id; F11 2 测试 git diff 验证
 
 ## 红线 gate 满足度表 (lesson #40)
 
 | 红线 | code_coverage | runtime_wire | defer_status | follow_up_plan_ref |
 |------|--------------|--------------|--------------|--------------------|
-| 0.1 Key / KEK 永不出进程 | T1 Task 1 加 invariant #2 (`__dict__` recursive walk) 覆盖 code + 已有 `test_nt_trading_node_host.py:240/301` 覆盖 invariant #1/#3 | runtime 已由 Plan 00a `_sanitize_exception()` + credential vault `_verify_permission_scope()` 兑现; 本 plan 不改 runtime path, 只扩 invariant test 覆盖面 | 无 defer | — |
+| 0.1 Key / KEK 永不出进程 | T1 Task 1 加 invariant #2 (`__dict__` recursive walk) 覆盖 code¹ + 已有 `test_nt_trading_node_host.py:240/301` 覆盖 invariant #1/#3 | runtime 已由 Plan 00a `_sanitize_exception()` + credential vault `_verify_permission_scope()` 兑现; 本 plan 不改 runtime path, 只扩 invariant test 覆盖面 | 无 defer | — |
+
+¹ F1 覆盖 `TradingNodeConfig` 递归 walk (config surface, narrower than plan 原 "node.__dict__ walk" 声明); 完整 native node 对象图 walk 因 SIGABRT 阻断, 推 Plan 05 candidate (subprocess isolation), 见 DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE。
 | 0.2 G6 host gate 不绕过 | T2 Task 2 加 `handle_spec` 层集成 test + T3 Task 4 加 4 matrix cell; 已有 `test_g6_gate.py:111/131` + `test_g6_gate_capability_e2e.py:104` 等覆盖 gate 单层 | runtime 已由 Plan 00c `_check_g6_gate()` 4 层 fail-fast 兑现; 本 plan 加集成层与 matrix 深化覆盖, 不改 runtime | 无 defer (Track 2 描述范围降级 — `FailureEvent.reason_code` 断言撤除是**契约认知修正**, 非 defer) | Plan 05 (candidate): FailureEvent first-class 实现 |
 | 0.3 Reconcile 失联 ≠ 停止 | Plan 03 不 touch, 保持 Plan 00a/00c 状态 | runtime 不动 (T2 `handle_spec` broad `except` 转 `phase=degraded` 是本红线的自然延伸) | 无 defer | — |
 | 0.4 Money math Decimal + str wire | T5 Task 6 `order_fingerprint()` 加 `client_order_id` 是 str 字段 (非 Decimal / float), hash 输入路径已 str-normalized (`nt_risk_engine.py:273-275 str(getattr(...) or "")`); T5 Task 8 test 沿用现有 Decimal 断言路径 | runtime `order_fingerprint()` 调用点 (`nt_risk_engine.py:277`) 全部 str 参数, 不 touch Decimal 路径 | 无 defer | — |
@@ -436,7 +442,80 @@ invariants" 段
 
 ## 偏离与改进日志 (Deviation Log)
 
-(执行阶段填写, 预留 `DEV-03-*` 空位)
+### DEV-03-WAL-TASK-GC-GAP
+- **等级**: LOW
+- **原因**: Q2 — `nats_client.py` `connect()` 的 WAL-drain fire-and-forget task 无强引用容器,
+  loop 可 GC 掉致 buffered telemetry 静默丢失 (对账不静默 红线). `close()` 现状不 cancel/await
+  drain task, 与 `_drain_wal()` 存在 pre-existing 竞态 (close 置 `_js`/`_wal`=None 后 drain 中途
+  可 AttributeError).
+- **影响**: `src/arx_runner/nats_client.py` (`connect()` + 新 `_wal_drain_task` field)
+- **决定**: **保守 Option A — 只加强引用, 不改 close() cancel+await**. 理由: (1) Track 6 目标是
+  GC-safety invariant, 强引用即满足; (2) close() 清理缺口是 pre-existing 生命周期竞态, 非本改动
+  引入/worsen (原本 ref 全丢, 现在保留到 client GC); (3) 加 cancel+await 是 runtime 行为变更, 需
+  独立 shutdown-during-drain 失败模式测试 (超 Task 10 契约); (4) plan 正文 Task 9 明示"保守起见
+  先只加强引用". close() 完整生命周期硬化留未来 lifecycle plan.
+- **更新的文档**: 无 (代码内 WHY 注释 + 本条)
+
+### DEV-03-MATRIX-PHASE-FIELD
+- **等级**: LOW
+- **原因**: plan 附录 A + Task 4 描述期望 `phase=healthy`, 但 `deployment_reconciler.py:309-315`
+  成功路径实为 `_report_status(phase="running", health="healthy")` — `phase` 是 `running`,
+  `health` 才是 `healthy` (lesson #9 不信推理信实证, grep 实证).
+- **影响**: `tests/test_host_mode_matrix.py` (断言) + `docs/design/nautilus_host.md` (matrix 段)
+- **决定**: 测试与 docs 按**代码为准** (authoritative), 断言 `phase="running"` + `health="healthy"`;
+  docs matrix 段明确注记. plan 措辞不精确, 不改代码.
+- **更新的文档**: `docs/design/nautilus_host.md` (matrix 段注明 phase=running 非 healthy)
+
+### DEV-03-TDD-ORDER-CLARIFICATION
+- **等级**: LOW (codex L1 finding)
+- **原因**: Track 5 (Task 6/7/8) + Track 6 (Task 9/10) 的 red→green 顺序.
+- **影响**: `tests/test_nt_risk_engine.py` / `tests/test_gc_safety_invariant.py`
+- **决定**: **genuine code change 严格 test-first**: Track 5 先改 Task 8 测试 → 验 RED
+  (TypeError 6-arg) → Task 6/7 实现 → GREEN; Track 6 Test C 先红 (AttributeError `_wal_drain_task`)
+  → Task 9 → GREEN. **characterization/invariant 测试** (Track 1/2/3 + Test A/B) 验现有行为,
+  首跑即绿属预期 (若红则是红线发现). **签名迁移例外**: Task 6/7/8 互依赖 (单独提交留破损中间态),
+  原子合一 commit (3ca3afb); Task 9/10 同理原子 (2512d74).
+- **更新的文档**: 无
+
+### DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE
+- **等级**: LOW
+- **原因**: Task 1 原实现构造真 NT `TradingNode` walk `node.__dict__`, 但**第二次原生
+  TradingNode 构造在共享 test 进程重初始化 NT 全局 Rust logging 子系统 → SIGABRT** (Error 134,
+  `make verify-nt` 全量套件崩溃于 `test_nt_trading_node_host_integration.py`, 单跑不复现).
+- **影响**: `tests/test_credential_lifecycle.py`
+- **决定**: 改为直接 walk 真 `TradingNodeConfig` (承载 credential 的对象, 纯配置组装无原生副作用),
+  不构造原生 node. **narrower scope (impl peer review Path B 诚实化)**: proves credential-carrying
+  config surface (`TradingNodeConfig` 递归 `__dict__` walk; credential 在 msgspec `__slots__`,
+  `__dict__` walk 不下降 — safety-validator 分析 venue ↔ credential 同源可达 by reasoning),
+  **非** full `TradingNode.__dict__` walk; 正控 `data_cfg.api_key == sentinel` 仍确保非空命中假绿.
+  full native node 对象图 walk 因 SIGABRT (native NT 二次构造重初始化 Rust logging 致
+  shared-process crash) 无法在共进程内实施, 推 **Plan 05 candidate (subprocess isolation)**.
+  fix commit 23c7a17 + 契约诚实化降级 (impl peer review followup).
+- **更新的文档**: 无 (测试 docstring 已注明 narrower scope)
+
+### DEV-03-T5-CANONICAL-RECIPE-CROSS-REPO-DOC-SYNC
+- **等级**: LOW (**workspace-scope only advisory** — 独立 clone 场景不可见)
+- **原因**: Track 5 给 custos `order_fingerprint` recipe 加 `client_order_id`, 与 crucible-rust
+  侧 `pre_trade_service.rs` recipe 不再逐字一致. 原 docstring "the same canonical recipe the Rust
+  service uses" 已失真 (且 side/qty/price 恒空, 原声称本就 aspirational).
+- **影响**: `src/arx_runner/nt_risk_engine.py` docstring (跨仓 crucible-rust `pre_trade_service.rs`)
+- **决定**: custos docstring 改为**诚实描述新 recipe + correlation-handle 语义, 不再声称与 Rust
+  逐字一致** (lesson #4 无依据不声明). fingerprint 是 custos 自身 correlation handle, 单边提升
+  唯一性; 跨仓 recipe 对齐是 advisory follow-up (无强制机制, 独立仓 clone 不适用).
+- **更新的文档**: `src/arx_runner/nt_risk_engine.py` docstring
+
+### DEV-03-FAILUREEVENT-DEFER-CLARIFICATION
+- **等级**: LOW (**性质: 契约认知修正, 非 defer**)
+- **原因**: Track 2 撤除 `FailureEvent.reason_code` 断言 — evidence-scout 候选 C 实证 `FailureEvent`
+  概念在 `src/arx_runner/` **零实现**, `_report_status()` `DeploymentStatus` payload 无
+  `reason_code` 字段. skeleton 起草误假设概念已 first-class.
+- **影响**: `tests/test_g6_gate_capability_integration.py` (断言范围) + `docs/design/reconcile.md`
+  + `docs/domain.md`
+- **决定**: 集成 test 改断言 `phase=degraded` + 双层 structlog (`g6_gate_live_capability_denied`
+  + `deployment_reconcile_failed`), 不断言 `FailureEvent.reason_code`. reconcile.md 加
+  "Undeclared capability traceability" 段 + domain.md §1.5 加实现状态注记澄清. 完整 first-class
+  `FailureEvent` uplink 是独立功能面 follow-up plan 候选.
+- **更新的文档**: `docs/design/reconcile.md` + `docs/domain.md`
 
 **分级模板** (按 `.claude/rules/deviation-protocol.md`, intra L2 fix):
 
@@ -449,40 +528,53 @@ invariants" 段
 - **更新的文档**: <列出已更新的权威文档 或 "无">
 ```
 
-**candidate slots** (Phase 2 精细化阶段预填, 执行阶段填实):
+**candidate slots 解析状态** (Phase 2 预填 → 执行阶段已填实上方 DEV 条):
 
-- `DEV-03-T5-CANONICAL-RECIPE-CROSS-REPO-DOC-SYNC` (LOW 预估, **workspace-scope only
-  advisory** — 独立 clone 场景不可见, F-AUTH-3 fix): crucible-rust 侧
-  `pre_trade_service.rs:82-91` docstring "the same canonical recipe" 措辞是否与 custos
-  `nt_risk_engine.py:125` 同步。仅在 workspace 场景内跨仓协同, custos 独立仓 clone 后此
-  follow-up 不适用 (independent audit 只看 custos 侧 docstring, 已明确 "correlation
-  handle, not tamper-evidence anchor")
-- `DEV-03-WAL-TASK-GC-GAP` (candidate slot): 若 Task 9 shutdown cleanup 路径评估发现更多
-  边界情况 (如 `close()` 时 cancel + await 的语义), 独立记录
-- `DEV-03-FAILUREEVENT-DEFER-CLARIFICATION` (candidate slot, LOW 预估):
-  Track 2 `FailureEvent.reason_code` 断言撤除的完整依据 (evidence-scout 候选 C 实证
-  `FailureEvent` 在 `src/arx_runner/` 零实现, `_report_status()` `DeploymentStatus` payload
-  无 `reason_code` 字段) 归档到本条。**性质**: 契约认知修正 (skeleton 起草时误假设概念已
-  first-class), 非 defer; drafter 已在 Task 3 加 `docs/design/reconcile.md` "Undeclared
-  capability traceability" 段澄清; 完整 first-class 实现推 Plan 05 candidate
+- `DEV-03-T5-CANONICAL-RECIPE-CROSS-REPO-DOC-SYNC` — ✅ 已填实 (见上, workspace-scope advisory)
+- `DEV-03-WAL-TASK-GC-GAP` — ✅ 已填实 (见上, Q2 保守只加强引用)
+- `DEV-03-FAILUREEVENT-DEFER-CLARIFICATION` — ✅ 已填实 (见上, 契约认知修正非 defer)
+
+**Open Questions 解析** (packet §3):
+
+- **Q1** (`client_order_id` 恒空 fallback) → **Option A**: 用
+  `str(getattr(denied, "client_order_id", "") or "")` 降级 pattern (与 side/qty/price 一致).
+  Task 8 用真 NT `OrderDenied(client_order_id=ClientOrderId("O-1"))` 驱动, 实证 client_order_id
+  **非空携带** ("O-1"), 未发现频繁空值场景 → **不触发 `DEV-03-T5-CLIENT-ORDER-ID-EMPTY-CASE`**.
+- **Q2** (WAL task shutdown cleanup) → 见 `DEV-03-WAL-TASK-GC-GAP` (保守只加强引用).
+- **Q3** (Task 11 措辞) → 采 drafter 建议措辞, 微调去除 commit hash (doc 自包含性, 保留轻量
+  Plan 00b provenance).
 
 ## 完成报告 (Close-out Report)
 
-(执行完成填写, 按 `.claude/rules/progress-management.md` 模板)
+- **完成日期**: 2026-07-09
+- **总 Task 数**: 11 (全部 ✅)
+- **偏离数**: 6 (DEV-03-WAL-TASK-GC-GAP / MATRIX-PHASE-FIELD / TDD-ORDER-CLARIFICATION /
+  CREDENTIAL-TEST-NO-NATIVE-NODE / T5-CANONICAL-RECIPE-CROSS-REPO-DOC-SYNC /
+  FAILUREEVENT-DEFER-CLARIFICATION; 全 LOW, 详见偏离日志)
+- **验证结果**: **全部通过** — `make verify` (base) 214 passed + `make verify-nt` (真跑 NT)
+  214 passed (baseline 205 + 9 新测试); fmt-check + lint 全绿
+- **实施 commit 范围**: `4559d04..23c7a17` (9 commits)
+- **契约影响**: `docs/design/nautilus_host.md` (matrix 段 + credential invariants 段 +
+  correlation handle 段 + Drift #1 订正) + `docs/design/reconcile.md` (undeclared capability
+  traceability 段) + `docs/domain.md` (§1.5 FailureEvent 实现状态注记)
+- **红线守护**: Non-Custodial 4 红线全数守住 — 4 组 grep (0.1 Key/KEK 出进程 / 0.2 G6 绕过 /
+  0.3 失联即停止 / 0.4 float money) 全 0 命中; 本 plan 只加/扩 invariant 测试覆盖面 +
+  correlation handle hash 输入 + WAL task 强引用, 均不改红线 runtime 行为
+- **envelope schema**: `payload_schema_version` 保持 =1 (Task 6 只改 hash 输入不改 wire 形状)
+- **失败模式覆盖**: F1/F4/F12/F13/F14 (5 新建 def) + F5-F8 (1 parametrize 4 cell) +
+  F11 (2 修改测试) + F2/F3/F9/F10 (4 已存在 cross-ref) = 14 F contract checks 全实存实证
+- **遗留项**: (1) `close()` WAL task 完整生命周期硬化 (cancel+await) 留未来 lifecycle plan
+  (DEV-03-WAL-TASK-GC-GAP); (2) FailureEvent first-class 实现 (Plan 05 candidate); (3)
+  crucible-rust 侧 fingerprint recipe 对齐 (workspace-scope advisory, 独立 clone 不适用)
 
-```
-- **完成日期**: {YYYY-MM-DD}
-- **总 Task 数**: 11
-- **偏离数**: {N} (详见偏离日志)
-- **验证结果**: 全部通过 / 部分通过
-- **实施 commit 范围**: {first_sha}..{last_sha}
-- **契约影响**: docs/design/nautilus_host.md (3 段新增 + Drift #1 订正) +
-                docs/design/reconcile.md (1 段新增)
-- **红线守护**: Non-Custodial 4 红线全数守住 (grep 记录, 见 §验收清单红线专项)
-- **失败模式覆盖**: F1/F4-F8/F11-F14 (10 个新增 test 函数), F2/F3/F9/F10 (4 个已存在交叉引用)
-- **遗留项**: FailureEvent first-class 实现 (Plan 05 candidate) + crucible-rust 侧 docstring
-              同步 (若 DEV-03-T5-CANONICAL-RECIPE-CROSS-REPO-DOC-SYNC 触发)
-```
+### 红线 gate 满足度 (lesson #40 — code_coverage vs runtime_wire vs defer)
+
+| 红线 | code_coverage | runtime_wire | defer_status |
+|------|--------------|--------------|--------------|
+| 0.1 Key/KEK 不出进程 | T1 invariant #2 (`TradingNodeConfig` `__dict__` walk, **narrower scope — config surface only**, 见 DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE) + 已有 #1/#3 | runtime 未改 (Plan 00a `_sanitize_exception` 已兑现) | 无 defer |
+| 0.2 G6 不绕过 | T2 handle_spec 集成层 + T3 4 matrix cell + 已有 gate 单层 | runtime 未改 (Plan 00c 4 层 gate 已兑现) | 无 defer (FailureEvent 断言撤除=契约认知修正) |
+| 0.3 失联≠停止 | 不 touch (T2 broad except 转 degraded 是自然延伸) | runtime 未改 | 无 defer |
+| 0.4 Money Decimal | T5 `client_order_id` 是 str (非 Decimal/float), hash 输入已 str-normalized | runtime 未改 (fingerprint 调用点全 str) | 无 defer |
 
 ## 下一步 (Next)
 
@@ -490,6 +582,16 @@ Plan 03 close-out 后:
 - 硬化面基本完备; 后续 plan 候选:
   - **Plan 05 candidate**: `FailureEvent` first-class 实现 (`docs/domain.md:153` 已有设计,
     `src/arx_runner/` 未实现)
+  - **Plan 05+ candidate: NT node lifecycle invariant #2 subprocess isolation** —
+    用 `multiprocessing.Process` 隔离 native `TradingNode(config)` 构造在子进程, 子进程 walk
+    `node.__dict__` depth 5, report credential leaves 回主 pytest; 绕开 shared-process Rust
+    logging re-init 致的 SIGABRT (Error 134); 完成 red line 0.1 invariant #2 full coverage
+    (当前 Plan 03 F1 只覆盖 config surface, 见 DEV-03-CREDENTIAL-TEST-NO-NATIVE-NODE)。并顺带
+    satisfy safety-validator FU-2 (credential-path canary 正控)。
+  - **Plan 05+ candidate: matrix `phase='degraded'` vocab drift** (safety-validator FU-1, LOW,
+    pre-existing) — 失败路径 `phase='degraded'` ∈ health vocab 但 ∉ `docs/domain.md` phase vocab
+    {pending/starting/running/stopping/stopped/failed}; `deployment_reconciler.py` 不在 Plan 03
+    改动清单, 非本 plan 引入。修 → `failed` 或 vocab 合法化 二选一。
   - Plan 00c §下一步继承: OKX venue / `arx_runner`→`custos_runner` rename (boundary
     constant rename fanout, lesson #35) / 签名 release pipeline / ExecutionEngineAdapter
     抽象补全 / 多引擎 flavour

@@ -153,6 +153,13 @@
 | **FailureEvent** | `event_id` · `spec_id` · `tenant_id` · `severity`(warning/error/critical)· `reason_code`(枚举: nt_startup_failure / vault_locked / venue_auth_failed / code_hash_mismatch / …) · `detail`(脱敏) · `at` | 关键故障立即上报 → Crucible AlertEvent 生成 → arx 用户告警 |
 | **TelemetrySnapshot**（摘要）| `snapshot_id` · `spec_id` · `session_id` · `orders_count` · `fills_count` · `pnl_summary`(不含明细) · `at` | 定期采样；不包含订单簿明细或 Fill 事件明文（明细太重且含敏感），只回报摘要 |
 
+> **实现状态（FailureEvent）**：上表 `FailureEvent`（含 `reason_code` 枚举）是纸面
+> 设计；`src/arx_runner/` 尚未 first-class 实现——`_report_status()` 发布的
+> `DeploymentStatus` payload 无 `reason_code` 字段。当前结构化拒绝信号走
+> `DeploymentStatus` `phase=degraded` + 双层 structlog 事件名，详见
+> [`docs/design/reconcile.md` §Undeclared capability traceability](design/reconcile.md)。
+> first-class `FailureEvent` uplink 是独立功能面 follow-up plan 候选。
+
 **红线**：
 - **上报事件不含 Key 明文**：任何 event payload 涉及敏感字段必脱敏（`api_key_sha8` / `credential_hint`）
 - **上报事件不含策略源码**：策略在 custos 本地（策略仓库通过其他通道分发），事件里只带 `code_hash` 引用

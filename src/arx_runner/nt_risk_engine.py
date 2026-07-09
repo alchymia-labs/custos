@@ -119,11 +119,24 @@ def build_nt_risk_engine_config(rules: list[PreTradeRuleConfig]) -> dict:
     }
 
 
-def order_fingerprint(symbol: str, side: str, quantity: str, price: str, ts_seconds: int) -> str:
-    """SHA-256 content digest over ``symbol|side|qty|price|ts_seconds`` — the
-    same canonical recipe the Rust service uses (correlation handle, not the
-    tamper-evidence anchor; that's the audit chain HMAC)."""
-    canonical = f"{symbol}|{side}|{quantity}|{price}|{ts_seconds}"
+def order_fingerprint(
+    symbol: str,
+    client_order_id: str,
+    side: str,
+    quantity: str,
+    price: str,
+    ts_seconds: int,
+) -> str:
+    """SHA-256 content digest over ``symbol|client_order_id|side|qty|price|ts_seconds``.
+
+    A correlation handle for the cloud audit / alert chain — not a tamper-evidence
+    anchor. Tamper evidence is the audit chain's per-tenant HMAC (governance),
+    which this non-custodial runner deliberately does not implement. client_order_id
+    is the one stable field a real NT ``OrderDenied`` carries (side / quantity /
+    price are absent on the event), so folding it in lifts the handle's uniqueness
+    above the ``(symbol, ts)`` pair it would otherwise degrade to.
+    """
+    canonical = f"{symbol}|{client_order_id}|{side}|{quantity}|{price}|{ts_seconds}"
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
@@ -256,7 +269,8 @@ class NtRiskEngineBridge:
         # NT OrderDenied carries no rule_id (our pre-trade rule catalog is
         # runner-side); it publishes empty and the cloud correlates by symbol +
         # fingerprint. side / quantity / price are likewise absent on the NT
-        # event — the fingerprint degrades to a (symbol, ts) correlation handle.
+        # event, so the fingerprint folds in client_order_id (the one stable field
+        # it does carry) to keep the correlation handle unique.
         rule_id = str(getattr(denied, "rule_id", "") or "")
 
         # Reference price may be absent (NT didn't have a quote) — the collar
@@ -270,11 +284,12 @@ class NtRiskEngineBridge:
                 symbol=symbol,
             )
 
+        client_order_id = str(getattr(denied, "client_order_id", "") or "")
         side = str(getattr(denied, "side", "") or "")
         quantity = str(getattr(denied, "quantity", "") or "")
         price = str(getattr(denied, "price", "") or "")
         ts_seconds = _denied_ts_seconds(denied)
-        fingerprint = order_fingerprint(symbol, side, quantity, price, ts_seconds)
+        fingerprint = order_fingerprint(symbol, client_order_id, side, quantity, price, ts_seconds)
 
         payload = {
             "tenant_id": self._tenant_id,
