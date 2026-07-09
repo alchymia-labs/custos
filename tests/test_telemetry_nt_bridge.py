@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 import structlog
 
-from arx_runner.telemetry_actor import (
+from custos.core.telemetry_actor import (
     DEFAULT_TELEMETRY_EVENT_TYPES,
     MONEY_FIELD_NAMES,
     NtTelemetryBridge,

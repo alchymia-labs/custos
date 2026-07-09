@@ -28,9 +28,9 @@ from dataclasses import dataclass, field
 import pytest
 import structlog
 
-from arx_runner.config import TelemetryQueueConfig
-from arx_runner.nats_client import NatsEnvelope
-from arx_runner.telemetry_actor import TelemetryActor, TelemetryActorConfig
+from custos.core.config import TelemetryQueueConfig
+from custos.core.nats_client import NatsEnvelope
+from custos.core.telemetry_actor import TelemetryActor, TelemetryActorConfig
 
 
 @dataclass

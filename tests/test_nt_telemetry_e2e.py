@@ -18,15 +18,15 @@ from typing import Any
 
 import pytest
 
-from arx_runner.nats_client import NatsEnvelope
-from arx_runner.nt_risk_engine import NtRiskEngineBridge
-from arx_runner.telemetry_actor import (
+from custos.core.nats_client import NatsEnvelope
+from custos.core.telemetry_actor import (
     DEFAULT_TELEMETRY_EVENT_TYPES,
     ArxNatsTelemetryAdapter,
     NtTelemetryBridge,
     TelemetryActor,
     TelemetryActorConfig,
 )
+from custos.engines.nautilus.risk import NtRiskEngineBridge
 
 
 class _RecordingNatsClient:

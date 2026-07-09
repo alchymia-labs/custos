@@ -23,9 +23,9 @@ pytest.importorskip("nautilus_trader")
 
 from nautilus_trader.live.node import TradingNode  # noqa: E402
 
-from arx_runner import nautilus_host  # noqa: E402
-from arx_runner._strategy_loader import CodeHashMismatch  # noqa: E402
-from arx_runner.nautilus_host import NtTradingNodeHost  # noqa: E402
+from custos.engines.nautilus import host as nautilus_host  # noqa: E402
+from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
+from custos.engines.nautilus.strategy_loader import CodeHashMismatch  # noqa: E402
 
 _FIXTURE_STRATEGY = Path(__file__).parent / "fixtures" / "minimal_supertrend_strategy.py"
 

@@ -38,19 +38,25 @@
 
 ```
 custos/
-├── src/arx_runner/           ← Python 模块 (导入名保留 arx_runner, pip 名 custos-runner)
+├── src/custos/               ← Python 模块 (导入名 custos, pip 名 custos-runner)
 │   ├── __init__.py
-│   ├── __main__.py            ← daemon 入口 (asyncio 编排 6 模块)
-│   ├── config.py              ← DeploymentSpec / TransportEnvelope Pydantic 模型
-│   ├── enrollment.py          ← EnrollmentToken 配对 + runner_id 持久
-│   ├── credential_vault.py    ← sops+age 本地 KEK vault
-│   ├── nats_client.py         ← JetStream client + build_subject() 函数
-│   ├── reconcile.py           ← ReconcileLoop (level-triggered)
-│   ├── deployment_reconciler.py ← reconcile 高层编排
-│   ├── nautilus_host.py       ← NoopHost + NtTradingNodeHost + G6 gate
-│   ├── nt_risk_engine.py      ← 本地 fallback breaker (drawdown + max_notional)
-│   ├── telemetry_actor.py     ← NT MessageBus → NATS uplink (脱敏 + Decimal wire)
-│   └── log.py                 ← structlog 配置
+│   ├── __main__.py            ← 薄 shim (from custos.cli.main import main)
+│   ├── core/                  ← 引擎无关承重墙
+│   │   ├── config.py          ← DeploymentSpec / TransportEnvelope Pydantic 模型
+│   │   ├── enrollment.py      ← EnrollmentToken 配对 + runner_id 持久
+│   │   ├── credential_vault.py ← sops+age 本地 KEK vault
+│   │   ├── nats_client.py     ← JetStream client + build_subject() 函数
+│   │   ├── reconcile.py       ← ReconcileLoop (level-triggered)
+│   │   ├── deployment_reconciler.py ← reconcile 高层编排
+│   │   ├── telemetry_actor.py ← NT MessageBus → NATS uplink (脱敏 + Decimal wire)
+│   │   └── log.py             ← structlog 配置
+│   ├── engines/nautilus/      ← NT Python 引擎
+│   │   ├── host.py            ← NoopHost + NtTradingNodeHost + G6 gate
+│   │   ├── risk.py            ← 本地 fallback breaker (drawdown + max_notional)
+│   │   ├── strategy_loader.py ← 策略加载
+│   │   └── venue_binance.py   ← Binance venue 适配
+│   └── cli/
+│       └── main.py            ← daemon 入口 (asyncio 编排 6 模块)
 │
 ├── tests/                     ← pytest 测试 (115 pass baseline, 9 wire_shapes fail known)
 ├── scripts/
@@ -74,11 +80,8 @@ custos/
 ## Python 模块命名
 
 - **pip 分发名**: `custos-runner` (`pyproject.toml` `[project].name`)
-- **Python 导入名**: `arx_runner` (`src/arx_runner/`)
-- **原因**: subtree split from arx 保留 import 兼容; rename `arx_runner` → `custos_runner`
-  是独立 follow-up plan (boundary constant fanout ~40 import site)
-- **hatchling 桥接**: `[tool.hatch.build.targets.wheel] packages = ["src/arx_runner"]`
-  显式声明 (Plan 01 DEV-01-PYPROJECT-HATCH)
+- **Python 导入名**: `custos` (`src/custos/`)
+- rename `arx_runner` → `custos` 已由 Plan 05 完成
 
 ## 运行方式
 
@@ -91,7 +94,7 @@ uv sync --extra dev
 ### 跑 daemon (paper mode 默认)
 
 ```bash
-python -m arx_runner --tenant-id acme --runner-id runner-7 --nats-url nats://localhost:4222
+python -m custos --tenant-id acme --runner-id runner-7 --nats-url nats://localhost:4222
 ```
 
 参数:
@@ -115,7 +118,7 @@ make test-baseline  # 可绿基线 (排除 wire_shapes)
 # 见 .claude/rules/verification.md §Non-Custodial 4 红线专项检查
 grep -rnE 'log\.(info|debug|warning).*api[_-]?key' src/ tests/
 grep -rn 'CEXOMS\|BinanceClient\|OKXClient' src/ --exclude=nautilus_host.py
-grep -rn 'stop_all_strategies\|force_shutdown' src/arx_runner/reconcile.py
+grep -rn 'stop_all_strategies\|force_shutdown' src/custos/core/reconcile.py
 grep -rnE 'float\(.*price|float\(.*amount' src/
 ```
 

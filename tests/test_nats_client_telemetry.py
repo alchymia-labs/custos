@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from arx_runner.nats_client import (
+from custos.core.nats_client import (
     ArxNatsClient,
     NatsEnvelope,
     OrderingMeta,

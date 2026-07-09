@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import structlog
 
-from arx_runner import log as runner_log
+from custos.core import log as runner_log
 
 
 def test_configure_is_idempotent():

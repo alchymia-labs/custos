@@ -33,7 +33,7 @@ from typing import Protocol
 # on extra={...} attributes (audit_event / credential_id / tenant_id) still
 # work. Other runner modules use structlog; this one keeps stdlib to avoid
 # breaking Plan 01 audit signal contract test.
-_log = logging.getLogger("arx_runner.credential_vault")
+_log = logging.getLogger("custos.credential_vault")
 
 
 class AuditEvent(enum.Enum):
@@ -103,7 +103,7 @@ class CredentialVault(_BaseVault):
     canonical `CredentialDecrypted` audit signal. Used by tests + dev.
 
     Kept name `CredentialVault` for backward compat with existing call
-    sites (`from arx_runner.credential_vault import CredentialVault`).
+    sites (`from custos.core.credential_vault import CredentialVault`).
     """
 
     def decrypt(self, credential_id: str) -> dict:

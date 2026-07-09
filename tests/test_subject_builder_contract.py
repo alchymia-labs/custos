@@ -20,14 +20,14 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from arx_runner.nats_client import (
+from custos.core.nats_client import (
     ArxNatsClient,
     NatsEnvelope,
     OrderingMeta,
     build_subject,
     heartbeat_subject,
 )
-from arx_runner.telemetry_actor import ArxNatsTelemetryAdapter
+from custos.core.telemetry_actor import ArxNatsTelemetryAdapter
 
 
 def _envelope() -> NatsEnvelope:

@@ -6,8 +6,8 @@ import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from arx_runner.nats_client import ArxNatsClient
-from arx_runner.reconcile import ReconcileUploader, ReconResult
+from custos.core.nats_client import ArxNatsClient
+from custos.core.reconcile import ReconcileUploader, ReconResult
 
 
 def sample_result() -> ReconResult:

@@ -26,8 +26,8 @@ pytest.importorskip("nautilus_trader")
 from nautilus_trader.adapters.binance.factories import BinanceLiveExecClientFactory  # noqa: E402
 from nautilus_trader.adapters.sandbox.factory import SandboxLiveExecClientFactory  # noqa: E402
 
-from arx_runner import nautilus_host  # noqa: E402
-from arx_runner.nautilus_host import NtTradingNodeHost  # noqa: E402
+from custos.engines.nautilus import host as nautilus_host  # noqa: E402
+from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
 
 _FIXTURE_STRATEGY = Path(__file__).parent / "fixtures" / "minimal_supertrend_strategy.py"
 
@@ -369,7 +369,7 @@ async def test_task_done_callback_cleans_active_entry(monkeypatch) -> None:
 
 
 def _telemetry_client():
-    from arx_runner.nats_client import ArxNatsClient
+    from custos.core.nats_client import ArxNatsClient
 
     return ArxNatsClient(nats_url="nats://localhost:4222", tenant_id="acme", runner_id="runner-7")
 

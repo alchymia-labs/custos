@@ -21,9 +21,9 @@ from dataclasses import dataclass, field
 import pytest
 import structlog
 
-from arx_runner._strategy_loader import compute_strategy_dir_hash
-from arx_runner.deployment_reconciler import DeploymentReconciler, _ReconcileState
-from arx_runner.nautilus_host import NoopHost
+from custos.core.deployment_reconciler import DeploymentReconciler, _ReconcileState
+from custos.engines.nautilus.host import NoopHost
+from custos.engines.nautilus.strategy_loader import compute_strategy_dir_hash
 
 
 @dataclass
@@ -75,7 +75,7 @@ def _make_reconciler(host) -> DeploymentReconciler:
         nats_client=_FakeNats(),  # type: ignore[arg-type]
         tenant_id="acme",
         runner_id="runner-7",
-        nautilus_host=host,
+        execution_engine=host,
         credential_vault=_FakeVault(),  # type: ignore[arg-type]
     )
 

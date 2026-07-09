@@ -1,6 +1,6 @@
 # telemetry_actor — NT MessageBus → NATS 白名单缓冲上传
 
-> Custos 六件套之一。源码：`src/arx_runner/telemetry_actor.py`。
+> Custos 六件套之一。源码：`src/custos/core/telemetry_actor.py`。
 
 ## 模块职责
 

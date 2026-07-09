@@ -29,9 +29,9 @@ from typing import Any
 
 import uuid6
 
-from arx_runner.log import get_logger
+from custos.core.log import get_logger
 
-_log = get_logger("arx_runner.nats_client")
+_log = get_logger("custos.nats_client")
 
 try:  # pragma: no cover — exercised in production, mocked in unit tests
     import nats

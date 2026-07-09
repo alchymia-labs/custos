@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from arx_runner.nats_client import ArxNatsClient
+from custos.core.nats_client import ArxNatsClient
 
 
 @pytest.mark.asyncio

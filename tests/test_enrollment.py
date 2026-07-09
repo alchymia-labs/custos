@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from arx_runner.enrollment import EnrollmentClient, hash_token
+from custos.core.enrollment import EnrollmentClient, hash_token
 
 
 @dataclass

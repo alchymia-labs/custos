@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 import structlog
 
-from arx_runner._strategy_loader import (
+from custos.engines.nautilus.strategy_loader import (
     CodeHashMismatch,
     compute_strategy_dir_hash,
     load_strategy_class,

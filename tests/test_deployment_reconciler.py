@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from arx_runner.deployment_reconciler import DeploymentReconciler
+from custos.core.deployment_reconciler import DeploymentReconciler
 
 
 @dataclass
@@ -74,7 +74,7 @@ def _make_reconciler(host=None, vault=None, nats=None) -> DeploymentReconciler:
         nats_client=nats or _FakeNats(),  # type: ignore[arg-type]
         tenant_id="acme",
         runner_id="runner-7",
-        nautilus_host=host or _FakeHost(),
+        execution_engine=host or _FakeHost(),
         credential_vault=vault or _FakeVault(),
         drift_threshold=3,
     )

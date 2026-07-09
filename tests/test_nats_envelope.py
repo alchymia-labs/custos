@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from arx_runner.nats_client import NatsEnvelope, OrderingMeta, build_heartbeat_envelope
+from custos.core.nats_client import NatsEnvelope, OrderingMeta, build_heartbeat_envelope
 
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 RFC3339_NS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$")

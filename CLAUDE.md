@@ -132,8 +132,8 @@ custos 是**独立仓库**, 外部审计员会 clone 单仓查代码:
 直接编辑 `.forge/teams.yaml`; 重跑 `/forge:bootstrap --teams` 会进入 diff 模式而非覆盖.
 
 **custos 特化 (与 arx 差异)**:
-- 单栈 Python daemon, 只有 1 个 executor area (`runner` @ `src/arx_runner`)
-- safety.touched_paths 覆盖 `src/arx_runner/` 全部 8 module (non-custodial 承重墙)
+- 单栈 Python daemon, 只有 1 个 executor area (`runner` @ `src/custos`)
+- safety.touched_paths 覆盖 `src/custos/` 全部模块 (non-custodial 承重墙)
 - planner_team.drafters_per_session=2, codex_audit.max_calls_per_plan=3 (预算收紧, arx 是 4/5)
 - architect_team.experts=`[domain, safety, python]` (无 rust / web 专家)
 - opus 强角色显式 pin `claude-opus-4-7[1m]` (禁裸 `opus`, CEO 2026-07-06 禁)

@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import structlog
 
-from arx_runner._strategy_loader import compute_strategy_dir_hash
-from arx_runner.deployment_reconciler import DeploymentReconciler
+from custos.core.deployment_reconciler import DeploymentReconciler
+from custos.engines.nautilus.strategy_loader import compute_strategy_dir_hash
 
 
 class _CapabilityLessHost:
@@ -72,7 +72,7 @@ def _reconciler(host) -> tuple[DeploymentReconciler, MagicMock]:
         nats_client=nats_client,
         tenant_id="acme",
         runner_id="runner-7",
-        nautilus_host=host,
+        execution_engine=host,
         credential_vault=vault,
     )
     return reconciler, nats_client

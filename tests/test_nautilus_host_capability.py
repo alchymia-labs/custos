@@ -11,7 +11,7 @@ asserts the declared venue set stays in sync with the venue-config module.
 
 from __future__ import annotations
 
-from arx_runner.nautilus_host import NoopHost, NtTradingNodeHost
+from custos.engines.nautilus.host import NoopHost, NtTradingNodeHost
 
 
 def test_noophost_rejects_live_capability() -> None:

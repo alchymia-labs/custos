@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from arx_runner.credential_vault import AuditEvent, SopsAgeVault
+from custos.core.credential_vault import AuditEvent, SopsAgeVault
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def test_decrypt_returns_credential_dict(
         initiator="runner-7",
     )
     with patch("subprocess.run", side_effect=_fake_run(plaintext)):
-        with caplog.at_level(logging.INFO, logger="arx_runner.credential_vault"):
+        with caplog.at_level(logging.INFO, logger="custos.credential_vault"):
             cred = vault.decrypt("cred-123")
 
     assert cred["credential_id"] == "cred-123"
@@ -114,7 +114,7 @@ def test_decrypt_emits_audit_event(
         initiator="runner-7",
     )
     with patch("subprocess.run", side_effect=_fake_run(plaintext)):
-        with caplog.at_level(logging.INFO, logger="arx_runner.credential_vault"):
+        with caplog.at_level(logging.INFO, logger="custos.credential_vault"):
             vault.decrypt("cred-123")
 
     audit = [
@@ -188,7 +188,7 @@ def test_sops_decrypt_failure_raises_runtime_error(
         initiator="runner-7",
     )
     with patch("subprocess.run", side_effect=_fake_run(b"", returncode=2)):
-        with caplog.at_level(logging.ERROR, logger="arx_runner.credential_vault"):
+        with caplog.at_level(logging.ERROR, logger="custos.credential_vault"):
             with pytest.raises(RuntimeError, match="sops decryption failed"):
                 vault.decrypt("cred-123")
 

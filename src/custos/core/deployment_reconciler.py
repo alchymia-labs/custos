@@ -1,7 +1,7 @@
 """Declarative deployment reconcile loop.
 
 云端 NATS-发 DeploymentSpec → runner 本地比对 generation → 调
-nautilus_host 起停 NT → NATS-发 DeploymentStatus 回报。
+execution engine 起停策略 → NATS-发 DeploymentStatus 回报。
 
 声明式 + level-triggered (plan-index §6):
 - generation 比对幂等：同 generation 多次到达不重复执行。
@@ -18,160 +18,14 @@ import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Protocol
 
-from arx_runner._strategy_loader import compute_strategy_dir_hash
-from arx_runner.log import get_logger
-from arx_runner.nats_client import ArxNatsClient
+from custos.core.engine_protocol import ExecutionEngineProtocol
+from custos.core.g6_gate import check_g6_gate
+from custos.core.log import get_logger
+from custos.core.nats_client import ArxNatsClient
 
-_log = get_logger("arx_runner.deployment_reconciler")
-
-# The only credential permission scope allowed to reach a live venue. The vault
-# enforces this on decrypt; the gate re-checks it as defence in depth.
-_LIVE_SAFE_SCOPE = "trade_no_withdraw"
-
-
-def _check_g6_gate(host: object, spec: dict, credential: dict | None) -> None:
-    """G6 host gate — a live deployment must clear every layer or it is refused.
-
-    live 是唯一强校验模式: paper / sandbox / testnet 各自的 host 通道自洽, 而
-    live 单子一旦落到不具备执行能力的 host 上就进了黑洞 (承重墙: live 通道不能
-    落到 stub 上)。live 下四层 fail-fast 缺一不可, 任一层拒绝立即 raise + 结构化
-    error 日志 (reason_code = event 名):
-      层 1  host 显式声明支持 live (NoopHost stub 声明 False → 拒)
-      层 2  host 声明支持 spec 的 venue (connector)
-      层 3  spec 钉住 code_hash 且与本地 strategy 源目录哈希一致 (provenance 红线)
-      层 4  credential 的 permission_scope 是 trade_no_withdraw (vault 已守, 兜底)
-
-    层 4 只在 credential 提供时校验 (deploy 路径); reconfigure 已在 deploy 时验过
-    scope, 不重复解密。每层各有 relaxed-double 测试证明是 live guard 而非 dead branch。
-
-    trading_mode 大小写不敏感: Rust `TradingMode` 默认 serde 序列化为 PascalCase
-    (`"Live"`), Python 侧用小写 (`"live"`); 两侧 wire 表示都要命中否则 gate 沦为
-    dead gate。
-    """
-    mode = str(spec.get("trading_mode") or "").lower()
-    if mode != "live":
-        return
-    _g6_require_live_capable_host(host, spec)
-    _g6_require_supported_venue(host, spec)
-    _g6_require_code_hash_match(spec)
-    if credential is not None:
-        _g6_require_safe_credential_scope(credential, spec)
-
-
-def _host_capability(host: object, method: str, *args: object) -> bool:
-    """Query a host capability method, treating an undeclared one as False.
-
-    Shipped hosts (NoopHost / NtTradingNodeHost) implement the capability
-    contract explicitly; this fallback is only for a third-party host that failed
-    to — it converts that programming error into a fail-safe structured G6
-    rejection instead of an AttributeError. It does not weaken the explicit
-    Protocol contract (both shipped hosts still declare their capabilities).
-    """
-    fn = getattr(host, method, None)
-    return bool(fn(*args)) if callable(fn) else False
-
-
-def _g6_require_live_capable_host(host: object, spec: dict) -> None:
-    if not _host_capability(host, "supports_live"):
-        _log.error(
-            "g6_gate_live_capability_denied",
-            spec_id=spec.get("spec_id"),
-            trading_mode=spec.get("trading_mode"),
-            host=type(host).__name__,
-        )
-        raise RuntimeError(
-            f"G6 gate: spec {spec.get('spec_id')!r} requests live but host "
-            f"{type(host).__name__} does not declare live capability"
-        )
-
-
-def _g6_require_supported_venue(host: object, spec: dict) -> None:
-    venue = spec.get("connector")
-    if not _host_capability(host, "supports_venue", str(venue)):
-        _log.error(
-            "g6_gate_venue_unsupported",
-            spec_id=spec.get("spec_id"),
-            venue=venue,
-            host=type(host).__name__,
-        )
-        raise RuntimeError(
-            f"G6 gate: spec {spec.get('spec_id')!r} venue {venue!r} not supported "
-            f"by host {type(host).__name__}"
-        )
-
-
-def _g6_require_code_hash_match(spec: dict) -> None:
-    code_hash = spec.get("code_hash")
-    if not code_hash:
-        _log.error("g6_gate_code_hash_mismatch", spec_id=spec.get("spec_id"), reason="missing")
-        raise RuntimeError(
-            f"G6 gate: spec {spec.get('spec_id')!r} live deploy requires a pinned "
-            "code_hash (none provided)"
-        )
-    strategy_path = spec.get("strategy_path")
-    if not strategy_path:
-        # Without a strategy_path there is nothing to hash — refuse rather than
-        # fall back to hashing the process CWD (Path("").parent == ".").
-        _log.error(
-            "g6_gate_code_hash_mismatch",
-            spec_id=spec.get("spec_id"),
-            reason="missing_strategy_path",
-        )
-        raise RuntimeError(
-            f"G6 gate: spec {spec.get('spec_id')!r} live deploy has a code_hash but no "
-            "strategy_path to verify it against"
-        )
-    actual = compute_strategy_dir_hash(Path(strategy_path).parent)
-    if actual != code_hash:
-        _log.error(
-            "g6_gate_code_hash_mismatch",
-            spec_id=spec.get("spec_id"),
-            reason="mismatch",
-            expected_prefix=str(code_hash)[:12],
-            actual_prefix=actual[:12],
-        )
-        raise RuntimeError(
-            f"G6 gate: spec {spec.get('spec_id')!r} code_hash mismatch "
-            f"(expected {str(code_hash)[:12]}…, got {actual[:12]}…)"
-        )
-
-
-def _g6_require_safe_credential_scope(credential: dict, spec: dict) -> None:
-    scope = credential.get("permission_scope")
-    if scope != _LIVE_SAFE_SCOPE:
-        _log.error(
-            "g6_gate_credential_scope_violation",
-            spec_id=spec.get("spec_id"),
-            got_scope=scope,
-        )
-        raise RuntimeError(
-            f"G6 gate: spec {spec.get('spec_id')!r} credential scope {scope!r} is not "
-            f"{_LIVE_SAFE_SCOPE!r}"
-        )
-
-
-class NautilusHostProtocol(Protocol):
-    """NT 进程监管接口 (skeleton: nautilus_host.py 真实现; runner 此处仅依赖签名)。
-
-    supports_live / supports_venue are the explicit capability contract the G6
-    gate queries (sync, so the gate decides without awaiting): a host declares
-    up front whether it can execute live and which venues it wires. Both hosts
-    implement them, so the gate calls them directly (no hasattr fallback); the
-    paper stub declares False for both, keeping it fail-safe off live venues.
-    """
-
-    async def deploy(self, spec: dict, credential: dict) -> str: ...
-
-    async def reconfigure(self, spec: dict) -> None: ...
-
-    async def stop(self, spec_id: str) -> None: ...
-
-    def supports_live(self) -> bool: ...
-
-    def supports_venue(self, venue: str) -> bool: ...
+_log = get_logger("custos.deployment_reconciler")
 
 
 class CredentialVaultProtocol(Protocol):
@@ -196,7 +50,7 @@ class DeploymentReconciler:
     nats_client: ArxNatsClient
     tenant_id: str
     runner_id: str
-    nautilus_host: NautilusHostProtocol
+    execution_engine: ExecutionEngineProtocol
     credential_vault: CredentialVaultProtocol
     drift_threshold: int = 3
     poll_interval_secs: float = 0.5
@@ -341,17 +195,17 @@ class DeploymentReconciler:
         lifecycle = spec.get("lifecycle_state")
         spec_id = spec["spec_id"]
         if lifecycle in ("stopped", "archived"):
-            await self.nautilus_host.stop(spec_id)
+            await self.execution_engine.stop(spec_id)
             return ""
         # 新部署: 解密 credential → 过完整 G6 gate (含 scope 兜底层) → deploy。
         if state.container_id is None:
             cred = self.credential_vault.decrypt(self._credential_ref(spec, spec_id))
-            _check_g6_gate(self.nautilus_host, spec, cred)
-            return await self.nautilus_host.deploy(spec, cred)
+            check_g6_gate(self.execution_engine, spec, cred)
+            return await self.execution_engine.deploy(spec, cred)
         # 已有部署: reconfigure。gate 复验 host/venue/code_hash; 层 4 scope 已在
         # deploy 时验过, 此处不重新解密 credential。
-        _check_g6_gate(self.nautilus_host, spec, credential=None)
-        await self.nautilus_host.reconfigure(spec)
+        check_g6_gate(self.execution_engine, spec, credential=None)
+        await self.execution_engine.reconfigure(spec)
         return state.container_id or ""
 
     @staticmethod

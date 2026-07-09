@@ -68,7 +68,7 @@
 
 ### 0.3 前身：arx runner/ 六模块对应
 
-抽出前（现 `tesseract-trading/arx/runner/src/arx_runner/`）→ 抽出后（custos 独立 repo）：
+抽出前（现 `tesseract-trading/arx/runner/src/arx_runner/`）→ 抽出后（custos 独立 repo `src/custos/`）：
 
 | arx 现有模块 | custos 承担 BC | 说明 |
 |-------------|--------------|------|
@@ -154,7 +154,7 @@
 | **TelemetrySnapshot**（摘要）| `snapshot_id` · `spec_id` · `session_id` · `orders_count` · `fills_count` · `pnl_summary`(不含明细) · `at` | 定期采样；不包含订单簿明细或 Fill 事件明文（明细太重且含敏感），只回报摘要 |
 
 > **实现状态（FailureEvent）**：上表 `FailureEvent`（含 `reason_code` 枚举）是纸面
-> 设计；`src/arx_runner/` 尚未 first-class 实现——`_report_status()` 发布的
+> 设计；`src/custos/` 尚未 first-class 实现——`_report_status()` 发布的
 > `DeploymentStatus` payload 无 `reason_code` 字段。当前结构化拒绝信号走
 > `DeploymentStatus` `phase=degraded` + 双层 structlog 事件名，详见
 > [`docs/design/reconcile.md` §Undeclared capability traceability](design/reconcile.md)。
@@ -328,7 +328,7 @@ vision 支柱一"设计 for 3、实现 1"落到 custos 侧是三个 flavour：
 - 生态开源边界：[ADR-014 v6](https://github.com/the-alephain-guild/codex/blob/main/decisions/ADR-014-ecosystem-open-source-boundary.md) §Tier A · custos day 1 public
 - arx 内部实施 domain：`tesseract-trading/arx/docs/domain.md`
 - Crucible 改造 spec：`tesseract-trading/the-crucible/docs/domain.md` §自托管三件套 + §supervisor 声明式 reconcile 迁移
-- arx runner 现有代码（抽出源头）：`tesseract-trading/arx/runner/src/arx_runner/`（enrollment / deployment_reconciler / credential_vault / nautilus_host / telemetry_actor / nats_client）
+- arx runner 现有代码（抽出源头）：`tesseract-trading/arx/runner/src/arx_runner/`（enrollment / deployment_reconciler / credential_vault / nautilus_host / telemetry_actor / nats_client）— custos 独立仓已 rename 为 `src/custos/`
 
 ---
 

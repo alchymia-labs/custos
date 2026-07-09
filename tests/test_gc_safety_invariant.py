@@ -20,10 +20,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from arx_runner import nats_client as nats_client_mod
-from arx_runner.nats_client import ArxNatsClient
-from arx_runner.nautilus_host import NtTradingNodeHost
-from arx_runner.nt_risk_engine import NtRiskEngineBridge
+from custos.core import nats_client as nats_client_mod
+from custos.core.nats_client import ArxNatsClient
+from custos.engines.nautilus.host import NtTradingNodeHost
+from custos.engines.nautilus.risk import NtRiskEngineBridge
 
 
 class _FakeActor:

@@ -1,7 +1,7 @@
 # reconcile — 声明式部署 reconcile loop + 对账上传
 
-> Custos 六件套之一。源码：`src/arx_runner/deployment_reconciler.py`（声明式部署
-> loop）+ `src/arx_runner/reconcile.py`（对账结果上传）。
+> Custos 六件套之一。源码：`src/custos/core/deployment_reconciler.py`（声明式部署
+> loop）+ `src/custos/core/reconcile.py`（对账结果上传）。
 
 ## 模块职责
 
@@ -74,7 +74,7 @@ plan-index §6 WR-NATS-2 demux），不混在 telemetry 流里，让 consumer di
 因此结构化拒绝信号走 **`DeploymentStatus` phase=degraded + 双层 structlog 事件名**
 （`g6_gate_live_capability_denied` gate 层 + `deployment_reconcile_failed` 包装层），
 **而非独立的 `FailureEvent`**。`FailureEvent`（含 `reason_code` 枚举）是 `docs/domain.md`
-§1.5 的纸面设计，`src/arx_runner/` 尚未 first-class 实现——`_report_status()`
+§1.5 的纸面设计，`src/custos/` 尚未 first-class 实现——`_report_status()`
 （`deployment_reconciler.py:364-393`）发布的 `DeploymentStatus` payload 无 `reason_code`
 字段。真正的 first-class `FailureEvent` uplink 属独立功能面（FailureEvent first-class
 实现 follow-up plan 候选）。集成层覆盖见

@@ -53,7 +53,7 @@ grep -rnE 'publish.*password|send.*secret' src/
 grep -rn 'CEXOMS\|BinanceClient\|OKXClient' src/ --exclude=nautilus_host.py
 
 # 红线 0.3 失联即停止 (禁云端断线时暴力 stop_all)
-grep -rn 'stop_all_strategies\|force_shutdown' src/arx_runner/reconcile.py
+grep -rn 'stop_all_strategies\|force_shutdown' src/custos/core/reconcile.py
 
 # 红线 0.4 float 用于 money math (禁)
 grep -rnE 'float\(.*price|float\(.*amount|float\(.*notional' src/
@@ -76,7 +76,7 @@ uv run pytest tests/test_wire_shapes.py tests/test_nats_envelope.py -v
 | `pytest 报 asyncio_mode` | `pyproject.toml` 未配 `asyncio_mode=auto` | 已配, 若跑不通看 pytest 版本 |
 | `ruff check` 大量 UP 报错 | Python 3.11 语法未升级 | `make fmt` + 手动修 |
 | G6 gate test fail | `NtTradingNodeHost` 实现缺失 | Plan 00a 之后才应通过 |
-| telemetry money contract fail | float 混入 Decimal | 修 `src/arx_runner/telemetry_actor.py` |
+| telemetry money contract fail | float 混入 Decimal | 修 `src/custos/core/telemetry_actor.py` |
 
 ## 未来验证 target (待落地)
 

@@ -1,6 +1,6 @@
 # nautilus_host — NT 进程监管 + ExecutionEngineAdapter
 
-> Custos 六件套之一。源码：`src/arx_runner/nautilus_host.py`。G6 gate 主载体。
+> Custos 六件套之一。源码：`src/custos/engines/nautilus/host.py`。G6 gate 主载体。
 
 ## 模块职责
 
@@ -11,8 +11,8 @@
 当前落地：
 
 - **`NoopHost`（stub）**：不真起 NT 进程，只记结构化日志后返回占位
-  （`container-{spec_id}`）。方法签名与 `NautilusHostProtocol`
-  （`deployment_reconciler.py`）**逐字一致**，使 reconciler 可 duck-type 依赖。它显式
+  （`container-{spec_id}`）。方法签名与 `ExecutionEngineProtocol`
+  （`core/engine_protocol.py`）**逐字一致**，使 reconciler 可 duck-type 依赖。它显式
   声明 `supports_live() -> False` / `supports_venue() -> False`，G6 gate 据此在 live
   下拒绝它（fail-safe：stub 永不上真 venue）。
 - **`NtTradingNodeHost`（真实实现）**：真起 NT `TradingNode` 的宿主。`deploy` 按
@@ -90,7 +90,7 @@ pre-trade 拒绝走 `nt_risk_engine.on_order_denied()` → `PreTradeRejected` wi
 
 ## CLI 入口
 
-runner 入口（`python -m arx_runner`）在 reconciler 构造时绑定单一 host：
+runner 入口（`python -m custos`）在 reconciler 构造时绑定单一 host：
 
 - **默认 `NoopHost`**（paper / dev）：不带 flag 时行为不变（向后兼容）；live spec 被 G6 gate
   层 1 拒，sandbox / testnet spec 落 stub 为 no-op（不真起 NT）。

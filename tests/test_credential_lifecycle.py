@@ -45,7 +45,7 @@ from nautilus_trader.config import (  # noqa: E402
 )
 from nautilus_trader.model.identifiers import TraderId  # noqa: E402
 
-from arx_runner import _nt_binance_venue as venue  # noqa: E402
+from custos.engines.nautilus import venue_binance as venue  # noqa: E402
 
 _SENTINEL_KEY = "SENSITIVE_KEY_XYZ"
 _SENTINEL_SECRET = "SENSITIVE_SECRET_ABC"

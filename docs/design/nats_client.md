@@ -1,6 +1,6 @@
 # nats_client — NATS JetStream client + transport envelope
 
-> Custos 六件套之一。源码：`src/arx_runner/nats_client.py`。
+> Custos 六件套之一。源码：`src/custos/core/nats_client.py`。
 
 ## 模块职责
 

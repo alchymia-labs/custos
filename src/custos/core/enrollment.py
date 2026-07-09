@@ -18,10 +18,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from arx_runner.log import get_logger
-from arx_runner.nats_client import ArxNatsClient
+from custos.core.log import get_logger
+from custos.core.nats_client import ArxNatsClient
 
-_log = get_logger("arx_runner.enrollment")
+_log = get_logger("custos.enrollment")
 
 
 def hash_token(token: str) -> str:

@@ -1,6 +1,6 @@
 # credential_vault — sops+age 本地金库
 
-> Custos 六件套之一。源码：`src/arx_runner/credential_vault.py`。**Key 本地金库承重墙**
+> Custos 六件套之一。源码：`src/custos/core/credential_vault.py`。**Key 本地金库承重墙**
 > —— 生态 non-custodial 兑现载体核心。
 
 ## 模块职责

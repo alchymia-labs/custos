@@ -22,7 +22,7 @@ from nautilus_trader.adapters.binance.common.enums import (  # noqa: E402
 )
 from nautilus_trader.model.identifiers import InstrumentId  # noqa: E402
 
-from arx_runner._nt_binance_venue import (  # noqa: E402
+from custos.engines.nautilus.venue_binance import (  # noqa: E402
     _BINANCE_CONNECTORS,
     build_data_client_config,
     build_exec_client_config_live,
@@ -45,7 +45,7 @@ def test_supported_venues_matches_wired_connectors() -> None:
     # Drift guard: NtTradingNodeHost declares its live-venue capability with an
     # NT-free constant; it must equal the set of connectors this module actually
     # wires, or the G6 gate would advertise a venue with no exec config behind it.
-    from arx_runner.nautilus_host import _SUPPORTED_VENUES
+    from custos.engines.nautilus.host import _SUPPORTED_VENUES
 
     assert _SUPPORTED_VENUES == frozenset(_BINANCE_CONNECTORS)
 

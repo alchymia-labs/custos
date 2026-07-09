@@ -5,7 +5,7 @@ publishes heartbeats on a fixed interval until SIGINT / SIGTERM. Once the
 telemetry actor lands, heartbeats ride the telemetry channel and this loop
 is retired in favour of the actor's lifecycle.
 
-Run with ``python -m arx_runner --tenant-id acme --runner-id runner-7``.
+Run with ``python -m custos --tenant-id acme --runner-id runner-7``.
 """
 
 from __future__ import annotations
@@ -20,16 +20,16 @@ from pathlib import Path
 
 import uuid6
 
-from arx_runner.credential_vault import CredentialVault, SopsAgeVault
-from arx_runner.deployment_reconciler import DeploymentReconciler
-from arx_runner.enrollment import EnrollmentClient
-from arx_runner.nats_client import ArxNatsClient
+from custos.core.credential_vault import CredentialVault, SopsAgeVault
+from custos.core.deployment_reconciler import DeploymentReconciler
+from custos.core.enrollment import EnrollmentClient
+from custos.core.nats_client import ArxNatsClient
 
-log = logging.getLogger("arx_runner")
+log = logging.getLogger("custos")
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="arx-runner")
+    parser = argparse.ArgumentParser(prog="custos")
     parser.add_argument("--nats-url", default="nats://localhost:4222")
     parser.add_argument("--tenant-id", required=True)
     parser.add_argument("--runner-id", required=True)
@@ -48,7 +48,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--enrollment-path",
         type=Path,
-        default=Path.home() / ".arx-runner" / "enrollment.json",
+        default=Path.home() / ".custos" / "enrollment.json",
         help="Local enrollment record path (0600).",
     )
     parser.add_argument(
@@ -74,6 +74,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Use the real NautilusTrader host (needs the nt-runtime extra) "
         "instead of the NoopHost stub. Required to run sandbox / testnet / live "
         "execution; the G6 gate still guards every live deploy.",
+    )
+    parser.add_argument(
+        "--engine",
+        default="nautilus",
+        help="Execution engine to use (default: nautilus). "
+        "Unknown engines are rejected with a clear error.",
     )
     return parser.parse_args(argv)
 
@@ -121,27 +127,34 @@ def _build_vault(args: argparse.Namespace) -> CredentialVault:
     )
 
 
+_AVAILABLE_ENGINES = {"nautilus"}
+
+
 def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
-    """Pick the NautilusHost. Default NoopHost (paper / dev); --use-nt-host
-    selects the real NtTradingNodeHost so sandbox / testnet / live execution runs.
+    """Pick the execution engine host based on ``--engine`` (and legacy ``--use-nt-host``).
 
-    Selecting the real host enables the execution path — it does not bypass the
-    G6 gate, which still guards every live deploy in the reconciler. If nt-runtime
-    is absent, NtTradingNodeHost.deploy fails fast on the first spec.
+    Default ``NoopHost`` (paper / dev); ``--use-nt-host`` or ``--engine nautilus``
+    selects the real ``NtTradingNodeHost``.  Unknown engine names are rejected
+    with a clear error rather than a crash.
 
-    ``client`` (when given) wires the real host's telemetry + pre-trade reject
-    bridges so deployed strategies uplink fills / positions / denials; the
-    NoopHost path ignores it.
+    The G6 gate still guards every live deploy regardless of engine choice.
     """
-    if args.use_nt_host:
-        from arx_runner.nautilus_host import NtTradingNodeHost
-
-        return NtTradingNodeHost(
-            telemetry_client=client,
-            tenant_id=args.tenant_id,
-            runner_id=args.runner_id,
+    engine = getattr(args, "engine", "nautilus")
+    if engine not in _AVAILABLE_ENGINES:
+        raise SystemExit(
+            f"engine {engine!r} is not available "
+            f"(available: {', '.join(sorted(_AVAILABLE_ENGINES))})"
         )
-    from arx_runner.nautilus_host import NoopHost
+    if args.use_nt_host or engine == "nautilus":
+        if args.use_nt_host:
+            from custos.engines.nautilus.host import NtTradingNodeHost
+
+            return NtTradingNodeHost(
+                telemetry_client=client,
+                tenant_id=args.tenant_id,
+                runner_id=args.runner_id,
+            )
+    from custos.engines.nautilus.host import NoopHost
 
     return NoopHost()
 
@@ -186,7 +199,7 @@ async def _run(args: argparse.Namespace) -> int:
                 nats_client=client,
                 tenant_id=args.tenant_id,
                 runner_id=args.runner_id,
-                nautilus_host=_build_host(args, client),
+                execution_engine=_build_host(args, client),
                 credential_vault=vault,
             )
             tasks.append(

@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from arx_runner.nats_client import NatsEnvelope
-from arx_runner.telemetry_actor import (
+from custos.core.nats_client import NatsEnvelope
+from custos.core.telemetry_actor import (
     MONEY_FIELD_NAMES,
     MoneyFieldFloatRejected,
     TelemetryActor,

@@ -1,6 +1,6 @@
 # enrollment — EnrollmentToken 配对协议
 
-> Custos 六件套之一。源码：`src/arx_runner/enrollment.py`。
+> Custos 六件套之一。源码：`src/custos/core/enrollment.py`。
 
 ## 模块职责
 

@@ -12,7 +12,7 @@ import logging
 
 import pytest
 
-from arx_runner.credential_vault import AuditEvent, CredentialVault
+from custos.core.credential_vault import AuditEvent, CredentialVault
 
 
 def test_decrypt_returns_mock_credential() -> None:
@@ -26,7 +26,7 @@ def test_decrypt_emits_credential_decrypted_audit_event(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     vault = CredentialVault(tenant_id="acme", initiator="runner-7")
-    with caplog.at_level(logging.INFO, logger="arx_runner.credential_vault"):
+    with caplog.at_level(logging.INFO, logger="custos.credential_vault"):
         vault.decrypt("cred-123")
 
     audit_records = [

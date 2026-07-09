@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 
-from arx_runner.nats_client import build_heartbeat_envelope
+from custos.core.nats_client import build_heartbeat_envelope
 
 
 def test_heartbeat_payload_includes_uptime_and_active_deployments() -> None:

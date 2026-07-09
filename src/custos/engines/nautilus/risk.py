@@ -29,10 +29,10 @@ from typing import Any, Protocol
 
 import uuid6
 
-from arx_runner.log import get_logger
-from arx_runner.nats_client import ArxNatsClient, NatsEnvelope, build_subject
+from custos.core.log import get_logger
+from custos.core.nats_client import ArxNatsClient, NatsEnvelope, build_subject
 
-_log = get_logger("arx_runner.nt_risk_engine")
+_log = get_logger("custos.nt_risk_engine")
 
 # Field set of the Rust `domain::events::PreTradeRejected` payload — the cloud
 # consumer decodes exactly these keys. Kept here as the wire contract anchor so
@@ -350,7 +350,7 @@ def _map_reject_reason(nt_reason: str) -> str:
 def _now_rfc3339_nanos() -> str:
     """RFC3339 nanosecond timestamp, reusing the nats_client formatter so the
     envelope ``occurred_at`` format stays consistent across the runner."""
-    from arx_runner.nats_client import _now_rfc3339_nanos as _fmt
+    from custos.core.nats_client import _now_rfc3339_nanos as _fmt
 
     return _fmt()
 

@@ -5,7 +5,7 @@
 #
 # custos 特化说明:
 # - 单栈 Python daemon (无 Rust / TypeScript / Web), 只有一个 executor area (runner)
-# - non-custodial 承重墙: safety.touched_paths 覆盖 src/arx_runner/ 全部 8 文件
+# - non-custodial 承重墙: safety.touched_paths 覆盖 src/custos/ 全部模块
 # - independent open-source repo: authority_docs 含 workspace 生态参照 (../../.claude/rules/*),
 #   独立 clone 场景不可用但当前 workspace 内 executor 可访问; Plan 01 close-out 后补齐本地 .claude/rules/
 # - 预算收紧 (drafters=2 / codex_max=3, arx 是 4/5): custos 简单单栈, plan 复杂度低
@@ -85,25 +85,25 @@ claude_code:
       on_exceed: refuse_and_log
 
 # Safety 路径 (plan approval gate 命中即触发, 对应 domain-model.md 红线)
-# custos 是 non-custodial 承重墙, src/arx_runner/ 8 个 module 全在红线上
+# custos 是 non-custodial 承重墙, src/custos/ 全部模块在红线上
 safety:
   touched_paths:
     # Key/KEK/vault (domain §1.3, non-custodial 红线 #1)
-    - src/arx_runner/credential_vault.py
+    - src/custos/core/credential_vault.py
     # G6 gate 主载体 (docs/nautilus_host.md)
-    - src/arx_runner/nautilus_host.py
+    - src/custos/engines/nautilus/host.py
     # G6 gate 编排 + 失联≠停止 (domain §1.2)
-    - src/arx_runner/deployment_reconciler.py
+    - src/custos/core/deployment_reconciler.py
     # pre-trade reject bridge (NT OrderDenied → arx)
-    - src/arx_runner/nt_risk_engine.py
+    - src/custos/engines/nautilus/risk.py
     # 上报脱敏, 不含 key 明文 (domain §1.5)
-    - src/arx_runner/telemetry_actor.py
+    - src/custos/core/telemetry_actor.py
     # money math str(Decimal) + 对账不静默 (docs/reconcile.md)
-    - src/arx_runner/reconcile.py
+    - src/custos/core/reconcile.py
     # tenant_id boundary validation (lesson #26)
-    - src/arx_runner/nats_client.py
+    - src/custos/core/nats_client.py
     # EnrollmentToken 一次性 + paper_only 默认 (domain §1.1)
-    - src/arx_runner/enrollment.py
+    - src/custos/core/enrollment.py
 
 # Planner Dept 配置
 planner_team:
@@ -113,7 +113,7 @@ planner_team:
 # Executor Dept 配置
 executor_team:
   areas:
-    - { name: runner, lang: python, root: src/arx_runner }   # custos 唯一 area (前身 arx runner/)
+    - { name: runner, lang: python, root: src/custos }   # custos 唯一 area
   safety_validator:
     checklist:
       # 来自 docs/domain.md 红线 + README.md trust boundary

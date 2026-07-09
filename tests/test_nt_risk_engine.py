@@ -23,8 +23,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import structlog
 
-from arx_runner.nats_client import ArxNatsClient
-from arx_runner.nt_risk_engine import (
+from custos.core.nats_client import ArxNatsClient
+from custos.engines.nautilus.risk import (
     PRE_TRADE_REJECTED_FIELDS,
     NtRiskEngineBridge,
     PreTradeRuleConfig,

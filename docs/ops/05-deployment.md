@@ -13,7 +13,7 @@
 
 ```bash
 uv sync --extra dev
-python -m arx_runner --tenant-id acme --runner-id runner-7 --nats-url nats://arx.internal:4222
+python -m custos --tenant-id acme --runner-id runner-7 --nats-url nats://arx.internal:4222
 ```
 
 参数详见 [`../design/03-implementation.md`](../design/03-implementation.md) §运行方式.
@@ -34,7 +34,7 @@ User=custos
 Group=custos
 WorkingDirectory=/opt/custos
 Environment="SOPS_AGE_KEY_FILE=/home/custos/.custos/vault/age.key"
-ExecStart=/opt/custos/.venv/bin/python -m arx_runner \
+ExecStart=/opt/custos/.venv/bin/python -m custos \
   --tenant-id ${TENANT_ID} \
   --runner-id ${RUNNER_ID} \
   --nats-url nats://arx.internal:4222 \
@@ -94,10 +94,10 @@ Plan 00c examples/supertrend-testnet/ 将提供:
 4. 从 arx 获取 tenant_id
 5. 首次启动 (无 runner_id, 走 EnrollmentToken 配对):
    ```bash
-   python -m arx_runner --tenant-id acme --enrollment-token <one-time-token>
+   python -m custos --tenant-id acme --enrollment-token <one-time-token>
    ```
 6. 配对成功后 `runner_id` 持久到 `~/.custos/state/runner_id`
-7. 后续启动: `python -m arx_runner --tenant-id acme --runner-id <persisted-id>`
+7. 后续启动: `python -m custos --tenant-id acme --runner-id <persisted-id>`
 
 ## 常见部署问题
 

@@ -26,6 +26,7 @@
 | telemetry_actor | `docs/design/telemetry_actor.md` | NT MessageBus → 白名单 + 脱敏 + envelope schema |
 | credential_vault | `docs/design/credential_vault.md` | sops+age 本地 KEK + `trade_no_withdraw` scope |
 | nats_client | `docs/design/nats_client.md` | subject naming + envelope 版本化 |
+| engine_protocol | `docs/design/engine_protocol.md` | ExecutionEngineProtocol Tier-1/Tier-2 契约 + 引擎接入模板 |
 
 ## 规则集 (本目录内)
 

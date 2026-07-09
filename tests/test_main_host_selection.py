@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from arx_runner import nautilus_host
-from arx_runner.__main__ import _build_host, _parse_args
+from custos.cli.main import _build_host, _parse_args
+from custos.engines.nautilus import host as nautilus_host
 
 
 def test_build_host_defaults_to_noop() -> None:

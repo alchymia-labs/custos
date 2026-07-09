@@ -75,14 +75,8 @@ transition; paper / dev runs use the `NoopHost` stub (default), while
 
 ```bash
 uv sync --extra dev
-python -m arx_runner --tenant-id acme --runner-id runner-7
+python -m custos --tenant-id acme --runner-id runner-7
 ```
-
-> The Python import package is currently named `arx_runner` (unchanged by the
-> repository extraction). Renaming it to `custos_runner` is tracked as a
-> follow-up — it is a boundary-constant rename touching ~40 import sites and
-> is deliberately kept out of the extraction change set. The pip distribution
-> name is `custos-runner`.
 
 ## Contract with Arx (Gateway)
 
@@ -119,8 +113,7 @@ tracked as follow-ups:
 - **Contract versioning mechanism** — custos ↔ arx OpenAPI/JSON Schema
   registry + SemVer tagging.
 - **`CONTRIBUTING.md` + `SECURITY.md`** — public-repo façade completion.
-- **Python package rename** — `arx_runner` → `custos_runner` (boundary
-  constant fanout).
+- **Python package rename** — completed (Plan 05, `arx_runner` → `custos`).
 - **Telemetry uplink bridge** — the NT `MessageBus` → arx telemetry actor is not
   wired yet, so per-order execution events (fills / `OrderDenied`) are observable
   only in the runner's local logs, not uplinked to the cloud.

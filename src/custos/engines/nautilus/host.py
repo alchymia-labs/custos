@@ -18,17 +18,17 @@ import asyncio
 import sys
 from pathlib import Path
 
-from arx_runner._strategy_loader import load_strategy_class
-from arx_runner.log import get_logger
-from arx_runner.nats_client import ArxNatsClient
-from arx_runner.nt_risk_engine import NtRiskEngineBridge
-from arx_runner.telemetry_actor import (
+from custos.core.log import get_logger
+from custos.core.nats_client import ArxNatsClient
+from custos.core.telemetry_actor import (
     DEFAULT_TELEMETRY_EVENT_TYPES,
     ArxNatsTelemetryAdapter,
     NtTelemetryBridge,
     TelemetryActor,
     TelemetryActorConfig,
 )
+from custos.engines.nautilus.risk import NtRiskEngineBridge
+from custos.engines.nautilus.strategy_loader import load_strategy_class
 
 try:
     from nautilus_trader.adapters.binance.factories import (
@@ -51,7 +51,7 @@ except ImportError:  # nt-runtime extra absent (audit / paper install) — deplo
 
 __all__ = ["NoopHost", "NtTradingNodeHost"]
 
-_log = get_logger("arx_runner.nautilus_host")
+_log = get_logger("custos.nautilus_host")
 
 _DEFAULT_STARTING_BALANCES = ["10_000 USDT"]
 _STOP_TIMEOUT_SECS = 30.0
@@ -179,7 +179,7 @@ class NtTradingNodeHost:
         strategy = self._instantiate_strategy(strategy_cls, spec)
 
         # Imported lazily: _nt_binance_venue imports NautilusTrader at module top.
-        from arx_runner import _nt_binance_venue as venue
+        from custos import _nt_binance_venue as venue
 
         trading_mode = str(spec.get("trading_mode") or "sandbox").lower()
         data_cfg = venue.build_data_client_config(

@@ -34,7 +34,7 @@ make verify
 ### 3. 熟悉项目布局
 
 ```
-src/arx_runner/           ← Python 8 module 源码
+src/custos/               ← Python 模块源码 (core/ + engines/ + cli/)
 tests/                    ← pytest 测试
 docs/domain.md            ← 顶层纸面 spec (必读)
 docs/design/              ← 6 module + 4 骨架
@@ -62,8 +62,8 @@ uv add --extra dev <package>  # 开发依赖
 ### 改代码 → 测试
 
 ```bash
-# 改代码 (src/arx_runner/reconcile.py)
-$EDITOR src/arx_runner/reconcile.py
+# 改代码 (src/custos/core/reconcile.py)
+$EDITOR src/custos/core/reconcile.py
 
 # 跑相关测试
 uv run pytest tests/test_reconcile.py -v

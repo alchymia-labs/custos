@@ -32,9 +32,9 @@ from typing import Any, Protocol
 
 import uuid6
 
-from arx_runner.config import TelemetryQueueConfig
-from arx_runner.log import get_logger
-from arx_runner.nats_client import (
+from custos.core.config import TelemetryQueueConfig
+from custos.core.log import get_logger
+from custos.core.nats_client import (
     ArxNatsClient,
     NatsEnvelope,
     OrderingMeta,
@@ -42,7 +42,7 @@ from arx_runner.nats_client import (
     build_subject,
 )
 
-_log = get_logger("arx_runner.telemetry_actor")
+_log = get_logger("custos.telemetry_actor")
 
 
 # Money-field names that must arrive as ``str(Decimal)`` (or ``int``) at the

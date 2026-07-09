@@ -115,7 +115,7 @@ def test_g6_gate(noop_host, trading_mode, expected_gate):
 当前无自动覆盖率报告, 未来 plan 可加:
 
 ```bash
-uv run pytest --cov=arx_runner --cov-report=term-missing tests/
+uv run pytest --cov=custos --cov-report=term-missing tests/
 ```
 
 ## 参考

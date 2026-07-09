@@ -19,9 +19,9 @@ import inspect
 import sys
 from pathlib import Path
 
-from arx_runner.log import get_logger
+from custos.core.log import get_logger
 
-_log = get_logger("arx_runner.strategy_loader")
+_log = get_logger("custos.strategy_loader")
 
 # Directory entries that are build artifacts, not source — excluded from the
 # code hash so a stale .pyc can't change (or stabilise) the pinned identity.
