@@ -4,7 +4,7 @@
 > **Created**: 2026-07-09 (Plan 03 close-out 后, user 澄清诉求 — custos 接管 ps supertrend, 移除 ps sidecar/runner 遗留)
 > **Project**: custos (`tesseract-trading/custos/`)
 > **For Claude**: skeleton, 需 Phase 2 精细化后可执行
-> **Depends on**: Plan 00a ✅ + Plan 00c ✅ + Plan 03 ✅; **soft-depends** Plan 04 (若并行推进, 红线 0.3 三层齐)
+> **Depends on**: Plan 00a ✅ + Plan 00c ✅ + Plan 03 ✅ + **Plan 05** (结构重构 + rename, 本 plan 的 File Inventory 使用 Plan 05 之后的新目录路径 `src/custos/engines/nautilus/*`); **soft-depends** Plan 04 (若并行推进, 红线 0.3 三层齐)
 > **Blocks**: 生产化 ps supertrend 首次 paper/testnet e2e 实跑
 > **multi_session_scope**: unknown (预估 medium ~150-300 LOC, 大部分 test + config, 主逻辑改动小)
 
@@ -160,18 +160,22 @@ skeleton 暂列 high-level:
 
 ## File Inventory (待 Phase 2 grep 实证锚点)
 
+**⚠️ 路径基于 Plan 05 结构重构后的新目录**（`src/custos/engines/nautilus/*`）。若 Plan 05 未先落地则本 plan 路径需回退到 `src/arx_runner/*` 老路径（不推荐 — 会造成二次搬迁）。
+
 skeleton 候选:
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
-| `custos/src/arx_runner/_strategy_loader.py` | 改 | Track 1 registry-mode 分支 |
-| `custos/src/arx_runner/nautilus_host.py` | 改 | Track 6 TradingNodeConfig 扩展 |
-| `custos/tests/test_strategy_loader_registry_mode.py` | 新建 | Track 1 test |
-| `custos/tests/test_custos_hosts_real_supertrend_e2e.py` | 新建 | Track 5 e2e |
+| `custos/src/custos/engines/nautilus/strategy_loader.py` | 改 | Track 1 registry-mode 分支 (原 `_strategy_loader.py`) |
+| `custos/src/custos/engines/nautilus/host.py` | 改 | Track 6 TradingNodeConfig 扩展 (原 `nautilus_host.py`) |
+| `custos/tests/engines/nautilus/test_strategy_loader_registry_mode.py` | 新建 | Track 1 test |
+| `custos/tests/engines/nautilus/test_custos_hosts_real_supertrend_e2e.py` | 新建 | Track 5 e2e (real ps supertrend + shared 依赖 resolve) |
 | `custos/docs/design/nautilus_host.md` | 改 | Track 8 迁移说明 |
+| `custos/docs/engines/nautilus.md` | 改 | Plan 05 已建 stub, 本 plan 补 ps supertrend 集成细节 |
 | `philosophers-stone/trend/supertrend/config.yaml` | 改 (ps side!) | Track 4 启用 RiskController |
 | `philosophers-stone/tests/test_supertrend_risk_controller_enabled.py` | 新建 (ps side!) | Track 4 test |
-| custos 部署配置 (Dockerfile / entrypoint) | 改 | Track 3 shared 依赖打包 |
+| custos 部署配置 (Dockerfile / entrypoint) | 改 | Track 3 shared 依赖打包决策实施 |
+| custos DeploymentSpec 数据模型 (`custos/core/*.py` 或 `docs/domain.md`) | 改 | Track 2 加 `strategy_registry_name` optional 字段 |
 
 **⚠️ 注意**: 本 plan **跨仓库改动** (custos + philosophers-stone 双仓 commit), 遵守 workspace `mandatory-rules.md` §6 "跨仓库 commit 仅 `git add <specific-file>`" 纪律。
 

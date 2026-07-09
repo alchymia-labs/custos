@@ -4,7 +4,7 @@
 > **Created**: 2026-07-09 (Plan 03 close-out 后 dogfood 深度审计 — safety-validator 跨范围审 + Lead 独立复核发现红线 0.3 组合级熔断未兑现)
 > **Project**: custos (`tesseract-trading/custos/`)
 > **For Claude**: skeleton, 需 Phase 2 精细化后可执行
-> **Depends on**: Plan 00a ✅ + Plan 00b ✅ + Plan 00c ✅ + Plan 03 ✅
+> **Depends on**: Plan 00a ✅ + Plan 00b ✅ + Plan 00c ✅ + Plan 03 ✅ + **Plan 05** (结构重构 + rename, 本 plan 的 File Inventory 使用 Plan 05 之后的新目录路径 `src/custos/core/*`)
 > **Blocks**: 上 live 前的**硬阻断项** (即使 paper/testnet 也建议先做, 因为需要 chaos test 验证)
 > **multi_session_scope**: unknown (待 Phase 2 精细化后判定, 预估 medium ~200-400 LOC)
 
@@ -132,22 +132,26 @@ Plan 04 close-out 后:
 
 ## File Inventory (待 Phase 2 grep 实证锚点)
 
-skeleton 阶段暂列**候选文件**, Phase 2 evidence-scout 确认后精确到 file:line:
+**⚠️ 路径基于 Plan 05 结构重构后的新目录**（`src/custos/core/*` + `src/custos/engines/nautilus/*`）。若 Plan 05 未先落地则本 plan 路径需回退到 `src/arx_runner/*` 老路径（不推荐 — 会造成二次搬迁）。
 
 | 候选文件 | 类型 | 说明 |
 |----------|------|------|
-| `src/arx_runner/local_cap.py` | 新建 | Track 1 cap 主体 |
-| `src/arx_runner/state_snapshot.py` | 新建 | Track 2 快照, 借鉴 ps `_collect_*` |
-| `src/arx_runner/deployment_reconciler.py` | 改 | Track 3 zombie watchdog + Track 4 fallback breaker |
-| `src/arx_runner/nt_risk_engine.py` | 改 | Track 1 cap 集成到 pre-trade path |
-| `src/arx_runner/telemetry_actor.py` | 改 | Track 2 snapshot publish 集成 |
-| `tests/test_local_cap.py` | 新建 | Track 1 test |
-| `tests/test_state_snapshot.py` | 新建 | Track 2 test |
-| `tests/test_zombie_detection.py` | 新建 | Track 3 test |
-| `tests/test_fallback_breaker.py` | 新建 | Track 4 test |
-| `tests/test_arx_disconnect_chaos.py` | 新建 | Track 5 chaos test |
+| `src/custos/core/local_cap.py` | 新建 | Track 1 cap 主体 (引擎无关) |
+| `src/custos/core/state_snapshot.py` | 新建 | Track 2 快照抽象, 借鉴 ps `_collect_*` 模式 (引擎无关框架, 具体收集由各引擎 host 实现) |
+| `src/custos/core/deployment_reconciler.py` | 改 | Track 3 zombie watchdog + Track 4 fallback breaker (走 `ExecutionEngineProtocol.check_engine_connected()`) |
+| `src/custos/core/fallback_breaker.py` | 新建 | Track 4 breaker 主体 (引擎无关, 通过 Protocol.flatten_positions 调各引擎) |
+| `src/custos/engines/nautilus/risk.py` | 改 | Track 1 cap 集成到 pre-trade path (原 nt_risk_engine.py) |
+| `src/custos/engines/nautilus/host.py` | 改 | Track 2 state snapshot 实现 + Track 4 flatten_positions 实现 (Protocol impl) |
+| `src/custos/core/telemetry_actor.py` | 改 | Track 2 snapshot publish 集成 |
+| `tests/core/test_local_cap.py` | 新建 | Track 1 test |
+| `tests/core/test_state_snapshot.py` | 新建 | Track 2 test |
+| `tests/core/test_zombie_detection.py` | 新建 | Track 3 test |
+| `tests/core/test_fallback_breaker.py` | 新建 | Track 4 test |
+| `tests/core/test_arx_disconnect_chaos.py` | 新建 | Track 5 chaos test |
+| `tests/engines/nautilus/test_state_snapshot_nautilus_impl.py` | 新建 | Track 2 NT 引擎 snapshot 实现测试 |
 | `docs/design/reconcile.md` | 改 | 红线 0.3 三层兑现说明 |
 | `docs/domain.md` | 改 | RunnerFallbackConfig / RiskConfig 数据模型 |
+| `docs/design/engine_protocol.md` | 改 (Plan 05 落地后) | 加 `check_engine_connected` / `flatten_positions` / `get_open_notional` 契约细化 (若 Plan 05 未完全定义) |
 
 ---
 
