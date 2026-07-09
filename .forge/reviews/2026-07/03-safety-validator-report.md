@@ -8,6 +8,42 @@ appended verdict + findings to `.forge/marker/03-runner.complete.json`
 (`safety_validator_verification` key) but got API 529 before writing this report file.
 Content below is faithfully salvaged from the marker append + Lead fallback attribution.
 
+---
+
+## ⚠️ RETRACTION NOTES (post-hoc self-correction by safety-validator, empirically verified by Lead)
+
+在 Plan 03 close-out 后, safety-validator 应 CEO 要求做深度复核 (`git show branch/main` +
+实跑 pytest), 自我发现下面两个 follow-up 均为错误, 已由 Lead 独立 grep 实证撤销:
+
+### FU-1 (matrix phase='degraded' vocab drift) — **撤销 (幻觉)**
+
+- **safety-validator 原声明**: `docs/domain.md` phase vocab = `{pending, starting, running,
+  stopping, stopped, failed}`, `phase='degraded'` ∈ health vocab 但 ∉ phase vocab → drift
+- **Lead 实证** (`grep -n 'phase\s*(' docs/domain.md`): domain.md **L104 实际** phase vocab =
+  `pending/running/degraded/stopped` (**含 degraded**); `starting/stopping/failed` 在 domain.md
+  分别命中 0/0/0 次 → **safety-validator 原 vocab 是幻觉** (lesson #13 复现在 review 阶段)
+- **结论**: `phase='degraded'` **完全合规**, 无 drift, 不需要修 → Plan 05 candidate 移除
+
+### FU-2 (credential-path canary) — **撤销 (冗余)**
+
+- **safety-validator 原声明**: `test_credential_lifecycle.py` 缺 credential-path canary 正控,
+  加 canary 可从"推理可达"升级为"实证可达"
+- **Lead 实证** (`grep -n 'SENTINEL' tests/test_credential_lifecycle.py`): 该文件 **L121-122
+  已有** `assert data_cfg.api_key == _SENTINEL_KEY` + `assert data_cfg.api_secret ==
+  _SENTINEL_SECRET` (credential canary 本就存在)
+- **结论**: canary **已存在**, 冗余 → Plan 05 candidate 移除
+
+### 净影响
+
+红线实跑全守住 (原 verdict APPROVE_WITH_FOLLOW_UPS 不变, 但两个 follow-up 全数撤销后, Plan 03
+实质**无遗留 follow-up** 需 Plan 05 承担 — 只剩 codex HIGH 转化的 subprocess isolation 与
+tdd-enforcer 的 RED/GREEN split observation)。本次 self-correction 已入 custos historical-lessons
+`C2` (输出污染可贯穿 review 与 self-review, self-review 不豁免)。
+
+---
+
+**以下为原 salvage 内容 (未修改)**:
+
 **Fallback attribution** (lesson #19 精神 — fallback chain 记录):
 - L1 safety-validator (opus-4-6[1m]) started → partial success (verdict + findings in marker) →
   API 529 Overloaded (server-side, `.forge/dispatch-log/03/safety-validator.complete.json` +

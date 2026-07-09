@@ -77,12 +77,32 @@
 
 ---
 
-## Plan 05+ Candidate Follow-ups（综合本 plan close-out 出 4 项）
+## Plan 05+ Candidate Follow-ups（post-hoc 撤销后剩 3 项）
 
-1. **NT node lifecycle invariant #2 subprocess isolation** — 从 codex L1 HIGH F1 scope + safety-validator FU-2 canary 合流. 用 `multiprocessing.Process` 隔离 native NT 构造, 绕开 SIGABRT, 完成 red line 0.1 invariant #2 full coverage
-2. **matrix phase='degraded' vocab drift** — safety-validator FU-1 (pre-existing, 非 Plan 03 引入). 修 → `failed` 或 vocab 合法化 二选一
-3. **future signature migration TDD RED/GREEN explicit split** — tdd-enforcer non-blocking observation. 未来签名迁移场景优先 RED/GREEN 显式两 commit 拆分, 除非确有收集期崩溃等硬性理由
-4. **FailureEvent first-class 实现** — 从 DEV-03-FAILUREEVENT-DEFER-CLARIFICATION + docs/domain.md:145-153 spec 设计已就位但代码零实现
+**Post-hoc correction (2026-07-09 close-out 后)**: safety-validator 自我发现 + Lead grep
+实证 FU-1 (matrix phase='degraded' vocab drift) 与 FU-2 (credential-path canary) 均为
+错误 (幻觉 + 冗余), **已从下列 candidate 移除**。详见 `.forge/reviews/2026-07/03-safety-validator-report.md`
+§RETRACTION NOTES + custos historical-lessons C2。
+
+1. **NT node lifecycle invariant #2 subprocess isolation** — 从 codex L1 HIGH F1 test scope
+   narrower than plan claim. 用 `multiprocessing.Process` 隔离 native NT 构造, 绕开 SIGABRT,
+   完成 red line 0.1 invariant #2 full coverage
+2. **future signature migration TDD RED/GREEN explicit split** — tdd-enforcer non-blocking
+   observation. 未来签名迁移场景优先 RED/GREEN 显式两 commit 拆分, 除非确有收集期崩溃等
+   硬性理由
+3. **FailureEvent first-class 实现** — 从 DEV-03-FAILUREEVENT-DEFER-CLARIFICATION +
+   docs/domain.md:145-153 spec 设计已就位但代码零实现
+
+### 已撤销 (empirically verified retraction)
+
+- ~~**matrix phase='degraded' vocab drift** (safety-validator FU-1)~~ — **RETRACTED**:
+  `grep -n 'phase\s*(' docs/domain.md` 实证 L104 phase vocab = `pending/running/degraded/stopped`
+  (含 degraded); 原声明的 `starting/stopping/failed` 命中 0/0/0 次 → 是 review 阶段的 lesson #13
+  幻觉, 不是 drift
+- ~~**credential-path canary** (safety-validator FU-2, 原并入 subprocess isolation)~~ —
+  **RETRACTED**: `grep -n 'SENTINEL' tests/test_credential_lifecycle.py` 实证 L121-122
+  已有 `assert data_cfg.api_key == _SENTINEL_KEY` + `assert data_cfg.api_secret ==
+  _SENTINEL_SECRET` (canary 本就存在) → 冗余
 
 ---
 

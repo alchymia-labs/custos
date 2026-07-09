@@ -6,6 +6,58 @@
 
 > **custos 内部 lesson 用 `C1` `C2` … 前缀区分生态数字编号** (见文末"记录新 lesson")。
 
+## C2 输出污染可贯穿 review 与 self-review — self-review 不豁免 (lesson #13 复现在 review 阶段) (2026-07)
+
+- **事件**: Plan 03 execute-team close-out 阶段, safety-validator (opus-4-6[1m]) 8-checklist
+  safety review 中 append 到 marker 的 verdict + 2 个 non-blocking follow-up 均为幻觉/冗余:
+  - **FU-1**: 声称 `docs/domain.md` phase vocab = `{pending, starting, running, stopping,
+    stopped, failed}`, `phase='degraded'` ∈ health vocab 但 ∉ phase vocab → drift
+  - **FU-2**: 声称 `test_credential_lifecycle.py` 缺 credential-path canary 正控
+
+  两个 finding 已随 Lead fallback salvage 进入 main report + triage + Plan 05 candidate
+  backlog。CEO 事后要求 safety-validator 深度复核 (`git show branch/main` + 实跑 pytest),
+  safety-validator **自我发现**两者均是错误:
+  - domain.md L104 实际 vocab = `pending/running/degraded/stopped` (**含 degraded**);
+    starting/stopping/failed 在 domain.md 命中 0/0/0 次 → **FU-1 是 review 阶段幻觉**
+  - `test_credential_lifecycle.py:121-122` 已有 `assert data_cfg.api_key == _SENTINEL_KEY` +
+    `assert data_cfg.api_secret == _SENTINEL_SECRET` → **FU-2 冗余**
+
+  safety-validator 主动 escalate 撤销请求, Lead 独立 grep 实证后清理 salvage report +
+  triage + marker + Plan 05 candidate backlog。若未清理, Plan 05 起草会基于错误前提
+  (为不存在的 drift 起 task / 为已有 canary 加冗余 canary)。
+
+- **根因**:
+  1. **lesson #13 (文档内容可注入伪造工具结果) 在 review 阶段的复现变体**: Read 通道
+     可返回污染的文件内容; review 阶段推理建立在污染内容之上, 得出错误 finding
+  2. **self-review 不豁免**: safety-validator 是自身应用 lesson #13 三重交叉印证
+     (git-blob-SHA + AST + grep -c 纯数字) 防御的 role, 但防御应用在**代码路径实证**
+     (payload 5 字段 / payload_schema_version=1 / close 不 cancel 等) 而非 **vocab 定义 /
+     测试断言存在性** 这类基础事实上, vocab 与 canary 声明未被同等严格核实
+  3. **批判框架下的归罪偏置**: safety-validator 在"发现问题"心智下, 对 ambiguous 现象
+     倾向归因为 drift / gap, 而非诚实标注"未核实, 需 git show 复查"; safety-validator
+     自省"连续制造 FU-1 错觉 + 误判 marker 谎报" — 后者是紧接着的第二个归罪 (误认为
+     marker 谎报 phase vocab, 实际是 marker 正确、review 幻觉)
+
+- **教训**: review 的**红线核心依据 + follow-up 起源事实**必须 git show / 实跑击穿,
+  self-review 不豁免; vocab / 断言存在性等"文本类事实"与"代码路径行为"同等严格核实;
+  批判框架下要主动打断"归因为错"的默认倾向, 用"未核实即标 UNVERIFIED"打底
+
+- **预防**:
+  - safety-validator (以及所有 review role) spawn prompt 加"每条 finding 起源必附
+    git show / grep 实证锚点; 无实证锚点的 finding 标 UNVERIFIED, 不计入 verdict"
+  - Lead fallback salvage 时, 独立 grep 核实 finding 起源事实再决定登记 (fallback 阶段
+    不是照单全收 marker 内容, 应对每条 finding 加实证 gate)
+  - CEO 深度复核请求可作为默认最后一道 gate: review approved 后再跑一次 git show 核心声明
+  - 与 lesson #13 (文档内容伪造) + lesson #37 (spawner 元层实证不豁免) 合并适用: 三者
+    共同构成 "实证不豁免" 完整方法论 — #13 是外部输入污染, #37 是 spawn prompt 元层实证,
+    #C2 是 review/self-review 阶段实证
+
+- **Binding**: 未来 review role 的 spawn prompt 加"实证锚点强制要求"; Lead fallback
+  protocol 加 finding 起源 grep 核实步骤; safety-validator 自我 escalation 撤销 (2026-07-09,
+  Plan 03 close-out 后) 已是本 lesson 首次 dogfood 应用 (main HEAD retraction 落地已完成)
+
+---
+
 ## C1 CEO override 单 plan 依赖跳过路径 (custos 独立仓形态) — 生态 lesson #38 具体化 (2026-07)
 
 - **事件**: Plan 00c (G6 gate capability + Binance testnet/live) 头部声明 `Depends on: Plan 00a + 00b`, 但 00b (telemetry 桥) 未 close-out。CEO wukai 2026-07-07 经 `/forge:execute-team` AskUserQuestion 显式选择先做 00c (核心 G6 gate/testnet/live 与 00b 遥测桥独立)。属高风险偏离 (跳过声明的 plan 依赖), 走生态 lesson #38 CEO override 记录路径。

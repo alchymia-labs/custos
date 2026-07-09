@@ -109,7 +109,11 @@
       "FU-2 (INFO, test 强度): credential lifecycle test 正控加 credential-path canary (可选, test-only)"
     ],
     "overall_verdict": "APPROVE_WITH_FOLLOW_UPS",
-    "report_path": ".forge/reviews/2026-07/03-safety-validator-report.md"
+    "report_path": ".forge/reviews/2026-07/03-safety-validator-report.md",
+    "follow_ups_non_blocking_retracted": [
+      "FU-1 RETRACTED: phase vocab drift claim was a hallucination (domain.md L104 already has degraded); post-hoc self-corrected + Lead grep verified",
+      "FU-2 RETRACTED: credential canary was already present at test_credential_lifecycle.py:121-122; post-hoc self-corrected + Lead grep verified"
+    ]
   },
   "peer_review_chain_result": {
     "L1_codex_impl_review": ".forge/reviews/2026-07/03-impl-peer-codex.md",
@@ -120,8 +124,15 @@
     "executor_note_on_suggested_wording": "team-lead 建议措辞含 'msgspec __struct_fields__ + depth 6' 不精确 (lesson #9 实证): _walk_dict 实为 depth 5 且不下降 msgspec struct 字段 — 若下降会命中 credential 致测试失败; 按代码真相写准确 narrower-scope 声明. wire_shapes fixtures 在 custos 缺失 (DEV-01-WIRE-FIXTURES, 全文件 baseline 排除), 断言语法+逻辑已验证但不能真跑."
   },
   "follow_ups_for_plan_05_candidate": [
-    "NT node lifecycle invariant #2 subprocess isolation (from codex HIGH + safety FU-2 combined)",
-    "matrix phase='degraded' vocab drift (safety FU-1, pre-existing, deployment_reconciler.py 不在 Plan 03 改动清单)",
-    "future signature migration TDD RED/GREEN explicit split (tdd-enforcer observation)"
-  ]
+    "NT node lifecycle invariant #2 subprocess isolation (from codex L1 HIGH F1 test scope narrower than plan claim)",
+    "future signature migration TDD RED/GREEN explicit split (tdd-enforcer non-blocking observation)",
+    "FailureEvent first-class implementation (from Plan 03 Track 2 DEV-03-FAILUREEVENT-DEFER-CLARIFICATION; docs/domain.md:145-153 已有设计但 src/arx_runner/ 零实现)"
+  ],
+  "post_close_out_correction": {
+    "trigger": "safety-validator post-hoc self-review 后主动 escalate 撤销 FU-1 + FU-2",
+    "empirical_verification_by": "Lead grep on main HEAD (post-commit SHA)",
+    "FU-1_status": "RETRACTED (hallucination) — domain.md L104 phase vocab already contains degraded; starting/stopping/failed 0 hits",
+    "FU-2_status": "RETRACTED (redundant) — test_credential_lifecycle.py:121-122 already has credential canary assertions",
+    "custos_lesson_c2_added": true
+  }
 }
