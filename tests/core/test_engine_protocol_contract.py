@@ -7,7 +7,9 @@ is a live guard, not a dead branch).
 
 from __future__ import annotations
 
-from custos.core.engine_protocol import ExecutionEngineProtocol
+from decimal import Decimal
+
+from custos.core.engine_protocol import ConnectivityState, ExecutionEngineProtocol
 
 
 class _CompleteHost:
@@ -25,6 +27,15 @@ class _CompleteHost:
 
     def supports_venue(self, venue: str) -> bool:
         return False
+
+    async def get_open_notional(self, spec_id: str) -> Decimal:
+        return Decimal("0")
+
+    async def check_engine_connected(self, spec_id: str) -> ConnectivityState:
+        return ConnectivityState(data_connected=True, exec_connected=True, checked_at_epoch_s=0.0)
+
+    async def flatten_positions(self, spec_id: str, reason: str) -> None:
+        pass
 
 
 class _MissingDeploy:

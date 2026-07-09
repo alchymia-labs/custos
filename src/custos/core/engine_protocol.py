@@ -12,18 +12,35 @@ handle live execution and which venues it wires.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from decimal import Decimal
 from typing import Protocol, runtime_checkable
+
+
+@dataclass(frozen=True)
+class ConnectivityState:
+    """Engine connectivity snapshot for the zombie watchdog. ``checked_at_epoch_s``
+    is a wall-clock timestamp (not money — float is fine)."""
+
+    data_connected: bool
+    exec_connected: bool
+    checked_at_epoch_s: float
 
 
 @runtime_checkable
 class ExecutionEngineProtocol(Protocol):
-    """Tier-1 engine contract.  Required methods that every host must provide.
+    """Engine contract every host must satisfy.
 
-    Tier-2 extensions (status snapshots, risk queries, position flattening)
-    are documented in ``docs/design/engine_protocol.md`` and owned by
-    downstream plans that add them together with their implementations.
+    Tier-1 methods (deploy / reconfigure / stop / capability queries) drive the
+    G6 gate and the deployment reconciler.  Tier-2 methods expose runner-level
+    risk and connectivity state so the engine-agnostic guards (notional cap,
+    fallback breaker, zombie watchdog) can enforce the disconnect-resilient red
+    line without knowing the concrete engine.  Every host implements the full
+    surface; the ``@runtime_checkable`` isinstance check stays green because
+    both shipped hosts add each Tier-2 method in lockstep with the protocol.
     """
 
+    # -- Tier-1: lifecycle + capability ------------------------------------
     async def deploy(self, spec: dict, credential: dict) -> str: ...
 
     async def reconfigure(self, spec: dict) -> None: ...
@@ -33,3 +50,10 @@ class ExecutionEngineProtocol(Protocol):
     def supports_live(self) -> bool: ...
 
     def supports_venue(self, venue: str) -> bool: ...
+
+    # -- Tier-2: runner-level risk / connectivity state --------------------
+    async def get_open_notional(self, spec_id: str) -> Decimal: ...
+
+    async def check_engine_connected(self, spec_id: str) -> ConnectivityState: ...
+
+    async def flatten_positions(self, spec_id: str, reason: str) -> None: ...

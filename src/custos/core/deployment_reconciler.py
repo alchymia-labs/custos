@@ -18,12 +18,16 @@ import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Protocol
 
 from custos.core.engine_protocol import ExecutionEngineProtocol
+from custos.core.fallback_breaker import FallbackBreaker
 from custos.core.g6_gate import check_g6_gate
+from custos.core.local_cap import RunnerNotionalCap
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient
+from custos.core.zombie_watchdog import ZombieWatchdog
 
 _log = get_logger("custos.deployment_reconciler")
 
@@ -41,6 +45,7 @@ class _ReconcileState:
     observed_generation: int = 0
     container_id: str | None = None
     drift_strikes: int = 0
+    last_spec: dict | None = None
 
 
 @dataclass
@@ -54,6 +59,14 @@ class DeploymentReconciler:
     credential_vault: CredentialVaultProtocol
     drift_threshold: int = 3
     poll_interval_secs: float = 0.5
+    # Optional local guards injected at the composition root (cli/main.py). When
+    # present the reconcile loop enforces them on the disconnect-resilient path;
+    # when None the loop behaves as a pure spec follower (unit-test default).
+    # local_cap is the pre-trade soft limit (its per-order enforcement lives at
+    # the trade path); fallback_breaker + zombie_watchdog run on the loop tick.
+    local_cap: RunnerNotionalCap | None = None
+    fallback_breaker: FallbackBreaker | None = None
+    zombie_watchdog: ZombieWatchdog | None = None
     session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     _state: dict[str, _ReconcileState] = field(default_factory=dict)
 
@@ -86,6 +99,11 @@ class DeploymentReconciler:
             return
 
         while not stop.is_set():
+            # Autonomous local guards: run every poll regardless of inbound specs
+            # so a stuck / runaway engine is handled even while the cloud is
+            # silent (red line 0.3).
+            await self._watchdog_tick()
+            await self._breaker_tick()
             try:
                 msg = await asyncio.wait_for(
                     sub.next_msg(timeout=self.poll_interval_secs),
@@ -135,6 +153,9 @@ class DeploymentReconciler:
             return
 
         state = self._state.setdefault(spec_id, _ReconcileState())
+        # Keep the latest spec so the watchdog can read lifecycle_state (paused
+        # exemption) and report status without re-fetching.
+        state.last_spec = spec
 
         if generation == state.observed_generation:
             # No-op — 同 generation 再来一次不重复 (幂等)。
@@ -208,6 +229,78 @@ class DeploymentReconciler:
         await self.execution_engine.reconfigure(spec)
         return state.container_id or ""
 
+    async def _watchdog_tick(self) -> None:
+        """Probe each deployed spec's engine connectivity and degrade any that
+        the zombie watchdog flags. No-op when no watchdog is injected."""
+        if self.zombie_watchdog is None:
+            return
+        for spec_id, state in list(self._state.items()):
+            if not state.container_id:
+                # Not actively deployed (never started / stopped) — nothing to watch.
+                continue
+            try:
+                connectivity = await self.execution_engine.check_engine_connected(spec_id)
+            except Exception as exc:  # noqa: BLE001 — a probe failure must not kill the loop
+                _log.warning(
+                    "zombie_watchdog_probe_failed",
+                    spec_id=spec_id,
+                    error=str(exc),
+                )
+                continue
+            paused = bool(state.last_spec and state.last_spec.get("lifecycle_state") == "paused")
+            verdict = self.zombie_watchdog.observe(spec_id, connectivity, paused=paused)
+            if not verdict.is_zombie:
+                continue
+            _log.warning(
+                "engine_zombie_detected",
+                spec_id=spec_id,
+                disconnected_secs=verdict.disconnected_secs,
+            )
+            await self._report_status(
+                spec_id=spec_id,
+                spec=state.last_spec or {},
+                state=state,
+                phase="degraded",
+                health="unhealthy",
+                reason="engine_disconnected_zombie",
+            )
+
+    async def _breaker_tick(self) -> None:
+        """Evaluate the runner fallback breaker against total open notional and,
+        on a trip, flatten every deployed spec. Runs on every poll so a runaway
+        runner is contained even while the cloud is unreachable. No-op when no
+        breaker is injected.
+
+        The drawdown breach also needs an equity feed; until the equity snapshot
+        lands this tick enforces the notional ceiling only (the breaker still
+        evaluates drawdown when equity is supplied elsewhere)."""
+        if self.fallback_breaker is None:
+            return
+        active = [spec_id for spec_id, state in self._state.items() if state.container_id]
+        if not active:
+            return
+        total_notional = Decimal("0")
+        for spec_id in active:
+            try:
+                total_notional += await self.execution_engine.get_open_notional(spec_id)
+            except Exception as exc:  # noqa: BLE001 — a probe failure must not kill the loop
+                _log.warning("breaker_notional_probe_failed", spec_id=spec_id, error=str(exc))
+        verdict = self.fallback_breaker.evaluate(open_notional=total_notional)
+        if not verdict.tripped:
+            return
+        _log.warning(
+            "fallback_breaker_flatten",
+            reason=verdict.reason,
+            open_notional=str(total_notional),
+        )
+        for spec_id in active:
+            try:
+                await self.execution_engine.flatten_positions(
+                    spec_id, verdict.reason or "fallback_breaker"
+                )
+            except Exception as exc:  # noqa: BLE001 — one flatten failure must not skip the rest
+                _log.error("flatten_positions_failed", spec_id=spec_id, error=str(exc))
+
     @staticmethod
     def _credential_ref(spec: dict, spec_id: str) -> str:
         provenance = spec.get("provenance_ref")
@@ -223,6 +316,7 @@ class DeploymentReconciler:
         state: _ReconcileState,
         phase: str,
         health: str,
+        reason: str | None = None,
     ) -> None:
         """Publish DeploymentStatus back to cloud。失败必接 log (lesson #21)。"""
         payload = {
@@ -234,6 +328,8 @@ class DeploymentReconciler:
             "health": health,
             "runner_id": self.runner_id,
         }
+        if reason is not None:
+            payload["health_reason"] = reason
         try:
             await self.nats_client.publish_deployment_status(
                 spec_id=spec_id,

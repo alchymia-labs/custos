@@ -29,6 +29,7 @@ from typing import Any, Protocol
 
 import uuid6
 
+from custos.core.local_cap import RejectPublisher
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient, NatsEnvelope, build_subject
 
@@ -117,6 +118,53 @@ def build_nt_risk_engine_config(rules: list[PreTradeRuleConfig]) -> dict:
         "max_notionals_per_order": max_notionals,
         "arx_pre_trade": arx_rules,
     }
+
+
+def make_runner_cap_reject_publisher(
+    *,
+    client: ArxNatsClient,
+    tenant_id: str,
+    runner_id: str,
+) -> RejectPublisher:
+    """Build the ``RejectPublisher`` the runner notional cap calls on a breach.
+
+    A runner-cap breach is a ``max_notional`` rejection at the wire level (an
+    order refused because it would breach a notional ceiling), tagged
+    ``rule_id=runner_notional_cap`` so the cloud can tell it apart from NT's
+    per-order screen. Published at-least-once onto the pre-trade reject channel
+    so it reaches the audit / alert chain (no-silent-reconcile red line).
+    """
+    subject = build_subject(tenant_id, "pre_trade_reject", runner_id)
+
+    async def _publish(
+        symbol: str,
+        current_open: Decimal,
+        requested_notional: Decimal,
+        cap: Decimal,
+    ) -> None:
+        payload = {
+            "tenant_id": tenant_id,
+            "rule_id": "runner_notional_cap",
+            "symbol": symbol,
+            "order_fingerprint": order_fingerprint(symbol, "", "", str(requested_notional), "", 0),
+            "reject_reason": "max_notional",
+        }
+        envelope = NatsEnvelope(
+            event_id=str(uuid6.uuid7()),
+            tenant_id=tenant_id,
+            occurred_at=_now_rfc3339_nanos(),
+            payload=payload,
+        )
+        await client.publish_telemetry_envelope(subject, envelope)
+        _log.info(
+            "runner_cap_reject_published",
+            symbol=symbol,
+            current_open=str(current_open),
+            requested_notional=str(requested_notional),
+            cap=str(cap),
+        )
+
+    return _publish
 
 
 def order_fingerprint(

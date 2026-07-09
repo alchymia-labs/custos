@@ -16,8 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import time
+from decimal import Decimal
 from pathlib import Path
 
+from custos.core.engine_protocol import ConnectivityState
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient
 from custos.core.telemetry_actor import (
@@ -112,6 +115,23 @@ class NoopHost:
 
     def supports_venue(self, venue: str) -> bool:
         return False
+
+    async def get_open_notional(self, spec_id: str) -> Decimal:
+        # Stub holds no positions — zero exposure. The runner cap / breaker are
+        # correctly no-ops against it (NoopHost only ever runs paper / sim).
+        return Decimal("0")
+
+    async def check_engine_connected(self, spec_id: str) -> ConnectivityState:
+        # Stub has no engine to disconnect — always reports connected so the
+        # zombie watchdog never flags a paper/sim runner.
+        return ConnectivityState(
+            data_connected=True, exec_connected=True, checked_at_epoch_s=time.time()
+        )
+
+    async def flatten_positions(self, spec_id: str, reason: str) -> None:
+        # Stub holds no positions — flatten is a no-op, logged so the breaker's
+        # trip is still observable on a paper/sim runner.
+        _log.info("noophost_flatten_noop", spec_id=spec_id, reason=reason)
 
 
 class NtTradingNodeHost:
@@ -351,6 +371,61 @@ class NtTradingNodeHost:
         raise NotImplementedError(
             f"structural reconfigure of spec {spec_id!r} requires spec drop + re-deploy "
             "(v1 NtTradingNodeHost does not hot-swap strategy / venue / symbol)"
+        )
+
+    async def get_open_notional(self, spec_id: str) -> Decimal:
+        """Total gross open notional across this spec's open positions, as Decimal.
+
+        Reads the built node's cache; an unknown / not-yet-deployed spec has zero
+        exposure. Quantity + entry price are stringified before Decimal
+        conversion so no float reaches the money math (red line 0.4).
+        """
+        entry = self._active_nodes.get(spec_id)
+        if entry is None:
+            return Decimal("0")
+        node, _task = entry
+        total = Decimal("0")
+        for position in node.kernel.cache.positions_open():
+            quantity = abs(Decimal(str(position.quantity)))
+            entry_px = Decimal(str(position.avg_px_open))
+            total += quantity * entry_px
+        return total
+
+    async def check_engine_connected(self, spec_id: str) -> ConnectivityState:
+        """Data + execution engine connectivity for this spec's node. An unknown
+        / not-yet-deployed spec is reported disconnected — a spec the reconciler
+        believes is running but has no live node is exactly the zombie case."""
+        entry = self._active_nodes.get(spec_id)
+        if entry is None:
+            return ConnectivityState(
+                data_connected=False, exec_connected=False, checked_at_epoch_s=time.time()
+            )
+        node, _task = entry
+        return ConnectivityState(
+            data_connected=bool(node.kernel.data_engine.check_connected()),
+            exec_connected=bool(node.kernel.exec_engine.check_connected()),
+            checked_at_epoch_s=time.time(),
+        )
+
+    async def flatten_positions(self, spec_id: str, reason: str) -> None:
+        """Close every open position for this spec via NT's per-instrument
+        ``Strategy.close_all_positions`` — the engine-neutral ``flatten_positions``
+        name maps here (NT has no ``flatten_positions``). An unknown spec is a
+        logged no-op."""
+        entry = self._active_nodes.get(spec_id)
+        if entry is None:
+            _log.warning("flatten_positions_unknown_spec", spec_id=spec_id, reason=reason)
+            return
+        node, _task = entry
+        instrument_ids = {position.instrument_id for position in node.kernel.cache.positions_open()}
+        for strategy in node.kernel.trader.strategies():
+            for instrument_id in instrument_ids:
+                strategy.close_all_positions(instrument_id)
+        _log.warning(
+            "positions_flattened",
+            spec_id=spec_id,
+            reason=reason,
+            instrument_count=len(instrument_ids),
         )
 
     def _instantiate_strategy(self, strategy_cls, spec: dict):

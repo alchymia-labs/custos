@@ -23,7 +23,11 @@ import uuid6
 from custos.core.credential_vault import CredentialVault, SopsAgeVault
 from custos.core.deployment_reconciler import DeploymentReconciler
 from custos.core.enrollment import EnrollmentClient
+from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
+from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.nats_client import ArxNatsClient
+from custos.core.zombie_watchdog import ZombieWatchdog
+from custos.engines.nautilus.risk import make_runner_cap_reject_publisher
 
 log = logging.getLogger("custos")
 
@@ -159,6 +163,37 @@ def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
     return NoopHost()
 
 
+def _build_reconciler(
+    args: argparse.Namespace,
+    client: ArxNatsClient,
+    host: object,
+    vault: CredentialVault,
+) -> DeploymentReconciler:
+    """Compose the reconciler with the three local guards wired in (red line 0.3
+    runtime wire). The cap / breaker configs start at their conservative floors;
+    a per-spec refresh from each spec's risk_config is a follow-up. The cap's
+    per-order enforcement lives at the trade path; the breaker + watchdog run on
+    the reconcile loop tick."""
+    runner_cap = RunnerNotionalCap(
+        LocalCapConfig.from_spec({}, live=False),
+        reject_publisher=make_runner_cap_reject_publisher(
+            client=client, tenant_id=args.tenant_id, runner_id=args.runner_id
+        ),
+    )
+    fallback_breaker = FallbackBreaker(FallbackBreakerConfig.from_spec({}))
+    zombie_watchdog = ZombieWatchdog()
+    return DeploymentReconciler(
+        nats_client=client,
+        tenant_id=args.tenant_id,
+        runner_id=args.runner_id,
+        execution_engine=host,  # type: ignore[arg-type]
+        credential_vault=vault,
+        local_cap=runner_cap,
+        fallback_breaker=fallback_breaker,
+        zombie_watchdog=zombie_watchdog,
+    )
+
+
 async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     client = ArxNatsClient(
@@ -195,13 +230,7 @@ async def _run(args: argparse.Namespace) -> int:
             # The real NT host wires the telemetry + pre-trade reject bridges to
             # each deployment's MessageBus inside deploy() (that is where the bus
             # exists); the NoopHost path has no MessageBus and no bridges.
-            reconciler = DeploymentReconciler(
-                nats_client=client,
-                tenant_id=args.tenant_id,
-                runner_id=args.runner_id,
-                execution_engine=_build_host(args, client),
-                credential_vault=vault,
-            )
+            reconciler = _build_reconciler(args, client, _build_host(args, client), vault)
             tasks.append(
                 asyncio.create_task(
                     reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
