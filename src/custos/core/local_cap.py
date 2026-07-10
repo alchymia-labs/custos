@@ -87,6 +87,18 @@ class RunnerNotionalCap:
     def config(self) -> LocalCapConfig:
         return self._config
 
+    def apply_config(self, new_config: LocalCapConfig) -> bool:
+        """Swap the enforced config. Returns True when the value actually
+        changed so callers can emit a single structured event per change.
+
+        The reconciler calls this on each accepted spec so cloud-side
+        ``risk_config`` edits take effect on the next loop (docs/domain.md
+        L104), without silently drifting from what the operator set."""
+        if new_config == self._config:
+            return False
+        self._config = new_config
+        return True
+
     async def allows(
         self,
         *,

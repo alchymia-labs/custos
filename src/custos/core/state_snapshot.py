@@ -2,12 +2,15 @@
 
 Polls the execution engine's Tier-2 observability methods
 (``get_positions`` / ``get_orders`` / ``get_engine_status``) at a fixed
-cadence and publishes a Decimal-safe JSON envelope to
+cadence and publishes a Decimal-safe envelope to
 ``arx.{tenant}.snapshot.state.{runner_id}.{spec_id}``. The wire format is
-``str(Decimal)`` for every money field (red line 0.4). The publisher relies
-on the underlying NATS client for disconnect handling (fire-and-forget with
-a structured log on disconnect, or WAL for durable telemetry paths); it
-never drops silently on its own (audit-not-silent invariant, lesson #21).
+``str(Decimal)`` for every money field (red line 0.4).
+
+The publish path is JetStream-backed via ``publish_telemetry_envelope`` so a
+disconnected snapshot is stashed in the offline WAL and replayed on the next
+successful connect (at-least-once, plan-index §6). Silent drops are
+prevented by the client's WAL stash + structured logs (audit-not-silent
+invariant, lesson #21).
 
 The publish path is engine-agnostic — the publisher only sees the Tier-2
 snapshot protocol, so a future engine (hummingbot / freqtrade / …) that
@@ -17,8 +20,8 @@ implements the same Tier-2 surface is observed automatically.
 from __future__ import annotations
 
 import asyncio
-import json
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -26,7 +29,7 @@ import uuid6
 
 from custos.core.engine_protocol import EngineStatus, OrderSnapshot, PositionSnapshot
 from custos.core.log import get_logger
-from custos.core.nats_client import build_subject
+from custos.core.nats_client import NatsEnvelope, build_subject
 
 _log = get_logger("custos.state_snapshot")
 
@@ -39,11 +42,12 @@ _DEFAULT_INTERVAL_SECS = 10.0
 class _NatsPublisher(Protocol):
     """Structural subtype of ``ArxNatsClient`` used by the publisher.
 
-    The concrete client owns disconnect handling; publisher only cares that
-    ``publish_fire_and_forget`` is awaitable and swallows disconnected calls
-    with a structured log (rather than raising)."""
+    ``publish_telemetry_envelope`` is JetStream-backed with WAL stash on
+    disconnect (at-least-once). The publisher must not synthesise its own
+    envelope-to-bytes path — the client owns transport, the publisher only
+    owns the payload schema."""
 
-    async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None: ...
+    async def publish_telemetry_envelope(self, subject: str, envelope: NatsEnvelope) -> None: ...
 
 
 class _SnapshotEngine(Protocol):
@@ -153,18 +157,16 @@ class StateSnapshotPublisher:
             "orders": [_order_to_wire(o) for o in orders],
             "engine_status": _engine_status_to_wire(engine_status),
         }
-        envelope = {
-            "envelope_version": 1,
-            "event_id": str(uuid6.uuid7()),
-            "tenant_id": self.tenant_id,
-            "occurred_at": _now_rfc3339_nanos(),
-            "payload_schema_version": self.schema_version,
-            "payload": payload,
-        }
-        wire = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
+        envelope = NatsEnvelope(
+            event_id=str(uuid6.uuid7()),
+            tenant_id=self.tenant_id,
+            occurred_at=_now_rfc3339_nanos(),
+            payload=payload,
+            payload_schema_version=self.schema_version,
+        )
         subject = self._subject(spec_id)
         try:
-            await self.nats_client.publish_fire_and_forget(subject, wire)
+            await self.nats_client.publish_telemetry_envelope(subject, envelope)
         except Exception as exc:  # noqa: BLE001 — publish failure must not kill the loop
             _log.warning(
                 "state_snapshot_publish_failed",
@@ -172,18 +174,25 @@ class StateSnapshotPublisher:
                 error=str(exc),
             )
 
-    async def run(self, stop: asyncio.Event, spec_id: str) -> None:
-        """Publish every ``interval_secs`` until ``stop`` is set."""
+    async def run(
+        self,
+        stop: asyncio.Event,
+        spec_id_source: Callable[[], Sequence[str]],
+    ) -> None:
+        """Publish every ``interval_secs`` until ``stop`` is set. The set of
+        spec ids to snapshot is re-read from ``spec_id_source`` on each tick,
+        so specs deployed / undeployed by the reconciler after startup are
+        picked up without re-spawning the publisher."""
 
         _log.info(
             "state_snapshot_publisher_started",
             tenant_id=self.tenant_id,
             runner_id=self.runner_id,
-            spec_id=spec_id,
             interval_secs=self.interval_secs,
         )
         while not stop.is_set():
-            await self.publish_once(spec_id)
+            for spec_id in spec_id_source():
+                await self.publish_once(spec_id)
             try:
                 await asyncio.wait_for(stop.wait(), timeout=self.interval_secs)
             except TimeoutError:
@@ -192,5 +201,4 @@ class StateSnapshotPublisher:
             "state_snapshot_publisher_stopped",
             tenant_id=self.tenant_id,
             runner_id=self.runner_id,
-            spec_id=spec_id,
         )

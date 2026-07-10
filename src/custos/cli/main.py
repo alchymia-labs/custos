@@ -26,6 +26,7 @@ from custos.core.enrollment import EnrollmentClient
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.nats_client import ArxNatsClient
+from custos.core.state_snapshot import StateSnapshotPublisher
 from custos.core.zombie_watchdog import ZombieWatchdog
 from custos.engines.nautilus.risk import make_runner_cap_reject_publisher
 
@@ -84,6 +85,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="nautilus",
         help="Execution engine to use (default: nautilus). "
         "Unknown engines are rejected with a clear error.",
+    )
+    parser.add_argument(
+        "--wal-path",
+        type=Path,
+        default=Path.home() / ".custos" / "state" / "telemetry-wal.db",
+        help="Offline WAL path for at-least-once telemetry (state snapshots + "
+        "reconcile status). Stashes messages while NATS is disconnected and "
+        "replays on the next connect.",
+    )
+    parser.add_argument(
+        "--snapshot-interval-secs",
+        type=float,
+        default=10.0,
+        help="Cadence for the state snapshot publisher (seconds).",
     )
     return parser.parse_args(argv)
 
@@ -196,10 +211,16 @@ def _build_reconciler(
 
 async def _run(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    # WAL path enables at-least-once state snapshot + reconcile status
+    # (MED-2 fix): messages published while NATS is disconnected are stashed
+    # and replayed on the next connect. Ensure the parent directory exists so
+    # a fresh runner install doesn't fail on first boot.
+    args.wal_path.parent.mkdir(parents=True, exist_ok=True)
     client = ArxNatsClient(
         nats_url=args.nats_url,
         tenant_id=args.tenant_id,
         runner_id=args.runner_id,
+        wal_path=args.wal_path,
     )
     await client.connect()
     log.info("runner_started", extra={"tenant_id": args.tenant_id, "runner_id": args.runner_id})
@@ -230,11 +251,30 @@ async def _run(args: argparse.Namespace) -> int:
             # The real NT host wires the telemetry + pre-trade reject bridges to
             # each deployment's MessageBus inside deploy() (that is where the bus
             # exists); the NoopHost path has no MessageBus and no bridges.
-            reconciler = _build_reconciler(args, client, _build_host(args, client), vault)
+            host = _build_host(args, client)
+            reconciler = _build_reconciler(args, client, host, vault)
             tasks.append(
                 asyncio.create_task(
                     reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
                     name="arx-deployment-reconciler",
+                )
+            )
+            # State snapshot publisher (04b-fix HIGH-1): polls the engine's
+            # Tier-2 methods on ``interval_secs`` and publishes one envelope
+            # per active spec via the JetStream WAL-backed path. Publisher is
+            # scheduled once and dynamically iterates spec ids the reconciler
+            # currently holds — no re-spawn needed when specs come and go.
+            publisher = StateSnapshotPublisher(
+                engine=host,
+                nats_client=client,
+                tenant_id=args.tenant_id,
+                runner_id=args.runner_id,
+                interval_secs=args.snapshot_interval_secs,
+            )
+            tasks.append(
+                asyncio.create_task(
+                    publisher.run(stop, reconciler.active_spec_ids),
+                    name="arx-state-snapshot-publisher",
                 )
             )
 

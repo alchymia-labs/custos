@@ -22,9 +22,9 @@ from decimal import Decimal
 from typing import Protocol
 
 from custos.core.engine_protocol import ExecutionEngineProtocol
-from custos.core.fallback_breaker import FallbackBreaker
+from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.g6_gate import check_g6_gate
-from custos.core.local_cap import RunnerNotionalCap
+from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient
 from custos.core.zombie_watchdog import ZombieWatchdog
@@ -157,6 +157,13 @@ class DeploymentReconciler:
         # exemption) and report status without re-fetching.
         state.last_spec = spec
 
+        # Live-refresh the runner-wide risk guards from this spec's
+        # ``risk_config`` before evaluating generation drift. docs/domain.md
+        # L104 promises "daemon reads risk_config from the spec and changes
+        # take effect next loop" — running the refresh outside the generation
+        # gate lets a spec that is otherwise a no-op still push new limits.
+        self._refresh_risk_config(spec)
+
         if generation == state.observed_generation:
             # No-op — 同 generation 再来一次不重复 (幂等)。
             _log.debug(
@@ -228,6 +235,52 @@ class DeploymentReconciler:
         check_g6_gate(self.execution_engine, spec, credential=None)
         await self.execution_engine.reconfigure(spec)
         return state.container_id or ""
+
+    def _refresh_risk_config(self, spec: dict) -> None:
+        """Re-read local guard configs from ``spec.risk_config``.
+
+        Called on every accepted spec so cloud-side operator edits to
+        ``max_notional_per_runner`` / ``fallback_breaker.max_notional`` /
+        ``fallback_breaker.max_drawdown_pct`` take effect on the next loop.
+        Emits a single structured ``risk_config_refreshed`` event when
+        anything actually changed — a no-op refresh stays silent so the log
+        signal remains meaningful (audit-not-silent + no-log-spam)."""
+
+        live = spec.get("lifecycle_state") == "live"
+        changed = False
+
+        if self.local_cap is not None:
+            if self.local_cap.apply_config(LocalCapConfig.from_spec(spec, live=live)):
+                changed = True
+
+        if self.fallback_breaker is not None:
+            if self.fallback_breaker.apply_config(FallbackBreakerConfig.from_spec(spec)):
+                changed = True
+
+        if changed:
+            _log.info(
+                "risk_config_refreshed",
+                spec_id=spec.get("spec_id"),
+                generation=spec.get("generation"),
+                lifecycle_state=spec.get("lifecycle_state"),
+                cap=str(self.local_cap.config.max_notional_per_runner)
+                if self.local_cap is not None
+                else None,
+                breaker_max_notional=str(self.fallback_breaker._config.max_notional)
+                if self.fallback_breaker is not None
+                else None,
+                breaker_max_drawdown_pct=str(self.fallback_breaker._config.max_drawdown_pct)
+                if self.fallback_breaker is not None
+                else None,
+            )
+
+    def active_spec_ids(self) -> list[str]:
+        """Spec ids the reconciler has actively deployed (``container_id`` set).
+        The state snapshot publisher iterates this each interval so a runner
+        with N concurrent deployments publishes one snapshot per active spec.
+        Reading through this method keeps composition-root code out of the
+        reconciler's ``_state`` internals."""
+        return [spec_id for spec_id, state in self._state.items() if state.container_id]
 
     async def _watchdog_tick(self) -> None:
         """Probe each deployed spec's engine connectivity and degrade any that

@@ -2,10 +2,10 @@
 
 The periodic publisher polls the execution engine's Tier-2 snapshot methods
 (get_positions / get_orders / get_engine_status) and pushes a Decimal-safe
-payload to ``arx.{tenant}.snapshot.state.{runner_id}``. The wire format is
-``str(Decimal)`` for every money field (red line 0.4). When the underlying
-NATS client is disconnected the publisher relies on WAL / fire-and-forget
-semantics rather than dropping silently.
+envelope to ``arx.{tenant}.snapshot.state.{runner_id}.{spec_id}``. The wire
+format is ``str(Decimal)`` for every money field (red line 0.4). Publish
+rides JetStream via ``publish_telemetry_envelope`` so a disconnected
+snapshot is WAL-stashed for at-least-once replay on the next connect.
 """
 
 from __future__ import annotations
@@ -13,8 +13,10 @@ from __future__ import annotations
 import asyncio
 import json
 from decimal import Decimal
+from pathlib import Path
 
 from custos.core.engine_protocol import EngineStatus, OrderSnapshot, PositionSnapshot
+from custos.core.nats_client import ArxNatsClient, NatsEnvelope
 from custos.core.state_snapshot import StateSnapshotPublisher
 
 
@@ -64,28 +66,14 @@ class _StubEngine:
 
 
 class _CapturingNatsClient:
-    """A NATS client fake capturing every fire-and-forget publish so the
-    contract can inspect subject + payload without a running broker."""
+    """A NATS client fake capturing every JetStream publish so the contract
+    can inspect subject + envelope without a running broker."""
 
     def __init__(self) -> None:
-        self.published: list[tuple[str, bytes]] = []
+        self.published: list[tuple[str, NatsEnvelope]] = []
 
-    async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None:
-        self.published.append((subject, payload))
-
-
-class _DisconnectedNatsClient:
-    """Simulates a disconnected client that logs a no-op (fire-and-forget
-    semantics) rather than raising. Records calls so the test can assert
-    the publisher still tried to publish (no silent drop by the publisher)."""
-
-    def __init__(self) -> None:
-        self.calls: list[str] = []
-
-    async def publish_fire_and_forget(self, subject: str, payload: bytes) -> None:
-        # Real ArxNatsClient logs ``nats_fire_and_forget_noop_disconnected``
-        # and returns. The publisher must not raise on this.
-        self.calls.append(subject)
+    async def publish_telemetry_envelope(self, subject: str, envelope: NatsEnvelope) -> None:
+        self.published.append((subject, envelope))
 
 
 async def test_state_snapshot_publishes_str_decimal_money() -> None:
@@ -102,12 +90,12 @@ async def test_state_snapshot_publishes_str_decimal_money() -> None:
     await publisher.publish_once(spec_id="spec-1")
 
     assert len(client.published) == 1
-    subject, payload = client.published[0]
+    subject, envelope = client.published[0]
     # Subject shape per lesson #26: build_subject(tenant, "snapshot", "state",
     # runner, spec). We only assert the leading anchors so the exact tail is
     # a design decision the publisher owns.
     assert subject.startswith("arx.tenant-a.snapshot.state.")
-    body = json.loads(payload)
+    body = json.loads(envelope.to_bytes())
     # Every money field on the wire is a JSON string, never a float — this
     # is the red line 0.4 wire contract.
     engine_status = body["payload"]["engine_status"]
@@ -136,7 +124,7 @@ async def test_state_snapshot_periodic_interval_respected() -> None:
     stop = asyncio.Event()
 
     # Run for slightly more than 2 intervals (~0.12s), then stop.
-    task = asyncio.create_task(publisher.run(stop=stop, spec_id="spec-1"))
+    task = asyncio.create_task(publisher.run(stop=stop, spec_id_source=lambda: ["spec-1"]))
     await asyncio.sleep(0.12)
     stop.set()
     await asyncio.wait_for(task, timeout=1.0)
@@ -144,21 +132,32 @@ async def test_state_snapshot_periodic_interval_respected() -> None:
     # Expect ~2-3 publishes over 0.12s at 0.05s cadence — assert >= 2 to
     # tolerate scheduler jitter without letting the test become vacuous.
     assert len(client.published) >= 2
-    # Cadence: successive subject payloads must be distinct events (event_id
+    # Cadence: successive envelopes must be distinct events (event_id
     # is a UUIDv7 that only advances forward).
-    ids = [json.loads(payload)["event_id"] for _subj, payload in client.published]
+    ids = [envelope.event_id for _subj, envelope in client.published]
     assert len(set(ids)) == len(ids)
 
 
-async def test_snapshot_cached_when_disconnected() -> None:
-    """When the NATS client is disconnected (fire-and-forget no-op semantics),
-    the publisher continues invoking publish so downstream WAL / logging can
-    surface the disconnect. Silent-drop by the publisher itself would violate
-    the audit-not-silent invariant (lesson #21). Real disconnect handling
-    lives in the client."""
+async def test_state_snapshot_wal_cached_when_disconnected(tmp_path: Path) -> None:
+    """When JetStream is unavailable, the real ``ArxNatsClient`` WAL-stashes the
+    envelope so it replays on the next connect. This proves the publisher
+    rides the durable at-least-once path — silent drop is prevented by the
+    client's structural WAL, not by the publisher swallowing errors.
+
+    Closes 04b codex MED-2: previous ``publish_fire_and_forget`` path was
+    at-most-once and dropped on disconnect (only a structured log)."""
 
     engine = _StubEngine()
-    client = _DisconnectedNatsClient()
+    wal_file = tmp_path / "snapshot-wal.db"
+    client = ArxNatsClient(
+        nats_url="nats://localhost:4222",
+        tenant_id="tenant-a",
+        runner_id="runner-1",
+        wal_path=wal_file,
+    )
+    # ``connect()`` is skipped — we simulate the disconnected boot state so
+    # the WAL stash path is exercised without touching a real broker.
+
     publisher = StateSnapshotPublisher(
         engine=engine,
         nats_client=client,
@@ -167,9 +166,21 @@ async def test_snapshot_cached_when_disconnected() -> None:
         interval_secs=0.01,
     )
 
-    await publisher.publish_once(spec_id="spec-1")
+    try:
+        await publisher.publish_once(spec_id="spec-1")
 
-    assert client.calls, "publisher must invoke publish even when disconnected"
+        # WAL now has exactly one row containing our snapshot subject.
+        pending = client._wal.drain()
+        assert len(pending) == 1
+        _row_id, subject, payload = pending[0]
+        assert subject.startswith("arx.tenant-a.snapshot.state.")
+        # Payload carries the same Decimal-safe shape (round-trip through the
+        # WAL preserves bytes).
+        decoded = json.loads(payload)
+        assert decoded["payload"]["runner_id"] == "runner-1"
+        assert decoded["payload"]["spec_id"] == "spec-1"
+    finally:
+        client._wal.close()
 
 
 async def test_state_snapshot_survives_engine_probe_exception() -> None:

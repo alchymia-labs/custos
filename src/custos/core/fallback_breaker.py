@@ -77,6 +77,17 @@ class FallbackBreaker:
     def frozen(self) -> bool:
         return self._frozen
 
+    def apply_config(self, new_config: FallbackBreakerConfig) -> bool:
+        """Swap the enforced ceilings. Returns True when the value actually
+        changed. Peak equity + frozen state are preserved so a refresh does
+        not silently reset the drawdown high-water mark or clear an existing
+        trip — cloud-side edits raise / lower the limits, they don't reset
+        the breaker."""
+        if new_config == self._config:
+            return False
+        self._config = new_config
+        return True
+
     def allows_new_orders(self) -> bool:
         return not self._frozen
 
