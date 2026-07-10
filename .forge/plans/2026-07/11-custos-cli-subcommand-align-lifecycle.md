@@ -339,7 +339,7 @@ def validate_backend_url(value: str) -> str:
 - `test_vault_put_missing_sops_binary_fails_fast`: mock `subprocess.run` raises `FileNotFoundError` → clear message ("sops CLI not installed on runner host") + non-zero exit
 - `test_vault_put_rejects_keyid_traversal`: `--key-id "../evil"` → validator error
 - `test_vault_put_writes_permission_scope`: assert encoded plaintext payload contains `"permission_scope": "trade_no_withdraw"` (invariant carried over from `credential_vault.py:87`)
-- `test_vault_put_never_logs_secret`: capture structlog output, assert raw `--api-secret` value never appears in any log record (extends `credential_vault.py:70-81` audit-only-reference discipline)
+- `test_vault_put_never_logs_secret`: capture **both** pytest `caplog` (stdlib `logging.getLogger("custos.credential_vault")` — the H4 audit-event sink, see Step 3 L355) and `structlog.testing.capture_logs` (defence-in-depth secondary sink), assert raw `--api-secret` value never appears in any record from either fixture (extends `credential_vault.py:70-81` audit-only-reference discipline). **H4-aligned**: `caplog` is the primary check since T5 emits the audit event via stdlib logging, not structlog.
 
 **Step 2**: `uv run pytest tests/test_cli_vault_put_verify.py::test_vault_put_* -v` — all fail.
 
@@ -530,7 +530,7 @@ def validate_backend_url(value: str) -> str:
 - [ ] All 21 failure-mode contract tests present and green (grep `test_enroll_double_use_rejected`, `test_vault_verify_sops_fail_no_silent_return`, `test_enroll_rejects_non_http_backend`, `test_per_key_vault_missing_enc_file_clear_error`, `test_vault_put_prefers_stdin_and_warns_on_cmdline_secret`, etc.)
 - [ ] `~/.arx/runner.toml` post-enroll has mode `0o600` (test asserts via `os.stat`)
 - [ ] `~/.arx/vault/*.enc` post-put has mode `0o600`
-- [ ] No `--api-secret` value appears in any structlog output (verified by `test_vault_put_never_logs_secret`)
+- [ ] No `--api-secret` value appears in any log output — both stdlib `caplog` (primary: T5 audit event via stdlib `logging.getLogger("custos.credential_vault")` per H4) and `structlog.testing.capture_logs` (defence-in-depth secondary) verified by `test_vault_put_never_logs_secret`
 - [ ] All references to `Plan 11` in source comments removed at execute-time per lesson #15 (semantic phrasing only, no `Plan NN` markers in `.py` files); OK to appear in commit messages + plan file + docs
 - [ ] All Step 1.5 evidence anchors (`file:line`) resolvable — grep each anchor still points at the referenced symbol (Task 9 close-out final check)
 - [ ] Language Policy: all new source code identifiers / comments / log messages / error strings in English (custos CLAUDE.md § Language Policy)
@@ -564,6 +564,19 @@ def validate_backend_url(value: str) -> str:
 | DEVIATION | vault storage model | Per-key `~/.arx/vault/<key-id>.enc` is the **sole** runtime vault. `SopsAgeVault(sops_file=..., age_key_file=...)` multi-credential-JSON class deleted (T8 removes `credential_vault.py:121-206`). No fallback read path. Reconciler runtime read served by new `PerKeyVault` (C3) inheriting `_BaseVault` invariants. | ✅ CEO directive 2026-07-10 |
 | IMPROVEMENT | boundary validation | Explicit `validators.py` module rather than inline regex — reused by every subcommand + cleanly grep-able for lesson #26 audit. | — |
 | IMPROVEMENT | HTTP client zero-dep | Chose stdlib `urllib.request` over `httpx` / `requests` — one less audit dependency in a non-custodial red-line surface. | — |
+
+### Round 2 follow-ups (consumed at T9 close-out, not fixed here)
+
+Registered from R2 review (`.forge/reviews/2026-07/11-plan-review-r2-claude.md` + `cross-plan-11-12-review-r2-claude.md`) — these are LOW-severity documentation-drift items + 1 CEO gate item. Not blocking Round 2 approval; T9 executor picks them up before flipping Status to ✅ Completed.
+
+| ID | Severity | Description | Close-out action |
+|----|----------|-------------|-----------------|
+| N2 / L-R2-1 | LOW | Failure-mode contract table row count drift — narrative says "21 (14 original + 7 review-driven)" (line 158 + T9 Action 7 + Verification checklist), but `awk`-verified actual count is **22 rows** (17 original + 5 review-driven). Off-by-one in the summary text. | T9 executor greps the failure-mode table (lines 133-156), counts rows, and updates all three narrative sites (line 158 + T9 Action 7 + Verification checklist) to the actual count before Status flip. Do not "fabricate" — grep-verify each time (lesson #25). |
+| N3 | LOW | Test name near-collision: `test_default_paths_target_arx_namespace` (T8, module-const introspection, line 148 + line 440) vs `test_start_default_paths_target_arx_namespace` (T7, runtime-namespace check, line 407). T7 version is not registered in the failure-mode contract table but arguably qualifies under lesson #17 discipline. | T9 executor decides one of: (a) fold T7's test into the T8 contract row's Purpose column with dual-level annotation ("module-const level (T8) + start-runtime level (T7)"); (b) add a new contract row for T7 runtime test; (c) drop T7 test if genuinely redundant with T8. Record the choice in T9 close-out report deviation log. |
+| N4 | LOW | Progress row T7 (line 550) says "5 tests" but T7 Step 1 (lines 402-408) enumerates **9 tests** (6 `test_start_*` + 3 `test_per_key_vault_*`, the latter moved into T7 per BLK-3 fix). Stale count from pre-BLK-3 draft. | T9 executor updates progress row T7 Notes column to "9 tests (6 start + 3 per_key_vault)". |
+| N5 | LOW (needs CEO gate) | `_build_vault` rebuilt in T7 Step 3 (line 413) unconditionally returns `PerKeyVault(...)` — the pre-fix three-way branch (`MockVault` when no sops/age credentials set) is silently retired. Paper/dev-mode users without any `~/.arx/vault/*.enc` files hit `FileNotFoundError` at first reconciler `decrypt()`. Whether this is intentional (CEO clean-break: even paper mode must have real vault put) or accidental (retain MockVault fallback for dev) is not spelled out in the plan. | **CEO gate at execute-time**: before T7 execute-team dispatch, CEO wukai picks one of three options and records in T7 spawn prompt: (a) `_build_vault` always returns `PerKeyVault`; paper/dev users must still run `arx-runner vault put` per credential; MockVault retired along with legacy CLI (aligns with CEO clean-break directive at line 71 + 89, most likely default); (b) preserve MockVault fallback triggered by env flag `CUSTOS_MOCK_VAULT=1` (prod default off, dev opt-in — needs env-flag test + doc); (c) paper/dev users get an empty vault stub that fails only on first live credential access (requires additional MockVault-empty class). Choice logged in偏离日志 as `DEVIATION: _build_vault MockVault disposition`. **Blocks T7 dispatch until choice made.** |
+
+Follow-up scope note: N2 / N3 / N4 are documentation hygiene (writer-side polish, no code change). N5 is the only follow-up that requires a design decision + potentially an extra failure-mode test (if option b or c is chosen). None of the four are Plan 12 drafter's concern — Plan 12 does not touch `_build_vault` / failure-mode contract / progress table for Plan 11.
 
 ---
 
