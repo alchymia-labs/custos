@@ -37,7 +37,9 @@
 | [03](plans/2026-07/03-nt-host-hardening.md) | NT host hardening (credential lifecycle + capability integration + host×mode matrix + correlation handle 精度提升 + GC-safety 扩展) | ✅ Completed (2026-07-09) | Plan 00a + 00b + 00c ✅ | Plan 05 candidate (subprocess isolation + FailureEvent first-class) | 起源: 00a F1 defer + 00c HIGH triage new-plan; Phase 2 精细化含 evidence-scout 4 latent + 5 drift 消化; Phase 3 execute-team 11 Task ~450 LOC 落地 (214 passed, 4 红线 0 命中), peer review chain codex L1 REQUEST_CHANGES → Path B 契约诚实化 fix → tdd/safety APPROVE_WITH_FOLLOW_UPS |
 | [04](plans/2026-07/04-red-line-03-runner-fallback.md) | 红线 0.3 完整兑现: runner-level cap + 状态快照 + zombie detection + arx-disconnect chaos | 🔲 Todo (**refined 2026-07-09**, awaiting execute-team; depends on Plan 05) | Plan 00a + 00b + 00c + 03 ✅ + **05** (结构重构) | 上 live **1 号硬阻断项** | 起源: Plan 03 close-out 后 safety-validator 跨范围深度审 + Lead 复核 — 红线 0.3 组合级熔断 grep 0 命中 (max_notional_per_runner + drawdown breaker 均无实现); 教科书级 lesson #40 project-level dogfood. Refinement: 14 tasks / 6 tracks / 39 failure-mode tests (4 grep + 35 NEW) / 6 Tier-2 methods owns |
 | [05](plans/2026-07/05-structural-refactor-engine-abstraction.md) | 结构化重构: arx_runner → custos rename + core/engines 分层 + ExecutionEngineProtocol + pyproject extras + NATS subject engine layer | 🔲 Todo (**refined 2026-07-09**, awaiting execute-team) | Plan 00a + 00b + 00c + 03 ✅ | **Plan 04 + 06 + 07** (本 plan 是基础重构, 应先落地避免其他 plan 二次搬迁) | 起源: user 澄清诉求 — custos 后期需支持多引擎 (hummingbot / freqtrade / athanor / nt-rust), 提前规划目录结构 + 命名方式; 消化 arx subtree 遗留 (arx_runner Python 包名 rename, lesson #35 fanout). Refinement: 17 tasks / 8 tracks / 82 file inventory / 24 failure-mode tests (20 grep + 4 NEW) / Tier-1 Protocol 冻结 |
-| [06](plans/2026-07/06-ps-supertrend-migration.md) | ps supertrend 迁移: custos registry-mode 加载 + RiskController 启用 + shared/ 依赖打包 + e2e 集成 | 🔲 Todo (**refined 2026-07-09**, awaiting execute-team; depends on Plan 05) | Plan 00a + 00c + 03 ✅ + **05** (结构重构); soft-depends Plan 04 | 生产化 ps supertrend 首次 paper/testnet e2e | 起源: user 澄清 custos 接管 ps supertrend 移除 sidecar/runner; grep 实证 supertrend 已有 register_strategy 无需策略侧改造, custos 只需 registry-mode 分支. Refinement: 12 tasks / 6 tracks / 15 failure-mode tests (3 grep + 12 NEW) / shared toolkit 打包方案 A vendored 推荐. codex peer fix cycle: HIGH-1 option B + HIGH-2 option B + MED-3 promoted DP4 + FU-2 NEW test 已应用 |
+| [06](plans/2026-07/06-ps-supertrend-migration.md) | ps supertrend 迁移: custos registry-mode 加载 + RiskController 启用 + shared/ 依赖打包 + e2e 集成 | ⏳ In Progress (06a slice landed `306b9e5` 2026-07-09; Track 5-6 → Plan 08) | Plan 00a + 00c + 03 ✅ + **05** (结构重构); soft-depends Plan 04 | 生产化 ps supertrend 首次 paper/testnet e2e | 起源: user 澄清 custos 接管 ps supertrend 移除 sidecar/runner; grep 实证 supertrend 已有 register_strategy 无需策略侧改造, custos 只需 registry-mode 分支. Refinement: 12 tasks / 6 tracks / 15 failure-mode tests (3 grep + 12 NEW) / shared toolkit 打包方案 A vendored 推荐. codex peer fix cycle: HIGH-1 option B + HIGH-2 option B + MED-3 promoted DP4 + FU-2 NEW test 已应用. **06a squash 306b9e5 landed Tracks 1-4** (vendored toolkit + strategy_registry_name + RiskController activation + TradingNodeConfig plumb); Track 5-6 remainder handed off to Plan 08 per `DEV-08-RENUMBER-FROM-06B` |
+| [07](plans/2026-07/07-ps-shared-curation-and-convergence.md) | ps shared curation + convergence: custos-as-shared-authority landing + sync discipline real implementation + ps convergence path | 🔲 Todo (**refined 2026-07-09**, Batch 1 APPROVED_WITH_FOLLOW_UPS) | Plan 06 06a squash `306b9e5` ✅ + Plan 05 (via 06a inheritance) ✅ | Plan 08 START gate (Plan 08 T5 coverage locks on Plan 07 DP1 outcome) | 起源: 06a `DEV-06-06A-REVERSE-DEPENDENCY-STRATEGY-D'` — custos toolkit = 权威 body-of-truth, ps = research 副本. Refinement: 5 tracks / 9 tasks / 9 NEW tests + 1 no-regression / no source-code changes (`DEV-07-NO-SOURCE-CODE-CHANGES`). Batch 1 peer chain: L1 REQUEST_CHANGES (10 findings) → in-place fix → L2 APPROVED_WITH_FOLLOW_UPS (2 LOW). **4 CEO DPs**: DP1 curation scope (drafter=a keep 06a subset) / DP2 crucible Docker preservation window (drafter=a short-term keep, HIGH hard-constraint) / DP3 sync-check cadence (drafter=b weekly) / DP4 pandas_ta governance (drafter=a+b combined) |
+| [08](plans/2026-07/08-plan-06-remainder-e2e-and-close-out.md) | Plan 06 remainder: real supertrend e2e (sandbox + testnet) + ps sidecar retirement docs + Plan 06 close-out | 🔲 Todo (**refined 2026-07-09**, Batch 1 APPROVED_WITH_FOLLOW_UPS) | Plan 07 landing (START gate) + Plan 06 06a landed `306b9e5` ✅ + Plan 00a/00b/00c/03/05 ✅ | Plan 06 close-out (T6.2 flips 06 → ✅) + first paper→testnet production acceptance for ps supertrend on custos | 起源: Plan 06 06a spawn 显式 defer Track 5-6 到 06b, CEO 2026-07-09 renumber 到 Plan 08 (Plan 07 crosses 中间) per `DEV-08-RENUMBER-FROM-06B`. 4 tasks (T5.1 sandbox e2e + T5.2 testnet DP1-conditional + T6.1 sidecar retirement docs + T6.2 close-out). Batch 1 peer chain: L1 REQUEST_CHANGES (9 findings) → in-place fix → L2 REQUEST_CHANGES CR-1 PARTIAL only (verbatim column synthesized cells), 8/9 RESOLVED, CEO 2026-07-10 accept path 降级 CR-1 为 LOW follow-up. **3 CEO DPs**: DP1 testnet credential source (drafter=a real testnet) / DP2 arx web sidecar migration scope (drafter=a independent arx-side follow-up) / DP3 T5.1 fault injection scope (drafter=a golden path only) |
 
 > ¹ Plan 00b (telemetry 桥) close-out 前, 由 CEO override 提前放行 00c
 > (`DEV-00c-DEP-SKIP-CEO-OVERRIDE`, lesson #38 CEO override 4 件套记录路径)。
@@ -47,19 +49,27 @@
 > + [historical-lessons C1](../.claude/rules/historical-lessons.md)。
 | [01](plans/2026-07/01-forge-bootstrap.md) | Forge 基础设施 bootstrap | ✅ Completed (2026-07-07) | 无 | (逻辑上先于 00a-c) | `.gitignore` / `.claude/rules/` / `Makefile` / `docs/design/ops/guides/` / `CLAUDE.md` |
 
-### 执行顺序建议 (Plan 04/05/06/07 candidate)
+### 执行顺序建议 (Plan 04/05/06/07/08 + Batch 2 09)
 
 ```
 Plan 05 (结构重构 + arx_runner → custos rename + core/engines 分层)  ← 先做, 基础
   ↓
 Plan 04 (红线 0.3 兑现) — 落到 custos.core.*
-  ↓ 与 06 可并行
-Plan 06 (ps supertrend 迁移) — 落到 custos.engines.nautilus.*
+  ↓ 与 06 可并行 (串行推荐 04→06, 见 04-05-06 packet §12)
+Plan 06 (ps supertrend 迁移 06a slice ✅ landed 306b9e5)
   ↓
-Plan 07 (ps shared 精选迁移) — 落到 custos.engines.nautilus.toolkit.*
+Plan 07 (ps shared curation + convergence — Batch 1) — 落到 custos.engines.nautilus.toolkit.*
   ↓
-Plan 08+ (未来引擎接入, 一引擎一 plan: hummingbot / freqtrade / athanor / nt-rust)
+Plan 08 (Plan 06 remainder — Batch 1) — real supertrend e2e + Plan 06 close-out
+  ↓
+Plan 09 (hook infra formalization — Batch 2, 独立 dispatch 后续)
+  ↓
+Plan 10+ (未来引擎接入, 一引擎一 plan: hummingbot / freqtrade / athanor / nt-rust)
 ```
+
+**Batch 1** (Plan 07 + Plan 08): 2026-07-10 CEO ratified `APPROVED_WITH_FOLLOW_UPS`, 等待 execute-team dispatch. Batch 1 内 serial (Plan 07 landing → Plan 08 START gate).
+
+**Batch 2** (Plan 09): 独立 dispatch 后续, 独立于 Batch 1 close-out.
 
 ### 编号顺序说明
 
