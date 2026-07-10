@@ -54,14 +54,48 @@ clean:  ## 清理 pycache / pytest cache / ruff cache
 	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .pytest_cache .ruff_cache .mypy_cache
 
-toolkit-sync-check:  ## Print vendored toolkit upstream commits + hint how to diff against upstreams
-	@awk '/^- \*\*Upstream commit\*\*:/ {print; found=1} END {if (!found) {print "❌ upstream commit not recorded in TOOLKIT_PROVENANCE.md"; exit 1}}' \
-		src/custos/engines/nautilus/toolkit/TOOLKIT_PROVENANCE.md
-	@echo "Hint: to diff vendored subsets against upstream HEAD:"
-	@echo "  ps: cd /path/to/philosophers-stone && git log --oneline -5 shared/"
-	@echo "  pandas_ta: git clone --depth 1 https://github.com/wukai9203/Technical-Analysis-Indicators---Pandas.git /tmp/pt_check && git -C /tmp/pt_check log --oneline -1"
-	@echo "  # Then compare current shas against pinned upstreams in TOOLKIT_PROVENANCE.md"
-	@echo "(concrete diff mechanism lands with Plan 07 broader shared curation.)"
+toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ optional pandas_ta) for drift
+	@if [ -z "$$PS_ROOT" ]; then \
+		echo "❌ PS_ROOT is required (path to a local philosophers-stone checkout)" >&2; \
+		echo "   usage: PS_ROOT=/path/to/philosophers-stone make toolkit-sync-check" >&2; \
+		exit 1; \
+	fi; \
+	PROVENANCE=src/custos/engines/nautilus/toolkit/TOOLKIT_PROVENANCE.md; \
+	PS_PINNED=$${PINNED_PS_SHA:-$$(awk -F'`' '/\*\*Upstream commit\*\*/{print $$2; exit}' "$$PROVENANCE")}; \
+	if [ -z "$$PS_PINNED" ]; then \
+		echo "❌ ps upstream commit not recorded in $$PROVENANCE" >&2; \
+		exit 1; \
+	fi; \
+	echo "- **Upstream commit**: \`$$PS_PINNED\`"; \
+	PS_HEAD=$$(git -C "$$PS_ROOT" rev-parse HEAD); \
+	echo "ps upstream HEAD: $$PS_HEAD"; \
+	PS_COMMITS=$$(git -C "$$PS_ROOT" log --oneline "$$PS_PINNED..$$PS_HEAD" -- shared/ 2>/dev/null); \
+	PS_DIFFSTAT=$$(git -C "$$PS_ROOT" diff --stat "$$PS_PINNED..$$PS_HEAD" -- shared/ 2>/dev/null); \
+	if [ -z "$$PS_DIFFSTAT" ]; then \
+		echo "ps drift: no"; \
+	else \
+		echo "ps drift: yes"; \
+		echo "-- new commits under shared/ --"; \
+		echo "$$PS_COMMITS"; \
+		echo "-- diff-stat --"; \
+		echo "$$PS_DIFFSTAT"; \
+	fi; \
+	if [ -n "$$PANDAS_TA_ROOT" ]; then \
+		PT_PINNED=$$(awk -F'`' '/\*\*Upstream commit\*\*/{print $$2}' "$$PROVENANCE" | sed -n '2p'); \
+		PT_HEAD=$$(git -C "$$PANDAS_TA_ROOT" rev-parse HEAD); \
+		echo "- **Upstream commit**: \`$$PT_PINNED\`"; \
+		echo "pandas_ta upstream HEAD: $$PT_HEAD"; \
+		PT_DIFFSTAT=$$(git -C "$$PANDAS_TA_ROOT" diff --stat "$$PT_PINNED..$$PT_HEAD" 2>/dev/null); \
+		if [ -z "$$PT_DIFFSTAT" ]; then \
+			echo "pandas_ta drift: no"; \
+		else \
+			echo "pandas_ta drift: yes"; \
+			echo "$$PT_DIFFSTAT"; \
+		fi; \
+	else \
+		echo "pandas_ta drift: N/A (PANDAS_TA_ROOT unset — manual check required)"; \
+	fi; \
+	if [ -n "$$PS_DIFFSTAT" ]; then exit 1; else exit 0; fi
 
 # ---- 未来 target (待未来 plan 落地) ----
 # typecheck:  ## pyright 类型检查 (待 Plan 02+ 集成)

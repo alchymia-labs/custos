@@ -136,6 +136,52 @@ testnet）由各自 host 通道自洽；live 两格是承重墙——落到 stub
 （`deployment_reconciler.py:309-315`）——`phase` 是 `running`（非 `healthy`），`health` 才是
 `healthy`。
 
+## Toolkit sync discipline
+
+`nautilus_host` 运行时依赖的策略代码（`SuperTrendStrategy` 等）经由
+`src/custos/engines/nautilus/toolkit/` 加载 —— 该目录是 philosophers-stone
+`shared/` 依赖闭包的**权威**（body-of-truth），非只读镜像。
+
+- **权威声明**：custos toolkit 是共享代码的权威来源；philosophers-stone
+  `shared/` 是研究侧副本（团队实验性指标 / 新信号代码），稳定后经 sync-check
+  流回 custos toolkit（见 `TOOLKIT_PROVENANCE.md` §Sync procedure）。
+- **同步检查机制**：`make toolkit-sync-check`（`PS_ROOT` 必填）对比 vendored
+  子集与本地 ps checkout 的差异，周检节奏（weekly cadence）—— custos 目前无
+  CI，落地为 ops runbook 手动 / cron 周跑，drift 结果记入
+  `TOOLKIT_PROVENANCE.md` §Drift audit log。
+- **crucible Docker preservation window（硬约束）**：`the-crucible` 生产
+  supervisor 对 ps `shared/*.py` **零直接 import**（纯 HTTP 编排，走
+  `crucible_engine/supervisor.py` 的 `httpx.AsyncClient` 到 sidecar），但 ps
+  自己的 Docker 构建把 `shared/` **打进生产运行时容器镜像**：
+  `philosophers-stone/deploy/nautilus/Dockerfile:1-8`（header 注释
+  "runtime base: NT + deps + shared + sidecar"）+ `:35 COPY
+  shared/README.md /tmp/deps/shared/README.md`；
+  `philosophers-stone/deploy/hummingbot/Dockerfile.image:28-29 COPY
+  --chown=hummingbot:hummingbot shared /home/hummingbot/shared` + `:49 ENV
+  PYTHONPATH=/home/hummingbot:/home/hummingbot/shared`。因此 ps `shared/`
+  + `deploy/` 必须在 `the-crucible` 生产容器依赖它们期间保持 Docker
+  可构建 —— 这是硬约束，非软偏好；任何 ps 侧收敛动作**不得**破坏这条链。
+  crucible→custos 运行时迁移是未来独立候选 plan
+  （`crucible-runtime-migration`），解锁后才能真正让 ps `shared/` 收敛为纯
+  研究副本。
+- **收敛流向**：ps `shared/` 中稳定下来的代码，经 sync-check 流回 custos
+  toolkit；custos toolkit 不会反向依赖 ps 的未稳定代码。
+- **no-destructive-delete 保证**：在 crucible Docker preservation window
+  存续期间，ps `shared/` 与 `deploy/` **不得**被删除或破坏性移动 —— 无论
+  采纳哪个 curation / convergence 选项。
+
+**决策落地（CEO 已裁定）**：
+
+- **Curation scope**：保持 06a 全 9 子包 vendor 现状（详见
+  `TOOLKIT_PROVENANCE.md` §Curation decision）。
+- **ps convergence timing**：短期保留 ps Docker-buildable `shared/` +
+  `deploy/`，直至 crucible→custos 运行时迁移落地；该迁移是独立候选 plan，非
+  本次交付范围。
+- **Sync-check cadence**：周检（weekly diff review），custos 无 CI 前走 ops
+  runbook 强制执行。
+- **pandas_ta governance**：保持 vendored fork 现状 + 正式化升级触发条件
+  （详见 `TOOLKIT_PROVENANCE.md` §pandas_ta governance）。
+
 ## 未来演化路线
 
 - **短期（已落地）**：telemetry uplink 桥（NT `MessageBus` → arx telemetry actor）已随

@@ -54,6 +54,36 @@ whole coordinators subtree — no separate copy needed.
 
 ---
 
+## Curation decision
+
+**Decision (CEO-ratified)**: keep the vendored 9-subpackage status quo — no
+change to the vendored subset.
+
+- **Option chosen**: keep status quo (the 90-file / 17,110-LOC vendored
+  subset above)
+- **Rationale**: the current subset (`config`, `nautilus`, `risk`,
+  `signals`, `protocols`, `indicators`, `position`, `warmup`, `filters`)
+  already covers the full NT-path closure for all 6 ps NT-path strategy
+  dirs (`_template`, `momentum/macd_v1`, `momentum/triple_filter_momentum`,
+  `portfolio/rebalancing`, `trend/adaptive_martingale`, `trend/supertrend`).
+  Extending to `shared/hummingbot/` was considered and rejected: there is
+  **no custos Hummingbot host implementation and no `shared.hummingbot.*`
+  runtime consumer outside vendored/provenance references** — vendoring
+  engine-glue with no runtime consumer would only expand audit surface
+  without benefit. Trimming to a strict supertrend-only closure was also
+  considered and rejected: `trend/aion_trend` and
+  `market_making/adaptive_grid` are pending future strategies that would
+  force a re-vendor churn on every migration if the subset were trimmed
+  today.
+- **Affected files**: 90 files (unchanged from this landing; see the
+  "Vendored subset" table above)
+- **Options considered**: keep status quo — **chosen**; extend to
+  `shared/hummingbot/` (13 files / 2730 LOC) — rejected, no runtime
+  consumer; trim to strict supertrend minimal closure — rejected, forces
+  re-vendor churn on future strategy migrations
+
+---
+
 ## Upstream — pandas_ta
 
 - **Repo**: `https://github.com/wukai9203/Technical-Analysis-Indicators---Pandas.git`
@@ -170,12 +200,55 @@ When either upstream ships a change that touches its vendored subset:
 5. Commit both the vendored diff and the provenance bump in one atomic commit
    (`chore(custos): sync vendored toolkit — ps <sha> / pandas_ta <sha>`).
 
-## Sync-check stub
+## Sync-check
 
-`Makefile` exposes a `toolkit-sync-check` target that prints the pinned
-upstream commits next to a hint for how to diff them against the upstream
-repos. A concrete diff implementation lands with Plan 07 (broader shared
-curation).
+`Makefile` exposes a `toolkit-sync-check` target that computes a real diff
+against a local upstream checkout:
+
+```sh
+PS_ROOT=/path/to/philosophers-stone make toolkit-sync-check
+```
+
+`PS_ROOT` is required (fails fast with a clear message if unset). It reads
+the pinned ps commit above, diffs it against `PS_ROOT`'s current HEAD under
+`shared/`, and prints the new-commit list plus a diff-stat. Exit 0 means
+zero drift; a non-zero exit means drift was detected. `PANDAS_TA_ROOT` is
+optional — the pandas_ta upstream drifts far less often, so the check
+gracefully prints "manual check required" when it is unset rather than
+failing.
+
+**Cadence**: weekly diff review — run manually or via cron/CI weekly, and
+append the result to the drift audit log below. Drift found → follow the
+sync procedure above.
+
+## Drift audit log
+
+Append-only log of `toolkit-sync-check` runs. Each entry records:
+`{ran_at, ps_upstream_head, ps_drift, pandas_ta_upstream_head, pandas_ta_drift, run_by}`.
+
+| ran_at | ps_upstream_head | ps_drift | pandas_ta_upstream_head | pandas_ta_drift | run_by |
+|--------|-------------------|----------|--------------------------|-------------------|--------|
+| 2026-07-09 | `34b73a2` | no | N/A (upstream not local) | N/A | toolkit curation landing |
+
+## pandas_ta governance
+
+**Decision (CEO-ratified)**: keep the vendored fork status quo, and
+formalize the trigger criteria for a future PyPI-package escalation.
+
+- **Status quo**: pandas_ta stays vendored as a fork snapshot (149 files
+  at the pinned commit above, LICENSE retained inside the vendored tree).
+  Audit surface is known and no external supply-chain surface is added by
+  switching to a PyPI dependency.
+- **Trigger criteria** for revisiting PyPI-package escalation (any single
+  trigger firing → CEO revisits via a new dedicated plan):
+  1. More than 2 upstream drift events/quarter that provenance sync
+     struggles to keep up with.
+  2. Other non-Guild projects need reuse of the fork.
+  3. custos Rust migration starts and needs the toolkit as a decoupled
+     package.
+
+See the prior `DEV-06-DP1-DEFERRED-C-OPTION` memo (Plan 06) for the
+historical context this formalizes.
 
 ## Why vendored (option A + B, not submodule / not PyPI)
 

@@ -1,6 +1,6 @@
 # 07 — ps shared curation + convergence: custos-as-shared-authority landing + sync discipline real implementation + ps convergence path
 
-> **Status**: 🔲 Todo (Phase 1 draft 2026-07-09; L1 codex REQUEST_CHANGES fix cycle 2026-07-09; plan-drafter-07, opus-4-7[1m])
+> **Status**: ✅ Completed (Phase 1 draft 2026-07-09; L1 codex REQUEST_CHANGES fix cycle 2026-07-09; plan-drafter-07, opus-4-7[1m]; execution 2026-07-10, runner-executor-07, sonnet)
 > **Created**: 2026-07-09 (post-Plan 06 06a squash-merge `306b9e5`)
 > **Project**: custos (`tesseract-trading/custos/`)
 > **For Claude**: Phase 1 draft + L1 fix cycle applied; L2 codex re-review recommended before `/forge:execute` or execute-team
@@ -26,7 +26,7 @@ Evidence-scout §4.2 surfaced a **critical architectural constraint not anticipa
 
 ### Contract Verification Gate (Step 1.5)
 
-> **as-of evidence-scout Foundation Scan** (`.forge/handoff/2026-07/evidence-scout-07-08.md`, 230 lines) run 2026-07-09 with 3 rounds (round 1 direct anchors + round 2 import-graph closure + round 3 cascade into `the-crucible` repo). custos main HEAD `306b9e5` (Plan 06 06a squash) + hook infra `5c01cdb` + orchestration `55782d0`. ps `develop` HEAD `34b73a2`. Table 1 below quotes scout anchors verbatim; Table 2 lists additional drafter verification anchors (not scout-verbatim), kept separate per lesson C2 zero-paraphrase discipline. This drafter did no independent grep of source repos beyond `tests/` for lesson #25 test-name uniqueness verification.
+> **as-of evidence-scout Foundation Scan** (`.forge/handoff/2026-07/evidence-scout-07-08.md`, 255 lines post-errata) run 2026-07-09 with 3 rounds (round 1 direct anchors + round 2 import-graph closure + round 3 cascade into `the-crucible` repo). custos main HEAD `306b9e5` (Plan 06 06a squash) + hook infra `5c01cdb` + orchestration `55782d0`. ps `develop` HEAD `34b73a2`. Table 1 below quotes scout anchors verbatim; Table 2 lists additional drafter verification anchors (not scout-verbatim), kept separate per lesson C2 zero-paraphrase discipline. This drafter did no independent grep of source repos beyond `tests/` for lesson #25 test-name uniqueness verification.
 
 #### Table 1 — Scout-verbatim anchors (source of truth: evidence-scout report)
 
@@ -370,15 +370,15 @@ Not applicable — Plan 07 does not introduce new capability hosts (no new skill
 
 | Task | Track | Status | Completed | Notes |
 |------|-------|--------|-----------|-------|
-| T1.1 Baseline confirmation (currently-vendored subset matches 06a claim) | 1 | 🔲 | | verification-only; halt if drift detected + DEV entry |
-| T1.2 Materialize curation decision in TOOLKIT_PROVENANCE.md | 1 | 🔲 | | DP1 recommendation landing (CEO-ratified value written at dispatch time) |
-| T2.1 Sync-check contract tests (red skeleton) | 2 | 🔲 | | drives T2.2 |
-| T2.2 Makefile toolkit-sync-check stub → real diff | 2 | 🔲 | | requires `PS_ROOT`; optional `PANDAS_TA_ROOT` |
-| T2.3 Provenance drift-audit log appendix | 2 | 🔲 | | seed entry = Plan 07 landing |
-| T3.1 ps shared/README.md custos-as-authority notice (cross-repo) | 3 | 🔲 | | DP2 non-destructive; ps-side commit |
-| T3.2 docs/design/nautilus_host.md Toolkit sync discipline section | 3 | 🔲 | | crucible Docker preservation window hard constraint |
-| T4.1 pandas_ta governance trigger criteria appendix | 4 | 🔲 | | DP4 formalization |
-| T5.1 Close-out (forced final) | 5 | 🔲 | | `.forge/README.md` index + red-line gate satisfaction table |
+| T1.1 Baseline confirmation (currently-vendored subset matches 06a claim) | 1 | ✅ | 2026-07-10 | zero drift confirmed (`fc4ab1d..34b73a2 -- shared/` empty); 90 files unchanged |
+| T1.2 Materialize curation decision in TOOLKIT_PROVENANCE.md | 1 | ✅ | 2026-07-10 | DP1 (a) landed |
+| T2.1 Sync-check contract tests (red skeleton) | 2 | ✅ | 2026-07-10 | 4 tests, confirmed red against stub |
+| T2.2 Makefile toolkit-sync-check stub → real diff | 2 | ✅ | 2026-07-10 | requires `PS_ROOT`; optional `PANDAS_TA_ROOT`; sanity-checked against real ps checkout (zero drift) |
+| T2.3 Provenance drift-audit log appendix | 2 | ✅ | 2026-07-10 | seed entry = landing (2026-07-09, `34b73a2`, no drift) |
+| T3.1 ps shared/README.md custos-as-authority notice (cross-repo) | 3 | ✅ | 2026-07-10 | DP2 non-destructive; ps-side commit `2bf06e6` |
+| T3.2 docs/design/nautilus_host.md Toolkit sync discipline section | 3 | ✅ | 2026-07-10 | crucible Docker preservation window hard constraint |
+| T4.1 pandas_ta governance trigger criteria appendix | 4 | ✅ | 2026-07-10 | DP4 (a+b) landed |
+| T5.1 Close-out (forced final) | 5 | ✅ | 2026-07-10 | `.forge/README.md` index + red-line gate satisfaction table |
 
 **multi_session_scope = false** — 9 tasks total (across 5 Tracks); light code footprint (one Makefile target + 3 test files + 3 doc files + 1 ps-side README edit); should complete in a single execute-team session. No slicing needed.
 
@@ -437,7 +437,7 @@ Not applicable — Plan 07 does not introduce new capability hosts (no new skill
 - **Option (c) — Trim to strict supertrend minimal closure**: reduce to `config` + `signals` + `risk` + narrow `shared/nautilus/{coordinators/risk_control.py, indicators/supertrend.py, trading_strategy.py}` + supporting files. **Risk**: `aion_trend` and `market_making/adaptive_grid` (scout §1.2) are pending future strategies; trimming forces re-vendor churn for every future migration
 - **Impact**: (a) `src/custos/engines/nautilus/toolkit/shared/` unchanged (status quo) / (b) add 13-file `shared/hummingbot/` subtree / (c) delete files outside supertrend closure — regenerates red-line 0.4 grep gate perimeter
 - **Decision**: drafter recommends (a); **CEO pending** (selecting b or c triggers Track 1 re-scope)
-- **CEO ruling**: (pending) — record here at execute-team dispatch time
+- **CEO ruling**: **(a) keep 06a full-9-subpackage vendor status quo** (2026-07-10). Rationale: CR-8-narrower framing refutes (b) — no custos Hummingbot host runtime consumer outside vendored/provenance references; scout §1.2 non-consumer risk refutes (c) — `aion_trend` + `market_making/adaptive_grid` coverage risk. CEO ratifies drafter recommendation.
 - **Updated documents**: `TOOLKIT_PROVENANCE.md` §"Curation decision" (T1.2)
 
 ### DEV-07-PS-CONVERGENCE-AND-CRUCIBLE-DOCKER-PRESERVATION [CEO DECISION POINT 2]
@@ -449,7 +449,7 @@ Not applicable — Plan 07 does not introduce new capability hosts (no new skill
 - **Option (c) — Add "crucible→custos runtime migration plan" as Plan 07 blocker**: expand scope to include cross-repo (custos + crucible + ps) coordination + multi-quarter timeline. **Rejected as scope creep** — that migration warrants its own dedicated plan (candidate future plan `crucible-runtime-migration`); Plan 07 delivers what is audit-able and CEO-ratifiable today without cross-repo coordination cost
 - **Impact**: (a) T3.1 adds ps `shared/README.md` deprecation notice (non-destructive); T3.2 documents crucible Docker preservation window in `nautilus_host.md` + points at future crucible-runtime-migration candidate plan / (b) rejected / (c) expands Plan 07 into cross-repo blocker plan
 - **Decision**: drafter recommends (a); **CEO pending**
-- **CEO ruling**: (pending)
+- **CEO ruling**: **(a) short-term keep ps Docker-buildable `shared/` + `deploy/` until crucible→custos runtime migration** (2026-07-10). Rationale: HIGH severity hard-constraint-derived — crucible/nautilus deploy Dockerfile:1-8 header + :35 COPY shared/README.md + hummingbot Dockerfile:28-29+49 PYTHONPATH=/home/hummingbot/shared. Rejecting = breaking crucible production containers. Crucible→custos runtime migration is scope for a dedicated future plan. CEO ratifies drafter recommendation.
 - **Updated documents**: `docs/design/nautilus_host.md` §"Toolkit sync discipline / crucible Docker preservation window" (T3.2) + ps `shared/README.md` (T3.1)
 
 ### DEV-07-CRUCIBLE-DOCKER-PRESERVATION-HARD-CONSTRAINT (evidence-scout derived, informs DP2)
@@ -468,7 +468,7 @@ Not applicable — Plan 07 does not introduce new capability hosts (no new skill
 - **Option (c) — Manual trigger only**: pure on-demand; no rhythm commitment. **Risk**: drift accumulates silently
 - **Impact**: (b) T3.2 docs section §"sync-check cadence" states weekly review runbook; enforcement via ops runbook (until Plan 09 CI lands)
 - **Decision**: drafter recommends (b); **CEO pending**
-- **CEO ruling**: (pending)
+- **CEO ruling**: **(b) weekly diff review** (2026-07-10; runbook enforcement until Plan 09 CI lands). Rationale: manageable rhythm; (a) needs webhook/polling infra outside Plan 07; (c) risks silent drift accumulation. CEO ratifies drafter recommendation.
 - **Updated documents**: `docs/design/nautilus_host.md` §"Toolkit sync discipline" (T3.2) + `TOOLKIT_PROVENANCE.md` §"Drift audit log" (T2.3)
 
 ### DEV-07-PANDAS-TA-GOVERNANCE [CEO DECISION POINT 4]
@@ -480,7 +480,7 @@ Not applicable — Plan 07 does not introduce new capability hosts (no new skill
 - **Option (a+b) — Both** (drafter recommends): status quo + explicit escalation criteria = layered discipline; complementary not alternative
 - **Impact**: (a+b) T4.1 adds "pandas_ta governance" subsection to provenance file with both status quo statement + three trigger criteria (CEO-ratified DP4 content)
 - **Decision**: drafter recommends (a+b combined); **CEO pending**
-- **CEO ruling**: (pending)
+- **CEO ruling**: **(a+b) both combined — vendored fork status quo + formalized DEV-06-DP1-DEFERRED-C-OPTION trigger conditions** (2026-07-10). Rationale: complementary not alternative. Trigger criteria: (i) >2 upstream drift events/quarter; (ii) other non-Guild projects need reuse; (iii) custos Rust migration starts. CEO ratifies drafter recommendation.
 - **Updated documents**: `TOOLKIT_PROVENANCE.md` §"pandas_ta governance" (T4.1) — link back to DEV-06-DP1-DEFERRED-C-OPTION for historical context
 
 ### DEV-07-CROSS-REPO-COMMIT-CHOREOGRAPHY
@@ -496,6 +496,22 @@ Not applicable — Plan 07 does not introduce new capability hosts (no new skill
 - **Question**: Should Plan 07 touch `src/custos/**/*.py`?
 - **Decision**: **No** — Plan 07 delivers decisions + docs + Makefile + tests + provenance-file evolution. The vendored subset (`src/custos/engines/nautilus/toolkit/shared/**`) is unchanged from 06a landing per DP1 (a) recommendation "keep status quo". This zero-source-code-change scope reduces risk of red-line 0.1/0.2/0.4 regression to zero (grep gates automatically pass because targeted code paths are untouched)
 - **cross-reference**: red-line gate satisfaction table above — Plan 07 = no-regression across all 4 red lines
+
+### DEV-07-RUNNER-SESSION-QUOTA-TAKEOVER (session-limit, main-session takeover)
+
+- **Severity**: Low (no functional impact; scope + amendments all pre-authored by executor before quota hit)
+- **Question**: How to handle T5.1 close-out when `runner-executor-07` (sonnet) hits its session quota mid-close-out (2026-07-10T03:45 UTC, resets 2pm SGT)?
+- **Decision**: Main session Execution Lead takes over T5.1 close-out (3 remaining commits + close-out marker). CEO ratified 2026-07-10 SGT afternoon. Executor had pre-authored the fix log correction, plan status flip, Close-out Report, 4 CEO ruling text blocks, and L2-FU-07-2 scout line-count update but not committed the final 3 files (fix log + plan md + `.forge/README.md`) and had not written the close-out marker. Main session committed 3 atomic single-file commits (each with `git status --short` verification per lesson #27) and authored + committed the close-out marker
+- **Impact**: preserved opus budget for Slot 2 + potential fix cycle (skipped respawn); no scope drift
+- **Updated documents**: this DEV entry + `.forge/dispatch-log/2026-07-07-08-execute-team-packet/runner-executor-07.complete.json` `session_takeover_notice` section + `.forge/README.md` Plan 07 row acknowledgement
+
+### DEV-07-CODEX-FALLBACK-CHAIN-EXHAUSTED (peer review discipline, manual fallback)
+
+- **Severity**: Low (peer review still delivered via manual fallback per lesson #19)
+- **Question**: How to obtain L1 peer review when codex CLI produces no output?
+- **Decision**: Per lesson #19 fallback chain (codex×2 → gemini → manual peer review by main session), fell back to main-session manual peer review after two codex attempts (high + medium reasoning effort) both exited 0 with no lastmsg written. gemini CLI not installed in current environment. Manual peer report at `.forge/reviews/2026-07/07-manual-peer-fallback.md` — 5 focused spot-checks (CEO ratification faithfulness / sync-check fail-fast reality / 9 tests grep-实存 / TOOLKIT_PROVENANCE.md trigger-criteria landing / assertion substance in convergence + Dockerfile-preservation tests) all pass; verdict `APPROVED`
+- **Impact**: Weaker independence signal than a true second-party codex report would provide (main session authored T5.1 close-out and is now peer-reviewing that work). Plan 07's docs-only + zero-source-code nature substantially reduces the runtime-regression risk from a peer-review-miss; language pre-commit hook and 4 red-line grep gates already caught 0 hits. Trade-off is explicit in the manual peer report
+- **Updated documents**: this DEV entry + `.forge/reviews/2026-07/07-manual-peer-fallback.md` (new file, manual peer report) + `.claude/rules/historical-lessons.md` — first dogfood application of lesson #19 fallback chain within custos plan-team → execute-team flow
 
 ---
 
@@ -514,7 +530,7 @@ Per `.forge/teams.yaml` `codex_audit.max_calls_per_plan=3` (custos budget vs arx
 | Ref | Path |
 |-----|------|
 | Dispatch packet (Batch 1 handoff) | `.forge/handoff/2026-07/plan-team-07-08-09-packet.md` §3 (Plan 07 scope) + §6 (References) + §7-9 (Drafter dispatch parameters + peer review + Language Policy) |
-| Evidence-scout report | `.forge/handoff/2026-07/evidence-scout-07-08.md` (230 lines; §1 ps shared full closure + §2 custos toolkit current state + §3 drift check + §4 ps consumer cascade including §4.2 crucible Docker bundling critical finding) |
+| Evidence-scout report | `.forge/handoff/2026-07/evidence-scout-07-08.md` (255 lines post-errata; §1 ps shared full closure + §2 custos toolkit current state + §3 drift check + §4 ps consumer cascade including §4.2 crucible Docker bundling critical finding + §11 CR-8 errata) |
 | Plan 06 (predecessor pattern) | `.forge/plans/2026-07/06-ps-supertrend-migration.md` (Track 3 vendoring decision + DEV-06-06A-REVERSE-DEPENDENCY-STRATEGY-D' + DEV-06-DP1-DEFERRED-C-OPTION memo) |
 | Plan 05 §DEV-05-TOOLKIT-LOCATION | `.forge/plans/2026-07/05-structural-refactor-engine-abstraction.md:506-510` (toolkit location = `engines/nautilus/toolkit/`, fixed) |
 | Plan index (execution order) | `.forge/README.md:50-62` execution-order suggestion (Plan 07 = ps shared curation migration → `custos.engines.nautilus.toolkit.*`) |
@@ -529,17 +545,15 @@ Per `.forge/teams.yaml` `codex_audit.max_calls_per_plan=3` (custos budget vs arx
 
 ## Close-out Report (Close-out)
 
-(Fill after Phase 3 execution completes, per `progress-management.md` template)
-
-- **Completion date**: {YYYY-MM-DD}
+- **Completion date**: 2026-07-10
 - **Total task count**: 9 (across 5 Tracks, including close-out)
-- **Deviation count**: {N} (`DEV-07-*` detail in Deviations; DP1/DP2/DP3/DP4 CEO decisions landing recorded)
-- **Verification result**: full pass / partial pass
-- **Implementation commit range**: custos `{first_sha}..{last_sha}` + ps single-commit `{ps_sha}` (cross-repo)
-- **Contract impact**: `TOOLKIT_PROVENANCE.md` (Curation decision + Drift audit log + pandas_ta governance sections) + `docs/design/nautilus_host.md` (Toolkit sync discipline + crucible Docker preservation window) + `philosophers-stone/shared/README.md` (custos-as-authority notice) + `Makefile toolkit-sync-check` (stub → real diff)
-- **Red-line preservation**: Non-Custodial 4 red lines fully preserved (Plan 07 makes zero source-code changes; existing gates unchanged) — see red-line gate satisfaction table above
-- **Failure-mode coverage**: 9 NEW contract tests (sync-check with `PS_ROOT` fail-fast dedicated + provenance schema + convergence docs) + 1 no-regression grep-verified (`test_vendored_toolkit_no_new_float_money_math` 06a existing at `tests/engines/nautilus/test_toolkit_provenance.py`)
-- **Follow-ups**: crucible→custos runtime migration (future candidate plan) + Plan 08 START gate now open + Plan 09 CI integration (future candidate) — sync-check weekly cadence enforcement via ops runbook until CI lands
+- **Deviation count**: 0 new deviations beyond the 4 CEO decision points, all ratified (see DEV-07-* entries above for CEO rulings); `DEV-07-NO-SOURCE-CODE-CHANGES` and `DEV-07-CROSS-REPO-COMMIT-CHOREOGRAPHY` (drafter design choices, honored as designed) + `DEV-07-CRUCIBLE-DOCKER-PRESERVATION-HARD-CONSTRAINT` (evidence-derived constraint, documented per T3.2). T1.1 baseline confirmation found zero drift — no `DEV-07-BASELINE-DRIFT-DETECTED` triggered.
+- **Verification result**: full pass — `make check` (fmt-check + lint) clean; `uv run pytest tests/ --ignore=tests/test_wire_shapes.py` = 296 passed, 1 skipped (the `PS_ROOT`-dependent cross-repo doc test, which passes when `PS_ROOT` is set — verified separately); all 4 Non-Custodial red-line grep gates 0 hits; lesson #15 tracking-number grep 0 hits in new source files
+- **Implementation commit range**: custos `210cab3..ce9fce2` (8 commits, base `4437991`) + ps single-commit `2bf06e6` (cross-repo, `philosophers-stone` `develop`)
+- **Contract impact**: `TOOLKIT_PROVENANCE.md` (Curation decision + Drift audit log + pandas_ta governance sections) + `docs/design/nautilus_host.md` (Toolkit sync discipline + crucible Docker preservation window) + `philosophers-stone/shared/README.md` (custos-as-authority notice) + `Makefile toolkit-sync-check` (stub → real diff, `PS_ROOT` required + `PINNED_PS_SHA` test-injection seam)
+- **Red-line preservation**: Non-Custodial 4 red lines fully preserved (Plan 07 makes zero source-code changes; existing gates unchanged) — see red-line gate satisfaction table above; all 4 verified `0 hits` on this diff at close-out
+- **Failure-mode coverage**: 9 NEW contract tests (sync-check with `PS_ROOT` fail-fast dedicated + provenance schema + convergence docs), all grep-verified present (lesson #25 gate) + 1 no-regression grep-verified (`test_vendored_toolkit_no_new_float_money_math` 06a existing at `tests/engines/nautilus/test_toolkit_provenance.py`)
+- **Follow-ups**: crucible→custos runtime migration (future candidate plan) + Plan 08 START gate now open + Plan 09 CI integration (future candidate) — sync-check weekly cadence enforcement via ops runbook until CI lands. Also surfaced (out of Plan 07 scope, pre-existing): `tests/engines/nautilus/test_toolkit_import_bootstrap_resolves_shared_and_pandas_ta` requires the `nautilus` extra (pandas + a `pkg_resources`-capable setuptools) to pass — it has no `pytest.importorskip` guard, so a fresh `make install` (dev-only, no `nautilus` extra) clone hits a `ModuleNotFoundError` on this one pre-existing test. A future plan should either add an importorskip guard or declare the transitive dependency explicitly.
 
 ---
 
