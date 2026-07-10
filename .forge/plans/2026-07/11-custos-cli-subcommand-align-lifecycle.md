@@ -22,6 +22,11 @@
 - custos Plan 04 red-line-03 runner fallback (`4437991` ✅ 2026-07-10) — established the reconciler + WAL + snapshot publisher runtime wire that `arx-runner start` must preserve
 - arx Plan 78 backend enrollment endpoint (drafted this Wave, in flight) — provides the HTTP POST `/api/v1/enrollments` endpoint that `arx-runner enroll --backend http://...` calls; enroll subcommand tests mock this contract by shape (payload + response fields), not by live integration
 
+**下游耦合与执行顺序 (cross-plan hard gate)**
+
+- **Plan 11 全部 T1..T9 squash 落 `main` 后, Plan 12 execute-team 才能启动** (cross-plan reviewer Suggested Ordering). Plan 12 T1 pyproject test asserts `data["project"]["scripts"]["arx-runner"] == "custos.cli.subcommands:main"` + `data["project"]["version"] == "0.2.0"` + `"custos" not in data["project"]["scripts"]`; Plan 12 T9 hard-dep gate greps `SopsAgeVault` = 0 hits in `credential_vault.py`. Both require Plan 11 T8 landed. **Do not parallel-execute** — worktree isolation cannot save merge conflicts on shared `pyproject.toml` / `README.md` / `credential_vault.py` (lesson #16).
+- **Wire field name single source of truth (lesson #35)**: the enrollment payload field name is **`token_hash`** (verified: `src/custos/core/enrollment.py:59`). Plan 12 gateway-contract v1 JSON Schema aligns to this name; Plan 11 is the canonical owner. Do not rename to `token_sha256` etc. across either plan.
+
 **契约证据 (Step 1.5 anchors — all grep-verified 2026-07-10)**
 
 CLI current state:
@@ -101,23 +106,25 @@ Not applicable. Every capability in this plan is production code (new subcommand
 | `src/custos/cli/subcommands/__init__.py` | Create | subcommand dispatcher `main(argv)` — argparse `add_subparsers(dest="cmd")`, routes to enroll / vault / start handlers |
 | `src/custos/cli/subcommands/enroll.py` | Create | `arx-runner enroll --token T --backend URL` — validate ids, POST `/api/v1/enrollments`, persist runner.toml (0600) |
 | `src/custos/cli/subcommands/vault.py` | Create | `arx-runner vault put/verify/list` — sops+age encrypt per key-id → `~/.arx/vault/<key-id>.enc` (0600); verify runs decrypt path; list scans dir |
-| `src/custos/cli/subcommands/start.py` | Create | `arx-runner start` — read `runner.toml`, delegate to shared `_run()` coroutine extracted from `cli/main.py` |
-| `src/custos/cli/validators.py` | Create | `validate_id(name, value)` — regex `^[a-zA-Z0-9_-]{1,64}$` for tenant_id / runner_id / key-id (raises `argparse.ArgumentTypeError`) |
+| `src/custos/cli/subcommands/start.py` | Create | `arx-runner start` — read `runner.toml`, build reconciler namespace, delegate to `run_daemon` in `cli/_daemon.py`. Also defines module-level defaults: `DEFAULT_WAL_PATH = Path.home() / ".arx" / "state" / "telemetry-wal.db"` and `DEFAULT_ENROLLMENT_PATH = Path.home() / ".arx" / "enrollment.json"` (retargets Plan 04 WAL default from `~/.custos/state/` in the process; see H3 in cross-plan review). |
+| `src/custos/cli/_daemon.py` | Create | `async def run_daemon(args: argparse.Namespace)` — post-`_parse_args` coroutine extracted verbatim from legacy `cli/main.py:212-294` `_run()` body. Also hosts the relocated helpers `_build_vault` (rebuilt to construct `PerKeyVault`) / `_build_host` / `_build_reconciler` / `_heartbeat_loop`. Imported by `subcommands/start.py` as `from custos.cli._daemon import run_daemon`; survives the T8 rewrite of `cli/main.py`. |
+| `src/custos/cli/validators.py` | Create | `validate_id(name, value)` — regex `^[a-zA-Z0-9_-]{1,64}$` for tenant_id / runner_id / key-id (raises `argparse.ArgumentTypeError`). Also `validate_backend_url(value)` — `urllib.parse.urlparse`-based check: scheme ∈ {http, https}, non-empty netloc, no fragment, no userinfo (H1). |
 | `src/custos/core/runner_toml.py` | Create | `RunnerToml.read(path)` / `RunnerToml.write(path, record)` — TOML I/O + atomic tmpfile+fsync+rename + 0600 mode invariant; `~/.arx/` dir auto-create at 0700 |
-| `src/custos/cli/main.py` | **Delete majority** | Delete `_parse_args()` flat 13 flags + `_build_vault()` + `_build_host()` + `_build_reconciler()` + `_heartbeat_loop()` + `_run()` (relocated to `cli/subcommands/start.py`). Only remaining content: 5-line stub `main()` that prints `"custos: this entry point has been removed; use \`arx-runner start\` (see arx docs/team-self-hosted-lifecycle.md Phase 0.2)"` to stderr and `sys.exit(2)`. Path stays for `python -m custos` invocation to give a clear error instead of `ModuleNotFoundError`. |
-| `src/custos/core/credential_vault.py` | **Delete lines 121-206** | Delete `SopsAgeVault` class outright. Keep only `CredentialVault` mock/base class (dev/paper) at `credential_vault.py:1-120`. |
+| `src/custos/core/per_key_vault.py` | Create | `class PerKeyVault(_BaseVault)` — reads `<vault-dir>/<credential_id>.enc` via `sops --decrypt` at reconciler runtime (production replacement for deleted `SopsAgeVault`). Preserves `_verify_permission_scope` + `_emit_decrypt_audit` invariants inherited from `_BaseVault` (`credential_vault.py:57-98`). Consumed by `_daemon._build_vault` (T7) so live-mode reconciler has a runtime read path from `arx-runner vault put`. |
+| `src/custos/cli/main.py` | **Delete majority** | Delete `_parse_args()` flat 13 flags + `_build_vault()` + `_build_host()` + `_build_reconciler()` + `_heartbeat_loop()` + `_run()` (relocated to `cli/_daemon.py`). Only remaining content: 5-line stub `main()` that prints `"custos: this entry point has been removed; use \`arx-runner start\` (see arx docs/team-self-hosted-lifecycle.md Phase 0.2)"` to stderr and `sys.exit(2)`. Path stays for `python -m custos` invocation to give a clear error instead of `ModuleNotFoundError`. |
+| `src/custos/core/credential_vault.py` | **Delete lines 121-206** | Delete `SopsAgeVault` class only. **Preserve** `_BaseVault._verify_permission_scope` (lines 83-98) + `_BaseVault._emit_decrypt_audit` (lines 64-81) + `AuditEvent` enum (lines 39-46) — reused by T6 `vault verify` and by new `PerKeyVault` via base-class inheritance. Also extend `AuditEvent` enum with `CREDENTIAL_ENCRYPTED = "CredentialEncrypted"` for the T5 encrypt audit event (H4). |
 | `tests/test_credential_vault_sops.py` | **Delete file** | Legacy `SopsAgeVault` tests — no longer applicable. |
 | `pyproject.toml` | Modify | Add `[project.scripts]` block with **single entry**: `arx-runner = "custos.cli.subcommands:main"`. **No `custos = ...` entry.** Version bump `0.1.0` → `0.2.0` (semver `feat` breaking change; documented in `README.md` upgrade section). |
 | `README.md` | Modify | Rewrite Quick Start (`README.md:76-79`) to `arx-runner enroll` / `arx-runner vault put` / `arx-runner start` flow. Add explicit **Upgrade from 0.1.x** section: (1) `pip install --upgrade custos-runner` (2) `mv ~/.custos/enrollment.json ~/.arx/enrollment.json` (3) `mv ~/.custos/state ~/.arx/state` (4) manually rerun `arx-runner enroll` (long-term credential) + `arx-runner vault put` per old sops-file credential. No auto-migration script provided. |
-| `tests/test_cli_enroll.py` | Create | happy path (mocked backend 200) + failure modes: `token_double_use`, `backend_unreachable`, `backend_500_no_partial_persist`, `arx_dir_missing`, `token_traversal` |
-| `tests/test_cli_vault_put_verify.py` | Create | put/verify/list happy path (mocked `subprocess.run(sops)`) + failure modes: `sops_decrypt_fail_no_silent_return`, `keyid_traversal`, `vault_file_0644_rejected` |
+| `tests/test_cli_enroll.py` | Create | happy path (mocked backend 200) + failure modes: `token_double_use`, `backend_unreachable`, `backend_500_no_partial_persist`, `arx_dir_missing`, `token_traversal`, `test_enroll_rejects_non_http_backend` (H1: `file://` / `gopher://` / bare `foo`) |
+| `tests/test_cli_vault_put_verify.py` | Create | put/verify/list happy path (mocked `subprocess.run(sops)`) + failure modes: `sops_decrypt_fail_no_silent_return`, `keyid_traversal`, `vault_file_0644_rejected`, `test_vault_put_prefers_stdin_and_warns_on_cmdline_secret` (M3) |
 | `tests/test_cli_start.py` | Create | read runner.toml → wire reconciler + snapshot publisher (mocked NATS) + missing runner.toml fail-fast + partial runner.toml (missing tenant_id) rejected |
+| `tests/test_per_key_vault.py` | Create | `test_per_key_vault_missing_enc_file_clear_error` / `test_per_key_vault_scope_violation` / `test_per_key_vault_sops_fail_no_silent_return` — runtime read path failure modes for the reconciler's new production vault reader |
 | `tests/test_runner_toml.py` | Create | atomic write (crash mid-write → old file intact) + 0600 preserved on rename + `~/.arx/` created at 0700 |
 | `tests/test_cli_validators.py` | Create | reject `..`, `\0`, control chars 0x00-0x1F, oversized > 64 chars, empty, non-ASCII |
-| `tests/test_deprecated_warning_on_old_entry.py` | Create | `python -m custos --tenant-id t --runner-id r ...` still runs + stderr contains `DeprecationWarning` + `arx-runner start` guidance |
 | `tests/test_cli_unknown_subcommand.py` | Create | `arx-runner foo` → non-zero exit + `--help`-style listing |
-| `docs/design/enrollment.md` | Modify | Add "HTTP enroll path (Plan 11)" section documenting the runner-side POST + runner.toml persistence contract |
-| `docs/design/credential_vault.md` | Modify | Add "Per-key vault (Plan 11)" section documenting `~/.arx/vault/<key-id>.enc` and its coexistence with the multi-credential sops JSON |
+| `docs/design/enrollment.md` | Modify | **Rewrite** the enroll flow section as HTTP POST `<backend>/api/v1/enrollments` primary path (CLI-facing surface HTTP-only per lifecycle.md §0.2.2); `EnrollmentClient` NATS class retained as low-level building block only. |
+| `docs/design/credential_vault.md` | Modify | **Rewrite** vault section to per-key `~/.arx/vault/<key-id>.enc` as the **sole** supported runtime model (`SopsAgeVault` deleted in T8, no fallback read path, no coexistence). |
 
 ---
 
@@ -142,8 +149,13 @@ Not applicable. Every capability in this plan is production code (new subcommand
 | unknown subcommand | `test_unknown_subcommand_shows_help_nonzero_exit` | code-level | `arx-runner foo` → exit != 0 + subcommand list printed |
 | vault put file already exists | `test_vault_put_rejects_existing_keyid` | code-level | Second `put` of same key-id → rejected unless `--force` (prevents silent overwrite) |
 | sops binary missing | `test_vault_put_missing_sops_binary_fails_fast` | code-level | `FileNotFoundError` from subprocess → clear "sops CLI not installed" message (mirrors `credential_vault.py:164-166` decrypt behavior) |
+| enroll `--backend` non-http scheme (H1) | `test_enroll_rejects_non_http_backend` | code-level | `--backend file:///etc/passwd` / `gopher://x` / bare `foo` → `argparse.ArgumentTypeError` before any `urlopen` call; `runner.toml` not written |
+| vault put secret via `--api-secret` cmdline (M3) | `test_vault_put_prefers_stdin_and_warns_on_cmdline_secret` | code-level | `--api-secret-stdin` primary path works; `--api-secret <value>` emits red warning to stderr about `ps aux` exposure but still runs (demo-only) |
+| PerKeyVault missing `.enc` at runtime read (C3) | `test_per_key_vault_missing_enc_file_clear_error` | code-level | `PerKeyVault(vault_dir=...).decrypt("binance-paper")` when `binance-paper.enc` absent → clear error naming file + `arx-runner vault put` remediation, non-zero from caller |
+| PerKeyVault scope violation at runtime read (C3) | `test_per_key_vault_scope_violation` | code-level | decrypted payload has `permission_scope: "trade_full"` → `_BaseVault._verify_permission_scope` raises before caller sees credential |
+| PerKeyVault sops decrypt failure at runtime read (C3) | `test_per_key_vault_sops_fail_no_silent_return` | code-level | `subprocess.CalledProcessError` from sops → propagate up (mirrors T6 verify contract, applied at reconciler read site) |
 
-All 14 failure modes are code-level tests (Python `pytest` + `unittest.mock`). No runtime-wire integration test is scoped in this plan; the runtime wire is already covered by Plan 04's reconciler tests and this plan does not modify reconciler code.
+All 21 failure modes are code-level tests (Python `pytest` + `unittest.mock`). No runtime-wire integration test is scoped in this plan; the runtime wire is already covered by Plan 04's reconciler tests and this plan does not modify reconciler code beyond swapping the `_build_vault` return type from `SopsAgeVault` to `PerKeyVault` in `_daemon.py`.
 
 ---
 
@@ -199,18 +211,48 @@ All 14 failure modes are code-level tests (Python `pytest` + `unittest.mock`). N
 - `test_rejects_oversize`: 65-char id
 - `test_rejects_empty`: `""`
 - `test_rejects_non_ascii`: `"tenant-中"`, `"tenant​"` (zero-width space)
+- `test_validate_backend_url_accepts_http_https`: `"http://team-server:8000"`, `"https://team-server.example/api"`
+- `test_validate_backend_url_rejects_file_scheme`: `"file:///etc/passwd"` → `argparse.ArgumentTypeError`
+- `test_validate_backend_url_rejects_gopher_scheme`: `"gopher://evil.example"` → rejected
+- `test_validate_backend_url_rejects_bare_hostname`: `"team-server"` (no scheme) → rejected
+- `test_validate_backend_url_rejects_empty_netloc`: `"http://"` → rejected
+- `test_validate_backend_url_rejects_userinfo`: `"http://user:pass@team-server"` → rejected (userinfo would leak in HTTP proxy logs)
+- `test_validate_backend_url_rejects_fragment`: `"http://team-server#frag"` → rejected
 
 **Step 2**: `uv run pytest tests/test_cli_validators.py -v` — all fail.
 
 **Step 3**: Minimal implementation
 ```python
 _ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+_ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
+
 
 def validate_id(name: str, value: str) -> str:
     if not _ID_RE.fullmatch(value):
         raise argparse.ArgumentTypeError(
             f"{name!r} must match ^[a-zA-Z0-9_-]{{1,64}}$ (got {value!r})"
         )
+    return value
+
+
+def validate_backend_url(value: str) -> str:
+    """H1 defence: reject non-http(s) schemes at parse-time before `urlopen` sees them."""
+    try:
+        parsed = urllib.parse.urlparse(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"--backend {value!r} is not a valid URL: {exc}") from exc
+    if parsed.scheme not in _ALLOWED_URL_SCHEMES:
+        raise argparse.ArgumentTypeError(
+            f"--backend scheme must be http or https (got {parsed.scheme!r} from {value!r})"
+        )
+    if not parsed.netloc:
+        raise argparse.ArgumentTypeError(f"--backend must have a non-empty host (got {value!r})")
+    if parsed.username or parsed.password:
+        raise argparse.ArgumentTypeError(
+            f"--backend must not embed userinfo (got user in {value!r})"
+        )
+    if parsed.fragment:
+        raise argparse.ArgumentTypeError(f"--backend must not carry a fragment (got {value!r})")
     return value
 ```
 
@@ -262,17 +304,20 @@ def validate_id(name: str, value: str) -> str:
 - `test_enroll_creates_arx_dir_at_0700`: fresh `HOME` with no `~/.arx/` → dir created at mode 0o700
 - `test_enroll_rejects_token_with_null_byte`: `--token "abc\x00"` → validator error before HTTP call
 - `test_enroll_rejects_tenant_traversal`: `--tenant-id "../evil"` → validator error before HTTP call
-- `test_enroll_payload_shape`: assert mocked call payload = `{"token_hash": <sha256 hex>, "runner_id": <id>, "agent_version": <str>, "capabilities": <list>}` (mirrors `enrollment.py:57-63`)
+- `test_enroll_rejects_non_http_backend` (H1): `--backend file:///etc/passwd` / `--backend gopher://x` / `--backend foo` → validator error via `validate_backend_url` before any `urlopen` call
+- `test_enroll_payload_shape`: assert mocked call payload = `{"token_hash": <sha256 hex>, "runner_id": <id>, "agent_version": <str>, "capabilities": <list>}` (mirrors `enrollment.py:57-63`).
+  **Wire field name note (lesson #35 boundary constant)**: `token_hash` is the wire single source of truth — Plan 12 gateway-contract v1 schema aligns to this name (not `token_sha256`). The name matches `enrollment.py:59` and remains the canonical field across all cross-plan references.
+  **Payload contract with arx-78 (M1)**: backend resolves tenant from `token_hash` via server-side lookup (issued-token → tenant mapping). Runner does not send `tenant_id` in the payload. `--tenant-id` CLI flag is captured only for local `runner.toml` persistence + subsequent `arx-runner start` invocation.
 
 **Step 2**: `uv run pytest tests/test_cli_enroll.py -v` — all fail (handler is `NotImplementedError` stub).
 
 **Step 3**: Minimal implementation
-- Parse `--token`, `--backend`, `--tenant-id` (validated), `--runner-id` (validated), `--runner-toml` (default `~/.arx/runner.toml`), optional `--agent-version`, `--capabilities`.
+- Parse `--token`, `--backend` (`type=validators.validate_backend_url`, H1), `--tenant-id` (`type=lambda v: validators.validate_id("tenant_id", v)`), `--runner-id` (validated), `--runner-toml` (default `~/.arx/runner.toml`), optional `--agent-version`, `--capabilities` (**M2**: `action="append"`, `default=[]` — repeat flag: `--capabilities nautilus --capabilities noop-host`; zero repeats ⇒ empty list).
 - `run(args)`:
-  1. Validate ids via `validators.validate_id`.
+  1. Validate ids via `validators.validate_id`; `args.backend` is already normalized by argparse `type=`.
   2. Compute `token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()` (reuse `enrollment.hash_token`).
-  3. Build payload dict matching arx-78 shape.
-  4. `urllib.request.Request(f"{backend}/api/v1/enrollments", data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})`, POST via `urlopen(req, timeout=30)`.
+  3. Build payload dict matching arx-78 shape — `{"token_hash": ..., "runner_id": ..., "agent_version": ..., "capabilities": args.capabilities}`. **No `tenant_id` in payload** (backend resolves via token_hash lookup, M1).
+  4. `urllib.request.Request(f"{backend}/api/v1/enrollments", data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})`, POST via `urlopen(req, timeout=30)`. **M4 defense-in-depth**: install a `urllib.request.HTTPRedirectHandler` subclass that re-runs `validate_backend_url` on the Location header before following any 3xx redirect; reject any redirect whose scheme falls outside `{http, https}`. **M5**: `timeout=30` matches the sops-decrypt `subprocess.run(..., timeout=30)` invariant at `credential_vault.py:162` — hard invariant across all zero-dep external I/O boundaries.
   5. On 200: parse response → `RunnerToml(tenant_id, runner_id, backend_url=backend, long_term_credential=<from response>, enrolled_at_ns=<from response>)` → `runner_toml.write(args.runner_toml, record)`.
   6. On non-2xx / connection error: print clear stderr message, return 1 without any partial write.
 
@@ -299,11 +344,15 @@ def validate_id(name: str, value: str) -> str:
 **Step 2**: `uv run pytest tests/test_cli_vault_put_verify.py::test_vault_put_* -v` — all fail.
 
 **Step 3**: Minimal implementation
-- Parse `--key-id` (validated), `--api-key`, `--api-secret`, `--age-recipient` (or env `SOPS_AGE_RECIPIENT`), `--vault-dir` (default `~/.arx/vault`).
+- Parse `--key-id` (validated), `--api-key`, `--age-recipient` (or env `SOPS_AGE_RECIPIENT`), `--vault-dir` (default `~/.arx/vault`).
+- **M3 secret input paths** — three mutually exclusive `--api-secret-*` flags (mutually exclusive group required):
+  1. **`--api-secret-stdin`** (primary, no arg): read via `sys.stdin.readline().rstrip("\n")`; recommended for scripts / ops runbooks.
+  2. **`--api-secret-env ENV_NAME`** (secondary): read via `os.environ[ENV_NAME]`; recommended for CI / vault-injected envs.
+  3. **`--api-secret <value>`** (demo / debug only): print a **red warning** to stderr about `ps aux` / `/proc/<pid>/cmdline` exposure, then proceed. This preserves demo ergonomics while making the risk loud.
 - Build plaintext payload dict `{key_id: {api_key, api_secret, permission_scope: "trade_no_withdraw"}}` (matching the multi-cred sops JSON shape at `credential_vault.py:193-202`, but with just one credential per file).
-- `subprocess.run(["sops", "--encrypt", "--age", recipient, "--input-type", "json", "--output-type", "json", "/dev/stdin"], input=json.dumps(payload).encode(), capture_output=True, check=True, timeout=30)`.
+- `subprocess.run(["sops", "--encrypt", "--age", recipient, "--input-type", "json", "--output-type", "json", "/dev/stdin"], input=json.dumps(payload).encode(), capture_output=True, check=True, timeout=30)`. **L1 note**: payload bytes are passed via `subprocess.run(..., input=...)`, NOT via a `sh -c` intermediary — no shell buffer holds plaintext.
 - Write result.stdout to tmpfile → `os.chmod(tmp, 0o600)` → `os.rename(tmp, vault_dir / f"{key_id}.enc")`.
-- Emit structlog `credential_encrypted` audit event (key_id + tenant only, no plaintext) — mirrors the decrypt audit event at `credential_vault.py:64-81`.
+- **H4 audit event via stdlib logging** (not structlog): `_log = logging.getLogger("custos.credential_vault")` (module-import from `custos.core.credential_vault`) — emit `_log.info("credential_encrypted", extra={"audit_event": AuditEvent.CREDENTIAL_ENCRYPTED.value, "key_id": key_id, "tenant_id": tenant_id})`. This mirrors the decrypt audit event at `credential_vault.py:64-81` (which is deliberately stdlib per the `credential_vault.py:32-35` comment, to keep `caplog` assertions and downstream stdlib-logger pattern-matching consumers happy). **Enum extension required in T8 file**: add `CREDENTIAL_ENCRYPTED = "CredentialEncrypted"` to `AuditEvent` at `credential_vault.py:39-46` (T8 already preserves the enum, so the `+1` field slots in cleanly).
 
 **Step 4**: `uv run pytest tests/test_cli_vault_put_verify.py::test_vault_put_* -v` — all pass.
 
@@ -339,30 +388,36 @@ def validate_id(name: str, value: str) -> str:
 
 ---
 
-### Task 7: `start` subcommand — read runner.toml + reuse `_run`
+### Task 7: `start` subcommand — read runner.toml + extract `run_daemon` into `cli/_daemon.py`
 
 **Files**:
-- Modify `src/custos/cli/subcommands/start.py`
-- Modify `src/custos/cli/main.py` (extract `_run_from_config` from `_run`, keep both callable)
+- Create `src/custos/cli/subcommands/start.py`
+- Create `src/custos/cli/_daemon.py` (extraction target for `run_daemon` + helpers, per C2 Option A)
+- Modify `src/custos/cli/main.py` — remove the extracted body (Task 8 later rewrites `main.py` to a 5-line stub; the extracted `_daemon.py` survives).
+- Create `src/custos/core/per_key_vault.py` (per C3, production runtime read path for `~/.arx/vault/<key-id>.enc`)
 - Create `tests/test_cli_start.py`
+- Create `tests/test_per_key_vault.py`
 
 **Step 1**: Write failing tests
-- `test_start_reads_runner_toml_and_wires_reconciler`: pre-write valid runner.toml → `start` calls `_run` with tenant/runner from toml + mocked NATS connect (via `unittest.mock.patch("custos.core.nats_client.ArxNatsClient")`)
+- `test_start_reads_runner_toml_and_wires_reconciler`: pre-write valid runner.toml → `start` invokes `_daemon.run_daemon` with tenant/runner from toml + mocked NATS connect (via `unittest.mock.patch("custos.core.nats_client.ArxNatsClient")`)
 - `test_start_missing_runner_toml_fails_fast`: no `~/.arx/runner.toml` → non-zero exit + stderr "run `arx-runner enroll` first"
 - `test_start_partial_runner_toml_rejected`: runner.toml missing `tenant_id` field → non-zero exit + clear parse error
-- `test_start_preserves_engine_and_wal_flags`: `--engine nautilus --wal-path /tmp/wal.db` still work + override runner.toml defaults
+- `test_start_preserves_engine_and_wal_flags`: `--engine nautilus --wal-path /tmp/wal.db --vault-dir /tmp/vault` still work + override runner.toml defaults
 - `test_start_rejects_world_readable_runner_toml`: runner.toml at 0o644 → non-zero exit via `runner_toml.read()` mode check (Task 1 invariant)
+- `test_start_default_paths_target_arx_namespace` (C1/H3): with no CLI overrides, `start` builds a namespace whose `wal_path` / `enrollment_path` / `vault_dir` all begin with `Path.home() / ".arx"`; no `.custos` substring anywhere.
+- `test_per_key_vault_missing_enc_file_clear_error` / `test_per_key_vault_scope_violation` / `test_per_key_vault_sops_fail_no_silent_return` (C3): runtime read failures for `PerKeyVault` — mirrors T6 `verify` contract at the reconciler read site.
 
-**Step 2**: `uv run pytest tests/test_cli_start.py -v` — all fail.
+**Step 2**: `uv run pytest tests/test_cli_start.py tests/test_per_key_vault.py -v` — all fail.
 
 **Step 3**: Minimal implementation
-- Refactor `cli/main.py`: extract the post-`_parse_args` half of `_run` into a new `async def run_daemon(args)` that expects a filled `argparse.Namespace`. Legacy `_run` becomes `run_daemon(_parse_args(...))`.
-- `subcommands/start.py:run(args)`:
+- **Extract to `src/custos/cli/_daemon.py`** (not `cli/main.py`, per C2 Option A): create a new module hosting `async def run_daemon(args: argparse.Namespace)` — the verbatim post-`_parse_args` half of legacy `cli/main.py:212-294` `_run()`. Move alongside it the relocated helpers `_build_vault` / `_build_host` / `_build_reconciler` / `_heartbeat_loop` (previously at `cli/main.py:132-209`). Rebuild `_build_vault` to construct **`PerKeyVault(vault_dir=args.vault_dir, tenant_id=args.tenant_id, initiator=args.runner_id)`** — the C3 production replacement for the deleted `SopsAgeVault`. Legacy `cli/main.py:_run` (still present at T7 completion) becomes a one-liner: `asyncio.run(_daemon.run_daemon(_parse_args(argv)))`; T8 then rewrites `cli/main.py` to the 5-line clean-break stub and only `_daemon.py` survives.
+- **Create `src/custos/core/per_key_vault.py`**: `class PerKeyVault(_BaseVault)` inheriting `_verify_permission_scope` + `_emit_decrypt_audit` from `_BaseVault` (`credential_vault.py:57-98`); constructor takes `vault_dir: Path`, `tenant_id: str`, `initiator: str`; `decrypt(credential_id)` reads `vault_dir / f"{credential_id}.enc"`, `subprocess.run(["sops", "--decrypt", str(path)], env={"SOPS_AGE_KEY_FILE": ...}, check=True, timeout=30)`, `json.loads`, `_verify_permission_scope`, `_emit_decrypt_audit`, returns credential dict. Missing file → `FileNotFoundError` with actionable message ("run `arx-runner vault put --key-id <id>` first"). sops failure → `subprocess.CalledProcessError` propagates (no silent-return).
+- **`subcommands/start.py:run(args)`** (module-level defaults `DEFAULT_WAL_PATH = Path.home() / ".arx" / "state" / "telemetry-wal.db"` and `DEFAULT_ENROLLMENT_PATH = Path.home() / ".arx" / "enrollment.json"` and `DEFAULT_VAULT_DIR = Path.home() / ".arx" / "vault"` at the top of the module — these are the retargeted Plan 04 WAL default per H3 in the cross-plan review):
   1. `record = runner_toml.read(args.runner_toml_path)` — fail-fast if missing / bad mode / partial.
-  2. Build a compatible `argparse.Namespace` with tenant_id / runner_id from record + CLI overrides for nats_url / wal_path / snapshot_interval_secs / engine / use_nt_host / reconcile_strategy_id / heartbeat_interval / enrollment_token=None / enrollment_path=default / sops_file=optional / age_key_file=optional.
-  3. `asyncio.run(main.run_daemon(ns))`.
+  2. Build a compatible `argparse.Namespace` with tenant_id / runner_id from record + CLI overrides for nats_url / wal_path (default `DEFAULT_WAL_PATH`) / snapshot_interval_secs / engine / use_nt_host / reconcile_strategy_id / heartbeat_interval / enrollment_token=None / enrollment_path=`DEFAULT_ENROLLMENT_PATH` / **`vault_dir=DEFAULT_VAULT_DIR`** (drives `PerKeyVault`). **Stale `sops_file` / `age_key_file` fields DELETED** — the multi-cred sops-file model no longer exists post-T8 (H3 residue removal).
+  3. `from custos.cli._daemon import run_daemon; asyncio.run(run_daemon(ns))`.
 
-**Step 4**: `uv run pytest tests/test_cli_start.py -v` — all pass. Also `uv run pytest tests/ -k "test_cli_main or test_reconciler_" -v` — Plan 04/05 tests remain green (regression sanity).
+**Step 4**: `uv run pytest tests/test_cli_start.py tests/test_per_key_vault.py -v` — all pass. Also `uv run pytest tests/ -k "test_cli_main or test_reconciler_" -v` — Plan 04/05 tests remain green (regression sanity). Add cross-cutting `test_vault_put_reuses_arx_dir_0700` (L3) to `tests/test_cli_vault_put_verify.py`: assert that after `vault put`, `~/.arx/` mode is exactly 0o700 (both `start.py` and `vault put` share the `~/.arx/` mkdir invariant).
 
 **Step 5**: Commit `feat(custos): arx-runner start subcommand + refactor _run (plan 11 t7)`.
 
@@ -419,7 +474,7 @@ def validate_id(name: str, value: str) -> str:
   if __name__ == "__main__":
       sys.exit(main())
   ```
-- Delete `SopsAgeVault` from `src/custos/core/credential_vault.py` (lines 121-206 in current file). Verify remaining `CredentialVault` mock/base class at lines 1-120 still passes `tests/test_credential_vault.py`.
+- **Delete `SopsAgeVault` from `src/custos/core/credential_vault.py`, exactly lines 121-206** (`class SopsAgeVault(_BaseVault):` block through end of module). **Preserve** `AuditEvent` enum (lines 39-46) — and extend it with `CREDENTIAL_ENCRYPTED = "CredentialEncrypted"` (H4 audit event for T5) — plus `CredentialVaultProtocol` (49-55) + `_BaseVault` (57-98, including `_emit_decrypt_audit` at 64-81 and `_verify_permission_scope` at 83-98) + `CredentialVault` mock class (101-118). Both T6 `vault verify` and the new C3 `PerKeyVault` inherit from `_BaseVault`, so the base class + audit event + scope validator must remain intact. Verify surviving `tests/test_credential_vault.py` still green (mock class unaffected).
 - Delete `tests/test_credential_vault_sops.py`.
 - `uv sync --extra dev` to re-register console scripts.
 
@@ -437,23 +492,27 @@ def validate_id(name: str, value: str) -> str:
 - Modify `docs/design/03-implementation.md` — replace all `--sops-file` / `--age-key-file` references with `arx-runner vault put` command flow; replace `~/.custos/` path references with `~/.arx/` throughout.
 - Modify `docs/ops/05-deployment.md` — same substitution + add Upgrade from 0.1.x section detailing the manual re-enroll + re-vault-put steps.
 - Modify `README.md` — Quick Start uses `arx-runner enroll` / `arx-runner vault put` / `arx-runner start`; add explicit **Breaking Change (0.2.0)** section: (1) `python -m custos` removed → use `arx-runner start` (2) sops multi-credential JSON file removed → run `sops --decrypt <old-file>` + `arx-runner vault put` per key (3) `~/.custos/` retired → `mv ~/.custos/{enrollment.json,state} ~/.arx/` (4) `--sops-file` / `--age-key-file` flags removed.
-- Modify `the-alephain-guild/codex/decisions/ADR-014-ecosystem-open-source-boundary.md` — **append a short "Custos v0.2.0 clean-break release (2026-Q3)" note under Consequences (or a new "Evolution" subsection at the end)** recording: (a) `SopsAgeVault` JSON multi-credential layout removed; (b) legacy `python -m custos` CLI entry + `[project.scripts].custos` removed; (c) `~/.custos/` namespace retired to `~/.arx/` (single-namespace policy); (d) reason chain: alignment with arx `docs/team-self-hosted-lifecycle.md` §0.2 + §0.3 verbatim command surface + lesson #35 dual-source-elimination + CEO clean-break directive (2026-07-10). Cross-ref: `custos/.forge/plans/2026-07/11-*.md` + `custos/.forge/plans/2026-07/12-*.md` close-out reports. **No `codex/projects/custos/` subdir is created in this plan** (CEO decision 2026-07-10) — the ecosystem-catalog + ADR-014 entries continue to serve as custos's workspace-level anchor; a dedicated custos codex project subdir is a future-plan candidate if/when custos codex-level architecture spec is warranted (currently the `custos/docs/design/*.md` in-repo design specs are the source of truth for single-repo audit).
+- Modify `the-alephain-guild/codex/decisions/ADR-014-ecosystem-open-source-boundary.md` — **workspace-only edit** (Cross M2): append a short "Custos v0.2.0 clean-break release (2026-Q3)" note under Consequences (or a new "Evolution" subsection at the end) recording: (a) `SopsAgeVault` JSON multi-credential layout removed; (b) legacy `python -m custos` CLI entry + `[project.scripts].custos` removed; (c) `~/.custos/` namespace retired to `~/.arx/` (single-namespace policy); (d) reason chain: alignment with arx `docs/team-self-hosted-lifecycle.md` §0.2 + §0.3 verbatim command surface + lesson #35 dual-source-elimination + CEO clean-break directive (2026-07-10). Cross-ref: `custos/.forge/plans/2026-07/11-*.md` + `custos/.forge/plans/2026-07/12-*.md` close-out reports. **Custos independent-repo boundary**: this file lives in `the-alephain-guild/codex/`, OUTSIDE the custos repo. Independent-repo executors (fresh `git clone custos`) do NOT see this path and MUST skip this step; record the skip in the plan close-out follow-up list. Workspace executors commit the ADR edit in a **separate commit outside the custos-repo**, `git add <specific-file>` per `mandatory-rules.md` §6. **No `codex/projects/custos/` subdir is created in this plan** (CEO decision 2026-07-10) — the ecosystem-catalog + ADR-014 entries continue to serve as custos's workspace-level anchor; a dedicated custos codex project subdir is a future-plan candidate if/when custos codex-level architecture spec is warranted (currently the `custos/docs/design/*.md` in-repo design specs are the source of truth for single-repo audit).
 - Modify `.forge/plans/2026-07/11-custos-cli-subcommand-align-lifecycle.md` — status to `✅ Completed`.
 - Modify `.forge/README.md` — add Plan 11 row to plan index table with prominent "breaking change" annotation.
-- **Version bump decision**: this plan is a breaking change (removed CLI + removed vault class + retired namespace). Semver `feat!` (breaking) → bump minor version in `pyproject.toml` (`0.1.0` → `0.2.0`) since we are pre-1.0 (SemVer §4 allows breaking changes in 0.x minor bumps).
-- Modify `.forge/plans/2026-07/11-custos-cli-subcommand-align-lifecycle.md` — status to `✅ Completed`
-- Modify `.forge/README.md` — add Plan 11 row to plan index table
-- **Version bump decision**: this plan adds new console-script surface + new subcommands + new `~/.arx/` filesystem contract → semver `feat` → bump minor version in `pyproject.toml` (`0.1.0` → `0.2.0`)
+- **Version bump decision**: this plan is a breaking change (removed CLI + removed vault class + retired namespace). Semver `feat!` (breaking) → bump minor version in `pyproject.toml` (`0.1.0` → `0.2.0`) since we are pre-1.0 (SemVer §4 allows breaking changes in 0.x minor bumps). **Note (L7)**: T8 does the actual bump; T9 only verifies via `grep '^version = "0.2.0"' pyproject.toml` = 1 hit. Do NOT bump again in T9.
 
 **Actions**:
 1. Flip `Status: 🔲 Not started` → `Status: ✅ Completed` + add `Completed: YYYY-MM-DD`.
-2. `.forge/README.md` — append Plan 11 row with slug + status + depends + blocks + notes.
-3. `docs/design/enrollment.md` — document `<backend>/api/v1/enrollments` request payload shape + response shape (`long_term_credential` + `enrolled_at_ns`) + `~/.arx/runner.toml` persistence contract + coexistence with existing NATS `enrollment.json` (paragraph, not a rewrite).
-4. `docs/design/credential_vault.md` — document `~/.arx/vault/<key-id>.enc` per-key model + read/write API for `vault put/verify/list` + coexistence with existing single-file `SopsAgeVault` (paragraph).
-5. `README.md:76-96` (Quick Start) — replace `python -m custos ...` example with the three-command lifecycle: enroll → vault put → start.
-6. `pyproject.toml` version `0.1.0` → `0.2.0`.
-7. Add "完成报告 (Close-out Report)" section at the end of this plan file, summarizing: (a) actual file inventory delta vs planned, (b) any failure modes uncovered during implementation added beyond the 14 contracted, (c) any deviations logged.
-8. Commit: `docs(custos): plan 11 close-out — CLI subcommand align lifecycle.md`.
+2. `.forge/README.md` — append Plan 11 row with slug + status + depends + blocks + notes (prominent "breaking change" annotation).
+3. `docs/design/enrollment.md` — **rewrite** the enroll section: HTTP POST `<backend>/api/v1/enrollments` is the CLI-facing primary path; document request payload shape (`token_hash` + `runner_id` + `agent_version` + `capabilities`, **no `tenant_id`** per M1) + response shape (`long_term_credential` + `enrolled_at_ns`) + `~/.arx/runner.toml` persistence contract. Note `EnrollmentClient` NATS class (`src/custos/core/enrollment.py`) is retained only as a low-level building block that `subcommands/enroll.py` MAY call in future for non-CLI callers; the CLI surface is HTTP-only (no coexistence at the user-facing layer).
+4. `docs/design/credential_vault.md` — **rewrite** the vault section: per-key `~/.arx/vault/<key-id>.enc` is the **sole** production runtime model. Document the write path (`arx-runner vault put`), the verify path (`arx-runner vault verify` + `list`), and the reconciler runtime read path via `PerKeyVault` (C3). Add explicit "Removed in 0.2.0" changelog note referencing the CEO clean-break directive. Do NOT preserve the old `SopsAgeVault` section as historical reference (`SopsAgeVault` is deleted in T8 — no fallback path exists).
+5. `README.md:76-96` (Quick Start) — replace `python -m custos ...` example with the three-command lifecycle: `arx-runner enroll` → `arx-runner vault put` → `arx-runner start`. **L4 note**: the `mv ~/.custos/{enrollment.json,state} ~/.arx/` bash brace-expansion example must be paired with a POSIX-safe fallback (`mv ~/.custos/enrollment.json ~/.arx/enrollment.json && mv ~/.custos/state ~/.arx/state`) with a "assumes bash / zsh; on POSIX `sh` use the two-statement form" note.
+6. `pyproject.toml` — verify only, no re-bump. `grep '^version = "0.2.0"' pyproject.toml` must hit 1 (T8 already bumped).
+7. Add "完成报告 (Close-out Report)" section at the end of this plan file, summarizing: (a) actual file inventory delta vs planned, (b) any failure modes uncovered during implementation added beyond the 21 contracted (14 original + 7 review-driven), (c) any deviations logged.
+8. **红线 gate 满足度 table** (M8, lesson #40): append a table with one row per Non-Custodial red line (0.1 / 0.2 / 0.3 / 0.4). Columns:
+   | red_line | code_coverage (test_* names) | runtime_wire (composition root file:line) | defer_status | follow_up_plan_ref |
+   Expected content:
+   - 0.1 (Key/KEK 永不出进程): `test_vault_put_never_logs_secret` + `test_per_key_vault_scope_violation` + `test_enroll_payload_shape` (asserts no raw token in payload, only `token_hash`) | `_daemon._build_vault` returns `PerKeyVault` (post-C3) | in-scope, fully wired | none.
+   - 0.2 (G6 host gate 不绕过): unchanged in this plan — `start` subcommand delegates to `_daemon.run_daemon` which preserves the reconciler + `NtTradingNodeHost` composition from Plan 04/05 unchanged | `_daemon._build_host` (relocated verbatim) | in-scope, preserved | Plan 03 host live gate remains authoritative.
+   - 0.3 (Reconcile 失联 ≠ 停止): unchanged — `_daemon._build_reconciler` composes `RunnerNotionalCap` + `FallbackBreaker` + `ZombieWatchdog` verbatim from Plan 04 | Plan 04 wire | in-scope, preserved | none.
+   - 0.4 (Money math `Decimal`): unchanged — this plan does not touch money-math paths | Plan 04 telemetry_actor wire | out-of-scope | none.
+9. Commit: `docs(custos): plan 11 close-out — CLI subcommand align lifecycle.md`.
 
 **Step 1-5**: This task is documentation + version + status — no test/impl cycle. Direct edit + commit.
 
@@ -467,8 +526,8 @@ def validate_id(name: str, value: str) -> str:
 - [ ] `make verify` — full release gate green (equivalent to `check + test-baseline`)
 - [ ] `arx-runner --help` prints top-level subcommand list (enroll / start / vault) after `uv sync`
 - [ ] `arx-runner vault --help` prints put / verify / list actions
-- [ ] `python -m custos --tenant-id t --runner-id r ...` still runs + emits `DeprecationWarning` to stderr
-- [ ] All 14 failure-mode contract tests present and green (grep `test_enroll_double_use_rejected`, `test_vault_verify_sops_fail_no_silent_return`, etc.)
+- [ ] `python -m custos --tenant-id t --runner-id r ...` exits code 2 with `arx-runner start` pointer in stderr; **no `DeprecationWarning`** bridge, no partial delegation (`test_python_m_custos_exits_nonzero_with_pointer`)
+- [ ] All 21 failure-mode contract tests present and green (grep `test_enroll_double_use_rejected`, `test_vault_verify_sops_fail_no_silent_return`, `test_enroll_rejects_non_http_backend`, `test_per_key_vault_missing_enc_file_clear_error`, `test_vault_put_prefers_stdin_and_warns_on_cmdline_secret`, etc.)
 - [ ] `~/.arx/runner.toml` post-enroll has mode `0o600` (test asserts via `os.stat`)
 - [ ] `~/.arx/vault/*.enc` post-put has mode `0o600`
 - [ ] No `--api-secret` value appears in any structlog output (verified by `test_vault_put_never_logs_secret`)
@@ -489,7 +548,7 @@ def validate_id(name: str, value: str) -> str:
 | T5 vault put | 🔲 | | sops encrypt per-key; 6 tests including scope invariant + no-secret-in-logs |
 | T6 vault verify + list | 🔲 | | scope re-check on decrypt; list = filesystem scan; 7 tests |
 | T7 start subcommand | 🔲 | | reads runner.toml, delegates to refactored `run_daemon`; preserves engine/wal flags; 5 tests |
-| T8 [project.scripts] + deprecated | 🔲 | | DeprecationWarning to stderr + warnings module; 3 tests (2 skip if not installed) |
+| T8 [project.scripts] single entry + legacy CLI clean break + SopsAgeVault deletion | 🔲 | | `sys.exit(2)` + one-line pointer to `arx-runner start` (no DeprecationWarning bridge); 4 tests: `test_python_m_custos_exits_nonzero_with_pointer` + `test_no_custos_console_script_registered` + `test_sops_age_vault_class_removed` + `test_default_paths_target_arx_namespace` |
 | T9 docs + version bump + close-out | 🔲 | | version 0.1.0 → 0.2.0 (feat minor); docs/design + README + .forge/README index |
 
 > **Notes column convention**: qualitative info (commit hash, key decision, dependency) only. Do not add LOC / estimation values (lesson #4).
@@ -500,10 +559,9 @@ def validate_id(name: str, value: str) -> str:
 
 | 类型 | 位置 | 描述 | 已批准 |
 |------|------|------|--------|
-| DEVIATION | numbering | Plan 11 chosen (not 09 or 10) because `.forge/README.md:65,67` reserves 09 for hook infra formalization and 10+ for future engine backends. Team-lead brief §L2 confirms 11 is next free integer. Recorded to protect against silent renumbering. | ✅ (team-lead brief) |
-| DEVIATION | namespace | Two-namespace persistence: `~/.arx/runner.toml` + `~/.arx/vault/*.enc` (new, this plan) vs `~/.custos/enrollment.json` + `~/.custos/state/telemetry-wal.db` (existing, Plan 04/05). Chose coexistence over rename to avoid lesson #35 fanout cascade in Plan 04 fallback tests. Documented in Task 9 docs. | ⏳ pending review-time |
-| DEVIATION | enroll transport | Added HTTP path (`urllib.request` POST to `<backend>/api/v1/enrollments`) alongside existing NATS `EnrollmentClient.enroll()`. lifecycle.md §0.2.2 mandates HTTP; NATS kept for backward compat during Plan 05→11 transition. | ⏳ pending review-time |
-| DEVIATION | vault storage model | Per-key `~/.arx/vault/<key-id>.enc` (new) coexists with single-file multi-credential sops JSON model at `credential_vault.py:121-206` (Plan 05, unchanged). Two models express two lifecycle intents: per-key rotation (lifecycle.md) vs bundled (Plan 05 test fixtures). | ⏳ pending review-time |
+| DEVIATION | namespace | **`~/.arx/` is the sole namespace.** `~/.custos/` retired entirely per CEO clean-break directive (2026-07-10). Operators upgrading run manual `mv ~/.custos/enrollment.json ~/.arx/enrollment.json && mv ~/.custos/state ~/.arx/state` per README Upgrade section. Documented in Task 9 docs rewrite. | ✅ CEO directive 2026-07-10 |
+| DEVIATION | enroll transport | CLI-facing surface is HTTP-only (`urllib.request` POST to `<backend>/api/v1/enrollments`) per lifecycle.md §0.2.2 verbatim. NATS `EnrollmentClient` (`src/custos/core/enrollment.py`) is retained as a low-level building block only — `subcommands/enroll.py` MAY call it in future for non-CLI callers, but no CLI surface exposes it. | ✅ CEO directive 2026-07-10 |
+| DEVIATION | vault storage model | Per-key `~/.arx/vault/<key-id>.enc` is the **sole** runtime vault. `SopsAgeVault(sops_file=..., age_key_file=...)` multi-credential-JSON class deleted (T8 removes `credential_vault.py:121-206`). No fallback read path. Reconciler runtime read served by new `PerKeyVault` (C3) inheriting `_BaseVault` invariants. | ✅ CEO directive 2026-07-10 |
 | IMPROVEMENT | boundary validation | Explicit `validators.py` module rather than inline regex — reused by every subcommand + cleanly grep-able for lesson #26 audit. | — |
 | IMPROVEMENT | HTTP client zero-dep | Chose stdlib `urllib.request` over `httpx` / `requests` — one less audit dependency in a non-custodial red-line surface. | — |
 
