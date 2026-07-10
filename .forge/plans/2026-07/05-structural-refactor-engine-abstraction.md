@@ -1,6 +1,7 @@
 # 05 — 结构化重构: arx_runner → custos rename + core/engines 分层 + ExecutionEngineProtocol 引擎无关契约
 
-> **Status**: 🔲 Todo (Phase 2 refined 2026-07-09, ready for intra-plan review → execute-team)
+> **Status**: ✅ Completed
+> **Completed**: 2026-07-10 (05b slice, 收尾 05a `4f0192a` + hotfix `7ffa187`)
 > **Created**: 2026-07-09 (Plan 03 close-out 后, user 澄清诉求 — custos 后期需支持多引擎 hummingbot/freqtrade/athanor/nt-rust, 提前规划目录结构)
 > **Refined**: 2026-07-09 (plan-drafter, opus-4-7[1m], evidence-scout report 为唯一 grep 源)
 > **Project**: custos (`tesseract-trading/custos/`)
@@ -425,14 +426,14 @@ scout §1 的 60 文件含**归档 .forge 产物**, 保留历史记录不改 (Tr
 | T3.2 engine_protocol.md 权威文档 | ✅ | 2026-07-09 (`4f0192a`) | Tier-2 6 方法扩展面文档化交 Plan 04 owns |
 | T4.1 抽 g6_gate.py | ✅ | 2026-07-09 (`4f0192a`) | 红线 0.2, 5 relaxed-double 守 |
 | T4.2 字段改名 | ✅ | 2026-07-09 (`4f0192a`) | ⟶ Plan 04 START gate cleared (Protocol 冻结) |
-| T5.1 pyproject extras + version | 🔲 05b | | 加性/docs, 无红线风险; **defer to 05b** |
-| T5.2 nt-runtime fanout | 🔲 05b | | **defer to 05b** |
-| T6.1 subject v2 docs (DEFER) | 🔲 05b | | CEO decision 1 (DEV-05-SUBJECT-V2-DEFER); **defer to 05b** |
-| T7.1 engine docs 5 stub | 🔲 05b | | **defer to 05b** |
+| T5.1 pyproject extras + version | ✅ | 2026-07-10 (`79c1858`) | nt-runtime→nautilus + 4 空槽 + all-engines + version 0.1.0 |
+| T5.2 nt-runtime fanout | ✅ | 2026-07-10 (`6528c42`) | Makefile + tech-stack.md + docs/design/{nautilus_host,03-implementation}.md + examples/; drive-by fix of 2 residual `arx_runner` breaks found via Foundation Scan (DEV-05b-ARX-RUNNER-RESIDUE-SWEEP) |
+| T6.1 subject v2 docs (DEFER) | ✅ | 2026-07-10 (`591a1a4`) | CEO decision 1 (DEV-05-SUBJECT-V2-DEFER) landed as docs-only; no code change |
+| T7.1 engine docs 5 stub | ✅ | 2026-07-10 (`e82825d`) | `docs/engines/{nautilus,hummingbot,freqtrade,athanor,nt_rust}.md` |
 | T8.1 test_engine_protocol_contract | ✅ | 2026-07-09 (`4f0192a`) | NEW |
 | T8.2 test_nautilus_host_implements | ✅ | 2026-07-09 (`4f0192a`) | NEW |
 | T8.3 cli --engine | ✅ | 2026-07-09 (`4f0192a`) | NEW (`test_cli_engine_unknown_rejected` / `test_cli_engine_defaults_to_nautilus`) |
-| T-final close-out | 🔲 05b | | **Plan 05 完整 close-out 由 05b 收尾** |
+| T-final close-out | ✅ | 2026-07-10 | Plan 05 完整 close-out (本次 commit) |
 
 **切片建议 (multi_session_scope=true)**:
 - **05a (Tracks 1-4 + 8)**: rename + restructure + Protocol + g6_gate + 迁移测试 — **红线关键路径, 含契约冻结** (Plan 04/06 unblock 点)。~11 task
@@ -474,12 +475,12 @@ scout §1 的 60 文件含**归档 .forge 产物**, 保留历史记录不改 (Tr
 
 | 红线 | 目标状态 | code_coverage | runtime_wire | defer_status |
 |------|---------|---------------|--------------|--------------|
-| 0.1 Key/KEK 不出进程 | rename 不改 runtime, 保 Plan 00a+03 | 现有脱敏 test 全绿 (T1 无退化) | 不变 (move only) | 无 defer |
-| 0.2 G6 gate 不绕过 | **重构 gate 为 Protocol-based, 4 层 fail-fast + 5 relaxed-double 全保留** | T4 全 G6 test 绿 (契约不变名换) | gate call sites (`:349`/`:353`) 保持接线 | 无 defer |
-| 0.3 失联 ≠ 停止 | 本 plan 不 touch | 保 Plan 00c 状态 | per-runner cap 待 Plan 04 (Tier-2) | Tier-2 defer 到 Plan 04 (文档化) |
-| 0.4 Money math Decimal | 不 touch (rename only) | 保 Plan 03 状态 | 不变 | 无 defer |
+| 0.1 Key/KEK 不出进程 | rename 不改 runtime, 保 Plan 00a+03 | 现有脱敏 test 全绿 (T1 无退化); grep `log\.(info\|debug\|warning).*api[_-]?key` + `publish.*password\|send.*secret` src/+tests/ 0 命中 (T-final 复核) | 不变 (move only) | 无 defer |
+| 0.2 G6 gate 不绕过 | **重构 gate 为 Protocol-based, 4 层 fail-fast + 5 relaxed-double 全保留** | T4 全 G6 test 绿 (契约不变名换); grep `CEXOMS\|BinanceClient\|OKXClient` src/ (排除 host.py) 0 命中 (T-final 复核) | gate call sites (`:349`/`:353`) 保持接线 | 无 defer |
+| 0.3 失联 ≠ 停止 | 本 plan 不 touch | 保 Plan 00c 状态; grep `stop_all_strategies\|force_shutdown` reconcile.py 0 命中 (T-final 复核) | per-runner cap 待 Plan 04 (Tier-2, 04b 并行落地中) | Tier-2 defer 到 Plan 04 (文档化) |
+| 0.4 Money math Decimal | 不 touch (rename only) | 保 Plan 03 状态; grep `float\(.*price\|float\(.*amount\|float\(.*notional` src/ **1 处例外**: `engines/nautilus/toolkit/shared/warmup/snapshot.py:158-162` (vendored ps 快照代码, `pyproject.toml:62` `extend-exclude` 显式排除, `TOOLKIT_PROVENANCE.md` 声明"byte-identical upstream snapshot, do not hand-edit"; 该文件由 Plan 06 06a slice `306b9e5` 引入, 早于本 05b 切片, 非 custos 自有 money math 路径 — 是 warmup/backtest 快照生成而非 live 执行) | 不变 | 无 defer (vendored 例外非红线违反, 是已文档化的排除范围) |
 
-**重构无退化声明 (close-out 填实)**: "Plan 03 全部 baseline test 重跑全绿; G6 gate 4 层 + 5 relaxed-double 保留; Non-Custodial 4 红线 grep (verification.md §红线专项, 新路径) 全 0 命中" — 结构重构不允许把红线兑现能力降级。**红线名 (vision) ≠ 兑现声明 (reality)**: 本 plan 兑现的是"重构后红线兑现能力不变", 非新增红线兑现 (0.3 per-runner 仍是 Plan 04 的)。
+**重构无退化声明 (close-out 填实)**: Plan 03 全部 baseline test 重跑全绿 (05a `4f0192a` + 05b 本次, `make verify` 263 passed / `make verify-nt` 263 passed); G6 gate 4 层 + 5 relaxed-double 保留 (T-final grep 复核见上表); Non-Custodial 4 红线 grep (verification.md §红线专项, 新路径) **custos 自有代码 0 命中**，vendored toolkit 唯一 1 处例外已如上表标注 (非本 plan 引入, 已文档化排除)。结构重构不允许把红线兑现能力降级。**红线名 (vision) ≠ 兑现声明 (reality)** (lesson #40): 本 plan 兑现的是"重构后红线兑现能力不变", 非新增红线兑现 (0.3 per-runner 仍是 Plan 04 的)。
 
 ---
 
@@ -528,10 +529,19 @@ scout §1 的 60 文件含**归档 .forge 产物**, 保留历史记录不改 (Tr
 
 ## 完成报告 (Close-out Report)
 
-> **Status**: ⚠️ **Partial (05a slice) — Plan 05 整体 close-out 由 05b 收尾时统一签发**。
-> 本段记录 05a slice 落地事实；Plan 05 全部 17 task 完整 close-out 待 05b 完成。
+> **Status**: ✅ **Completed** (05a + 05b 全部 17 task 完整落地)。
 
-### 05a partial close-out (2026-07-09)
+- **完成日期**: 2026-07-10
+- **总 Task 数**: 17 (Tracks 1-8 + T-final; 05a 落 12 / 05b 落 5)
+- **偏离数**: 3 LOW (05a) + 1 LOW (05b, drive-by 残留修复) — 明细见 `.forge/triage/05a-DEVIATION-triage.md` + `.forge/triage/05b-DEVIATION-triage.md`
+- **验证结果**: 全部通过 — `make verify` 263 passed / `make verify-nt` 263 passed (05b HEAD `e82825d`), G6 gate 4 层 + 5 relaxed-double 全绿, isinstance(NoopHost/NtTradingNodeHost, ExecutionEngineProtocol) True, 契约表 20 项 test 名全 grep 实证 (lesson #25: 17 精确函数命中 + 3 文件级引用核实非 fabrication)
+- **实施 commit 范围**: `4f0192a` (05a squash) + `7ffa187` (05a hotfix) + `79c1858`..`e82825d` (05b: T5.1/T5.2/T6.1/T7.1)
+- **契约影响**: `core/engine_protocol.py` Tier-1 5 方法 + `@runtime_checkable`; `core/g6_gate.py` 抽出 (契约不变); `engines/nautilus/{host,strategy_loader,risk,venue_binance}.py` 路径落定; `arx_runner`→`custos` 46 file rename + 2 处 05a 遗漏残留 (Dockerfile entrypoint + generate_wire_fixtures.py import) 由 05b 补; pyproject extras `nt-runtime`→`nautilus` + 4 空槽 + `all-engines`; `docs/design/engine_protocol.md` + `docs/design/nats_client.md` (v2 subject reserved 段) + `docs/engines/` 5 stub 全新落地
+- **红线守护**: Non-Custodial 4 红线全数守住 — custos 自有代码 grep 全 0 命中；唯一例外是 vendored toolkit 1 处 float (Plan 06 06a slice 引入，`pyproject.toml` `extend-exclude` 显式排除，非本 plan 引入、非红线违反，见上表 §红线 gate 满足度)
+- **失败模式覆盖**: 05a 4 NEW test (`test_engine_protocol_contract` ×3 断言 / `test_nautilus_host_implements_engine_protocol` ×2 / cli --engine ×2) + 05b 无新增 test (docs-only + build-config, 按计划失败模式表 T5 行"验证步非 pytest")
+- **遗留项**: DEV-05-CLAUDE-POSITIONING (CLAUDE.md 定位升级, 待 CEO 决定是否落地); 存量 CJK sweep 推 Plan 09 (DEV-05a-LANG-POLICY-DEFER)
+
+### 05a partial close-out (2026-07-09, 历史记录保留)
 
 - **完成日期 (05a)**: 2026-07-09
 - **05a Task 数**: 12 (Tracks 1-4 + 8, 含 close-out marker in-branch) / 全 plan 17 (5 defer 05b: T5.1 + T5.2 + T6.1 + T7.1 + T-final)
@@ -546,13 +556,15 @@ scout §1 的 60 文件含**归档 .forge 产物**, 保留历史记录不改 (Tr
 - **失败模式覆盖 (05a)**: 现有 G6/host test 全绿 (无退化) + 新增 3 NEW test (`test_engine_protocol_contract` / `test_nautilus_host_implements_engine_protocol` / `test_cli_engine_unknown_rejected` / `test_cli_engine_defaults_to_nautilus`)
 - **05a 落地清单**: 05a 无独立 `.complete.json` marker — 语义嵌入 `4f0192a` commit message body（executor-05a-v3 未落独立 marker，squash 收口于 commit message）
 
-### Plan 05 完整 close-out 待办 (05b 收尾)
+### 05b close-out (2026-07-10)
 
-- Track 5 (T5.1 pyproject `[project.optional-dependencies]` extras multi-engine 槽 + T5.2 `nt-runtime` fanout)
-- Track 6 (T6.1 NATS subject v2 engine-layer segment 文档化 — DEV-05-SUBJECT-V2-DEFER，仅 docs)
-- Track 7 (T7.1 5 份未来引擎 docs stub: hummingbot / freqtrade / athanor / nt-rust / 主 engine_protocol)
-- T-final Plan 05 完整红线 gate 满足度表填实
-- 05b DEVIATION triage 并入本文件段落，或独立签发 `.forge/triage/05b-DEVIATION-triage.md` 交叉引用
+- **完成日期 (05b)**: 2026-07-10
+- **05b Task 数**: 5 (T5.1 + T5.2 + T6.1 + T7.1 + T-final)
+- **偏离数 (05b)**: 1 LOW — `DEV-05b-ARX-RUNNER-RESIDUE-SWEEP`（明细见 `.forge/triage/05b-DEVIATION-triage.md`）：Foundation Scan 发现 05a 遗漏的 2 处真实功能性 `arx_runner` 残留（`examples/supertrend-testnet/Dockerfile:30` entrypoint + `scripts/generate_wire_fixtures.py:16` import），均在本次 T5.2 触碰的文件内顺手修复；其余 5 处命中（README/mandatory-rules/historical-lessons/`.forge/README.md`/domain.md）核实为历史性描述文本，故意保留不改
+- **验证结果 (05b)**: `make verify` 263 passed / `make verify-nt` 263 passed (`--extra nautilus`); `grep nt-runtime` 归档外 (`.toml`/`.md`/`Makefile` 范围) 0 命中; `grep arx_runner` src/+tests/+pyproject.toml+Makefile 0 命中
+- **实施 commit 范围**: `79c1858` (T5.1) → `6528c42` (T5.2) → `591a1a4` (T6.1) → `e82825d` (T7.1) → 本 close-out commit (T-final)
+- **契约影响 (05b)**: `docs/design/nats_client.md` 新增"多引擎 subject scheme (reserved)"段; `docs/engines/{nautilus,hummingbot,freqtrade,athanor,nt_rust}.md` 5 份新建; `docs/design/engine_protocol.md` 无改动 (05a 已完成)
+- **05b 落地清单**: 本 close-out commit 即 T-final marker；独立 `.complete.json` 见 `.forge/dispatch-log/2026-07-04b-05b-execute-team-packet/runner-executor-05b.complete.json`
 
 ---
 

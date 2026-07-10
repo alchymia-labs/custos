@@ -24,7 +24,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /app
 COPY . /app
-# nt-runtime extra brings NautilusTrader (needs Python 3.12+; base image is 3.13).
-RUN uv sync --extra nt-runtime
+# nautilus extra brings NautilusTrader (needs Python 3.12+; base image is 3.13).
+RUN uv sync --extra nautilus
 
-ENTRYPOINT ["uv", "run", "python", "-m", "arx_runner"]
+ENTRYPOINT ["uv", "run", "python", "-m", "custos"]

@@ -11,7 +11,7 @@ for fills.
 The NautilusTrader host runtime is an optional extra and needs Python 3.12+:
 
 ```bash
-uv sync --extra dev --extra nt-runtime   # or: pip install "custos-runner[nt-runtime]"
+uv sync --extra dev --extra nautilus   # or: pip install "custos-runner[nautilus]"
 ```
 
 A base install (audit / paper mode, `NoopHost`) does not pull NautilusTrader and

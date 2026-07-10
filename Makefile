@@ -14,8 +14,8 @@ help:  ## 列出所有 target 及说明
 install:  ## 装依赖 (dev extra) — uv sync --extra dev
 	uv sync --extra dev
 
-install-nt:  ## 装依赖 + NT runtime (需 py3.12+) — uv sync --extra dev --extra nt-runtime
-	uv sync --extra dev --extra nt-runtime
+install-nt:  ## 装依赖 + NT runtime (需 py3.12+) — uv sync --extra dev --extra nautilus
+	uv sync --extra dev --extra nautilus
 
 fmt:  ## 格式化代码 (ruff format 改文件)
 	uv run ruff format src/ tests/ scripts/
@@ -34,15 +34,15 @@ test:  ## 跑完整 pytest (base, NT 测试自 importorskip; 含已知 fail 的 
 test-baseline:  ## 跑可绿测试基线 (base, 排除 test_wire_shapes.py, 见 Plan 01 DEV-01-WIRE-FIXTURES)
 	# test_wire_shapes.py 依赖 arx 仓库 fixture 路径, subtree split 后独立 clone 场景失效.
 	# 独立 fixture 生成机制未落地前 (Plan 02+), 用本 target 做发布门可绿基线.
-	# base 门不强依赖 NT: nt-runtime 未装时 NT host 测试 pytest.importorskip 自跳过.
+	# base 门不强依赖 NT: nautilus 未装时 NT host 测试 pytest.importorskip 自跳过.
 	uv run pytest tests/ --ignore=tests/test_wire_shapes.py
 
-test-nt:  ## 跑 NT gate (需 py3.12+): --extra nt-runtime 下真跑 NT host 测试
-	# Preflight hard gate: 若 nt-runtime 下 NT 仍未装 (py<3.12 / 装失败), NT host 测试会被
+test-nt:  ## 跑 NT gate (需 py3.12+): --extra nautilus 下真跑 NT host 测试
+	# Preflight hard gate: 若 nautilus 下 NT 仍未装 (py<3.12 / 装失败), NT host 测试会被
 	# pytest.importorskip 静默 skip, 使 verify-nt 假绿。此处先硬校验 NT 可导入, 缺失即 fail。
-	@uv run --extra nt-runtime python -c "import nautilus_trader; assert nautilus_trader.__version__" \
-		|| (echo "❌ nautilus_trader 未在 nt-runtime extra 下安装 (需 Python 3.12+); NT gate 无法真跑"; exit 1)
-	uv run --extra nt-runtime pytest tests/ --ignore=tests/test_wire_shapes.py
+	@uv run --extra nautilus python -c "import nautilus_trader; assert nautilus_trader.__version__" \
+		|| (echo "❌ nautilus_trader 未在 nautilus extra 下安装 (需 Python 3.12+); NT gate 无法真跑"; exit 1)
+	uv run --extra nautilus pytest tests/ --ignore=tests/test_wire_shapes.py
 
 verify: check test-baseline  ## 发布门 (base): check + test-baseline 全绿
 	@echo "✅ make verify passed"

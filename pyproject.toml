@@ -1,6 +1,6 @@
 [project]
 name = "custos-runner"
-version = "0.0.0"
+version = "0.1.0"
 description = "Custos: non-custodial self-hosted runner for the Alephain Guild ecosystem (NautilusTrader-adjacent, declarative reconcile + telemetry actor + local key vault)"
 requires-python = ">=3.11"
 dependencies = [
@@ -19,11 +19,11 @@ dev = [
 # Production NautilusTrader host runtime. Heavy; kept optional so audit-only /
 # paper-mode installs (NoopHost) don't pull it. NautilusTrader 1.227+ only
 # supports Python >=3.12, so it is gated behind an environment marker: the base
-# package stays installable on Python 3.11 (audit / paper), while nt-runtime
+# package stays installable on Python 3.11 (audit / paper), while nautilus
 # resolves NautilusTrader only on 3.12+. Install with
-# `uv sync --extra nt-runtime` (needs a 3.12+ interpreter) or
-# `pip install custos-runner[nt-runtime]`.
-nt-runtime = [
+# `uv sync --extra nautilus` (needs a 3.12+ interpreter) or
+# `pip install custos-runner[nautilus]`.
+nautilus = [
     "nautilus-trader>=1.227; python_version >= '3.12'",
     "pyyaml>=6",
     # Transitive pins for the vendored pandas_ta indicator library
@@ -32,6 +32,18 @@ nt-runtime = [
     # these pins the vendored library fails to import at runtime.
     "setuptools>=50,<70",
     "packaging",
+]
+# Reserved slots for future engine backends (custos/engines/<name>/, see
+# docs/engines/<name>.md onboarding stubs). Each fills in when its engine
+# integration plan lands; empty until then so `uv sync --extra <name>` is a
+# valid no-op rather than an error.
+hummingbot = []
+freqtrade = []
+athanor = []
+nt-rust = []
+# Convenience umbrella pulling in every currently-implemented engine.
+all-engines = [
+    "custos-runner[nautilus]",
 ]
 
 [build-system]

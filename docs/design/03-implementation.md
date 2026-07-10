@@ -31,7 +31,7 @@
 
 ## 未来依赖 (待独立 plan)
 
-- `nautilus-trader` — NT runtime, 作为 `nt-runtime` optional-dep 加入 (Plan 00a)
+- `nautilus-trader` — NT runtime, 作为 `nautilus` optional-dep 加入 (Plan 00a)
 - `pyright` — 类型检查, dev 加 (未来独立 style plan)
 
 ## 项目结构
