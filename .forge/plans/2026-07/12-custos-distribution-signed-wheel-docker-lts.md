@@ -6,6 +6,8 @@
 > **Wave**: v1-team-full-loop
 > **For Claude**: `/forge:execute` 单会话可完成（中粒度 6-10h，多 track 但每 track 独立）
 > **Depends on**: Plan 05 ✅ Completed (2026-07-10 `e82825d`) — `arx_runner`→`custos` rename 已收敛；Plan 04 ✅ Completed (2026-07-10) — runtime-wire live；**custos-11 (CLI clean-break) — hard dep**：Plan 11 已 lock 单一 `[project.scripts].arx-runner` entry + 删除 legacy `python -m custos` / `SopsAgeVault` / `~/.custos/` 命名空间（CEO clean-break directive 2026-07-10, docket 1，无 migration command）；Plan 12 消费 Plan 11 已 lock 的 script name + namespace，DP5 fanout gate 已 resolved
+>
+> **Cross H5 — Strict serial merge protocol**: Plan 11 T8 commit landed on `main` HARD PRECONDITION. Plan 12 T1 execute-team worktree MUST branch from `main` HEAD 含 Plan 11 T8 squash commit; execute-team spawn prompt include SHA gate `git log --oneline | grep 'plan 11 t8'` (must hit) + `grep '"arx-runner"' pyproject.toml` (must hit) before Task 1 Step 1. **Plan 12 does NOT run in worktree parallel with Plan 11** (`multi_session_scope: false` 明确 serial, 与 lesson #16 merge 热点协议一致)。
 > **Blocks**: 首次公开发布 (`custos-runner 1.0.0` 或 `0.x` LTS 起始版本，具体 by DP4)
 > **multi_session_scope**: false（9 Task，CI 首次接入是主要风险，但 wheel/docker 各 track 可独立分割）
 
@@ -108,11 +110,11 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 | 版本段 | 允许变更 | 禁止变更 | 记录位置 |
 |--------|---------|---------|---------|
 | **MAJOR** (`X.0.0`) | breaking：gateway-contract 目录切 `v2/` 独立索引；`[project.scripts]` entry name 变更；Python `>=3.12` 收紧；`ExecutionEngineProtocol` Tier-1 契约 field/method rename 或 remove；`~/.custos/` / `~/.arx/` 状态目录 layout 破坏性演化 | 非 breaking 改动 | `CHANGELOG.md` § Removed / Changed（含迁移脚本 pointer 到 `docs/upgrade-path.md`） |
-| **MINOR** (`0.Y.0` / `X.Y.0`) | additive-only：新增 `[project.scripts]` entry；新增 gateway-contract v1 field（`additionalProperties: false` 例外须 major）；新 `[project.optional-dependencies]` extra 槽位；新 subcommand；新 CI job（不撤旧 job） | 修改现有 field 的 required；删除 field；rename entry point；缩紧 requires-python | `CHANGELOG.md` § Added / Deprecated（deprecated field 保留至少 1 minor 周期 + 显式警告） |
-| **PATCH** (`X.Y.Z`) | fix + security patch + doc 修正 + 内部重构（无外部 observable 变化） | 任何 field / entry / schema / doc 语义变化 | `CHANGELOG.md` § Fixed / Security |
+| **MINOR** (`0.Y.0` / `X.Y.0`) | additive-only：新增 `[project.scripts]` entry；**新增 optional gateway-contract v1 field: MINOR (需两侧同步部署)**（M1 fix — 弱化原 `additionalProperties: false` 例外句表述）；**新增 required gateway-contract v1 field: MAJOR (breaking, 老 producer 未发新 required = validation fail)**；新 `[project.optional-dependencies]` extra 槽位；新 subcommand；新 CI job（不撤旧 job） | 修改现有 field 的 required；删除 field；rename entry point；缩紧 requires-python | `CHANGELOG.md` § Added / Deprecated（deprecated field 保留至少 1 minor 周期 + 显式警告） |
+| **PATCH** (`X.Y.Z`) | fix + security patch + doc 修正 + 内部重构（无外部 observable 变化）；**依赖 patch/minor 版本升级 (uv.lock 同步 commit) 允许**（M2 fix — 明确 uv.lock 变化归属）；**依赖 major 版本升级归 MINOR**（可能引入 transitive breaking） | 任何 field / entry / schema / doc 语义变化；依赖 major 版本升级 | `CHANGELOG.md` § Fixed / Security |
 | **PRE-RELEASE** (`X.Y.Z-rc.N`) | rc 阶段允许 breaking 回滚（未 stable release），配 CHANGELOG 显式 `## [X.Y.Z-rc.N]` 段 | stable 后不追溯改 rc | 同 minor / major 分类，加 `-rc.N` 后缀 |
 
-**arx-side client version pin 策略**（arx-77 + arx-79 侧 client 消费）：arx `Cargo.toml` 内 custos wheel 依赖用 `~=0.2` 语义（PEP 440 compatible release）—— 允许 patch + minor additive，禁自动升 major。arx-79 wire ready 后 gateway-contract v2 承接需 arx 侧 client crate 显式 bump 至 `~=1.0` / `~=2.0` + fanout（lesson #35 boundary-constant 双源联动）；本 plan 只出契约，不 fanout 到 arx client（arx-79 承接）。
+**arx-side client version pin 策略**（arx-77 + arx-79 侧 client 消费）：arx `Cargo.toml` 内 custos wheel 依赖用 **`~=0.2.0`** (H4 fix — PEP 440 展开为 `>=0.2.0, <0.3.0`, 禁自动升 minor；原 `~=0.2` 展开为 `>=0.2, <1.0` 允许 0.x 内所有 minor 自动升含 breaking, 与 "禁自动升 major/minor 含 breaking" 意图不符）—— 允许 patch, 禁自动升 minor。0.x pre-1.0 阶段 minor bump 允许 breaking (SemVer §4 + Plan 12 DP4 承认 "允许契约小幅演进"), 所以 arx 侧 client 升 minor 必须显式改 pin (如 `~=0.3.0`) + 走 review, 不允许 pip resolve 自动升 minor 静默破坏 client。arx-79 wire ready 后 gateway-contract v2 承接需 arx 侧 client crate 显式 bump 至 `~=1.0.0` / `~=2.0.0` + fanout（lesson #35 boundary-constant 双源联动）；本 plan 只出契约，不 fanout 到 arx client（arx-79 承接）。
 
 ### LTS 承诺表（DP7 展开，正式契约）
 
@@ -145,12 +147,12 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 
 | 文件路径 | 操作 | 描述 |
 |----------|------|------|
-| `pyproject.toml` | Modify | ① 加 `[project.scripts]`：**Plan 11 已 lock 单一 entry `arx-runner = "custos.cli.subcommands:main"`**（Plan 12 直接读 Plan 11 landed 状态，无占位）；② 版本 bump `0.1.0` → `0.2.0`（LTS 起点 + Plan 11 breaking release 同版）；③ `[project.optional-dependencies].lts` 新增（含 `sigstore`, `pytest-docker`）；④ `[tool.hatch.build.hooks.custom]` 加 SOURCE_DATE_EPOCH 支持。**依赖 Plan 11 先 landed**（Plan 11 `pyproject.toml` 已注册 `arx-runner` + 删除 legacy `custos` entry，Plan 12 消费此状态）。 |
-| `Dockerfile` | Create | 多阶段 build（builder + runtime）；`FROM python:3.12-slim` runtime；`USER 1000:1000` non-root；`WORKDIR /opt/custos`；**`ENTRYPOINT ["arx-runner", "start"]` (Plan 11 lock, 无占位)**。runtime stage 装 `pip install custos-runner[nautilus]`（含 Plan 11 注册的 `arx-runner` console script）。 |
+| `pyproject.toml` | Modify | ① 加 `[project.scripts]`：**Plan 11 已 lock 单一 entry `arx-runner = "custos.cli.subcommands:main"`**（Plan 12 直接读 Plan 11 landed 状态，无占位）；② 版本 bump `0.1.0` → `0.2.0`（LTS 起点 + Plan 11 breaking release 同版）；③ `[project.optional-dependencies].lts` 新增（含 `sigstore>=3.0,<4.0` (H6 fix — 显式 major pin), `pytest-docker>=3`）；④ `[tool.hatch.build.hooks.custom]` 加 SOURCE_DATE_EPOCH 支持。**依赖 Plan 11 先 landed**（Plan 11 `pyproject.toml` 已注册 `arx-runner` + 删除 legacy `custos` entry，Plan 12 消费此状态）。 |
+| `Dockerfile` | Create | 多阶段 build（builder + runtime）；`FROM python:3.12-slim` runtime；`USER 1000:1000` non-root + `useradd -u 1000 -m -d /home/custos custos` + `ENV HOME=/home/custos` + `VOLUME ["/home/custos/.arx"]` (Cross H4 fix — 状态持久化 + HOME 真解析)；`WORKDIR /opt/custos`；**`ENTRYPOINT ["arx-runner", "start"]` (Plan 11 lock, 无占位)**。builder stage 从**本地 wheel** 装 (H1 fix — `COPY dist/custos_runner-*.whl` + `pip install --no-index --find-links=/tmp`, 不依赖 PyPI 首发)。 |
 | `.dockerignore` | Create | 排除 `.git/` / `.forge/` / `.venv/` / `tests/` / `examples/` / `docs/`（keep build context slim） |
 | `.github/workflows/release.yml` | Create | tag `v*` 触发；jobs: `build-wheel` → `sign-wheel`（sigstore keyless）→ `publish-pypi`（optional flag）→ `build-docker` → `sign-docker`（cosign keyless）→ `publish-ghcr` → `release-notes`（gen from CHANGELOG） |
 | `.github/workflows/scripts/sign-wheel.sh` | Create | sigstore CLI wrapper：input `dist/*.whl` → output `dist/*.whl.sigstore`；verify step 内嵌 |
-| `.github/workflows/scripts/verify-release.sh` | Create | post-publish smoke test：pull wheel + verify sig，pull image + verify sig + docker run `--rm` `--help`（health probe） |
+| `.github/workflows/scripts/verify-release.sh` | Create | post-publish smoke test：pull wheel + verify sig，pull image + verify sig + **`docker run --rm <image> --help` (FM2 Layer 3 smoke health probe)** + **non-root probe `docker inspect Config.User != root`** (Cross H1/BLK-4 fix — FM2 Layer 3 真存在) |
 | `CHANGELOG.md` | Create | Keep-a-Changelog 格式；`## [0.2.0] - 2026-07-10` 首个 entry；explicit `### Added / ### Changed / ### Deprecated / ### Removed / ### Fixed / ### Security` 分节 |
 | `docs/lts-commitment.md` | Create | LTS window (EOL ≥ 12 months per minor line) + security patch SLA (30d) + release cadence (quarterly best-effort) + upgrade path pointer + follow-up plan hook |
 | `docs/gateway-contract/v1/README.md` | Create | contract v1 索引；引用 arx `custos.rs:9-30` 作契约来源；additive-only 规则；v2 breaking-change protocol |
@@ -161,18 +163,19 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 | `docs/upgrade-path.md` | Create | 0.x → 1.0 promote 判据 + minor line 之间 upgrade 步骤 + config migration 表模板 |
 | `docs/reproducible-build.md` | Create | `SOURCE_DATE_EPOCH` 用法 + `uv.lock` freeze 说明 + rebuild verification 步骤（`sha256sum dist/*.whl` 二次 build 应一致） |
 | `CONTRIBUTING.md` | Create | 面向外部审计员/贡献者；测试运行 + coding style pointer + PR 流程 |
-| `SECURITY.md` | Create | vuln 上报入口（GH Security Advisories）+ SLA + PGP contact（optional，v1 阶段可省） |
+| `SECURITY.md` | Create | vuln 上报入口（GH Security Advisories）+ SLA + PGP contact（optional，v1 阶段可省）+ **"provided as-is, no warranty per LICENSE" Apache-2.0 免责声明** (L2 fix — best-effort SLA 语义澄清, 避免未来 miss SLA 引法律争议) |
 | `tests/test_wheel_signature.py` | Create | Task 3 断言：build wheel 后 `dist/*.whl.sigstore` 存在 + sigstore verify 通过；CI 环境跑（本地 skip via marker） |
 | `tests/test_docker_non_root.py` | Create | Task 2 断言：`docker inspect` USER != root/0/"" |
+| `tests/test_docker_entrypoint_help.py` | Create | Task 2 断言（C2 fix / FM2 Layer 3 smoke）：`docker run --rm <image> arx-runner --help` exit 0 (image ENTRYPOINT contract 真跑, 不是 dead layer)；docker marker gated |
 | `tests/test_gateway_contract_v1_backward_compat.py` | Create | Task 7 断言：`docs/gateway-contract/v1/*.schema.json` snapshot diff vs golden；additive OK / breaking FAIL |
 | `tests/test_lts_commitment_doc.py` | Create | Task 6 断言：`docs/lts-commitment.md` 存在 + 含 EOL / SLA / cadence 三 section |
 | `tests/test_reproducible_build.py` | Create | Task 8 断言：双 build wheel bytes-identical（`SOURCE_DATE_EPOCH` 固定）；本地 slow marker |
-| `tests/test_docker_image_size.py` | Create | Task 2 断言（FM11）：`docker inspect` image size < 500MB（防明显 multi-stage 泄漏）；docker marker gated |
+| `tests/test_docker_image_size.py` | Create | Task 2 断言（FM11）：`docker inspect` image size < 800MB (M5 fix — 从 500MB 放宽至 800MB, 防 pandas/numpy minor 升级 flaky-fail; 目标是抓明显 multi-stage builder 泄漏而非限制正常增长)（防明显 multi-stage 泄漏）；docker marker gated |
 | `Makefile` | Modify | 加 `make dist` / `make sign` / `make docker-build` / `make docker-sign` / `make verify-release` target；`make release` = 组合 |
 | `CLAUDE.md` | Modify | § 2 子系统边界段加一行「契约 v1 冻结于 `docs/gateway-contract/v1/`」；§ 6 常用命令段加 `make release` 与 `make verify-release` 指针 |
 | `README.md` | Modify | § "Not Included Yet" 移除已交付项（wheel sig + docker + SEMVER + LTS + contract v1 + CONTRIBUTING + SECURITY）；替换为「见 CHANGELOG.md / docs/lts-commitment.md」引用 |
 
-**统计**：25 新增 + 4 修改 = 29 文件。
+**统计**：26 新增 (含 C2/BLK-4 `test_docker_entrypoint_help.py`) + 4 修改 = 30 文件。
 
 ## 失败模式覆盖契约 (Failure-Mode Coverage) — lesson #17 强制
 
@@ -188,7 +191,7 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 | FM8 | sigstore / cosign key rotation drift（OIDC identity trust chain 破裂） | `verify-release.sh` post-publish 断言 `--cert-identity` 匹配 tag-driven repo URL；每次 verify 失败即回滚 tag 并新起 patch release | Layer 2 (verify) + Layer 3 (rollback protocol doc `docs/lts-commitment.md` § Key Rotation Protocol) |
 | FM9 | SEMVER minor 隐性破坏 arx client（`~=0.2` pin 内新增 required field） | `test_gateway_contract_v1_backward_compat.py` golden diff 阻断（DP8）；CI job `contract-drift-check` 单独 gate | Layer 1 (schema snapshot) + Layer 2 (pytest) + Layer 3 (arx client integration smoke，defer 到 arx-79 wire follow-up) |
 | FM10 | LTS EOL 未公告（audit-non-silence 红线破线） | `tests/test_lts_commitment_doc.py` 加 assert：每个 minor line 的 EOL 日期在 `docs/lts-commitment.md` 表内显式列出，未列即 FAIL | Layer 1 (doc) + Layer 2 (test) |
-| FM11 | Docker image size 膨胀（multi-stage builder 泄漏到 runtime） | `tests/test_docker_image_size.py` 断言 image size < 500MB（宽泛上限，防明显泄漏）；CI `docker-inspect` size gate | Layer 1 (Dockerfile) + Layer 2 (test) |
+| FM11 | Docker image size 膨胀（multi-stage builder 泄漏到 runtime） | `tests/test_docker_image_size.py` 断言 image size < 800MB (M5 fix — 从 500MB 放宽至 800MB, 防 pandas/numpy minor 升级 flaky-fail; 目标是抓明显 multi-stage builder 泄漏而非限制正常增长)（宽泛上限，防明显泄漏）；CI `docker-inspect` size gate | Layer 1 (Dockerfile) + Layer 2 (test) |
 
 **Multi-layer 独立可测验证**（lesson #22 + lesson #28）：FM1/FM2 均有 Layer 1（config）与 Layer 3（smoke）独立测；FM3 有 schema snapshot + pytest 两侧独立可测；FM9 SEMVER drift 有 schema + pytest + arx client 三层独立测（第三层 defer）；relaxed-double test **不适用** —— distribution/CI/docs 无 "上层 shadow 下层" 结构。
 
@@ -204,7 +207,7 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 
 **Step 3 · 实现**（依赖 Plan 11 已 landed —— Plan 11 执行时已加 `arx-runner` entry；Plan 12 此处只 add optional-dependencies + hatch build hook）：
 - **pyproject.toml `[project.scripts]` 已由 Plan 11 lock**（`arx-runner = "custos.cli.subcommands:main"` 单一 entry），Plan 12 不改 script 表本身；版本 `0.2.0` 也由 Plan 11 已 bump（Plan 11 clean-break = breaking release，与 Plan 12 LTS 起点同版）
-- `[project.optional-dependencies]` 加 `lts = ["sigstore>=3", "pytest-docker>=3"]`（signing + docker test 用）
+- `[project.optional-dependencies]` 加 `lts = ["sigstore>=3.0,<4.0", "pytest-docker>=3"]`（H6 fix — 显式 sigstore 版本 pin `>=3.0,<4.0` 避免 sigstore major bump 破坏 workflow；cosign 版本 pin 由 GH Actions setup-cosign action 承担）
 - `[tool.hatch.build.hooks.custom]` 加 SOURCE_DATE_EPOCH 支持
 
 **Step 4 · 证实**：`uv run pytest tests/test_pyproject_scripts_declared.py -v` 全绿；`uv sync --extra lts` 无 error；`uv build` 产出 `dist/custos_runner-0.2.0-py3-none-any.whl` + `dist/custos_runner-0.2.0.tar.gz`。
@@ -215,16 +218,35 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 
 ### Task 2: Dockerfile 多阶段 + non-root
 
-**Files**: Create `Dockerfile`, `.dockerignore`, `tests/test_docker_non_root.py`；Modify `Makefile`
+**Files**: Create `Dockerfile`, `.dockerignore`, `tests/test_docker_non_root.py`, `tests/test_docker_entrypoint_help.py`（C2/BLK-4 smoke）；Modify `Makefile`；Cross H4 note: `docs/ops/05-deployment.md` § Docker deployment 挂载 pattern (`docker run -v ~/.arx:/home/custos/.arx ...`) 由 Plan 11 T9 owner 承担 (Plan 11 已修改 `docs/ops/05-deployment.md`, Plan 12 T9 复检其含 docker mount 段而不追加 edit)
 
 **Step 1 · 证伪**：`ls Dockerfile` 报 not exist（仓根）；`docker build . 2>&1 | head -3` 报 Dockerfile 不存在。
 
 **Step 2 · 写失败测试**：`tests/test_docker_non_root.py` 用 `subprocess.run(["docker", "inspect", "--format", "{{.Config.User}}", "custos-runner:test"])` 断言 output != "" 且 != "root" 且 != "0"。跑 `uv run pytest tests/test_docker_non_root.py -v -m docker`，预期 FAIL（image not exist）。
 
 **Step 3 · 实现**：
-- `Dockerfile` 多阶段：`FROM python:3.12-slim AS builder` + `uv sync --extra nautilus` + `FROM python:3.12-slim AS runtime` + `USER 1000:1000` + `WORKDIR /opt/custos` + `ENTRYPOINT ["python", "-m", "custos"]`
+- `Dockerfile` 多阶段（依赖 T1 landed wheel artifact — 不 pip PyPI 装, H1 fix）：
+  ```dockerfile
+  FROM python:3.12-slim AS builder
+  # H1 fix: consume locally built wheel (uv build 产 dist/custos_runner-*.whl), 不依赖 PyPI 首发
+  COPY dist/custos_runner-*.whl /tmp/
+  RUN pip install --no-index --find-links=/tmp /tmp/custos_runner-*.whl[nautilus]
+
+  FROM python:3.12-slim AS runtime
+  # Cross H4 fix: real HOME + passwd entry + VOLUME 让 ~/.arx state 可持久化
+  RUN useradd -u 1000 -m -d /home/custos custos
+  ENV HOME=/home/custos
+  # Copy site-packages from builder
+  COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+  COPY --from=builder /usr/local/bin/arx-runner /usr/local/bin/arx-runner
+  VOLUME ["/home/custos/.arx"]
+  USER 1000:1000
+  WORKDIR /opt/custos
+  # C2 fix: ENTRYPOINT 用 arx-runner (Plan 11 lock), 禁 python -m custos (Plan 11 已删)
+  ENTRYPOINT ["arx-runner", "start"]
+  ```
 - `.dockerignore` 排除 `.git/` / `.forge/` / `.venv/` / `tests/` / `examples/` / `docs/`
-- `Makefile` 加 `docker-build: docker build -t custos-runner:test .`
+- `Makefile` 加 `docker-build: docker build -t custos-runner:test .`（前置 `uv build` 产 wheel 到 `dist/`, H1 fix）
 
 **Step 4 · 证实**：`make docker-build && uv run pytest tests/test_docker_non_root.py -v -m docker` 全绿。
 
@@ -240,10 +262,12 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 
 **Step 2 · 写失败测试**：`tests/test_wheel_signature.py` 断言 `dist/*.whl.sigstore` 存在 + `sigstore verify identity` 通过（本地环境 skip via marker `@pytest.mark.ci_only`；CI 环境跑）。跑 `uv run pytest tests/test_wheel_signature.py -v -m ci_only`（本地 skip），CI 跑预期 FAIL。
 
-**Step 3 · 实现**：`sign-wheel.sh`：
+**Step 3 · 实现**：`sign-wheel.sh` (H6 fix — executor 落地时先跑 `sigstore sign --help` 实证 3.x 版本 flag 名 `--output-signature` vs `--bundle`；sigstore 3.x default 输出 bundle 到 `<artifact>.sigstore`, 具体 flag 需 grep 实证)：
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
+# H6 fix: executor 落地时先 `sigstore sign --help` grep 实证正确 flag 名
+# sigstore-python 3.x 默认输出 <artifact>.sigstore, flag 可能是 --bundle (3.0+) 或 --output-signature (2.x legacy)
 for whl in dist/*.whl; do
   sigstore sign --output-signature "${whl}.sigstore" "${whl}"
 done
@@ -265,9 +289,10 @@ done
 **Step 2 · 契约验证**：写 job DAG（build-wheel → sign-wheel → build-docker → sign-docker → publish-pypi[optional flag]→ publish-ghcr → verify-release → release-notes），本 Task 走 doc/schema 契约验证，不写运行时 test（CI workflow 只能在 CI 环境跑）。写 `docs/release-workflow.md`（占位或内联到 `docs/reproducible-build.md`）说明 job DAG + trigger。
 
 **Step 3 · 实现**：`.github/workflows/release.yml`：
-- trigger: `on.push.tags = ['v*']`
-- permission: `id-token: write`（sigstore OIDC）+ `packages: write`（GHCR）+ `contents: write`（release notes）
-- 6 job 串行 DAG（DP2/DP1 决策落地）
+- trigger: **`on.push.tags = ['v[0-9]+.[0-9]+.[0-9]+']`** (M6 fix — 收紧到 stable release only, 禁 `v*` 自动匹配 rc; rc tag `v0.2.0-rc.1` 走独立 workflow 或分 `on.push.tags: ['v[0-9]+.[0-9]+.[0-9]+-rc.*']` publish 到 PyPI pre-release channel, 避免污染稳定 tag 序列); `publish-pypi` optional flag 从 `workflow_dispatch input` 或 env var 读, 稳定 tag 默认 publish=true, rc 默认 publish=false
+- **`permissions:`** (H2 fix — **复数** YAML top-level key; single `permission:` is invalid YAML top-level key, silently ignored → sigstore OIDC lacks write scope): `id-token: write` (sigstore OIDC) + `packages: write` (GHCR) + `contents: write` (release notes)
+- **8 job 串行 DAG** (H5 fix — 6 vs 8 内部矛盾修正; 无合并规则): `build-wheel` → `sign-wheel` → `build-docker` → `sign-docker` → `publish-pypi` (optional flag) → `publish-ghcr` → `verify-release` → `release-notes` (DP2/DP1 决策落地)
+- **H1 fix**: `build-docker` job 消费 `build-wheel` 产 wheel artifact 作输入 (`actions/download-artifact`), Dockerfile builder stage `COPY dist/custos_runner-*.whl` + `pip install --no-index --find-links=/tmp` 装本地 wheel — 不依赖 PyPI 首发。job DAG 保 `build-wheel` → `build-docker` 顺序。
 - 环境 `python-version: 3.12`（`nautilus` extra 要求）
 
 `verify-release.sh`：
@@ -283,6 +308,10 @@ docker pull ghcr.io/the-alephain-guild/custos:v${VERSION}
 cosign verify ghcr.io/the-alephain-guild/custos:v${VERSION} \
   --certificate-identity "https://github.com/the-alephain-guild/custos/.github/workflows/release.yml@refs/tags/v${VERSION}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+# Health probe: image starts and CLI responds (Layer 3 of FM2 — C2/BLK-4 fix, no longer dead branch)
+docker run --rm ghcr.io/the-alephain-guild/custos:v${VERSION} --help
+# Non-root probe: independent from test_docker_non_root.py (Layer 3 of FM2 boundary)
+[ "$(docker inspect --format '{{.Config.User}}' ghcr.io/the-alephain-guild/custos:v${VERSION})" != "root" ] || exit 1
 ```
 
 **Step 4 · 证实**：本地 `actionlint .github/workflows/release.yml` 无 error（如工具可用）；CI 真跑推迟到第一次 tag push（部分交付：workflow 定义 land 即算 T4 完成，实跑成功归 T9 close-out gate）。
@@ -299,8 +328,12 @@ cosign verify ghcr.io/the-alephain-guild/custos:v${VERSION} \
 
 **Step 2 · 写失败测试**：`tests/test_lts_commitment_doc.py`（Task 6 覆盖）间接依赖 CHANGELOG.md 存在 —— 独立 assertion 于 Task 6，本 Task 只需 doc structural check。可选 `tests/test_changelog_exists.py`：断言 `CHANGELOG.md` 存在且含 `## [0.2.0]` section。
 
-**Step 3 · 实现**：
-- `CHANGELOG.md` Keep-a-Changelog 格式；顶部 `## [Unreleased]` + `## [0.2.0] - 2026-07-10`（首个 entry，含 `### Added`：sigstore wheel signing, non-root Dockerfile, LTS commitment, gateway contract v1）
+**Step 3 · 实现** (Cross H1 fix — 0.2.0 首个 entry 覆盖 Plan 11 breaking + Plan 12 additive 两 plan 项, 避免下游 `~=0.2` client pinner 对 breaking scope 盲区)：
+- `CHANGELOG.md` Keep-a-Changelog 格式；顶部 `## [Unreleased]` + `## [0.2.0] - 2026-07-10`（首个 entry, 结构如下）：
+  - `### Removed` (**BREAKING — Plan 11**): legacy `python -m custos` entry point; legacy `custos` console script; `SopsAgeVault` multi-credential-JSON model; `~/.custos/` state namespace; `--sops-file` / `--age-key-file` CLI flags
+  - `### Changed` (**BREAKING — Plan 11**): state namespace `~/.custos/` → `~/.arx/`; vault storage model single-file → per-key `.enc`
+  - `### Added` (Plan 12 additive): `[project.scripts].arx-runner` console script; new subcommands `enroll` / `vault put` / `vault verify` / `vault list` / `start`; sigstore keyless wheel signing; multi-stage non-root Dockerfile; `docs/lts-commitment.md` (EOL 12mo + SLA 30d); `docs/gateway-contract/v1/` JSON Schema (enrollment / deployment_status / telemetry_snapshot / heartbeat)
+- **注**: T5 责任 = 整合 Plan 11 (breaking) + Plan 12 (additive) 两 plan 项到 0.2.0 单 tag entry。Plan 11 T9 不修 `CHANGELOG.md`；T5 是 CHANGELOG 唯一 owner。
 - `README.md` § "Not Included Yet" 移除已交付项（wheel sig + docker + SEMVER + LTS + contract v1 + CONTRIBUTING + SECURITY），替换为「见 CHANGELOG.md / docs/lts-commitment.md」引用
 
 **Step 4 · 证实**：`grep -n '^## \[0\.2\.0\]' CHANGELOG.md` 命中一行；`grep -n "Not Included Yet" README.md` 命中缩减到剩余项（Telemetry uplink bridge 仍留）。
@@ -315,8 +348,10 @@ cosign verify ghcr.io/the-alephain-guild/custos:v${VERSION} \
 
 **Step 1 · 证伪**：`ls docs/lts-commitment.md` 报 not exist；`ls docs/upgrade-path.md` 报 not exist。
 
-**Step 2 · 写失败测试**：`tests/test_lts_commitment_doc.py`：
+**Step 2 · 写失败测试**：`tests/test_lts_commitment_doc.py`（L1 fix — 加 EOL 日期表行内容断言, 防 header 存在但表被空掉的沉默失守; 参考 lesson #25 反 fabricated）：
 ```python
+import re
+
 def test_lts_doc_has_required_sections():
     text = Path("docs/lts-commitment.md").read_text()
     assert "## EOL Window" in text
@@ -324,6 +359,15 @@ def test_lts_doc_has_required_sections():
     assert "## Release Cadence" in text
     assert "12 months" in text  # EOL commitment (DP7)
     assert "30 days" in text  # security patch SLA (DP7)
+
+# L1 fix (FM10 audit-non-silence): EOL 日期表行内容断言
+def test_lts_doc_has_eol_date_row():
+    """Doc 内至少一行形如 `| 0.\\d+.x | \\d{4}-\\d{2}-\\d{2}` 的 EOL 表行 —
+    防 header 存在但表内被 accidentally 空掉的沉默失守 (lesson #25 反 fabricated 变体)。
+    """
+    text = Path("docs/lts-commitment.md").read_text()
+    eol_rows = re.findall(r"\|\s*0\.\d+\.x\s*\|\s*\d{4}-\d{2}-\d{2}", text)
+    assert len(eol_rows) >= 1, "EOL 表至少含一行 `| 0.X.x | YYYY-MM-DD` 格式行"
 ```
 跑 `uv run pytest tests/test_lts_commitment_doc.py -v`，预期 FAIL（file not exist）。
 
@@ -348,7 +392,7 @@ def test_lts_doc_has_required_sections():
 
 **Step 1 · 证伪**：`ls docs/gateway-contract/` 报 not exist；grep 实证契约来源 `grep -n "async fn validate_enrollment\|async fn record_deployment_status\|async fn ingest_telemetry\|async fn handle_heartbeat" ../arx/backend/crates/coordination/src/custos.rs`，预期 4 method 各命中（第 11 / 13 / 20 / 26 行），Step 1.5 gate 契约锚点已在上下文段落固化。
 
-**Step 2 · 写失败测试**：`tests/test_gateway_contract_v1_backward_compat.py`：
+**Step 2 · 写失败测试**：`tests/test_gateway_contract_v1_backward_compat.py`（BLK-5/C1 fix — 断言方向修正 + 3 negative test 落地 additive-only 精准语义 `current.required ⊆ golden.required` **AND** `golden.properties ⊆ current.properties`）：
 ```python
 def test_schemas_present():
     for name in ("enrollment", "deployment_status", "telemetry_snapshot", "heartbeat"):
@@ -358,32 +402,62 @@ def test_schemas_backward_compat_vs_golden():
     for name in ("enrollment", "deployment_status", "telemetry_snapshot", "heartbeat"):
         current = json.loads(Path(f"docs/gateway-contract/v1/{name}.schema.json").read_text())
         golden = json.loads(Path(f"tests/fixtures/gateway_contract_v1_golden/{name}.schema.json").read_text())
-        # additive-only: golden required must be subset of current required
-        assert set(golden.get("required", [])) <= set(current.get("required", []))
-        # additive-only: golden properties must all still exist
+        # C1 fix: additive-only 精准语义 = current.required 是 golden.required 的 subset (禁新增 required = breaking)
+        assert set(current.get("required", [])) <= set(golden.get("required", [])), \
+            f"{name}: current required 超出 golden — 新增 required 字段 = breaking"
+        # additive-only: golden 中已存在的 property 必须仍在 current 内 (禁删 property)
+        for key in golden.get("properties", {}):
+            assert key in current.get("properties", {}), f"{name}: removed property: {key}"
+
+# BLK-5 negative test 1: additive optional field 通过
+def test_additive_optional_field_passes():
+    golden = {"required": ["a"], "properties": {"a": {"type": "string"}}}
+    current = {"required": ["a"], "properties": {"a": {"type": "string"}, "b": {"type": "string"}}}
+    # current.required (= {a}) ⊆ golden.required (= {a}) ✓
+    assert set(current.get("required", [])) <= set(golden.get("required", []))
+    # golden properties 仍存在 ✓
+    for key in golden.get("properties", {}):
+        assert key in current.get("properties", {})
+
+# BLK-5 negative test 2: 新增 required field 阻断
+def test_new_required_field_blocked():
+    golden = {"required": ["a"], "properties": {"a": {"type": "string"}}}
+    current = {"required": ["a", "b"], "properties": {"a": {"type": "string"}, "b": {"type": "string"}}}
+    # current.required (= {a, b}) NOT ⊆ golden.required (= {a}) → FAIL 应触发
+    with pytest.raises(AssertionError):
+        assert set(current.get("required", [])) <= set(golden.get("required", []))
+
+# BLK-5 negative test 3: 删除 property 阻断
+def test_removed_property_blocked():
+    golden = {"required": ["a"], "properties": {"a": {"type": "string"}, "foo": {"type": "string"}}}
+    current = {"required": ["a"], "properties": {"a": {"type": "string"}}}
+    # golden 里的 foo 不在 current → FAIL 应触发
+    with pytest.raises(AssertionError):
         for key in golden.get("properties", {}):
             assert key in current.get("properties", {}), f"removed property: {key}"
 ```
-跑 `uv run pytest tests/test_gateway_contract_v1_backward_compat.py -v`，预期 FAIL（schema 与 golden 均不存在）。
+跑 `uv run pytest tests/test_gateway_contract_v1_backward_compat.py -v`，预期 FAIL（schema 与 golden 均不存在，3 negative test 需 pytest 导入后可跑）。
 
-**Step 3 · 实现**：4 JSON Schema 文件 + `README.md`（索引 + additive-only rule + v2 breaking protocol）+ `tests/fixtures/gateway_contract_v1_golden/*.schema.json`（首次 land 时 golden = schema copy，作为 baseline）
+**Step 3 · 实现**：4 JSON Schema 文件 + `README.md`（索引 + additive-only rule + v2 breaking protocol；**additive-only 精准语义 = `current.required ⊆ golden.required` (禁新增 required = breaking) AND `golden.properties ⊆ current.properties` (禁删除 property = breaking)**, 见 BLK-5/C1 fix backward-compat test）+ `tests/fixtures/gateway_contract_v1_golden/*.schema.json`（首次 land 时 golden = schema copy，作为 baseline）
 
-Enrollment schema 示例：
+Enrollment schema 示例（H3 fix — 字段名对齐 Plan 11 Task 4 payload wire `token_hash`, lesson #35 single source of truth；`^[a-f0-9]{64}$` invariant 不变）：
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://custos.the-alephain-guild/gateway-contract/v1/enrollment.schema.json",
   "title": "EnrollmentPayload v1",
   "type": "object",
-  "required": ["token_sha256", "runner_id"],
+  "required": ["token_hash", "runner_id"],
   "properties": {
-    "token_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "token_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "runner_id": { "type": "string", "maxLength": 128 },
     "capabilities": { "type": "array", "items": { "type": "string" } }
   },
   "additionalProperties": false
 }
 ```
+
+**H3 note**: field name `token_hash` matches Plan 11 Task 4 payload wire (lesson #35 single source of truth — Plan 11 是 wire 定义源, Plan 12 schema follow); pattern `^[a-f0-9]{64}$` invariant unchanged.
 其余 3 schema 逐一对齐 `custos.rs:13-30` typed method 参数 + 现有 `nats_client.py` envelope。
 
 **Step 4 · 证实**：`uv run pytest tests/test_gateway_contract_v1_backward_compat.py -v` 全绿；`jsonschema` CLI 或 `check-jsonschema` 校验 4 schema syntactic valid。
@@ -398,7 +472,7 @@ Enrollment schema 示例：
 
 **Step 1 · 证伪**：`ls docs/reproducible-build.md` 报 not exist；`env | grep SOURCE_DATE_EPOCH` 未设。
 
-**Step 2 · 写失败测试**：`tests/test_reproducible_build.py`：
+**Step 2 · 写失败测试**：`tests/test_reproducible_build.py`（M4 fix — 加对照测试证明 SOURCE_DATE_EPOCH 真起作用, 防 hatchling native deterministic false positive）：
 ```python
 @pytest.mark.slow
 def test_wheel_bytes_identical_across_rebuild():
@@ -410,6 +484,25 @@ def test_wheel_bytes_identical_across_rebuild():
         h1 = sha256(sorted(Path(d1).glob("*.whl"))[0].read_bytes()).hexdigest()
         h2 = sha256(sorted(Path(d2).glob("*.whl"))[0].read_bytes()).hexdigest()
         assert h1 == h2
+
+# M4 fix: 对照 test — 证明 SOURCE_DATE_EPOCH 真起作用 (排除 hatchling native deterministic false positive)
+@pytest.mark.slow
+def test_wheel_bytes_differ_without_epoch():
+    """No SOURCE_DATE_EPOCH → wheel bytes should differ across rebuilds (proves epoch is the reproducibility knob).
+
+    Note: 若 hatchling ≥ 1.20 已 native deterministic 到不依赖 epoch, 本 test 会 pass 而与预期反向 —
+    此时 executor 需 grep hatchling changelog + docs 判断是否可放弃 SOURCE_DATE_EPOCH pin,
+    或改用 xfail marker + doc 记录 "hatchling native deterministic overrides epoch requirement"。
+    """
+    env = {k: v for k, v in os.environ.items() if k != "SOURCE_DATE_EPOCH"}
+    with tempfile.TemporaryDirectory() as d1, tempfile.TemporaryDirectory() as d2:
+        subprocess.run(["uv", "build", "--out-dir", d1], env=env, check=True)
+        time.sleep(2)  # ensure mtime differs
+        subprocess.run(["uv", "build", "--out-dir", d2], env=env, check=True)
+        h1 = sha256(sorted(Path(d1).glob("*.whl"))[0].read_bytes()).hexdigest()
+        h2 = sha256(sorted(Path(d2).glob("*.whl"))[0].read_bytes()).hexdigest()
+        # 期待不同 (若相同, 说明 hatchling native deterministic, 见 docstring)
+        assert h1 != h2, "hatchling native deterministic detected — see docstring for guidance"
 ```
 跑 `uv run pytest tests/test_reproducible_build.py -v -m slow`，预期 FAIL（无 build hook 保 epoch）。
 
@@ -434,11 +527,11 @@ def test_wheel_bytes_identical_across_rebuild():
 3. **权威文档同步**：
    - `CLAUDE.md` § 2 子系统边界段末加一行「契约 v1 冻结于 `docs/gateway-contract/v1/`（Plan 12 close-out 落地）」
    - `CLAUDE.md` § 6 常用命令表加 `make release` / `make verify-release` 两行
-   - `README.md` § "Not Included Yet" 剩余项精简（已在 T5 处理）
-   - `docs/lts-commitment.md` 直接引用 `arx-runner` (Plan 11 landed lock)，无联动核对分支；`CHANGELOG.md` §0.2.0 breaking note 已在 T5 landing 时包含 Plan 11 clean-break 项（legacy `python -m custos` 删除 + SopsAgeVault 删除 + `~/.custos/` 退休）+ Plan 12 distribution 项（signed wheel + docker + SEMVER + gateway contract v1）—— 两 plan 同版发布
+   - `README.md` § "Not Included Yet" 剩余项精简（Cross M1 fix — T5 已处理; T9 只做 inspection-only 复检, 无追加 edit; 避免 lesson #16 三方修改冲突)
+   - `docs/lts-commitment.md` 直接引用 `arx-runner` (Plan 11 landed lock)，无联动核对分支；`CHANGELOG.md` §0.2.0 由 T5 唯一负责整合 Plan 11 (breaking) + Plan 12 (additive) 两 plan 项到单 tag entry (Cross H1 fix — T5 责任 = 整合, T9 只做 inspection-only 复检 §0.2.0 结构是否完整含 Removed/Changed/Added 三段) —— 两 plan 同版发布
 4. **CONTRIBUTING.md + SECURITY.md 补齐**：本 Task 承载（原 T5 只 CHANGELOG，本 T9 补面向外部审计员/贡献者的公开仓门面）
    - `CONTRIBUTING.md`：测试运行 (`make verify`) + coding style (`code-style.md` pointer) + PR 流程 + DCO / CLA 说明
-   - `SECURITY.md`：vuln 上报入口（GitHub Security Advisories）+ 30d SLA（对齐 `docs/lts-commitment.md`）
+   - `SECURITY.md`：vuln 上报入口（GitHub Security Advisories）+ 30d SLA（对齐 `docs/lts-commitment.md`）+ **"provided as-is, no warranty per LICENSE" Apache-2.0 免责声明** (L2 fix)
 5. **版本升级**：pyproject.toml version 已在 T1 → `0.2.0`；本 Task 无需再升
 6. **完成报告章节**（plan 文件末尾）：简要说明实际产出 / IMPROVEMENT 兑现位置 / 跨仓库同步动作
 7. **commit**：`git add .forge/plans/2026-07/12-*.md .forge/README.md CLAUDE.md README.md CONTRIBUTING.md SECURITY.md && git commit -m "docs(custos): mark plan 12 as completed + CONTRIBUTING/SECURITY + CLAUDE.md sync"`
@@ -481,7 +574,27 @@ def test_wheel_bytes_identical_across_rebuild():
 
 | 类型 | 位置 | 描述 | 已批准 |
 |------|------|------|--------|
-| （待实施填充） | — | — | — |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T2 Step 3 (Dockerfile ENTRYPOINT) | C2/BLK-4 fix — `ENTRYPOINT ["python", "-m", "custos"]` → `ENTRYPOINT ["arx-runner", "start"]` 对齐 DP5 resolved + File Inventory line 149; 追加 `tests/test_docker_entrypoint_help.py` smoke + verify-release.sh `docker run --help` health probe (FM2 Layer 3 真存在, 不是 dead branch) | ✅ (drafter fix per plan-team review verdict) |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T7 backward-compat test | C1/BLK-5 fix — 断言方向反转: `current.required ⊆ golden.required` (禁新增 required = breaking), 追加 3 negative test (additive optional / new required / removed property 各一例) | ✅ (drafter fix per plan-team review verdict) |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T2 Dockerfile (H1) | Dockerfile builder stage 从本地 wheel 装 (`COPY dist/*.whl` + `pip install --no-index`), 不依赖 PyPI 首发; CI job DAG 保 `build-wheel` → `build-docker` 顺序, wheel artifact 作 docker builder 输入 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T4 Step 3 workflow (H2) | `permission:` → `permissions:` (YAML top-level key 复数, single 无效 key 会被静默忽略 → sigstore OIDC 无 write scope → signing 静默 fail) | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T7 enrollment.schema.json (H3) | wire field name `token_sha256` → `token_hash` 对齐 Plan 11 Task 4 payload wire (lesson #35 single source of truth); `^[a-f0-9]{64}$` invariant 不变 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 SEMVER 承诺表 arx-side pin (H4) | `~=0.2` → `~=0.2.0` (PEP 440 展开 `>=0.2.0, <0.3.0`, 禁自动升 minor); 与 "禁自动升 major/minor 含 breaking" 意图对齐 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T4 Step 3 CI job DAG (H5) | "6 job" → "8 job" (build-wheel + sign-wheel + build-docker + sign-docker + publish-pypi + publish-ghcr + verify-release + release-notes), 修正 line 271 与 line 265 内部矛盾 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T3 sign-wheel.sh + T1 pyproject.toml lts extras (H6) | 加执行注释 "executor 落地时先 `sigstore sign --help` grep 实证 3.x 版本 flag 名 `--output-signature` vs `--bundle`"; sigstore extras pin `sigstore>=3.0,<4.0` 显式 major pin, 避免 sigstore major bump 破坏 workflow | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 SEMVER 承诺表 MINOR/PATCH 行 (M1/M2) | MINOR "additiveProperties:false 例外" 含混, 弱化为 "新增 optional field: MINOR (两侧同步部署); 新增 required field: MAJOR"; PATCH 允许项加 "依赖 patch/minor 版本升级 (uv.lock 同步 commit) 允许; 依赖 major 版本升级归 MINOR" | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T8 test (M4) | 加 `test_wheel_bytes_differ_without_epoch` 对照 test 证明 SOURCE_DATE_EPOCH 真起作用, 排除 hatchling native deterministic false positive | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 FM11 (M5) | Docker image size 阈值 500MB → 800MB, 防 pandas/numpy minor 升级 flaky-fail | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T4 workflow trigger (M6) | tag pattern `v*` → `v[0-9]+.[0-9]+.[0-9]+` (stable-only), 禁 rc tag 自动 publish 稳定 channel; 分 workflow 或独立 rc.* handling | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 Foundation Scan iteration log (M7) | 补 iteration 4 "arx-side wire UNVERIFIED; contract 层单侧声明, 待 arx-79 wire close-out 补对齐检" + 跨 plan wire 字段名 fanout 核对 (H3 aligned) | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T5 CHANGELOG scaffold (Cross H1) | 0.2.0 首个 entry 扩展含 Plan 11 breaking (Removed / Changed) + Plan 12 additive (Added) 三段, 避免下游 `~=0.2` client pinner 对 breaking scope 盲区; T9 §3 bullet 3 措辞更正 "T5 唯一 owner, T9 inspection-only" | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T2 Dockerfile + T9 deployment docs coord (Cross H4) | Dockerfile 加 `useradd -u 1000 -m -d /home/custos custos` + `ENV HOME=/home/custos` + `VOLUME ["/home/custos/.arx"]`; deployment mount pattern (`docker run -v ~/.arx:/home/custos/.arx ...`) 由 Plan 11 T9 owner 承担 (`docs/ops/05-deployment.md`), Plan 12 T9 复检 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 Depends on: header (Cross H5) | 加 strict serial merge protocol: Plan 11 T8 landed 是 HARD PRECONDITION; execute-team spawn prompt 含 SHA gate `git log --oneline | grep 'plan 11 t8'` + `grep '"arx-runner"' pyproject.toml`; "Plan 12 does NOT run in worktree parallel with Plan 11" | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T9 §3 bullet 3 (Cross M1) | README.md T9 inspection-only, T5 唯一 owner (避免 lesson #16 三方修改冲突) | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 Applicable lessons DP5 wording (Cross M3) | "partial resolve" → "resolved" 与 line 101 DP5 header "RESOLVED" 一致 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 Applicable lessons fanout list (Cross M5) | lesson #35 fanout list 扩展含 pyproject.toml + Dockerfile + verify-release.sh + release.yml + docs/lts-commitment.md + docs/ops/05-deployment.md + docs/design/03-implementation.md + README.md + CHANGELOG.md | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 T6 test (L1 / FM10) | 加 `test_lts_doc_has_eol_date_row` 断言 doc 内含形如 `| 0.\d+.x | \d{4}-\d{2}-\d{2}` 的 EOL 表行, 防 header 存在但表被 accidentally 空掉的沉默失守 | ✅ |
+| IMPROVEMENT (review-round-1 fix) | Plan 12 SECURITY.md File Inventory + T9 (L2) | SECURITY.md 加 "provided as-is, no warranty per LICENSE" Apache-2.0 免责声明 | ✅ |
 
 ## 完成报告 (Close-out Report)
 
@@ -503,7 +616,8 @@ def test_wheel_bytes_identical_across_rebuild():
 
 - **Iteration 1 · 直接引用（空间维 lesson #14）**：读 evidence-scout §L3 verbatim + custos README.md + pyproject.toml；确认 `[project.scripts]` 零 / `Dockerfile` 只 example / `.github/` 不存在 / 无 CHANGELOG.md / 无 LTS 文档。
 - **Iteration 2 · 命名空间维（lesson #30）**：grep arx `coordination/src/custos.rs` CustosGateway trait 4 typed method 逐字锚点 + `raw_call` supertrait；分发名 `custos-runner` vs import name `custos` 分离固化；确认 contract v1 语义是 NATS payload + Rust trait 双面（非 REST HTTP）→ DP3 JSON Schema 而非 OpenAPI。
-- **Iteration 3 · 时间维 + 影响面维（lesson #33 / #33b）**：as-of 2026-07-10 Plan 05 close-out `e82825d` + Plan 04 close-out `d0dd537` + **Plan 11 draft clean-break lock 2026-07-10 (untracked)**；上游依赖 Plan 11 landed（**hard dep** — script name `arx-runner` + `~/.arx/` namespace 单源）+ arx-79 wire（Plan 12 只出契约，不 block arx-side wire）；DP5 从 soft/占位 升级为 hard/resolved（Plan 11 CEO clean-break directive 消除双源风险）；停扫判据 —— 3 iteration 覆盖空间 / 命名空间 / 时间 / 影响面四维，deliverable 全部 file:line 锚定，无更深层。
+- **Iteration 3 · 时间维 + 影响面维（lesson #33 / #33b）**：as-of 2026-07-10 Plan 05 close-out `e82825d` + Plan 04 close-out `d0dd537` + **Plan 11 draft clean-break lock 2026-07-10 (untracked)**；上游依赖 Plan 11 landed（**hard dep** — script name `arx-runner` + `~/.arx/` namespace 单源）+ arx-79 wire（Plan 12 只出契约，不 block arx-side wire）；DP5 从 soft/占位 升级为 hard/resolved（Plan 11 CEO clean-break directive 消除双源风险）。
+- **Iteration 4 · 跨仓 arx-side wire UNVERIFIED (M7 fix)**：arx-side `backend/crates/coordination/src/custos.rs:9-30` CustosGateway trait 4 typed method 签名依赖 arx-Plan 78 (in-flight) close-out marker 为准；custos 独立仓库 clone 后无法本地 grep arx 源码 → **contract 层单侧声明**, 待 arx-79 wire close-out 补 "gateway contract v1 schema vs arx trait 双向反射对齐检" test (arx-79 follow-up plan 承接, 补 custos 侧无法完成的 arx-side grep 实证)。**跨 plan wire 字段名 fanout 核对** (H3 补): `token_hash` 单源 = Plan 11 Task 4 payload wire, Plan 12 T7 enrollment.schema.json follow, 已 aligned; 停扫判据 —— 4 iteration 覆盖空间 / 命名空间 / 时间 / 影响面 + 跨仓/跨 plan 单源核对, deliverable 全部 file:line 锚定, 无更深层。
 
 ## Applicable lessons (self-audit)
 
@@ -512,7 +626,7 @@ def test_wheel_bytes_identical_across_rebuild():
 - **lesson #22 multi-layer 独立可测**：FM1/FM2/FM3 均 ≥2 layer 独立测；relaxed-double 不适用（无 shadow 结构）
 - **lesson #28 复合契约分句 → guard 对照**：目标段「signed wheel + docker image + SEMVER + LTS + gateway contract」5 分句 → T3 / T2+T4 / T1+T5 / T6 / T7 逐句映射 file:line
 - **lesson #31 multi_session_scope**：false（9 Task，中粒度 6-10h）；CI 首跑失败风险登记
-- **lesson #35 boundary constant rename fanout**：script name（DP5, **partial resolve** — Plan 11 clean-break 已 lock `arx-runner` 单一 entry，消除 script name 双源；Plan 12 直接消费 Plan 11 lock 状态，不再是双 fanout gate）+ contract v1 field name（T7 golden snapshot）单 fanout gate；rename 时 T9 联动检 pyproject.toml + Dockerfile + docs + README
+- **lesson #35 boundary constant rename fanout**：script name（DP5, **resolved** (Cross M3 fix — 与 line 101 DP5 header "RESOLVED" 一致) — Plan 11 clean-break 已 lock `arx-runner` 单一 entry，消除 script name 双源；Plan 12 直接消费 Plan 11 lock 状态，不再是双 fanout gate）+ contract v1 field name (`token_hash` 单源 = Plan 11 Task 4 payload wire, H3 aligned)（T7 golden snapshot）单 fanout gate；rename 时 T9 联动检 **pyproject.toml + Dockerfile + verify-release.sh + release.yml + docs/lts-commitment.md + docs/ops/05-deployment.md + docs/design/03-implementation.md + README.md + CHANGELOG.md** (Cross M5 fix — fanout list 扩展含 CI 工件 + deployment docs + design docs)
 - **lesson #37 grep 权威源实证**：CustosGateway trait 逐字 grep `arx custos.rs:9-30`；pyproject.toml 现状 grep 实证；对称推理陷阱 —— DP1 sigstore vs GPG / DP3 JSON Schema vs OpenAPI 均基于契约实证决策，非对称直觉
 - **lesson #38 CEO override**：不适用（Plan 12 无 CLAUDE.md 红线全域触发 / 无 触发条件框架 override）
 - **lesson #40 close-out 声明精确化**：T9 close-out 报告显式区分 code-level test coverage / runtime wire / defer scope（CI 首跑 defer 到 T9 gate + arx-79 wire defer 到 follow-up）
