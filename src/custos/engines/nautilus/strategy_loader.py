@@ -8,7 +8,7 @@ hash (``expected_code_hash=None``) — the check is skipped but the skip is
 audited so it is never silent.
 
 No NautilusTrader dependency here — this is pure hashing + importlib so it can
-be unit-tested without the nt-runtime extra.
+be unit-tested without the nautilus extra.
 """
 
 from __future__ import annotations

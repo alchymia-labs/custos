@@ -12,7 +12,7 @@ NtTradingNodeHost}. Each is non-live, so the G6 gate bypasses and the deploy is
 admitted; the reconciler reports a running / healthy DeploymentStatus. The
 NtTradingNodeHost cells assemble the real Binance venue configs (sandbox
 SandboxLiveExecClientFactory / testnet BinanceEnvironment.TESTNET) but run the NT
-engine as a fake node, so they need the nt-runtime extra (importorskip); the
+engine as a fake node, so they need the nautilus extra (importorskip); the
 NoopHost cells run on a base install.
 """
 

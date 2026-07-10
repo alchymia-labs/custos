@@ -57,7 +57,7 @@ def _install_pandas_ta_distribution_shim() -> None:
     """
     try:
         import pkg_resources
-    except ImportError:  # pragma: no cover - guarded by nt-runtime extra
+    except ImportError:  # pragma: no cover - guarded by nautilus extra
         return
 
     try:

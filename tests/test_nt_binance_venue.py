@@ -5,7 +5,7 @@ Covers the failure-mode contract for the venue-assembly layer:
 - unsupported connector (non-binance) -> NotImplementedError (explicit reject)
 
 Plus happy-path field assertions on the constructed NT config objects. Requires
-the nt-runtime extra (NautilusTrader); skipped cleanly when it is absent.
+the nautilus extra (NautilusTrader); skipped cleanly when it is absent.
 """
 
 from __future__ import annotations

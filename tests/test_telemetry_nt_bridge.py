@@ -7,7 +7,7 @@ wire-safe ``dict`` (every money field arrives as ``str``, never ``float`` —
 ADR-008 / non-custodial 红线 0.4).
 
 The normalizer tests build *real* NT events (skipped on a base install without
-the nt-runtime extra) so they lock the actual NT 1.230 wire contract, not a
+the nautilus extra) so they lock the actual NT 1.230 wire contract, not a
 hand-written mirror. The bridge dispatch tests use fake events + a fake
 MessageBus so the subscribe / filter / shape-mismatch / fail-safe logic runs on
 a base install without NT.
@@ -30,7 +30,7 @@ from custos.core.telemetry_actor import (
 )
 
 # ----------------------------------------------------------------------
-# Real NT event builders (nt-runtime only). Skipped on a base install.
+# Real NT event builders (nautilus only). Skipped on a base install.
 # ----------------------------------------------------------------------
 
 

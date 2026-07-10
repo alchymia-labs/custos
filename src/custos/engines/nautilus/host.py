@@ -7,7 +7,7 @@ Two hosts satisfy NautilusHostProtocol (deployment_reconciler.py):
   testnet (real Binance exec on the testnet endpoint), and live (real exchange,
   gated by the G6 host gate + separation-of-duties approval).
 
-NautilusTrader is an optional runtime (`nt-runtime` extra, Python 3.12+). This
+NautilusTrader is an optional runtime (`nautilus` extra, Python 3.12+). This
 module import-guards it so the reconciler can import NoopHost on a base install
 without NT; NtTradingNodeHost.deploy fails fast if NT is missing.
 """
@@ -47,7 +47,7 @@ try:
     from nautilus_trader.config import LiveExecEngineConfig, LoggingConfig, TradingNodeConfig
     from nautilus_trader.live.node import TradingNode
     from nautilus_trader.model.identifiers import TraderId
-except ImportError:  # nt-runtime extra absent (audit / paper install) — deploy fails fast
+except ImportError:  # nautilus extra absent (audit / paper install) — deploy fails fast
     BinanceLiveDataClientFactory = None
     BinanceLiveExecClientFactory = None
     SandboxLiveExecClientFactory = None
@@ -201,7 +201,7 @@ class NtTradingNodeHost:
     def _ensure_nt_available() -> None:
         if TradingNode is None:
             raise RuntimeError(
-                "NautilusTrader not installed — install `custos-runner[nt-runtime]` "
+                "NautilusTrader not installed — install `custos-runner[nautilus]` "
                 "(needs Python 3.12+) to run NtTradingNodeHost"
             )
 

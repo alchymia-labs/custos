@@ -127,7 +127,7 @@ def _reset_fake_nodes():
 async def test_deploy_missing_nt_extra_fails_fast(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", None)
     host = NtTradingNodeHost()
-    with pytest.raises(RuntimeError, match="nt-runtime"):
+    with pytest.raises(RuntimeError, match="nautilus"):
         await host.deploy(_spec(), _credential())
 
 

@@ -75,7 +75,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--use-nt-host",
         action="store_true",
-        help="Use the real NautilusTrader host (needs the nt-runtime extra) "
+        help="Use the real NautilusTrader host (needs the nautilus extra) "
         "instead of the NoopHost stub. Required to run sandbox / testnet / live "
         "execution; the G6 gate still guards every live deploy.",
     )
