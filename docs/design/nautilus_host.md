@@ -46,8 +46,26 @@
 
 - **paper / live 通道物理隔离（承重墙）**：live mode 绝不能落在 `NoopHost` 上；这是
   paper/live 物理隔离红线在执行侧的兑现点。
-- **组合熔断兜底**：NT 本地 RiskEngine + runner 本地 fallback 熔断（单策略 / 单账户
-  回撤）在云宕机时仍生效；`max_notional_per_runner ≤ NAV × 5x` 结构性 cap 兜底。
+- **组合熔断兜底（红线 0.3 runtime 兑现）**：三层结构性守护，全部通过 host 的
+  Tier-2 protocol 与引擎解耦（core 层无 NT 特化）：
+  - **NT 本地 per-order RiskEngine** — 单笔 `max_qty` / `max_notional` / `price_collar`
+    (`nt_risk_engine.py`, 已存在)。
+  - **Runner 层 soft cap** — `RunnerNotionalCap` 读 host 的 `get_open_notional` +
+    `spec.risk_config.max_notional_per_runner`，超额发 `runner_cap_exceeded`；缺失
+    结构性 floor `paper=200 USD` / `live=1000 USD` (DEV-04-CAP-DEFAULT)，`≤ NAV × 5x`
+    仍是操作侧参考上限。
+  - **Runner 层 hard fallback breaker** — `FallbackBreaker` 每 tick 从
+    `get_open_notional` + `get_engine_status.current_equity` 计算 drawdown_pct
+    (Decimal，红线 0.4)；notional 或 drawdown 超阈 → host 的 `flatten_positions`
+    (映射 NT `Strategy.close_all_positions`, DEV-04-FLATTEN-NT-MAPPING) + 冻结新单。
+    首次 trip 后不重复 flatten (`_breaker_tick` 用 `was_frozen` gate)。
+  - **Zombie watchdog** — `ZombieWatchdog` 用 `check_engine_connected`，连续
+    disconnect 超 `grace_secs` (默认 60s, DEV-04-ZOMBIE-THRESHOLD) 升级
+    `phase=degraded` + `health.reason=engine_disconnected_zombie`。
+
+  Composition root (`cli/main.py::_build_reconciler`) 是三守护的 runtime wire
+  锚点；`test_arx_disconnect_long_run_guards_persist` 证明 60 tick 无云端时守护
+  持续生效。runtime 详见 [`reconcile.md` §失联降级](reconcile.md)。
 - **Key 只在本地**：`deploy` 收到的 `credential` 由 credential_vault 本地解密而来，
   KEK 永不出主机（见 [credential_vault.md](credential_vault.md)）。
 

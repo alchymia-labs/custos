@@ -266,14 +266,19 @@ class DeploymentReconciler:
             )
 
     async def _breaker_tick(self) -> None:
-        """Evaluate the runner fallback breaker against total open notional and,
-        on a trip, flatten every deployed spec. Runs on every poll so a runaway
-        runner is contained even while the cloud is unreachable. No-op when no
+        """Evaluate the runner fallback breaker against total open notional
+        and total current equity across every deployed spec; on a trip,
+        flatten every deployed spec. Runs on every poll so a runaway runner
+        is contained even while the cloud is unreachable. No-op when no
         breaker is injected.
 
-        The drawdown breach also needs an equity feed; until the equity snapshot
-        lands this tick enforces the notional ceiling only (the breaker still
-        evaluates drawdown when equity is supplied elsewhere)."""
+        Equity comes from the engine's Tier-2 ``get_engine_status`` — summing
+        ``current_equity`` across active specs gives the runner-wide feed the
+        breaker's drawdown check needs. A ``get_engine_status`` probe failure
+        degrades to notional-only evaluation for that tick (better than
+        skipping the whole tick and letting a runaway notional slip).
+        """
+
         if self.fallback_breaker is None:
             return
         active = [spec_id for spec_id, state in self._state.items() if state.container_id]
@@ -285,13 +290,32 @@ class DeploymentReconciler:
                 total_notional += await self.execution_engine.get_open_notional(spec_id)
             except Exception as exc:  # noqa: BLE001 — a probe failure must not kill the loop
                 _log.warning("breaker_notional_probe_failed", spec_id=spec_id, error=str(exc))
-        verdict = self.fallback_breaker.evaluate(open_notional=total_notional)
+        total_equity: Decimal | None = Decimal("0")
+        for spec_id in active:
+            try:
+                status = await self.execution_engine.get_engine_status(spec_id)
+                total_equity = (total_equity or Decimal("0")) + status.current_equity
+            except Exception as exc:  # noqa: BLE001 — equity probe failure degrades to notional-only
+                _log.warning("breaker_equity_probe_failed", spec_id=spec_id, error=str(exc))
+                total_equity = None
+                break
+        was_frozen = self.fallback_breaker.frozen
+        verdict = self.fallback_breaker.evaluate(
+            open_notional=total_notional,
+            current_equity=total_equity,
+        )
         if not verdict.tripped:
+            return
+        if was_frozen:
+            # First-trip tick already dispatched flatten; re-issuing every tick
+            # after freeze would spam the exchange until an operator resets.
             return
         _log.warning(
             "fallback_breaker_flatten",
             reason=verdict.reason,
             open_notional=str(total_notional),
+            current_equity=str(total_equity) if total_equity is not None else "unavailable",
+            drawdown_pct=str(verdict.drawdown_pct),
         )
         for spec_id in active:
             try:

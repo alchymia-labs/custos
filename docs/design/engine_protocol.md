@@ -37,21 +37,100 @@ needs an immediate answer before any async work.
 | `NoopHost` | `custos.engines.nautilus.host` | `False` | `False` |
 | `NtTradingNodeHost` | `custos.engines.nautilus.host` | `True` | `True` for `BINANCE` |
 
-## Tier-2 extensions (planned, owned by downstream plans)
+## Tier-2 contract (frozen)
 
-The following methods are documented as the recommended extension surface.
-They are **not** part of the Tier-1 runtime Protocol and will be added by
-Plan 04 together with their implementations (paired landing keeps
-`isinstance` checks stable).
+Six `required` methods that back the disconnect-resilient guards
+(`local_cap` / `fallback_breaker` / `zombie_watchdog`) and the state
+snapshot publisher. Every host adds each Tier-2 method in lockstep with
+the Protocol so the `@runtime_checkable` `isinstance` check stays green
+(`test_engine_protocol_tier2.py` covers this end-to-end, plus a
+relaxed-double proving a fake missing a Tier-2 method fails the check).
 
-| Method (recommended signature) | Owner | Purpose |
-|-------------------------------|-------|---------|
-| `check_engine_connected(spec_id) -> ...` | Plan 04 | Zombie watchdog |
-| `get_status(spec_id) -> ...` | Plan 04 | Status snapshot |
-| `get_positions(spec_id) -> ...` | Plan 04 | Position snapshot |
-| `get_orders(spec_id) -> ...` | Plan 04 | Order snapshot |
-| `get_open_notional(spec_id) -> Decimal` | Plan 04 | Runner notional cap (Decimal, red-line 0.4) |
-| `flatten_positions(spec_id, reason) -> None` | Plan 04 | Breaker flatten |
+```python
+    # -- Tier-2: runner-level risk / connectivity state --------------------
+    async def get_open_notional(self, spec_id: str) -> Decimal: ...
+    async def check_engine_connected(self, spec_id: str) -> ConnectivityState: ...
+    async def flatten_positions(self, spec_id: str, reason: str) -> None: ...
+
+    # -- Tier-2: observability snapshot ------------------------------------
+    async def get_positions(self, spec_id: str) -> list[PositionSnapshot]: ...
+    async def get_orders(self, spec_id: str) -> list[OrderSnapshot]: ...
+    async def get_engine_status(self, spec_id: str) -> EngineStatus: ...
+```
+
+| Method | Purpose | Consumer |
+|--------|---------|---------|
+| `get_open_notional` | Sum of gross open notional across the spec's positions (Decimal, red-line 0.4). | `RunnerNotionalCap` (soft cap) + `FallbackBreaker` (hard limit) |
+| `check_engine_connected` | Engine data / exec connectivity + `checked_at_epoch_s` wall clock. | `ZombieWatchdog` — persistent disconnect > grace = degraded |
+| `flatten_positions` | Close every open position for the spec by reason. NT hosts map this to `Strategy.close_all_positions` per instrument (DEV-04-FLATTEN-NT-MAPPING). | `FallbackBreaker` on trip |
+| `get_positions` | List of `PositionSnapshot` (Decimal money) for observability. | `StateSnapshotPublisher` |
+| `get_orders` | List of `OrderSnapshot` (Decimal money) for observability. | `StateSnapshotPublisher` |
+| `get_engine_status` | Aggregate `EngineStatus`: counters + `open_notional` + `peak_equity` + `current_equity` + `drawdown_pct` (all money Decimal). | `StateSnapshotPublisher` + `FallbackBreaker.evaluate(current_equity=…)` drawdown feed |
+
+### Money-safe snapshot dataclasses
+
+Every snapshot type is a frozen dataclass whose money fields are enforced
+Decimal at construction — `_reject_float_money` in `engine_protocol.py`
+raises `TypeError` on any float slipping through the boundary
+(runtime invariant, since dataclass annotations alone cannot enforce
+types).
+
+```python
+@dataclass(frozen=True)
+class ConnectivityState:
+    data_connected: bool
+    exec_connected: bool
+    checked_at_epoch_s: float
+
+@dataclass(frozen=True)
+class PositionSnapshot:
+    instrument_id: str
+    quantity: Decimal
+    avg_px: Decimal
+    unrealized_pnl: Decimal
+    notional: Decimal
+
+@dataclass(frozen=True)
+class OrderSnapshot:
+    client_order_id: str
+    instrument_id: str
+    side: str
+    quantity: Decimal
+    price: Decimal
+    status: str
+
+@dataclass(frozen=True)
+class EngineStatus:
+    phase: str            # running / degraded / unknown
+    position_count: int
+    order_count: int
+    open_notional: Decimal
+    peak_equity: Decimal
+    current_equity: Decimal
+    drawdown_pct: Decimal   # percentage (Decimal("20") = 20%)
+```
+
+### NoopHost semantics
+
+`NoopHost` returns empty lists + a zero-valued `EngineStatus`
+(`phase="running"`, every Decimal `= 0`). This keeps the notional cap /
+fallback breaker / zombie watchdog structurally no-op against a paper /
+sim runner — the guards still evaluate every tick but never trip.
+
+### NtTradingNodeHost semantics
+
+- `get_open_notional`: sums `abs(position.quantity) * position.avg_px_open` over
+  `kernel.cache.positions_open()`.
+- `get_positions` / `get_orders`: iterate the same cache, Decimal-recompute
+  every money field.
+- `get_engine_status`: `open_notional` + `Σ unrealized_pnl` as
+  `current_equity`; per-spec `peak_equity` is tracked as Decimal on the
+  host (no float high-water mark — DEV-04-PEAK-EQUITY-DECIMAL);
+  `drawdown_pct = (peak - current) / peak * 100`.
+- `check_engine_connected`: `kernel.data_engine.check_connected()` +
+  `kernel.exec_engine.check_connected()`, `checked_at_epoch_s = time.time()`.
+- `flatten_positions`: per-instrument `Strategy.close_all_positions` for
+  every strategy on the trader.
 
 ## Engine onboarding template (5 steps)
 

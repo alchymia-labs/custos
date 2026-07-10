@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from custos.core.deployment_reconciler import DeploymentReconciler
-from custos.core.engine_protocol import ConnectivityState
+from custos.core.engine_protocol import ConnectivityState, EngineStatus
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.nats_client import ArxNatsClient, NatsEnvelope, OrderingMeta
@@ -44,6 +44,17 @@ class _ChaosHost:
 
     async def flatten_positions(self, spec_id: str, reason: str) -> None:
         self.flatten_calls.append((spec_id, reason))
+
+    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+        return EngineStatus(
+            phase="degraded",
+            position_count=0,
+            order_count=0,
+            open_notional=Decimal("5000"),
+            peak_equity=Decimal("0"),
+            current_equity=Decimal("0"),
+            drawdown_pct=Decimal("0"),
+        )
 
 
 @dataclass
@@ -167,3 +178,50 @@ async def test_arx_disconnect_snapshot_wal_cached(tmp_path) -> None:
     assert js.published[0][0] == "arx.acme.snapshot.state"
 
     client._wal.close()  # type: ignore[attr-defined]
+
+
+async def test_arx_disconnect_long_run_guards_persist() -> None:
+    """Extended cloud disconnect: many reconciler tick iterations later the
+    local guards still enforce (cap still rejects, breaker still tripped +
+    frozen, zombie still reports degraded, no crash / no leak). This is the
+    non-happy-path assertion — a happy-path test that only exercises one
+    tick would let a leak / cumulative-state bug hide (lesson #17)."""
+
+    host = _ChaosHost()
+    nats = _DisconnectedNats()
+    reconciler = _reconciler(host, nats)
+
+    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+
+    # Simulate ~60 reconciler tick iterations (order of an hour at 60s poll).
+    for _ in range(60):
+        await reconciler._watchdog_tick()
+        await reconciler._breaker_tick()
+
+    # Cap decision layer stays live for the whole run — every new order over
+    # the ceiling still refused, no cloud command needed.
+    for _ in range(3):
+        assert (
+            await reconciler.local_cap.allows(
+                symbol="BTCUSDT",
+                current_open=Decimal("1000"),
+                new_order_notional=Decimal("1"),
+            )
+            is False
+        )
+
+    # Breaker fires exactly once (first tick trips it) then stays frozen for
+    # the whole run — no repeated flatten commands per tick (would signal a
+    # missing freeze latch / state leak).
+    assert host.flatten_calls == [("s-1", "notional_breach")]
+    assert reconciler.fallback_breaker.allows_new_orders() is False
+
+    # Watchdog kept escalating degraded status attempts across the run. Every
+    # attempt was rejected by _DisconnectedNats (the cloud is down), but the
+    # local escalation loop never stopped trying — that is what "disconnect
+    # is not a stop" means at runtime.
+    degraded_attempts = [p for _, p in nats.attempts if p["phase"] == "degraded"]
+    assert len(degraded_attempts) >= 2  # multiple ticks, each attempted an escalation
+
+    # Reconciler state is coherent — no runaway growth from repeated ticks.
+    assert reconciler._state["s-1"].observed_generation == 1

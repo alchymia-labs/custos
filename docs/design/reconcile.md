@@ -51,6 +51,24 @@ plan-index §6 WR-NATS-2 demux），不混在 telemetry 流里，让 consumer di
   `str(Decimal)`，后端反序列化为 `rust_decimal::Decimal`，守 differential-test 不变量。
 - **幂等 + level-triggered**：同 `generation` 多次到达不重复执行，防重放导致重复起停。
 
+## 失联降级（Runtime Fulfillment of Red-line 0.3）
+
+红线 0.3「失联 ≠ 停止」的 runtime 兑现由三层 fail-fast 结构性守护（lesson #22 / #28
+独立可测），每层由引擎无关的 core 模块承担，从 `ExecutionEngineProtocol` Tier-2
+方法读引擎侧状态：
+
+| 层 | 模块 | 触发条件 | Tier-2 依赖 | 动作 |
+|----|------|---------|-------------|------|
+| Soft cap | `core/local_cap.py` (`RunnerNotionalCap`) | `current_open + new ≥ max_notional_per_runner` | `get_open_notional` | 拒绝新单 → `runner_cap_exceeded` structlog + 尝试 wire `PreTradeRejected`（arx 失联时 log-only） |
+| Hard breaker | `core/fallback_breaker.py` (`FallbackBreaker`) | `open_notional > max_notional` 或 `drawdown_pct > max_drawdown_pct` | `get_open_notional` + `get_engine_status.current_equity` | 首次触发 `flatten_positions` 每个 active spec + 冻结新单（`allows_new_orders=False`）；后续 tick 不重复 flatten |
+| Zombie watchdog | `core/zombie_watchdog.py` (`ZombieWatchdog`) | `check_engine_connected` 连续 `disconnected` 超过 `grace_secs` | `check_engine_connected` | 本地升级 `phase=degraded` + `health.reason=engine_disconnected_zombie`，`_report_status` 试图上报 |
+
+Composition root（`cli/main.py::_build_reconciler`）实例化三守护并注入
+`DeploymentReconciler`，每个 poll tick 依次调用 `_watchdog_tick` / `_breaker_tick`
+之后再处理云端消息——所以即便 `sub.next_msg` 抛异常，本地守护也已经跑过一轮。
+`test_arx_disconnect_long_run_guards_persist`（60 tick 无云端）证明守护随时间持续
+生效、breaker 首次 trip 后不重复 flatten、reconciler 状态无泄漏。
+
 ## 相关 gate
 
 | gate | 与本模块的关系 | 触发时机 |

@@ -9,7 +9,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from custos.core.engine_protocol import ConnectivityState, ExecutionEngineProtocol
+from custos.core.engine_protocol import (
+    ConnectivityState,
+    EngineStatus,
+    ExecutionEngineProtocol,
+    OrderSnapshot,
+    PositionSnapshot,
+)
 
 
 class _CompleteHost:
@@ -36,6 +42,23 @@ class _CompleteHost:
 
     async def flatten_positions(self, spec_id: str, reason: str) -> None:
         pass
+
+    async def get_positions(self, spec_id: str) -> list[PositionSnapshot]:
+        return []
+
+    async def get_orders(self, spec_id: str) -> list[OrderSnapshot]:
+        return []
+
+    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+        return EngineStatus(
+            phase="running",
+            position_count=0,
+            order_count=0,
+            open_notional=Decimal("0"),
+            peak_equity=Decimal("0"),
+            current_equity=Decimal("0"),
+            drawdown_pct=Decimal("0"),
+        )
 
 
 class _MissingDeploy:

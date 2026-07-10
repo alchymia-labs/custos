@@ -1,6 +1,6 @@
 # 04 — 红线 0.3 完整兑现: runner-level cap + 状态快照 + zombie detection + fallback breaker + arx-disconnect chaos
 
-> **Status**: 🔲 Todo (Phase 2 refined 2026-07-09, ready for intra-plan review → execute-team)
+> **Status**: ✅ Completed (2026-07-10, 04b slice closes out Plan 04 in full)
 > **Created**: 2026-07-09 (Plan 03 close-out 后 dogfood 深度审计 — safety-validator 跨范围审 + Lead 独立复核发现红线 0.3 组合级熔断未兑现)
 > **Refined**: 2026-07-09 (plan-drafter-04, opus-4-7[1m], evidence-scout report 为唯一 grep 源)
 > **Project**: custos (`tesseract-trading/custos/`)
@@ -229,6 +229,7 @@ class EngineStatus:
 | `src/custos/core/local_cap.py` | create | 缺 | T1.2 | `LocalCapConfig` + cap-check (引擎无关, 借 PreTradeRuleConfig 范式) |
 | `src/custos/core/state_snapshot.py` | create | 缺 | T2.2 | 周期快照发布框架 (引擎无关, 走 Protocol get_*) |
 | `src/custos/core/fallback_breaker.py` | create | 缺 | T4.2 | breaker trip 逻辑 (notional+drawdown, Decimal) + freeze state |
+| `src/custos/core/zombie_watchdog.py` | create | 缺 | T3.2 | `ZombieWatchdog` class + grace timer (04b backfill for DEV-04a-ZOMBIE-WATCHDOG-MODULE; originally implied inside `deployment_reconciler.py` but factored out for single-responsibility + testability) |
 | `src/custos/core/deployment_reconciler.py` | modify | 存 (Plan 05 移入) | T3.2/T4.3 | wire zombie watchdog (`:206` reconcile_loop) + breaker 失联路径 invoke (composition root) |
 | `src/custos/engines/nautilus/host.py` | modify | 存 (Plan 05 T2.2 rename) | T1.1/T2.1/T3.1/T4.1 | Tier-2 6 方法 NT 真实现 (safety.touched_paths, 红线 0.2 主载体) |
 | `src/custos/engines/nautilus/risk.py` | modify | 存 (Plan 05 rename `nt_risk_engine.py`) | T1.3 | cap 集成 pre-trade path → PreTradeRejected wire |
@@ -505,30 +506,47 @@ class EngineStatus:
 
 ## 完成报告 (Close-out Report)
 
-> **Status**: ⚠️ **Partial (04a slice) — Plan 04 整体 close-out 由 04b 收尾时统一签发**。
-> 本段记录 04a slice 落地事实；Plan 04 全部 14 task 完整 close-out 待 04b 完成。
+- **完成日期**: 2026-07-10 (Plan 04 完整 close-out — 04a slice 2026-07-09 + 04b slice 2026-07-10)
+- **总 Task 数**: 14 (Track 1-6 全部)
+- **偏离数**: 04a 12 LOW + 04b 3 LOW = 15 (LOW-only, 无 HIGH/MED) — 04b 追加 `DEV-04b-ENGINE-STATUS-CURRENT-EQUITY` (adds `current_equity` Decimal field to `EngineStatus`, drafter dataclass sketch had `peak_equity + drawdown_pct` only; runtime-wire flip needs current-equity feed) + `DEV-04b-BREAKER-FLATTEN-IDEMPOTENCE` (long-run chaos exposed cascading flatten per tick after trip → reconciler now uses `was_frozen` gate before invoking `flatten_positions`) + `DEV-04b-CHAOSHOST-ENGINE-STATUS-STUB` (chaos-suite `_ChaosHost` gains `get_engine_status` stub so the drawdown wire flip exercises the full runtime path)
+- **验证结果**: `make verify` 282/282 green at 04b HEAD; Non-Custodial 4 red-line grep gate all 0 (§verification.md §红线专项检查); 35 contract test names all grep-implemented in `tests/` (lesson #25); 12 04b-added test names grep-implemented
+- **实施 commit 范围**: `3e85c50` (04a squash) → `b77fbf9` (04a DEV-TEST-FILE-NAMING annotation) → `d99bd23` (04b T2.1 snapshot Tier-2 + 3 dataclass) → `726619c` (04b T2.2 state_snapshot.py) → `b5b3ef9` (04b drawdown wire flip) → `aec6a08` (04b T5.2 long-run + flatten-idempotence bug fix) → `951b9ad` (04b T6.1 docs sync)
+- **契约影响**:
+  - Code: `core/engine_protocol.py` extended with 3 Tier-2 snapshot methods + `PositionSnapshot` / `OrderSnapshot` / `EngineStatus` + `_reject_float_money` invariant; `core/state_snapshot.py` new module (periodic NATS publisher); `engines/nautilus/host.py` (both hosts) implements the new Tier-2 surface; `core/deployment_reconciler.py::_breaker_tick` extended to feed `current_equity` and gated on `was_frozen` before flatten
+  - Docs: `docs/domain.md` (DeploymentSpec.risk_config / lifecycle_state + `RunnerRiskConfig` + `EngineStatus`), `docs/design/reconcile.md` (§失联降级 tri-guard runtime), `docs/design/engine_protocol.md` (Tier-2 frozen contract + snapshot dataclass code block + host semantics), `docs/design/nautilus_host.md` (§组合熔断兜底 runtime anchor)
+- **红线守护**: Non-Custodial 4 红线全 0 违反 (grep §verification.md); 红线 0.3 从 04a partial scope 升到 **runtime wire full**（见下表）
+- **失败模式覆盖 (04b 新增)**: 12 net-new failure-mode tests grep-实存 —
+  - Tier-2 snapshot: `test_get_engine_status_noophost_zero_values` / `test_engine_status_drawdown_is_decimal` / `test_snapshot_dataclasses_reject_float_money` / `test_both_hosts_still_isinstance_after_snapshot_methods` / `test_get_positions_returns_decimal_money` / `test_get_orders_returns_decimal_money`
+  - NT-side impl: `test_nt_host_get_positions_returns_decimal_snapshots` / `test_nt_host_get_positions_unknown_spec_empty` / `test_nt_host_get_orders_returns_decimal_snapshots` / `test_nt_host_get_orders_unknown_spec_empty` / `test_nt_host_get_engine_status_decimal_and_tracks_peak` / `test_nt_host_get_engine_status_unknown_spec_zero`
+  - state_snapshot: `test_state_snapshot_publishes_str_decimal_money` / `test_state_snapshot_periodic_interval_respected` / `test_snapshot_cached_when_disconnected` / `test_state_snapshot_survives_engine_probe_exception` / `test_state_snapshot_module_exports_publisher`
+  - drawdown wire flip: `test_breaker_trips_on_drawdown_during_arx_disconnect`
+  - long-run chaos: `test_arx_disconnect_long_run_guards_persist`
+- **遗留项**:
+  - `DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER` — NT per-order intent interception hook (submit-time `guard.allows`). Cap decision layer is runtime-wire live; intercept-layer wire is a v1 pre-live follow-up (independent plan candidate).
+  - arx sidecar HTTP → NATS snapshot consumer migration — cross-repo, arx-project follow-up per single-repo self-sufficiency discipline.
 
-### 04a partial close-out (2026-07-09)
+### 红线 gate 满足度 (lesson #40 / C40 — three-column: code_coverage / runtime_wire / defer_status)
 
-- **完成日期 (04a)**: 2026-07-09
-- **04a Task 数**: 9 (含 partial T1.3/T4.2/T4.3) / 全 plan 14 (5 defer 04b)
-- **偏离数 (04a)**: 12 LOW (7 impl/CEO 决策 applied + 5 04a new-deviation) — 明细见 `.forge/triage/04a-DEVIATION-triage.md`
-- **验证结果 (04a)**: `make verify` 全绿 at slice HEAD (per marker constraints_honored)
-- **实施 commit 范围**: `3e85c50` (04a squash) → `b77fbf9` (DEV-04a-TEST-FILE-NAMING annotation)
-- **契约影响 (04a)**: `core/engine_protocol.py` Tier-2 3 方法 (get_open_notional / check_engine_connected / flatten_positions); `core/local_cap.py` + `core/fallback_breaker.py` + `core/zombie_watchdog.py` 新建; `deployment_reconciler.py` composition wire; 完整 docs 同步 defer 04b (T6.1)
-- **红线守护 (04a)**: 4 红线 grep 全 0 命中（见 04a triage 红线守护实证段）；红线 0.3 **cap 层 + zombie 层 + notional breaker 层 runtime-wire 已 live**，drawdown 层 runtime-wire deferred 04b（lesson #40 code_coverage vs runtime_wire 显式区分）
-- **失败模式覆盖 (04a)**: 04a scope 内新增 failure-mode test 全绿 (marker 未详列具体条目数，Plan 04 完整 close-out 时 grep 实存核数收口，per §5 packet FU-INTRA-5)
-- **04a 落地清单 (marker source of truth)**: `.forge/dispatch-log/2026-07-04-05-06-execute-team-packet/runner-executor-04a-v1.complete.json`
+| 红线 | code_coverage | runtime_wire | defer_status | follow_up_plan_ref |
+|------|---------------|--------------|--------------|---------------------|
+| 0.1 Key/KEK 不出进程 | All existing sanitization tests green (`test_credential_lifecycle.py` / `test_nautilus_host_credential_leak.py` / `_sanitize_exception` guard). 04b snapshot payloads carry no credential material. | Unchanged (Tier-2 snapshot methods don't touch credentials; state_snapshot payload structurally excludes any vault-decrypted material). | No defer. | — |
+| 0.2 G6 gate 不绕过 | 5 relaxed-double tests remain green (`test_g6_gate_capability_integration.py`); 04b Tier-2 additions land in host without touching G6 path. | Unchanged (G6 layers 1-4 untouched). | No defer. | — |
+| **0.3 失联 ≠ 停止 (per-runner layer)** | Cap: `test_cap_exceeded_during_disconnect_still_rejects` + `test_cap_is_live_guard_relaxed_double`. Zombie: `test_zombie_detection_works_when_arx_disconnected` + grace/blip/paused suite. Breaker (notional): `test_breaker_trips_during_arx_disconnect`. Breaker (drawdown): `test_breaker_trips_on_drawdown_during_arx_disconnect` (04b NEW — drawdown wire live-guard). Long-run: `test_arx_disconnect_long_run_guards_persist` (04b NEW — 60-tick persistence). | **Full runtime-wire**: `cli/main.py::_build_reconciler` constructs cap + breaker + watchdog (04a: `3e85c50`); reconciler `_breaker_tick` feeds `open_notional` + `current_equity` from Tier-2 `get_engine_status` into `FallbackBreaker.evaluate` (04b: `b5b3ef9`); watchdog tick runs per poll (04a); first-trip flatten idempotence via `was_frozen` gate (04b: `aec6a08`). | State snapshot arx-side consumer migration deferred (external to custos independent repo — arx-project follow-up). NT per-order intercept hook deferred to v1 pre-live (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER). | arx sidecar-to-NATS-snapshot migration (arx-project); v1 pre-live cap intercept plan |
+| 0.4 Money math Decimal | `test_snapshot_dataclasses_reject_float_money` + `test_get_positions_returns_decimal_money` + `test_engine_status_drawdown_is_decimal` + `test_state_snapshot_publishes_str_decimal_money` + `test_local_cap_config_parses_decimal_not_float` + `test_breaker_drawdown_uses_decimal_not_float`. | All 04b money paths: `EngineStatus.peak_equity` / `current_equity` / `drawdown_pct` are host-tracked Decimal; NT-side impl `Decimal(str(...))` reconstruction (no float); state_snapshot wire serialises `str(Decimal)`; `_reject_float_money` runtime invariant guards every dataclass construction. Verification `grep -rnE 'float\(.*(price|amount|notional)' src/custos --exclude-dir=toolkit` = 0. | No defer. | — |
 
-### Plan 04 完整 close-out 待办 (04b 收尾)
+**兑现范围声明 (lesson #40)**: "Red-line 0.3 per-runner layer transitions from `code_coverage + partial runtime_wire` (04a: cap / zombie / notional breaker live; drawdown wire deferred) to **`code_coverage + full runtime_wire`** — the reconciler now feeds `current_equity` from Tier-2 `get_engine_status` into the fallback breaker so a peak-to-current drawdown breach flattens autonomously during an arx disconnect. State-snapshot arx-side consumer migration is an arx-project follow-up per the single-repo self-sufficiency discipline; the custos-side push path is complete. NT per-order intercept hook (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER) remains a v1 pre-live follow-up — cap decision layer is runtime-wire, intercept layer is not."
 
-- Track 2 完整实施 (state snapshot 3 方法 + dataclass + `state_snapshot.py` 周期发布)
-- T5.2 long-run chaos
-- Track 6 docs 同步 (reconcile / domain / engine_protocol / nautilus_host)
-- T-final Plan 04 完整红线 gate 满足度表填实（drawdown wire 应转 live）
-- File Inventory §A 补 `zombie_watchdog.py`
-- NT per-order intercept hook (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER) — 若 v1 pre-live 前完成则并入 Plan 04；否则独立 plan
-- 04b DEVIATION triage 并入本文件段落，或独立签发 `.forge/triage/04b-DEVIATION-triage.md` 交叉引用
+### 04b DEVIATION triage summary (LOW-only)
+
+3 new deviations, all LOW, no HIGH/MED escalation. Independent triage file
+`.forge/triage/04b-DEVIATION-triage.md` inherits the 04a triage template
+(intentionally combined with the 04a triage cross-reference — a separate
+04b file is not strictly required for a LOW-only slice per the deviation
+protocol, but the Plan 04 close-out enumerates them here for completeness):
+
+- `DEV-04b-ENGINE-STATUS-CURRENT-EQUITY` (LOW): `EngineStatus` gained a `current_equity: Decimal` field beyond the drafter Tier-2 sketch (`peak_equity` + `drawdown_pct` only). Rationale: the reconciler drawdown-wire flip requires feeding `current_equity` into `FallbackBreaker.evaluate` — deriving current from `peak_equity * (1 - drawdown_pct/100)` was rejected as awkward + precision-lossy. Impact: engine_protocol.md Tier-2 dataclass block updated to reflect actual shape; consumer (state_snapshot publisher wire + reconciler `_breaker_tick`) code green.
+- `DEV-04b-BREAKER-FLATTEN-IDEMPOTENCE` (LOW): long-run chaos test exposed cascading `flatten_positions` per tick after trip (breaker's `evaluate` returns `tripped=True` on every over-ceiling tick even after freeze). Fix: `_breaker_tick` now captures `was_frozen = self.fallback_breaker.frozen` before evaluate; skips the flatten dispatch on subsequent ticks where `was_frozen == True`. Structured log `fallback_breaker_tripped` (breaker-side) still fires once at trip; `fallback_breaker_flatten` (reconciler-side) also fires once. Existing test `test_breaker_trips_during_arx_disconnect` unaffected (single-tick scenario).
+- `DEV-04b-CHAOSHOST-ENGINE-STATUS-STUB` (LOW): `tests/core/test_arx_disconnect_chaos.py::_ChaosHost` gained a `get_engine_status` stub returning a zero-equity `EngineStatus`. Rationale: drawdown wire flip means reconciler now calls `get_engine_status` in `_breaker_tick`; a chaos host without the method would silently degrade to notional-only via the exception path (correct but obscures the runtime-wire test intent). Stub keeps the test asserting the notional breach path while validating the get_engine_status call succeeds.
 
 ---
 
@@ -556,17 +574,17 @@ Plan 04 close-out 后:
 | T1.1 get_open_notional + 两 host | 1 | ✅ | 2026-07-09 (`3e85c50`) | Tier-2 Protocol foundation (cap) |
 | T1.2 LocalCapConfig + cap-check | 1 | ✅ | 2026-07-09 (`3e85c50`) | 借 PreTradeRuleConfig Decimal 范式; floor paper=200/live=1000 (DP1) |
 | T1.3 cap 集成 pre-trade + wire | 1 | ✅ | 2026-07-09 (`3e85c50`) | 失联期间拒单 runtime wire; NT per-order intercept hook 04b (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER) |
-| T2.1 snapshot 3 方法 + 3 dataclass | 2 | 🔲 04b | | peak_equity Decimal 重推; **defer to 04b** |
-| T2.2 state_snapshot.py 周期发布 | 2 | 🔲 04b | | NATS build_subject (lesson #26); **defer to 04b** |
+| T2.1 snapshot 3 方法 + 3 dataclass | 2 | ✅ | 2026-07-10 (`d99bd23`) | peak_equity Decimal 重推 (DEV-04-PEAK-EQUITY-DECIMAL); 新增 `current_equity` 字段 (DEV-04b-ENGINE-STATUS-CURRENT-EQUITY, LOW) — drawdown wire 反哺 |
+| T2.2 state_snapshot.py 周期发布 | 2 | ✅ | 2026-07-10 (`726619c`) | `build_subject(tenant, "snapshot", "state", runner, spec)` (lesson #26); probe/publish 异常皆 log 不停 loop |
 | T3.1 check_engine_connected + 两 host | 3 | ✅ | 2026-07-09 (`3e85c50`) | ConnectivityState |
 | T3.2 zombie watchdog + degraded | 3 | ✅ | 2026-07-09 (`3e85c50`) | 借 sidecar Rule 2; arx 断线自主; grace=60s (DP3); 独立 `zombie_watchdog.py` (DEV-04a-ZOMBIE-WATCHDOG-MODULE) |
 | T4.1 flatten_positions + 两 host | 4 | ✅ | 2026-07-09 (`3e85c50`) | NT→close_all_positions 映射 (DEV-04-FLATTEN-NT-MAPPING) |
-| T4.2 fallback_breaker.py trip 逻辑 | 4 | ✅ (partial) | 2026-07-09 (`3e85c50`) | notional trip live; drawdown code ready + equity feed wire 04b (DEV-04a-BREAKER-DRAWDOWN-EQUITY-DEFER, lesson #40 partial scope) |
-| T4.3 wire composition root | 4 | ✅ (partial) | 2026-07-09 (`3e85c50`) | notional cap + zombie watchdog wired ⟶ 红线 0.3 runtime wire 部分兑现; drawdown wire 04b |
+| T4.2 fallback_breaker.py trip 逻辑 | 4 | ✅ | 2026-07-09 (`3e85c50`) + 04b (`b5b3ef9`) | notional trip live 04a; drawdown runtime wire flipped 04b via `get_engine_status.current_equity` — revokes DEV-04a-BREAKER-DRAWDOWN-EQUITY-DEFER |
+| T4.3 wire composition root | 4 | ✅ | 2026-07-09 (`3e85c50`) + 04b (`b5b3ef9`, `aec6a08`) | 04a: cap + zombie + notional breaker wired; 04b: drawdown wire live + first-trip flatten idempotence (`was_frozen` gate) ⟶ 红线 0.3 runtime wire full |
 | T5.1 chaos 多守护失联 | 5 | ✅ | 2026-07-09 (`3e85c50`) | mock NATS disconnect (DP2) |
-| T5.2 long-run 失联 chaos | 5 | 🔲 04b | | lesson #17 非 happy-path; **defer to 04b** |
-| T6.1 docs 同步 | 6 | 🔲 04b | | reconcile/domain/engine_protocol/nautilus_host; **defer to 04b** |
-| T-final close-out | 6 | 🔲 04b | | 红线 gate 表填实 + test grep 实存; **Plan 04 完整 close-out 由 04b 收尾** |
+| T5.2 long-run 失联 chaos | 5 | ✅ | 2026-07-10 (`aec6a08`) | 60-tick simulated long-run (lesson #17); breaker first-trip flatten idempotence bug fixed en route |
+| T6.1 docs 同步 | 6 | ✅ | 2026-07-10 (`951b9ad`) | reconcile.md §失联降级 tri-guard runtime; domain.md `risk_config` + `RunnerRiskConfig` + `EngineStatus`; engine_protocol.md Tier-2 frozen; nautilus_host.md 组合熔断兜底 runtime anchor |
+| T-final close-out | 6 | ✅ | 2026-07-10 | Plan 04 full close-out — status flip + full report + red-line gate table + lesson #25 grep-verify + README index → ✅ |
 
 **切片建议 (multi_session_scope=true, lesson #31)**:
 - **04a (Tracks 1+3+4 + T5.1)**: cap + zombie + breaker + chaos 核心 — **红线 0.3 runtime wire 硬阻断路径** (Tier-2: get_open_notional / check_engine_connected / flatten_positions)。~9 task。优先。

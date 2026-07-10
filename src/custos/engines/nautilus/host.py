@@ -20,7 +20,12 @@ import time
 from decimal import Decimal
 from pathlib import Path
 
-from custos.core.engine_protocol import ConnectivityState
+from custos.core.engine_protocol import (
+    ConnectivityState,
+    EngineStatus,
+    OrderSnapshot,
+    PositionSnapshot,
+)
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient
 from custos.core.telemetry_actor import (
@@ -133,6 +138,26 @@ class NoopHost:
         # trip is still observable on a paper/sim runner.
         _log.info("noophost_flatten_noop", spec_id=spec_id, reason=reason)
 
+    async def get_positions(self, spec_id: str) -> list[PositionSnapshot]:
+        # Stub holds no positions — the snapshot publisher sees an empty list.
+        return []
+
+    async def get_orders(self, spec_id: str) -> list[OrderSnapshot]:
+        return []
+
+    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+        # Stub is always healthy with zero exposure; every money field is a
+        # Decimal so the money-invariant guard on EngineStatus stays green.
+        return EngineStatus(
+            phase="running",
+            position_count=0,
+            order_count=0,
+            open_notional=Decimal("0"),
+            peak_equity=Decimal("0"),
+            current_equity=Decimal("0"),
+            drawdown_pct=Decimal("0"),
+        )
+
 
 class NtTradingNodeHost:
     """Real NautilusTrader host for Binance sandbox / testnet / live deployments.
@@ -164,6 +189,9 @@ class NtTradingNodeHost:
         # Strong refs to fire-and-forget actor-teardown tasks scheduled from the
         # sync done-callback, so the loop doesn't GC them mid-shutdown.
         self._cleanup_tasks: set = set()
+        # Decimal equity high-water mark per spec so get_engine_status can
+        # report drawdown percentage over time. Never a float (red line 0.4).
+        self._peak_equity: dict[str, Decimal] = {}
         self._stop_timeout_secs = _STOP_TIMEOUT_SECS
         self._telemetry_client = telemetry_client
         self._tenant_id = tenant_id
@@ -452,6 +480,111 @@ class NtTradingNodeHost:
             spec_id=spec_id,
             reason=reason,
             instrument_count=len(instrument_ids),
+        )
+
+    async def get_positions(self, spec_id: str) -> list[PositionSnapshot]:
+        """Materialise every open position as a Decimal-only ``PositionSnapshot``.
+
+        Quantity, entry price and unrealized pnl are stringified before Decimal
+        conversion so no float reaches the money math (red line 0.4). An
+        unknown / not-yet-deployed spec has no positions.
+        """
+
+        entry = self._active_nodes.get(spec_id)
+        if entry is None:
+            return []
+        node, _task = entry
+        snapshots: list[PositionSnapshot] = []
+        for position in node.kernel.cache.positions_open():
+            quantity = Decimal(str(position.quantity))
+            avg_px = Decimal(str(position.avg_px_open))
+            unrealized = Decimal(str(getattr(position, "unrealized_pnl", "0")))
+            snapshots.append(
+                PositionSnapshot(
+                    instrument_id=str(position.instrument_id),
+                    quantity=quantity,
+                    avg_px=avg_px,
+                    unrealized_pnl=unrealized,
+                    notional=abs(quantity) * avg_px,
+                )
+            )
+        return snapshots
+
+    async def get_orders(self, spec_id: str) -> list[OrderSnapshot]:
+        """Materialise every open order as a Decimal-only ``OrderSnapshot``."""
+
+        entry = self._active_nodes.get(spec_id)
+        if entry is None:
+            return []
+        node, _task = entry
+        snapshots: list[OrderSnapshot] = []
+        for order in node.kernel.cache.orders_open():
+            snapshots.append(
+                OrderSnapshot(
+                    client_order_id=str(order.client_order_id),
+                    instrument_id=str(order.instrument_id),
+                    side=str(order.side),
+                    quantity=Decimal(str(order.quantity)),
+                    price=Decimal(str(order.price)),
+                    status=str(order.status),
+                )
+            )
+        return snapshots
+
+    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+        """Aggregate exposure + equity snapshot for the reconciler and the
+        state-snapshot publisher.
+
+        ``current_equity`` is a light-weight engine-side proxy — gross open
+        notional plus every position's unrealized pnl. This is enough to feed
+        the fallback breaker's drawdown check (which trips on peak-to-current
+        percentage) without depending on a per-venue portfolio ledger that a
+        stubbed test node does not expose. ``peak_equity`` is host-tracked as a
+        Decimal (red line 0.4, no float high-water mark).
+        """
+
+        entry = self._active_nodes.get(spec_id)
+        if entry is None:
+            return EngineStatus(
+                phase="unknown",
+                position_count=0,
+                order_count=0,
+                open_notional=Decimal("0"),
+                peak_equity=Decimal("0"),
+                current_equity=Decimal("0"),
+                drawdown_pct=Decimal("0"),
+            )
+        node, _task = entry
+        positions = list(node.kernel.cache.positions_open())
+        try:
+            orders = list(node.kernel.cache.orders_open())
+        except AttributeError:
+            # Some cache fakes do not expose orders_open (positions-only tests).
+            orders = []
+        open_notional = Decimal("0")
+        unrealized_total = Decimal("0")
+        for position in positions:
+            quantity = Decimal(str(position.quantity))
+            avg_px = Decimal(str(position.avg_px_open))
+            open_notional += abs(quantity) * avg_px
+            unrealized_total += Decimal(str(getattr(position, "unrealized_pnl", "0")))
+        current_equity = open_notional + unrealized_total
+        peak = self._peak_equity.get(spec_id, Decimal("0"))
+        if current_equity > peak:
+            peak = current_equity
+            self._peak_equity[spec_id] = peak
+        if peak > 0 and current_equity < peak:
+            drawdown_pct = (peak - current_equity) / peak * Decimal("100")
+        else:
+            drawdown_pct = Decimal("0")
+        return EngineStatus(
+            phase="running",
+            position_count=len(positions),
+            order_count=len(orders),
+            open_notional=open_notional,
+            peak_equity=peak,
+            current_equity=current_equity,
+            drawdown_pct=drawdown_pct,
         )
 
     def _instantiate_strategy(self, strategy_cls, spec: dict):

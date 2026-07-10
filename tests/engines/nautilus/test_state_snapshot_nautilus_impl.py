@@ -116,3 +116,156 @@ async def test_flatten_positions_maps_to_close_all() -> None:
 async def test_flatten_positions_noophost_noop() -> None:
     # A paper host flatten is a logged no-op — no exception, no state.
     await NoopHost().flatten_positions("spec-1", "notional_breach")
+
+
+# -- T2.1 snapshot Tier-2 NT-side impl tests ------------------------------
+
+
+class _FakeSnapshotPosition:
+    def __init__(
+        self,
+        instrument_id: str,
+        quantity: str,
+        avg_px_open: str,
+        unrealized_pnl: str = "0",
+    ) -> None:
+        self.instrument_id = instrument_id
+        self.quantity = quantity
+        self.avg_px_open = avg_px_open
+        self.unrealized_pnl = unrealized_pnl
+
+
+class _FakeSnapshotOrder:
+    def __init__(
+        self,
+        client_order_id: str,
+        instrument_id: str,
+        side: str,
+        quantity: str,
+        price: str,
+        status: str,
+    ) -> None:
+        self.client_order_id = client_order_id
+        self.instrument_id = instrument_id
+        self.side = side
+        self.quantity = quantity
+        self.price = price
+        self.status = status
+
+
+class _FakeSnapshotCache:
+    def __init__(self, positions: list, orders: list) -> None:
+        self._positions = positions
+        self._orders = orders
+
+    def positions_open(self) -> list:
+        return self._positions
+
+    def orders_open(self) -> list:
+        return self._orders
+
+
+class _FakeSnapshotKernel:
+    def __init__(self, positions: list, orders: list) -> None:
+        self.cache = _FakeSnapshotCache(positions, orders)
+
+
+class _FakeSnapshotNode:
+    def __init__(self, positions: list, orders: list) -> None:
+        self.kernel = _FakeSnapshotKernel(positions, orders)
+
+
+async def test_nt_host_get_positions_returns_decimal_snapshots() -> None:
+    host = _host()
+    node = _FakeSnapshotNode(
+        [
+            _FakeSnapshotPosition("BTCUSDT", "2", "100", "5"),
+            _FakeSnapshotPosition("ETHUSDT", "-1", "50", "-2.5"),
+        ],
+        orders=[],
+    )
+    host._active_nodes["spec-1"] = (node, None)
+
+    positions = await host.get_positions("spec-1")
+
+    assert len(positions) == 2
+    # Every money field lands as Decimal end-to-end (red line 0.4).
+    for snapshot in positions:
+        assert isinstance(snapshot.quantity, Decimal)
+        assert isinstance(snapshot.avg_px, Decimal)
+        assert isinstance(snapshot.unrealized_pnl, Decimal)
+        assert isinstance(snapshot.notional, Decimal)
+    # Notional = abs(quantity) * avg_px.
+    by_instrument = {p.instrument_id: p for p in positions}
+    assert by_instrument["BTCUSDT"].notional == Decimal("200")
+    assert by_instrument["ETHUSDT"].notional == Decimal("50")
+
+
+async def test_nt_host_get_positions_unknown_spec_empty() -> None:
+    assert await _host().get_positions("nope") == []
+
+
+async def test_nt_host_get_orders_returns_decimal_snapshots() -> None:
+    host = _host()
+    node = _FakeSnapshotNode(
+        positions=[],
+        orders=[
+            _FakeSnapshotOrder("c1", "BTCUSDT", "BUY", "1", "100", "ACCEPTED"),
+            _FakeSnapshotOrder("c2", "ETHUSDT", "SELL", "2", "50", "SUBMITTED"),
+        ],
+    )
+    host._active_nodes["spec-1"] = (node, None)
+
+    orders = await host.get_orders("spec-1")
+
+    assert len(orders) == 2
+    for snapshot in orders:
+        assert isinstance(snapshot.quantity, Decimal)
+        assert isinstance(snapshot.price, Decimal)
+
+
+async def test_nt_host_get_orders_unknown_spec_empty() -> None:
+    assert await _host().get_orders("nope") == []
+
+
+async def test_nt_host_get_engine_status_decimal_and_tracks_peak() -> None:
+    host = _host()
+    # First tick: peak = current (initial exposure).
+    node1 = _FakeSnapshotNode([_FakeSnapshotPosition("BTCUSDT", "1", "100", "10")], orders=[])
+    host._active_nodes["spec-1"] = (node1, None)
+
+    status1 = await host.get_engine_status("spec-1")
+    assert status1.phase == "running"
+    assert status1.position_count == 1
+    assert status1.order_count == 0
+    assert status1.open_notional == Decimal("100")
+    # Equity = notional + unrealized_pnl (a simple engine-side proxy without
+    # a portfolio ledger). Peak = current on the very first observation, so
+    # drawdown is zero.
+    assert status1.current_equity == Decimal("110")
+    assert status1.peak_equity == Decimal("110")
+    assert status1.drawdown_pct == Decimal("0")
+
+    # Second tick: equity drops → drawdown_pct > 0 while peak stays.
+    node2 = _FakeSnapshotNode([_FakeSnapshotPosition("BTCUSDT", "1", "50", "-10")], orders=[])
+    host._active_nodes["spec-1"] = (node2, None)
+
+    status2 = await host.get_engine_status("spec-1")
+    # current_equity = 50 + (-10) = 40; peak carried from prior tick = 110.
+    assert status2.current_equity == Decimal("40")
+    assert status2.peak_equity == Decimal("110")
+    # drawdown_pct = (110 - 40) / 110 * 100 (kept as Decimal, may have tail).
+    assert isinstance(status2.drawdown_pct, Decimal)
+    assert status2.drawdown_pct > Decimal("60")
+    assert status2.drawdown_pct < Decimal("65")
+
+
+async def test_nt_host_get_engine_status_unknown_spec_zero() -> None:
+    status = await _host().get_engine_status("nope")
+    assert status.phase == "unknown"
+    assert status.position_count == 0
+    assert status.order_count == 0
+    assert status.open_notional == Decimal("0")
+    assert status.current_equity == Decimal("0")
+    assert status.peak_equity == Decimal("0")
+    assert status.drawdown_pct == Decimal("0")

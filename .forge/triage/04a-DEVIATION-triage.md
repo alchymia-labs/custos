@@ -148,3 +148,47 @@
 
 - Plan 04b 起草前，将上述"04b 追踪清单"作为 File Inventory 优先项
 - Plan 04b close-out 时统一签发 Plan 04 完整 close-out（本 triage + 04b 时追加的 triage 合并到 Plan 04 完成报告段引用）
+
+---
+
+## 04b addendum — 3 LOW deviations (2026-07-10)
+
+Plan 04b close-out landed 3 new LOW deviations; Plan 04 full completion
+report enumerates them under `.forge/plans/2026-07/04-red-line-03-runner-fallback.md`
+§04b DEVIATION triage summary. Summarised here for cross-reference:
+
+- `DEV-04b-ENGINE-STATUS-CURRENT-EQUITY` (LOW): `EngineStatus` grew a
+  `current_equity: Decimal` field beyond the plan's drafter dataclass
+  sketch (which had `peak_equity + drawdown_pct` only). Rationale:
+  reconciler drawdown-wire flip needs to feed `current_equity` into
+  `FallbackBreaker.evaluate`; deriving current from
+  `peak_equity * (1 - drawdown_pct/100)` was rejected as precision-lossy
+  and awkward.
+- `DEV-04b-BREAKER-FLATTEN-IDEMPOTENCE` (LOW): long-run chaos exposed
+  cascading `flatten_positions` per tick after trip. Reconciler
+  `_breaker_tick` now gates the flatten dispatch on
+  `was_frozen == False` — first-trip tick dispatches flatten, subsequent
+  ticks skip. Breaker's own `_frozen` transition still fires the single
+  `fallback_breaker_tripped` structured log.
+- `DEV-04b-CHAOSHOST-ENGINE-STATUS-STUB` (LOW): chaos suite `_ChaosHost`
+  gains a `get_engine_status` stub returning zero-valued `EngineStatus`
+  so the drawdown wire flip exercises the full runtime path (a chaos
+  host without the method silently degrades to notional-only via the
+  exception path — correct but obscures test intent).
+
+### 04b追踪清单 close-out (原 04b 收尾承接项)
+
+- ✅ Track 2 完整实施 (state snapshot 3 methods + 3 dataclass + `state_snapshot.py`)
+  → `d99bd23` + `726619c`
+- ✅ T5.2 long-run chaos → `aec6a08`
+- ✅ Track 6 docs sync → `951b9ad`
+- ✅ T-final Plan 04 完整 close-out with red-line gate satisfaction table
+  → 04b T-final commit
+- ✅ File Inventory §A backfill `zombie_watchdog.py` → Plan 04 md updated
+- ✅ Drawdown breach runtime wire (DEV-04a-BREAKER-DRAWDOWN-EQUITY-DEFER
+  revoked) → `b5b3ef9`
+- 🔲 NT per-order intent interception hook (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER)
+  — remains deferred to independent v1 pre-live plan (out of scope for
+  Plan 04 close-out per handoff packet §3).
+- ✅ `test_state_snapshot_nautilus_impl.py` extended with Tier-2 snapshot
+  method impls (DEV-04a-TEST-FILE-NAMING follow-through) → `d99bd23`

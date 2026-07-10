@@ -8,7 +8,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from custos.core.deployment_reconciler import DeploymentReconciler
-from custos.core.engine_protocol import ConnectivityState
+from custos.core.engine_protocol import ConnectivityState, EngineStatus
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 
 
@@ -69,6 +69,9 @@ def test_breaker_is_live_guard_relaxed_double() -> None:
 @dataclass
 class _BreachHost:
     flatten_calls: list = field(default_factory=list)
+    open_notional: Decimal = Decimal("5000")  # over any small breaker ceiling
+    current_equity: Decimal = Decimal("0")
+    peak_equity: Decimal = Decimal("0")
 
     async def deploy(self, spec: dict, credential: dict) -> str:
         return f"container-{spec['spec_id']}"
@@ -84,13 +87,24 @@ class _BreachHost:
         return False
 
     async def get_open_notional(self, spec_id: str) -> Decimal:
-        return Decimal("5000")  # over any small breaker ceiling
+        return self.open_notional
 
     async def check_engine_connected(self, spec_id: str) -> ConnectivityState:
         return ConnectivityState(data_connected=True, exec_connected=True, checked_at_epoch_s=0.0)
 
     async def flatten_positions(self, spec_id: str, reason: str) -> None:
         self.flatten_calls.append((spec_id, reason))
+
+    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+        return EngineStatus(
+            phase="running",
+            position_count=0,
+            order_count=0,
+            open_notional=self.open_notional,
+            peak_equity=self.peak_equity,
+            current_equity=self.current_equity,
+            drawdown_pct=Decimal("0"),
+        )
 
 
 @dataclass
@@ -125,6 +139,43 @@ async def test_breaker_trips_during_arx_disconnect() -> None:
     await reconciler._breaker_tick()
 
     assert host.flatten_calls == [("s-1", "notional_breach")]
+    assert breaker.allows_new_orders() is False
+
+
+async def test_breaker_trips_on_drawdown_during_arx_disconnect() -> None:
+    """The reconciler feeds current_equity from get_engine_status into the
+    breaker so a peak-to-current drawdown breach flattens autonomously —
+    even while arx is unreachable (drawdown wire runtime-live per lesson
+    #40, revoking the 04a partial-scope deferral)."""
+
+    host = _BreachHost(
+        open_notional=Decimal("100"),  # well below any notional ceiling
+        current_equity=Decimal("500"),  # seed peak on first tick
+    )
+    # Large notional ceiling — the trip must fire on drawdown alone.
+    breaker = _breaker(max_notional="1000000", max_drawdown="20")
+    reconciler = DeploymentReconciler(
+        nats_client=_FakeNats(),  # type: ignore[arg-type]
+        tenant_id="acme",
+        runner_id="runner-7",
+        execution_engine=host,
+        credential_vault=_FakeVault(),
+        fallback_breaker=breaker,
+    )
+
+    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+
+    # First tick: seed peak_equity = 500 (no breach, no trip).
+    await reconciler._breaker_tick()
+    assert host.flatten_calls == []
+    assert breaker.allows_new_orders() is True
+
+    # Simulate equity crash while arx stays disconnected — new tick, no cloud
+    # command, breaker must trip on drawdown_breach and flatten autonomously.
+    host.current_equity = Decimal("300")  # -40% from peak 500, over the 20% cap
+    await reconciler._breaker_tick()
+
+    assert host.flatten_calls == [("s-1", "drawdown_breach")]
     assert breaker.allows_new_orders() is False
 
 
