@@ -503,7 +503,7 @@ def test_wheel_bytes_identical_across_rebuild():
 
 - **Iteration 1 · 直接引用（空间维 lesson #14）**：读 evidence-scout §L3 verbatim + custos README.md + pyproject.toml；确认 `[project.scripts]` 零 / `Dockerfile` 只 example / `.github/` 不存在 / 无 CHANGELOG.md / 无 LTS 文档。
 - **Iteration 2 · 命名空间维（lesson #30）**：grep arx `coordination/src/custos.rs` CustosGateway trait 4 typed method 逐字锚点 + `raw_call` supertrait；分发名 `custos-runner` vs import name `custos` 分离固化；确认 contract v1 语义是 NATS payload + Rust trait 双面（非 REST HTTP）→ DP3 JSON Schema 而非 OpenAPI。
-- **Iteration 3 · 时间维 + 影响面维（lesson #33 / #33b）**：as-of 2026-07-10 Plan 05 close-out `e82825d` + Plan 04 close-out `d0dd537`；上游依赖 Plan 11 script name（soft dep，DP5 占位保护 lesson #35 fanout）+ arx-79 wire（Plan 12 只出契约，不 block arx-side wire）；停扫判据 —— 3 iteration 覆盖空间 / 命名空间 / 时间 / 影响面四维，deliverable 全部 file:line 锚定，无更深层。
+- **Iteration 3 · 时间维 + 影响面维（lesson #33 / #33b）**：as-of 2026-07-10 Plan 05 close-out `e82825d` + Plan 04 close-out `d0dd537` + **Plan 11 draft clean-break lock 2026-07-10 (untracked)**；上游依赖 Plan 11 landed（**hard dep** — script name `arx-runner` + `~/.arx/` namespace 单源）+ arx-79 wire（Plan 12 只出契约，不 block arx-side wire）；DP5 从 soft/占位 升级为 hard/resolved（Plan 11 CEO clean-break directive 消除双源风险）；停扫判据 —— 3 iteration 覆盖空间 / 命名空间 / 时间 / 影响面四维，deliverable 全部 file:line 锚定，无更深层。
 
 ## Applicable lessons (self-audit)
 
@@ -512,7 +512,7 @@ def test_wheel_bytes_identical_across_rebuild():
 - **lesson #22 multi-layer 独立可测**：FM1/FM2/FM3 均 ≥2 layer 独立测；relaxed-double 不适用（无 shadow 结构）
 - **lesson #28 复合契约分句 → guard 对照**：目标段「signed wheel + docker image + SEMVER + LTS + gateway contract」5 分句 → T3 / T2+T4 / T1+T5 / T6 / T7 逐句映射 file:line
 - **lesson #31 multi_session_scope**：false（9 Task，中粒度 6-10h）；CI 首跑失败风险登记
-- **lesson #35 boundary constant rename fanout**：script name（DP5）+ contract v1 field name（T7 golden snapshot）双 fanout gate；rename 时 T9 联动检 pyproject.toml + Dockerfile + docs + README
+- **lesson #35 boundary constant rename fanout**：script name（DP5, **partial resolve** — Plan 11 clean-break 已 lock `arx-runner` 单一 entry，消除 script name 双源；Plan 12 直接消费 Plan 11 lock 状态，不再是双 fanout gate）+ contract v1 field name（T7 golden snapshot）单 fanout gate；rename 时 T9 联动检 pyproject.toml + Dockerfile + docs + README
 - **lesson #37 grep 权威源实证**：CustosGateway trait 逐字 grep `arx custos.rs:9-30`；pyproject.toml 现状 grep 实证；对称推理陷阱 —— DP1 sigstore vs GPG / DP3 JSON Schema vs OpenAPI 均基于契约实证决策，非对称直觉
 - **lesson #38 CEO override**：不适用（Plan 12 无 CLAUDE.md 红线全域触发 / 无 触发条件框架 override）
 - **lesson #40 close-out 声明精确化**：T9 close-out 报告显式区分 code-level test coverage / runtime wire / defer scope（CI 首跑 defer 到 T9 gate + arx-79 wire defer 到 follow-up）
