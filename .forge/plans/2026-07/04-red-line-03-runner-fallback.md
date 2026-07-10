@@ -1,6 +1,6 @@
 # 04 — 红线 0.3 完整兑现: runner-level cap + 状态快照 + zombie detection + fallback breaker + arx-disconnect chaos
 
-> **Status**: ✅ Completed (2026-07-10, 04b slice closes out Plan 04 in full)
+> **Status**: ⏳ In Progress (04a `3e85c50` + 04b `d0dd537` landed; codex L1 REQUEST_CHANGES 1 HIGH + 2 MED → 04b-fix cycle in progress; drawdown wire flip 确认真实, state snapshot / risk_config live refresh 未接线, 见 `.forge/reviews/2026-07/04b-peer-codex.md`)
 > **Created**: 2026-07-09 (Plan 03 close-out 后 dogfood 深度审计 — safety-validator 跨范围审 + Lead 独立复核发现红线 0.3 组合级熔断未兑现)
 > **Refined**: 2026-07-09 (plan-drafter-04, opus-4-7[1m], evidence-scout report 为唯一 grep 源)
 > **Project**: custos (`tesseract-trading/custos/`)
@@ -506,7 +506,16 @@ class EngineStatus:
 
 ## 完成报告 (Close-out Report)
 
-- **完成日期**: 2026-07-10 (Plan 04 完整 close-out — 04a slice 2026-07-09 + 04b slice 2026-07-10)
+> **⚠️ Amended 2026-07-10 (codex L1 fix cycle)**: 原 close-out 声明"完整 runtime-wire 兑现"部分不准确。codex L1 peer review (`.forge/reviews/2026-07/04b-peer-codex.md`) 发现 1 HIGH + 2 MED runtime-wire gap:
+> - **HIGH-1**: `StateSnapshotPublisher` 类定义存在但 `cli/main.py` 零 wire — runner 部署后从不发 snapshot
+> - **MED-2**: publisher 用 `publish_fire_and_forget` at-most-once 路径; chaos WAL test 走 `publish_telemetry_envelope` 别的路径, 测试覆盖误导
+> - **MED-3**: `LocalCapConfig`/`FallbackBreakerConfig` 用空 dict startup-only 构造, 从不 refresh spec risk_config; docs 声明与 code 漂移
+>
+> **drawdown wire flip 是真的** (codex + safety-04b + team-lead 三方 grep 实证 `_breaker_tick` → `get_engine_status` → `FallbackBreaker.evaluate`)。以下红线 gate 表 amend snapshot 层与 risk_config live 层为 `runtime_wire=partial` 直到 04b-fix cycle 关闭 3 findings。
+>
+> 04b-fix cycle in progress — 3 findings 关闭后本 close-out 再 re-flip Plan 04 到 ✅ Completed。
+
+- **完成日期**: 2026-07-10 (Plan 04 完整 close-out — 04a slice 2026-07-09 + 04b slice 2026-07-10; 04b-fix cycle pending)
 - **总 Task 数**: 14 (Track 1-6 全部)
 - **偏离数**: 04a 12 LOW + 04b 3 LOW = 15 (LOW-only, 无 HIGH/MED) — 04b 追加 `DEV-04b-ENGINE-STATUS-CURRENT-EQUITY` (adds `current_equity` Decimal field to `EngineStatus`, drafter dataclass sketch had `peak_equity + drawdown_pct` only; runtime-wire flip needs current-equity feed) + `DEV-04b-BREAKER-FLATTEN-IDEMPOTENCE` (long-run chaos exposed cascading flatten per tick after trip → reconciler now uses `was_frozen` gate before invoking `flatten_positions`) + `DEV-04b-CHAOSHOST-ENGINE-STATUS-STUB` (chaos-suite `_ChaosHost` gains `get_engine_status` stub so the drawdown wire flip exercises the full runtime path)
 - **验证结果**: `make verify` 282/282 green at 04b HEAD; Non-Custodial 4 red-line grep gate all 0 (§verification.md §红线专项检查); 35 contract test names all grep-implemented in `tests/` (lesson #25); 12 04b-added test names grep-implemented
