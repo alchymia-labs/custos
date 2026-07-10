@@ -505,17 +505,30 @@ class EngineStatus:
 
 ## 完成报告 (Close-out Report)
 
-(Phase 3 执行完成后填, 按 progress-management.md 模板)
+> **Status**: ⚠️ **Partial (04a slice) — Plan 04 整体 close-out 由 04b 收尾时统一签发**。
+> 本段记录 04a slice 落地事实；Plan 04 全部 14 task 完整 close-out 待 04b 完成。
 
-- **完成日期**: {YYYY-MM-DD}
-- **总 Task 数**: 14 (含 close-out)
-- **偏离数**: {N} (DEV-04-* 详见偏离日志; 3 CEO 决策点终裁记录)
-- **验证结果**: 全部通过 / 部分通过
-- **实施 commit 范围**: {first_sha}..{last_sha}
-- **契约影响**: docs/design/engine_protocol.md (Tier-2 6 方法) + reconcile.md (失联降级三层) + domain.md (risk_config/RunnerRiskConfig) + nautilus_host.md (组合熔断 runtime 锚)
-- **红线守护**: Non-Custodial 4 红线全数守住 (grep 记录, 新路径) — 见红线 gate 满足度表; **红线 0.3 从设计声明升级为 runtime wire 兑现**
-- **失败模式覆盖**: {NEW test 列表 grep 实存确认 (lesson #25); 失联硬门 6 行全绿}
-- **遗留项**: state snapshot arx 消费端迁移 (arx 自己 plan); Tier-2 optional Protocol 拆分 (若多引擎 friction, 未来 plan)
+### 04a partial close-out (2026-07-09)
+
+- **完成日期 (04a)**: 2026-07-09
+- **04a Task 数**: 9 (含 partial T1.3/T4.2/T4.3) / 全 plan 14 (5 defer 04b)
+- **偏离数 (04a)**: 12 LOW (7 impl/CEO 决策 applied + 5 04a new-deviation) — 明细见 `.forge/triage/04a-DEVIATION-triage.md`
+- **验证结果 (04a)**: `make verify` 全绿 at slice HEAD (per marker constraints_honored)
+- **实施 commit 范围**: `3e85c50` (04a squash) → `b77fbf9` (DEV-04a-TEST-FILE-NAMING annotation)
+- **契约影响 (04a)**: `core/engine_protocol.py` Tier-2 3 方法 (get_open_notional / check_engine_connected / flatten_positions); `core/local_cap.py` + `core/fallback_breaker.py` + `core/zombie_watchdog.py` 新建; `deployment_reconciler.py` composition wire; 完整 docs 同步 defer 04b (T6.1)
+- **红线守护 (04a)**: 4 红线 grep 全 0 命中（见 04a triage 红线守护实证段）；红线 0.3 **cap 层 + zombie 层 + notional breaker 层 runtime-wire 已 live**，drawdown 层 runtime-wire deferred 04b（lesson #40 code_coverage vs runtime_wire 显式区分）
+- **失败模式覆盖 (04a)**: 04a scope 内新增 failure-mode test 全绿 (marker 未详列具体条目数，Plan 04 完整 close-out 时 grep 实存核数收口，per §5 packet FU-INTRA-5)
+- **04a 落地清单 (marker source of truth)**: `.forge/dispatch-log/2026-07-04-05-06-execute-team-packet/runner-executor-04a-v1.complete.json`
+
+### Plan 04 完整 close-out 待办 (04b 收尾)
+
+- Track 2 完整实施 (state snapshot 3 方法 + dataclass + `state_snapshot.py` 周期发布)
+- T5.2 long-run chaos
+- Track 6 docs 同步 (reconcile / domain / engine_protocol / nautilus_host)
+- T-final Plan 04 完整红线 gate 满足度表填实（drawdown wire 应转 live）
+- File Inventory §A 补 `zombie_watchdog.py`
+- NT per-order intercept hook (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER) — 若 v1 pre-live 前完成则并入 Plan 04；否则独立 plan
+- 04b DEVIATION triage 并入本文件段落，或独立签发 `.forge/triage/04b-DEVIATION-triage.md` 交叉引用
 
 ---
 
@@ -540,20 +553,20 @@ Plan 04 close-out 后:
 
 | Task | Track | Status | Completed | Notes |
 |------|-------|--------|-----------|-------|
-| T1.1 get_open_notional + 两 host | 1 | 🔲 | | Tier-2 Protocol foundation (cap) |
-| T1.2 LocalCapConfig + cap-check | 1 | 🔲 | | 借 PreTradeRuleConfig Decimal 范式 |
-| T1.3 cap 集成 pre-trade + wire | 1 | 🔲 | | 失联期间拒单 (红线 0.3) |
-| T2.1 snapshot 3 方法 + 3 dataclass | 2 | 🔲 | | peak_equity Decimal 重推 |
-| T2.2 state_snapshot.py 周期发布 | 2 | 🔲 | | NATS build_subject (lesson #26) |
-| T3.1 check_engine_connected + 两 host | 3 | 🔲 | | ConnectivityState |
-| T3.2 zombie watchdog + degraded | 3 | 🔲 | | 借 sidecar Rule 2; arx 断线自主 |
-| T4.1 flatten_positions + 两 host | 4 | 🔲 | | NT→close_all_positions 映射 |
-| T4.2 fallback_breaker.py trip 逻辑 | 4 | 🔲 | | notional+drawdown Decimal |
-| T4.3 wire composition root | 4 | 🔲 | | ⟶ 红线 0.3 runtime wire 兑现点 (lesson #40) |
-| T5.1 chaos 多守护失联 | 5 | 🔲 | | mock 断线 (DP2) |
-| T5.2 long-run 失联 chaos | 5 | 🔲 | | lesson #17 非 happy-path |
-| T6.1 docs 同步 | 6 | 🔲 | | reconcile/domain/engine_protocol/nautilus_host |
-| T-final close-out | 6 | 🔲 | | 红线 gate 表填实 + test grep 实存 |
+| T1.1 get_open_notional + 两 host | 1 | ✅ | 2026-07-09 (`3e85c50`) | Tier-2 Protocol foundation (cap) |
+| T1.2 LocalCapConfig + cap-check | 1 | ✅ | 2026-07-09 (`3e85c50`) | 借 PreTradeRuleConfig Decimal 范式; floor paper=200/live=1000 (DP1) |
+| T1.3 cap 集成 pre-trade + wire | 1 | ✅ | 2026-07-09 (`3e85c50`) | 失联期间拒单 runtime wire; NT per-order intercept hook 04b (DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER) |
+| T2.1 snapshot 3 方法 + 3 dataclass | 2 | 🔲 04b | | peak_equity Decimal 重推; **defer to 04b** |
+| T2.2 state_snapshot.py 周期发布 | 2 | 🔲 04b | | NATS build_subject (lesson #26); **defer to 04b** |
+| T3.1 check_engine_connected + 两 host | 3 | ✅ | 2026-07-09 (`3e85c50`) | ConnectivityState |
+| T3.2 zombie watchdog + degraded | 3 | ✅ | 2026-07-09 (`3e85c50`) | 借 sidecar Rule 2; arx 断线自主; grace=60s (DP3); 独立 `zombie_watchdog.py` (DEV-04a-ZOMBIE-WATCHDOG-MODULE) |
+| T4.1 flatten_positions + 两 host | 4 | ✅ | 2026-07-09 (`3e85c50`) | NT→close_all_positions 映射 (DEV-04-FLATTEN-NT-MAPPING) |
+| T4.2 fallback_breaker.py trip 逻辑 | 4 | ✅ (partial) | 2026-07-09 (`3e85c50`) | notional trip live; drawdown code ready + equity feed wire 04b (DEV-04a-BREAKER-DRAWDOWN-EQUITY-DEFER, lesson #40 partial scope) |
+| T4.3 wire composition root | 4 | ✅ (partial) | 2026-07-09 (`3e85c50`) | notional cap + zombie watchdog wired ⟶ 红线 0.3 runtime wire 部分兑现; drawdown wire 04b |
+| T5.1 chaos 多守护失联 | 5 | ✅ | 2026-07-09 (`3e85c50`) | mock NATS disconnect (DP2) |
+| T5.2 long-run 失联 chaos | 5 | 🔲 04b | | lesson #17 非 happy-path; **defer to 04b** |
+| T6.1 docs 同步 | 6 | 🔲 04b | | reconcile/domain/engine_protocol/nautilus_host; **defer to 04b** |
+| T-final close-out | 6 | 🔲 04b | | 红线 gate 表填实 + test grep 实存; **Plan 04 完整 close-out 由 04b 收尾** |
 
 **切片建议 (multi_session_scope=true, lesson #31)**:
 - **04a (Tracks 1+3+4 + T5.1)**: cap + zombie + breaker + chaos 核心 — **红线 0.3 runtime wire 硬阻断路径** (Tier-2: get_open_notional / check_engine_connected / flatten_positions)。~9 task。优先。

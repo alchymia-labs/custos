@@ -416,23 +416,23 @@ scout §1 的 60 文件含**归档 .forge 产物**, 保留历史记录不改 (Tr
 
 | Task | Status | Completed | Notes |
 |------|--------|-----------|-------|
-| T1.1 flat rename src+test+pyproject | 🔲 | | 原子, make verify 绿 |
-| T1.2 非代码 fanout | 🔲 | | teams.yaml safety paths (skeleton 漏项) |
-| T2.1 core/ 移 8 file | 🔲 | | |
-| T2.2 engines/nautilus/ 移 4 file | 🔲 | | ⟶ Plan 06 START |
-| T2.3 cli/main.py 抽出 | 🔲 | | |
-| T3.1 engine_protocol.py rename | 🔲 | | Tier-1 5 方法 + runtime_checkable |
-| T3.2 engine_protocol.md 权威文档 | 🔲 | | |
-| T4.1 抽 g6_gate.py | 🔲 | | 红线 0.2, 5 relaxed-double 守 |
-| T4.2 字段改名 | 🔲 | | ⟶ Plan 04 START (Protocol 冻结) |
-| T5.1 pyproject extras + version | 🔲 | | |
-| T5.2 nt-runtime fanout | 🔲 | | |
-| T6.1 subject v2 docs (DEFER) | 🔲 | | CEO decision 1 |
-| T7.1 engine docs 5 stub | 🔲 | | |
-| T8.1 test_engine_protocol_contract | 🔲 | | NEW |
-| T8.2 test_nautilus_host_implements | 🔲 | | NEW |
-| T8.3 cli --engine | 🔲 | | NEW |
-| T-final close-out | 🔲 | | |
+| T1.1 flat rename src+test+pyproject | ✅ (sequential) | 2026-07-09 (`4f0192a`) | main-session 兜底 `b2e9f22` + `7f0355d` sequential 交付 46 file rename (DEV-05a-T1.1-RECOVERY) |
+| T1.2 非代码 fanout | ✅ | 2026-07-09 (`4f0192a`) | teams.yaml safety paths + Makefile + docs |
+| T2.1 core/ 移 8 file | ✅ | 2026-07-09 (`4f0192a`) | |
+| T2.2 engines/nautilus/ 移 4 file | ✅ | 2026-07-09 (`4f0192a`) | ⟶ Plan 06 START gate cleared; hotfix `7ffa187` (host.py stale lazy import) |
+| T2.3 cli/main.py 抽出 | ✅ | 2026-07-09 (`4f0192a`) | |
+| T3.1 engine_protocol.py rename | ✅ | 2026-07-09 (`4f0192a`) | Tier-1 5 方法 + `@runtime_checkable` |
+| T3.2 engine_protocol.md 权威文档 | ✅ | 2026-07-09 (`4f0192a`) | Tier-2 6 方法扩展面文档化交 Plan 04 owns |
+| T4.1 抽 g6_gate.py | ✅ | 2026-07-09 (`4f0192a`) | 红线 0.2, 5 relaxed-double 守 |
+| T4.2 字段改名 | ✅ | 2026-07-09 (`4f0192a`) | ⟶ Plan 04 START gate cleared (Protocol 冻结) |
+| T5.1 pyproject extras + version | 🔲 05b | | 加性/docs, 无红线风险; **defer to 05b** |
+| T5.2 nt-runtime fanout | 🔲 05b | | **defer to 05b** |
+| T6.1 subject v2 docs (DEFER) | 🔲 05b | | CEO decision 1 (DEV-05-SUBJECT-V2-DEFER); **defer to 05b** |
+| T7.1 engine docs 5 stub | 🔲 05b | | **defer to 05b** |
+| T8.1 test_engine_protocol_contract | ✅ | 2026-07-09 (`4f0192a`) | NEW |
+| T8.2 test_nautilus_host_implements | ✅ | 2026-07-09 (`4f0192a`) | NEW |
+| T8.3 cli --engine | ✅ | 2026-07-09 (`4f0192a`) | NEW (`test_cli_engine_unknown_rejected` / `test_cli_engine_defaults_to_nautilus`) |
+| T-final close-out | 🔲 05b | | **Plan 05 完整 close-out 由 05b 收尾** |
 
 **切片建议 (multi_session_scope=true)**:
 - **05a (Tracks 1-4 + 8)**: rename + restructure + Protocol + g6_gate + 迁移测试 — **红线关键路径, 含契约冻结** (Plan 04/06 unblock 点)。~11 task
@@ -528,17 +528,31 @@ scout §1 的 60 文件含**归档 .forge 产物**, 保留历史记录不改 (Tr
 
 ## 完成报告 (Close-out Report)
 
-(Phase 3 执行完成后填, 按 progress-management.md 模板)
+> **Status**: ⚠️ **Partial (05a slice) — Plan 05 整体 close-out 由 05b 收尾时统一签发**。
+> 本段记录 05a slice 落地事实；Plan 05 全部 17 task 完整 close-out 待 05b 完成。
 
-- **完成日期**: {YYYY-MM-DD}
-- **总 Task 数**: 17 (含 close-out)
-- **偏离数**: {N} (DEV-05-* 详见偏离日志)
-- **验证结果**: 全部通过 / 部分通过
-- **实施 commit 范围**: {first_sha}..{last_sha}
-- **契约影响**: docs/design/engine_protocol.md (新) + nautilus_host.md / nats_client.md / domain.md (改) + teams.yaml safety paths
-- **红线守护**: Non-Custodial 4 红线全数守住 (grep 记录, 新路径) — 见红线 gate 满足度表
-- **失败模式覆盖**: 现有 G6/host test 全绿 (无退化) + 新增 test_engine_protocol_contract / test_nautilus_host_implements_engine_protocol / test_cli_engine_dispatch
-- **遗留项**: Tier-2 Protocol 方法 (Plan 04) + v2 subject (defer) + toolkit 迁移 (Plan 07)
+### 05a partial close-out (2026-07-09)
+
+- **完成日期 (05a)**: 2026-07-09
+- **05a Task 数**: 12 (Tracks 1-4 + 8, 含 close-out marker in-branch) / 全 plan 17 (5 defer 05b: T5.1 + T5.2 + T6.1 + T7.1 + T-final)
+- **偏离数 (05a)**: 3 LOW — 明细见 `.forge/triage/05a-DEVIATION-triage.md`
+  - DEV-05a-T1.1-RECOVERY (v2 fabricated close-out event + main-session sequential recovery)
+  - DEV-05a-T1.1-SPLIT (v3 scope 从 T1.2 起)
+  - DEV-05a-LANG-POLICY-DEFER (存量 CJK sweep 推 Plan 09)
+- **验证结果 (05a)**: `make verify` 全绿 at slice HEAD (per squash message 声明); hotfix `7ffa187` 后 host×mode 6 格矩阵仍全绿
+- **实施 commit 范围**: `4f0192a` (05a squash, base `55c1a35` → HEAD `f5d7a14` 13 commits) + `7ffa187` (T2.2 stale lazy import hotfix)
+- **契约影响 (05a)**: `core/engine_protocol.py` Tier-1 5 方法 + `@runtime_checkable`; `core/g6_gate.py` 抽出 (契约不变); `engines/nautilus/{host,strategy_loader,risk,venue_binance}.py` 路径落定; `arx_runner` → `custos` 46 file rename; `test_engine_protocol_contract` / `test_nautilus_host_implements_engine_protocol` / cli --engine 契约测试
+- **红线守护 (05a)**: 4 红线全数守住 — 05a 是纯结构重构，零行为改动，credential/G6/reconcile 契约不动。G6 gate 抽出后 5 relaxed-double 全绿
+- **失败模式覆盖 (05a)**: 现有 G6/host test 全绿 (无退化) + 新增 3 NEW test (`test_engine_protocol_contract` / `test_nautilus_host_implements_engine_protocol` / `test_cli_engine_unknown_rejected` / `test_cli_engine_defaults_to_nautilus`)
+- **05a 落地清单**: 05a 无独立 `.complete.json` marker — 语义嵌入 `4f0192a` commit message body（executor-05a-v3 未落独立 marker，squash 收口于 commit message）
+
+### Plan 05 完整 close-out 待办 (05b 收尾)
+
+- Track 5 (T5.1 pyproject `[project.optional-dependencies]` extras multi-engine 槽 + T5.2 `nt-runtime` fanout)
+- Track 6 (T6.1 NATS subject v2 engine-layer segment 文档化 — DEV-05-SUBJECT-V2-DEFER，仅 docs)
+- Track 7 (T7.1 5 份未来引擎 docs stub: hummingbot / freqtrade / athanor / nt-rust / 主 engine_protocol)
+- T-final Plan 05 完整红线 gate 满足度表填实
+- 05b DEVIATION triage 并入本文件段落，或独立签发 `.forge/triage/05b-DEVIATION-triage.md` 交叉引用
 
 ---
 
