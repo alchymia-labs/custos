@@ -40,6 +40,7 @@
 | [06](plans/2026-07/06-ps-supertrend-migration.md) | ps supertrend 迁移: custos registry-mode 加载 + RiskController 启用 + shared/ 依赖打包 + e2e 集成 | ✅ Completed (2026-07-10; 06a slice `306b9e5` for Tracks 1-4 + Plan 08 for Tracks 5-6 + full close-out) | Plan 00a + 00c + 03 ✅ + **05** (结构重构); soft-depends Plan 04 | 生产化 ps supertrend 首次 paper/testnet e2e | 起源: user 澄清 custos 接管 ps supertrend 移除 sidecar/runner; grep 实证 supertrend 已有 register_strategy 无需策略侧改造, custos 只需 registry-mode 分支. Refinement: 12 tasks / 6 tracks / 15 failure-mode tests (3 grep + 12 NEW) / shared toolkit 打包方案 A vendored 推荐. codex peer fix cycle: HIGH-1 option B + HIGH-2 option B + MED-3 promoted DP4 + FU-2 NEW test 已应用. **06a squash 306b9e5 landed Tracks 1-4** (vendored toolkit + strategy_registry_name + RiskController activation + TradingNodeConfig plumb); Track 5-6 remainder + full close-out landed via Plan 08 (`4ac60d7`..`<Plan 08 T6.2 SHA>`) on branch `custos/08-plan/runner` per `DEV-08-RENUMBER-FROM-06B`. Full close-out: 4 red-line gates satisfied with real code_coverage / runtime_wire values (DP1=A partial+manual for testnet real-session opening per `DEV-08-T5.2-MANUAL-VERIFICATION`). |
 | [07](plans/2026-07/07-ps-shared-curation-and-convergence.md) | ps shared curation + convergence: custos-as-shared-authority landing + sync discipline real implementation + ps convergence path | ✅ Completed (2026-07-10; runner-executor-07 sonnet ran Tracks 1-4 + T5.1 partial; main-session takeover T5.1 close-out after runner-07 session quota hit; 8 commits base `4437991`..`ce9fce2`) | Plan 06 06a squash `306b9e5` ✅ + Plan 05 (via 06a inheritance) ✅ | Plan 08 START gate now open | 起源: 06a `DEV-06-06A-REVERSE-DEPENDENCY-STRATEGY-D'` — custos toolkit = 权威 body-of-truth, ps = research 副本. Refinement: 5 tracks / 9 tasks / 9 NEW tests + 1 no-regression / no source-code changes (`DEV-07-NO-SOURCE-CODE-CHANGES`). Batch 1 peer chain: L1 REQUEST_CHANGES (10 findings) → in-place fix → L2 APPROVED_WITH_FOLLOW_UPS (2 LOW). **4 CEO DPs ratified 2026-07-10**: DP1=(a) keep 06a 90-file vendor status quo / DP2=(a) short-term keep ps Docker-buildable shared+deploy (HIGH hard-constraint — crucible/nautilus Dockerfile) / DP3=(b) weekly diff review / DP4=(a+b) status quo + formalized trigger criteria. **2 LOW follow-ups applied**: L2-FU-07-1 (fix log CR-10 grep BRE/ERE correction with 6 prose FPs recorded) + L2-FU-07-2 (scout line count 230→255 post-errata). ps cross-repo commit `2bf06e6` on philosophers-stone `develop`. |
 | [08](plans/2026-07/08-plan-06-remainder-e2e-and-close-out.md) | Plan 06 remainder: real supertrend e2e (sandbox + testnet) + ps sidecar retirement docs + Plan 06 close-out | ✅ Completed (2026-07-10; runner-executor-08-2 landed 4 tasks on branch `custos/08-plan/runner` @ base `6373f50`, 4 commits `4ac60d7`..`<T6.2 SHA>`) | Plan 07 landing (START gate) + Plan 06 06a landed `306b9e5` ✅ + Plan 00a/00b/00c/03/05 ✅ | Plan 06 close-out (T6.2 flipped 06 → ✅) + first paper→testnet production acceptance for ps supertrend on custos | 起源: Plan 06 06a spawn 显式 defer Track 5-6 到 06b, CEO 2026-07-09 renumber 到 Plan 08 (Plan 07 crosses 中间) per `DEV-08-RENUMBER-FROM-06B`. 4 tasks (T5.1 sandbox e2e + T5.2 testnet DP1-conditional + T6.1 sidecar retirement docs + T6.2 close-out). Batch 1 peer chain: L1 REQUEST_CHANGES (9 findings) → in-place fix → L2 REQUEST_CHANGES CR-1 PARTIAL only (verbatim column synthesized cells), 8/9 RESOLVED, CEO 2026-07-10 accept path 降级 CR-1 为 LOW follow-up. **3 CEO DPs ratified 2026-07-10**: DP1=A real testnet credential via vault (partial+manual verification per `DEV-08-T5.2-MANUAL-VERIFICATION`) / DP2=A independent arx-side follow-up plan / DP3=A golden path only, no chaos test in Plan 08. **5 execution-time DEV entries**: STRATEGY-SOURCE-PATH-SELECTED-III (permanent fixture mirror pinned to ps `3443e969`) / RISK-CONTROLLER-ACTIVATION-PROXY (config-layer proxy for `_risk_controller` assertion since `on_start` not fired under parked `run_async`) / T5.2-MANUAL-VERIFICATION (skip-if-not-provisioned + operator runbook) / INTEGRATION-MARKER-REGISTERED (pyproject.toml) / L2-FU-08-1-VERBATIM-DISCIPLINE (no rewrite; discipline point recorded). `make verify` 299 pass + 2 skip; `make verify-nt` 299 pass + 2 skip. |
+| 09 | hook infra formalization (Standard scope): `scripts/hooks/` 目录规范 + `install-hooks.sh` 扩 `pre-commit`/`commit-msg`/`pre-push` + 4 类 hook 实装 (`check-code-english` 已有 / `check-silent-paths` lesson #21 / `check-red-lines` mandatory-rules §0 / `check-changelog-at-tag` Plan 12 FM6) + gateway v1 snapshot pytest (Plan 12 FM3) + `docs/design/hook-infra.md` + Makefile `hooks-install` / `hooks-test` + 各 hook 失败模式测试 + CI 二次 gate | 🔲 Planned (draft deferred; scope frozen 2026-07-10) | **Plan 11 landing** (hard-dep for draft start — Plan 11 lock `arx-runner` script name + `~/.arx/` namespace 是 red-line grep + Makefile target 的稳定引用基础; lesson #35 boundary constant rename fanout 预防) | Plan 12 FM3 (contract v1 backward compat snapshot) + FM6 (CHANGELOG-at-tag) 完整 wire | 起源 (三源汇流): (1) Plan 12 §失败模式表 FM3 + FM6 显式 defer hook wire 到 Plan 09; (2) `historical-lessons.md` #21 (custos) 声明 "setup-pre-commit hook 会 grep silent drop"; (3) `.claude/rules/mandatory-rules.md` §0 Non-Custodial 4 红线 + `verification.md` 目前是**手工 checklist**, Plan 09 抽离为**自动化 hook**。**Scope 边界** (排除项, 避免 lesson #35 boundary 混淆): 运行时 hook (`DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER` NT per-order intercept) 不属于 Plan 09 scope — 那是运行时代码, 归 v1 pre-live follow-up plan; Plan 09 只覆盖 git hook + CI static gate。**Draft deferral rationale**: Plan 11 breaking release 会改 script entry (`python -m custos` → `arx-runner`) + namespace (`~/.custos/` → `~/.arx/`), Plan 09 若在 Plan 11 前起草会命中 boundary constant rename fanout, draft 等 Plan 11 landed 后再补稳定引用。CEO 2026-07-10 拍板 Standard scope (8 tasks, 无外部 framework, 与 sandbox research 单栈简洁诉求匹配) + planning-only phase (README scope frozen)。 |
 
 > ¹ Plan 00b (telemetry 桥) close-out 前, 由 CEO override 提前放行 00c
 > (`DEV-00c-DEP-SKIP-CEO-OVERRIDE`, lesson #38 CEO override 4 件套记录路径)。
@@ -69,7 +70,7 @@ Plan 10+ (未来引擎接入, 一引擎一 plan: hummingbot / freqtrade / athano
 
 **Batch 1** (Plan 07 + Plan 08): 2026-07-10 CEO ratified `APPROVED_WITH_FOLLOW_UPS`. Plan 07 landed 2026-07-10 (base `4437991`..`ce9fce2`, 8 commits, sonnet executor + main-session T5.1 takeover). Plan 08 START gate now open — awaiting Slot 2 dispatch. Batch 1 内 serial (Plan 07 landing → Plan 08 START gate).
 
-**Batch 2** (Plan 09): 独立 dispatch 后续, 独立于 Batch 1 close-out.
+**Batch 2** (Plan 09): 独立 dispatch 后续, 独立于 Batch 1 close-out. **2026-07-10 状态**: scope frozen (Standard, 8 tasks) — draft deferred (Plan 11 breaking release 是 script entry + namespace 的稳定引用基础, draft 起草需等 Plan 11 landing 避免 lesson #35 boundary constant rename fanout)。scope 详见下 §"后续 plan 规划" · Plan 09 段。
 
 ### 编号顺序说明
 
@@ -111,3 +112,76 @@ Plan 01 close-out 之后:
   no credential in (1) `node` repr / (2) `node.__dict__` recursive dump / (3) structlog
   processor output。
 - 编号沿用 `02` `03` ..., 不复用 `00` / `01`
+
+### Plan 09 (Batch 2, hook infra formalization) — scope frozen 2026-07-10, draft deferred
+
+**Status**: 🔲 Planned · scope frozen · draft deferred (waiting Plan 11 landing)
+
+**Scope 决策 (CEO 2026-07-10)**: **Standard 档** (8 tasks, 无外部 framework, 与 sandbox
+research + 单栈简洁诉求匹配)。拒绝 Full 档 (`pre-commit` framework 迁移) 与 Minimum 档
+(只做 Plan 12 defer 两项)。
+
+**依赖锁定**:
+
+| Dep | 类型 | 原因 |
+|-----|------|------|
+| **Plan 11 landing** | Hard-dep (draft start) | Plan 11 breaking release 改 script entry (`python -m custos` → `arx-runner`) + namespace (`~/.custos/` → `~/.arx/`); Plan 09 的 `check-red-lines.py` grep + Makefile target 引用需要**稳定的名字空间**。若 Plan 11 前起草会命中 lesson #35 boundary constant rename fanout — 起草成本 + 重写成本翻倍。 |
+| Plan 12 (`FM3` + `FM6`) | Soft-dep (Plan 09 反过来 unblocks Plan 12) | Plan 12 §失败模式表 FM3 (contract v1 backward compat) + FM6 (CHANGELOG-at-tag) 只出 stub / snapshot pytest 结构, wire 归 Plan 09 承载。Plan 12 可先 landed (只 stub 不 wire), Plan 09 后补 wire; 或 Plan 09 先 landed, Plan 12 直接引用。串行任意方向皆可。 |
+
+**Scope 边界** (排除项 — 避免 lesson #35 boundary constant 混淆):
+
+- **不含**运行时 hook (`DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER` NT per-order intercept
+  hook)。那是运行时代码 (`nautilus_host.py` submit-time `guard.allows`), 不是 git hook,
+  归 v1 pre-live follow-up plan (独立编号)。
+- **不含** `pre-commit` framework (Python 生态标准) 集成。CEO 明确拒绝, 因为引入外部
+  dep 与 sandbox research + 单栈简洁诉求偏离。若未来 v1 后诉求变化, 单独起 follow-up
+  plan 评估。
+- **不含**新增 skill / plan-mode / CLAUDE.md 能力载体 — 全部产出 = shell script +
+  Python static check + Makefile target + docs, 纯 static artifact。
+
+**Standard scope 8 tasks 清单** (draft 时精细化):
+
+1. **`scripts/hooks/` 目录规范化** — 现有 `pre-commit` wrapper 保留, 加 `commit-msg`
+   与 `pre-push` 空槽 wrapper (即使 v1 无实装), 建立 `<hook-name>` → `run all
+   scripts/hooks/checks/<name>.d/*.py` 的 fan-out 约定, 支持后续 hook 复合。
+2. **`install-hooks.sh` 增强** — 支持 `pre-commit` + `commit-msg` + `pre-push` 三种 hook
+   symlink, 幂等安装, 保留 backup pre-existing 逻辑。
+3. **`check-silent-paths.py` (lesson #21)** — grep `src/custos/**/*.py` 里 silent 控制流
+   (bare `except:` / `except: pass` / fire-and-forget task 未 `add_done_callback` / drop
+   policy 未接 `structlog.warning` /`# noqa: SILENT-OK <reason>` 豁免)。落 `historical-lessons`
+   #21 从 "红线宣言" 到 "自动化 gate" 的固化。
+4. **`check-red-lines.py` (mandatory-rules §0 4 红线)** — 抽离 `verification.md`
+   §"Non-Custodial 4 红线专项检查" 段的 grep 到自动化 pre-commit hook: 0.1 (Key/KEK 出
+   进程) / 0.2 (G6 gate 绕过) / 0.3 (失联即停止) / 0.4 (float 用于 money math)。命中即
+   阻断 commit + 输出 red-line 名 + 违反行号 + `mandatory-rules.md` 引用锚点。
+5. **`check-changelog-at-tag.py` (Plan 12 FM6)** — 检测 `git push origin --tags` 前
+   `CHANGELOG.md` 是否有对应 `## [<version>]` section, 未匹配则阻断。落到 `pre-push`
+   hook 而非 `pre-commit` (tag 场景语义)。
+6. **Gateway v1 snapshot pytest (Plan 12 FM3)** — 非 hook 但 CI gate 同族。
+   `tests/test_gateway_contract_v1_backward_compat.py` snapshot golden diff (`arx-side`
+   `CustosGateway` trait 的 4 方法 wire 契约), 消费 arx-side JSON schema fixture (Plan 11
+   HTTP enroll endpoint fixture 已 landed 后可复用)。
+7. **`docs/design/hook-infra.md`** — hook 系统架构 (fan-out convention +
+   `<hook-name>.d/` 目录) + 添加新 hook 的流程 (write check → add to `.d/` → add
+   failure-mode test → update this doc) + 豁免机制 (`# noqa: <check-name> <reason>`) +
+   与 Non-Custodial 红线的对应表。
+8. **Makefile `hooks-install` / `hooks-test` + CI 二次 gate** — `make hooks-install` 幂等
+   调 `scripts/install-hooks.sh` + `make hooks-test` 跑所有 `tests/test_check_*.py` 失败模式
+   测试。CI (GitHub Actions 或未来自建 runner) 同样跑 `make hooks-test` +
+   `.githooks/pre-commit` 二次 gate (防 `git commit --no-verify` 绕过 local hook 后进主线)。
+
+**Draft 起草时机**: Plan 11 landed 后 (预计与 Plan 11 execute-team dispatch 后续同批
+或独立起 planning session)。届时:
+
+- Foundation Scan Iteration 1: Plan 11 landed 后的 `scripts/` / `~/.arx/` namespace / new
+  `arx-runner` entry 骨架 as-of 时间锚 (lesson #33)
+- Foundation Scan Iteration 2: gateway contract v1 (Plan 12 若同期在 flight 需协调
+  fixture ownership)
+- Foundation Scan Iteration 3: mandatory-rules §0 4 红线 grep 现状 (哪些是"手工 checklist
+  已定义 grep" vs "需要新起草 grep")
+
+**Follow-up hooks (不属于 Plan 09 scope, 但登记以防遗漏)**:
+
+- 运行时 NT per-order intercept hook (`DEV-04a-CAP-ENFORCEMENT-HOOK-DEFER`) — 独立 plan
+- `pre-commit` framework 迁移评估 — v1 后诉求变化再起 follow-up
+- pyright 集成 (Plan 02+ 候选) — 独立
