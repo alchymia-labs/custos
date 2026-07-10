@@ -1,8 +1,8 @@
 # custos Handoff Packet Supplement — R1+R2 Fix + N5 CEO Decision
 
 **Supplement to**: `custos-handoff-packet.md` (base `45c62e7`, now stale)
-**Baseline HEAD (at supplement time)**: `506a360` (`docs(custos): plan 09 hook infra formalization — scope frozen (Standard), draft deferred`)
-**Fix chain last relevant HEAD**: `f153eed` (Plan 12 R2 fix); Plan 11 N5 CEO resolution commit **pending** (see §4)
+**Baseline HEAD (at supplement time)**: `bdafb14` (this supplement commit); pre-supplement HEAD was `a4b01d1` (`docs(custos): plan 11 N5 CEO gate resolved — MockVault fallback removed per CEO wukai 2026-07-10 (option a, clean-break aligned)`)
+**Fix chain last relevant HEAD**: `a4b01d1` (Plan 11 N5 CEO resolved, landed by parallel agent during supplement assembly)
 **Wave**: `2026-07-team-full-loop`
 **Refreshed**: 2026-07-10
 **Refresher**: handoff-packager teammate (append supplement mode, base packet preserved for audit trail)
@@ -25,9 +25,9 @@
 | `5287486` | R1 fix | 3 CRITICAL + 4 HIGH + selected MEDIUMs per plan-team review | 11 |
 | `b3546f4` | R2 fix | H4 test-side dead-branch + 4 LOW + **N5 CEO gate registered** (not yet resolved) | 11 |
 | `f153eed` | R2 fix | R2-C1 schema `agent_version` + R2-M1 mount doc owner + R2-M2 pre-USER mkdir chown | 12 |
-| `<N5 SHA pending>` | N5 resolved | MockVault runtime fallback removed per CEO wukai 2026-07-10 option (a) — commit not yet landed at supplement time | 11 |
+| `a4b01d1` | N5 resolved | MockVault runtime fallback removed per CEO wukai 2026-07-10 option (a), clean-break aligned — landed by parallel agent 2026-07-10 22:03 +0800 during this supplement's assembly | 11 |
 
-`506a360` (Plan 09 hook infra formalization) 与 Plan 11/12 无关，仅用作 supplement 装配时的 HEAD 基线。
+`506a360` (Plan 09 hook infra formalization) 与 Plan 11/12 无关，仅用作 supplement 装配时的 HEAD 基线的相邻上下文。`bdafb14` 为本 supplement 自身 commit。
 
 ---
 
@@ -65,7 +65,7 @@ CEO wukai 就 Plan 11 T7 `_build_vault` MockVault fallback disposition 选 **opt
 
 **T7 execute unblocked**: 上述 CEO 决定给了 Plan 11 T7 一个 concrete implementation path (原 R2 review 的 N5 blocker 由 CEO override 单方面 close，见 lesson #38 CEO override 四件套路径 / custos 独立仓 lesson #C1 具体化形态)。
 
-**N5 SHA 状态 (supplement 时)**: 未 land 到主线。execute-team 派工时若发现 N5 CEO commit 已 land, 用 `git log --oneline | grep -iE 'mockvault.*removed|option.*a.*CEO'` 拿真实 SHA 回填本 §4 表格 `<N5 SHA pending>` 占位。
+**N5 SHA 状态 (supplement 时)**: 已 land — commit `a4b01d1` (`docs(custos): plan 11 N5 CEO gate resolved — MockVault fallback removed per CEO wukai 2026-07-10 (option a, clean-break aligned)`)，Plan 11 md 更新 4 insertions / 3 deletions，parallel agent 在本 supplement 装配期间落地。§1 fix chain 表已回填真实 SHA。
 
 ---
 
