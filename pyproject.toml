@@ -60,6 +60,9 @@ package = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "integration: requires provisioned external infrastructure (real testnet credential, network reachability); skips cleanly if unmet",
+]
 
 [tool.ruff]
 # 与生态其他 Python 子系统 (synedrion) 一致的 line-length; custos 现有代码

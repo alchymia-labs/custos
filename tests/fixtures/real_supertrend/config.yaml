@@ -1,0 +1,369 @@
+# =============================================================================
+# The Alephain Guild - SuperTrend 策略配置
+# =============================================================================
+# ATR-based trend following strategy
+# =============================================================================
+
+# =============================================================================
+# 策略元信息 (保持简单格式，非可配置项)
+# =============================================================================
+strategy:
+  name: "SuperTrend"
+  version: "2.1.0"
+  author: "The Alephain Guild"
+  description: "基于 ATR 的趋势跟踪策略，使用动态支撑/阻力线追踪趋势"
+
+# =============================================================================
+# 策略参数
+# =============================================================================
+parameters:
+  _section:
+    title: "策略参数"
+    description: "SuperTrend 核心算法参数"
+  atr_period:
+    value: 10
+    type: integer
+    title: "ATR 周期"
+    description: "ATR 计算周期，影响趋势敏感度"
+    minimum: 5
+    maximum: 50
+    optimization:
+      enabled: true
+      range: [5, 50]
+      step: 1
+  atr_multiplier:
+    value: 3.0
+    type: number
+    title: "ATR 乘数"
+    description: "SuperTrend 通道宽度乘数"
+    minimum: 1.0
+    maximum: 10.0
+    optimization:
+      enabled: true
+      range: [1.0, 10.0]
+      step: 0.5
+
+# =============================================================================
+# 指标预热配置
+# =============================================================================
+warmup:
+  _section:
+    title: "指标预热配置"
+    description: "支持从外部数据源 (如 TradingView) 对齐指标状态"
+  mode:
+    value: "none"
+    type: string
+    title: "预热模式"
+    enum: ["none", "snapshot", "warmup"]
+    description: "none: 不预热; snapshot: 从快照加载; warmup: 请求历史数据计算"
+  history:
+    _section:
+      title: "历史数据配置"
+      description: "warmup 模式下的历史数据请求参数"
+    min_bars:
+      value: 500
+      type: integer
+      title: "最小K线数"
+      minimum: 100
+      maximum: 5000
+      description: "指标计算所需的最小历史K线数量"
+    preferred_bars:
+      value: 2000
+      type: integer
+      title: "首选K线数"
+      minimum: 500
+      maximum: 10000
+      description: "理想情况下请求的历史K线数量"
+    timeout_secs:
+      value: 30
+      type: integer
+      title: "数据请求超时"
+      minimum: 5
+      maximum: 120
+      description: "秒，历史数据请求超时时间"
+  snapshot:
+    _section:
+      title: "指标快照"
+      description: "snapshot 模式下的指标初始值 (可从 TradingView 获取)"
+    timestamp:
+      value: null
+      type: string
+      title: "快照时间戳"
+      description: "ISO 8601 格式，如 2024-01-01T00:00:00Z"
+    indicators:
+      supertrend:
+        _section:
+          title: "SuperTrend 指标快照"
+        value:
+          value: 0.0
+          type: number
+          title: "SuperTrend 线值"
+          description: "当前 SuperTrend 线价格"
+        trend:
+          value: 0
+          type: integer
+          title: "趋势方向"
+          enum: [-1, 0, 1]
+          description: "1: 看涨, -1: 看跌, 0: 未初始化"
+        upper_band:
+          value: 0.0
+          type: number
+          title: "上轨"
+          description: "下跌趋势时的阻力位"
+        lower_band:
+          value: 0.0
+          type: number
+          title: "下轨"
+          description: "上涨趋势时的支撑位"
+
+# =============================================================================
+# 交易配置
+# =============================================================================
+trading:
+  _section:
+    title: "交易配置"
+  connector:
+    value: "binance_perpetual"
+    type: string
+    title: "交易所连接器"
+    enum: ["binance", "binance_perpetual", "okx_perpetual", "kucoin"]
+    description: "交易所连接器名称"
+  leverage:
+    value: 1
+    type: integer
+    title: "杠杆倍数"
+    minimum: 1
+    maximum: 125
+    description: "合约杠杆倍数 (仅永续合约)"
+  pairs:
+    value: ["BTC-USDT"]
+    type: array
+    title: "交易对"
+    description: "交易对列表 (多币种支持)"
+  direction:
+    value: "both"
+    type: string
+    title: "交易方向"
+    enum: ["long", "short", "both"]
+    description: "允许的交易方向"
+  order_type:
+    value: "market"
+    type: string
+    title: "订单类型"
+    enum: ["market", "limit"]
+    description: "开仓订单类型"
+
+# =============================================================================
+# 仓位管理
+# =============================================================================
+position:
+  _section:
+    title: "仓位管理"
+  size_type:
+    value: "percentage"
+    type: string
+    title: "仓位计算方式"
+    enum: ["percentage", "fixed", "kelly", "fixed_risk"]
+    description: "仓位大小计算方法"
+  size_value:
+    value: 0.1
+    type: number
+    title: "仓位大小"
+    minimum: 0.01
+    maximum: 1.0
+    description: "仓位比例 (percentage 模式) 或固定金额 (fixed 模式)"
+    optimization:
+      enabled: true
+      range: [0.05, 0.3]
+      step: 0.05
+  capital_mode:
+    value: "compound"
+    type: string
+    title: "资金模式"
+    enum: ["compound", "fixed_capital"]
+    description: "复利或固定本金模式"
+  initial_capital:
+    value: 10000
+    type: number
+    title: "初始本金"
+    minimum: 100
+    description: "fixed_capital 模式使用的初始本金"
+
+# =============================================================================
+# 平台配置 (保持简单格式，非优化项)
+# =============================================================================
+platforms:
+  hummingbot:
+    candles_exchange: null
+    candles_pair: null
+    candles_interval: "1h"
+  nautilus:
+    venue:
+      value: "BINANCE"
+      type: string
+      title: "交易所代码"
+    bar_type:
+      value: "1-MINUTE"
+      type: string
+      title: "K线类型"
+    trading_node:
+      _section:
+        title: "交易节点配置"
+        description: "NautilusTrader TradingNode 设置"
+      timeout_connection:
+        value: 60.0
+        type: number
+        title: "连接超时(秒)"
+      timeout_reconciliation:
+        value: 10.0
+        type: number
+        title: "对账超时(秒)"
+      timeout_portfolio:
+        value: 10.0
+        type: number
+        title: "组合超时(秒)"
+      timeout_disconnection:
+        value: 10.0
+        type: number
+        title: "断开超时(秒)"
+      reconciliation_lookback_mins:
+        value: 1440
+        type: integer
+        title: "对账回溯(分钟)"
+      database:
+        _section:
+          title: "Redis 数据库配置"
+          description: "缓存和消息总线的 Redis 持久化配置"
+        enabled:
+          value: true
+          type: boolean
+          title: "启用 Redis"
+          description: "启用 Redis 持久化（需要 Redis 服务）"
+        type:
+          value: "redis"
+          type: string
+          title: "数据库类型"
+        host:
+          value: "redis"
+          type: string
+          title: "主机地址"
+          description: "Docker Compose 服务名或 IP 地址"
+        port:
+          value: 6379
+          type: integer
+          title: "端口"
+        username:
+          value: null
+          type: string
+          title: "用户名"
+          description: "可选，本地 Redis 通常不需要"
+        password:
+          value: null
+          type: string
+          title: "密码"
+          description: "可选，本地 Redis 通常不需要"
+      cache:
+        _section:
+          title: "缓存配置"
+          description: "NautilusTrader 缓存设置"
+        tick_capacity:
+          value: 10000
+          type: integer
+          title: "Tick 容量"
+          description: "内部 tick 队列最大长度"
+        bar_capacity:
+          value: 10000
+          type: integer
+          title: "Bar 容量"
+          description: "内部 bar 队列最大长度"
+        buffer_interval_ms:
+          value: 100
+          type: integer
+          title: "缓冲间隔(毫秒)"
+          description: "批量写入间隔，推荐 10-1000ms"
+        flush_on_start:
+          value: false
+          type: boolean
+          title: "启动时清空"
+          description: "启动时是否清空数据库"
+      message_bus:
+        _section:
+          title: "消息总线配置"
+          description: "NautilusTrader 消息总线设置"
+        autotrim_mins:
+          value: 1440
+          type: integer
+          title: "自动裁剪(分钟)"
+          description: "保留消息的时间窗口（24小时=1440）"
+        buffer_interval_ms:
+          value: 100
+          type: integer
+          title: "缓冲间隔(毫秒)"
+          description: "批量写入间隔"
+        heartbeat_interval_secs:
+          value: 10
+          type: integer
+          title: "心跳间隔(秒)"
+          description: "交易节点健康检查心跳间隔"
+
+# =============================================================================
+# 风险管理 (medium tier production defaults)
+# =============================================================================
+# supertrend production tier: activates the shared RiskController drawdown
+# breaker with values tuned by strategy owner review (see custos plan
+# 06 DEV-06-RISK-CONTROLLER-PARAMS). Overrides shared/config/base_config.yaml
+# `risk.global.*` defaults via deep_merge.
+risk:
+  _section:
+    title: "风险管理"
+  global:
+    _section:
+      title: "全局风控"
+      description: "supertrend 生产化默认: medium tier (max_daily_loss 5% / max_drawdown 15% / 连败暂停 5)"
+    max_daily_loss:
+      value: 0.05
+      type: number
+      title: "每日最大亏损"
+      description: "触发暂停交易的每日亏损比例 — medium tier"
+    max_drawdown:
+      value: 0.15
+      type: number
+      title: "最大回撤"
+      description: "触发暂停的最大回撤比例 — medium tier"
+    consecutive_loss_pause:
+      value: 5
+      type: integer
+      title: "连续亏损暂停"
+      description: "连续亏损 N 次后暂停交易 — medium tier"
+
+# =============================================================================
+# 指标状态快照 (Redis 持久化)
+# =============================================================================
+# 注意: Redis 连接复用 platforms.nautilus.trading_node.database 配置
+# 需要同时启用 database.enabled 和 snapshot.enabled 才能使用快照功能
+snapshot:
+  _section:
+    title: "指标快照配置"
+    description: "将指标状态持久化到 Redis，重启后快速恢复。Redis 连接复用 trading_node.database 配置。"
+  enabled:
+    value: false
+    type: boolean
+    title: "启用快照"
+    description: "启用后策略重启可从快照恢复，减少预热时间。需同时启用 trading_node.database。"
+  key_prefix:
+    value: "nautilus:snapshot:supertrend"
+    type: string
+    title: "键前缀"
+    description: "Redis 键前缀，区分不同策略"
+  save_interval_bars:
+    value: 100
+    type: integer
+    title: "保存间隔"
+    description: "每 N 根K线保存一次快照"
+    minimum: 10
+    maximum: 1000
+  save_on_stop:
+    value: true
+    type: boolean
+    title: "停止时保存"
+    description: "策略停止时保存快照"

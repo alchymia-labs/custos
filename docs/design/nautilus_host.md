@@ -182,6 +182,91 @@ testnet）由各自 host 通道自洽；live 两格是承重墙——落到 stub
 - **pandas_ta governance**：保持 vendored fork 现状 + 正式化升级触发条件
   （详见 `TOOLKIT_PROVENANCE.md` §pandas_ta governance）。
 
+## PS supertrend migration
+
+Real-strategy production acceptance on custos landed with the sandbox +
+testnet e2e slice (`tests/engines/nautilus/test_real_supertrend_e2e_sandbox.py`
+and `test_real_supertrend_e2e_testnet.py`). This section states what changes
+about the operational picture across the ecosystem — what custos now owns, what
+the philosophers-stone (ps) side keeps, and where the residual tech-debt sits.
+
+### Integration path
+
+Real ps `SuperTrendStrategy` loads on custos through the vendored toolkit
+substrate at `src/custos/engines/nautilus/toolkit/`. The load path is:
+
+1. `custos.engines.nautilus.strategy_loader.load_strategy_class` reads the
+   strategy source file and passes it through the code_hash gate (dir-hash
+   layer 3 in production, skipped in sandbox).
+2. `custos.engines.nautilus.toolkit.__init__` prepends `toolkit/` and
+   `toolkit/vendor/` to `sys.path` so the strategy module's
+   `from shared.<pkg>` and `import pandas_ta` imports resolve without
+   rewriting any vendored source.
+3. `load_strategy_class(..., expected_registry_name="supertrend")` invokes
+   the loader's post-load registry binding check
+   (`shared.nautilus.registry.get_strategy_info`) to assert the module the
+   loader picked matches the class registered under the operator-supplied
+   name.
+4. `NtTradingNodeHost._instantiate_strategy` calls the ps
+   module-level `create_strategy(config)` factory when present (production
+   entry-point contract), otherwise instantiates the class with NT defaults.
+
+Sandbox acceptance is asserted end-to-end in the sandbox e2e test; testnet
+routing is asserted at the wire level in the testnet e2e test (real testnet
+session opening is DP1 opt-in / manual verification per its DEV entry).
+
+### Ps sidecar / runner retirement declaration
+
+`philosophers-stone/deploy/nautilus/runner.py` and
+`philosophers-stone/deploy/sidecar/` are no longer the primary production
+entrypoint for the supertrend strategy — custos takes over that role.
+Retirement is **declarative only**: custos does not delete, rename, or
+otherwise mutate any ps code. The ps repo may keep the runner + sidecar
+alive for research use (local backtesting via `deploy/nautilus/main.py`,
+team-internal experiments), and no coordinated cross-repo delete is
+scheduled. The declaration exists so future contributors do not build new
+production wiring on top of the retired ps entrypoints.
+
+### Second production consumer of ps `shared/`
+
+Even after the supertrend production entrypoint moves to custos, ps
+`shared/` remains a production dependency — but of `the-crucible`, not
+custos. The full mechanics of the hard constraint (Docker preservation
+window, no-destructive-delete guarantee, HTTP-only coupling) are in
+§"Toolkit sync discipline" above; the migration-side implication is:
+retiring the ps runner / sidecar as the supertrend production entrypoint
+does **not** remove ps `shared/` from the ecosystem's production surface.
+It stays a Docker-image-level dependency of any strategy container the
+crucible ecosystem supervises for as long as those containers are alive.
+A "ps shared/ is only research now" reading of this retirement declaration
+would be incorrect and would break crucible production if acted on.
+
+### Toolkit vs G6 code_hash scope
+
+The toolkit substrate is covered by custos's supply-chain integrity layer
+(`TOOLKIT_PROVENANCE.md` pin + custos release signing), not by the
+per-deploy G6 code_hash gate. G6 layer 3 (dir-hash) hashes only the
+strategy directory the operator's spec points at, not the transitive
+`toolkit/shared/*` closure. This split is deliberate: the toolkit is
+compiled into custos releases and audited as part of the release
+provenance chain, while the strategy directory is what changes per-deploy
+and needs the per-deploy gate. Together the two layers form the
+multi-layer defence for red line 0.2 — a toolkit tamper surfaces at
+release-verification time, a strategy tamper surfaces at deploy time, and
+neither depends on the other's coverage.
+
+### Arx web sidecar HTTP tech-debt (arx-side follow-up)
+
+`arx/web/lib/hooks/useApi.ts` documents a `StrategyPosition` interface
+fetched via the crucible-relayed sidecar real-time position-proxy
+endpoint. This is HTTP-level coupling between arx web and crucible's
+sidecar-proxied API — orthogonal to the ps `shared/` curation scope and
+untouched by the custos migration. Migrating this consumer from sidecar
+HTTP to a NATS-only path is scheduled as an **independent arx-side
+follow-up plan**; the arx team schedules and executes it on their own
+cadence. Custos does not block on it, and the retirement declaration
+above does not depend on its completion.
+
 ## 未来演化路线
 
 - **短期（已落地）**：telemetry uplink 桥（NT `MessageBus` → arx telemetry actor）已随
