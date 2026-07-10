@@ -148,7 +148,7 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 | 文件路径 | 操作 | 描述 |
 |----------|------|------|
 | `pyproject.toml` | Modify | ① 加 `[project.scripts]`：**Plan 11 已 lock 单一 entry `arx-runner = "custos.cli.subcommands:main"`**（Plan 12 直接读 Plan 11 landed 状态，无占位）；② 版本 bump `0.1.0` → `0.2.0`（LTS 起点 + Plan 11 breaking release 同版）；③ `[project.optional-dependencies].lts` 新增（含 `sigstore>=3.0,<4.0` (H6 fix — 显式 major pin), `pytest-docker>=3`）；④ `[tool.hatch.build.hooks.custom]` 加 SOURCE_DATE_EPOCH 支持。**依赖 Plan 11 先 landed**（Plan 11 `pyproject.toml` 已注册 `arx-runner` + 删除 legacy `custos` entry，Plan 12 消费此状态）。 |
-| `Dockerfile` | Create | 多阶段 build（builder + runtime）；`FROM python:3.12-slim` runtime；`USER 1000:1000` non-root + `useradd -u 1000 -m -d /home/custos custos` + `ENV HOME=/home/custos` + `VOLUME ["/home/custos/.arx"]` (Cross H4 fix — 状态持久化 + HOME 真解析)；`WORKDIR /opt/custos`；**`ENTRYPOINT ["arx-runner", "start"]` (Plan 11 lock, 无占位)**。builder stage 从**本地 wheel** 装 (H1 fix — `COPY dist/custos_runner-*.whl` + `pip install --no-index --find-links=/tmp`, 不依赖 PyPI 首发)。 |
+| `Dockerfile` | Create | 多阶段 build（builder + runtime）；`FROM python:3.12-slim` runtime；`USER 1000:1000` non-root + `useradd -u 1000 -m -d /home/custos custos` + `ENV HOME=/home/custos` + `VOLUME ["/home/custos/.arx"]` (Cross H4 fix — 状态持久化 + HOME 真解析)；**pre-USER `mkdir -p /home/custos/.arx{,/vault,/state} && chown -R custos:custos /home/custos`** (R2-M2 fix — volume mount point owner = custos, 防首次 `arx-runner enroll` 写 `~/.arx/runner.toml` permission denied)；`WORKDIR /opt/custos`；**`ENTRYPOINT ["arx-runner", "start"]` (Plan 11 lock, 无占位)**。builder stage 从**本地 wheel** 装 (H1 fix — `COPY dist/custos_runner-*.whl` + `pip install --no-index --find-links=/tmp`, 不依赖 PyPI 首发)。 |
 | `.dockerignore` | Create | 排除 `.git/` / `.forge/` / `.venv/` / `tests/` / `examples/` / `docs/`（keep build context slim） |
 | `.github/workflows/release.yml` | Create | tag `v*` 触发；jobs: `build-wheel` → `sign-wheel`（sigstore keyless）→ `publish-pypi`（optional flag）→ `build-docker` → `sign-docker`（cosign keyless）→ `publish-ghcr` → `release-notes`（gen from CHANGELOG） |
 | `.github/workflows/scripts/sign-wheel.sh` | Create | sigstore CLI wrapper：input `dist/*.whl` → output `dist/*.whl.sigstore`；verify step 内嵌 |
@@ -174,8 +174,9 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 | `Makefile` | Modify | 加 `make dist` / `make sign` / `make docker-build` / `make docker-sign` / `make verify-release` target；`make release` = 组合 |
 | `CLAUDE.md` | Modify | § 2 子系统边界段加一行「契约 v1 冻结于 `docs/gateway-contract/v1/`」；§ 6 常用命令段加 `make release` 与 `make verify-release` 指针 |
 | `README.md` | Modify | § "Not Included Yet" 移除已交付项（wheel sig + docker + SEMVER + LTS + contract v1 + CONTRIBUTING + SECURITY）；替换为「见 CHANGELOG.md / docs/lts-commitment.md」引用 |
+| `docs/ops/05-deployment.md` | Modify | **R2-M1 fix — Plan 12 T9 append-only** § Docker Runtime Volume Mount 段 (仅这一段, 保 Plan 11 T9 namespace substitution 责任不重叠): `docker run -v ~/.arx:/home/custos/.arx ghcr.io/the-alephain-guild/custos:v0.2.0 ...` + HOME 挂载点说明 + UID/GID 与 host 对齐提示 + 卷未挂时的 fail-loud message |
 
-**统计**：26 新增 (含 C2/BLK-4 `test_docker_entrypoint_help.py`) + 4 修改 = 30 文件。
+**统计**：26 新增 (含 C2/BLK-4 `test_docker_entrypoint_help.py`) + 5 修改 = 31 文件。
 
 ## 失败模式覆盖契约 (Failure-Mode Coverage) — lesson #17 强制
 
@@ -218,7 +219,7 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
 
 ### Task 2: Dockerfile 多阶段 + non-root
 
-**Files**: Create `Dockerfile`, `.dockerignore`, `tests/test_docker_non_root.py`, `tests/test_docker_entrypoint_help.py`（C2/BLK-4 smoke）；Modify `Makefile`；Cross H4 note: `docs/ops/05-deployment.md` § Docker deployment 挂载 pattern (`docker run -v ~/.arx:/home/custos/.arx ...`) 由 Plan 11 T9 owner 承担 (Plan 11 已修改 `docs/ops/05-deployment.md`, Plan 12 T9 复检其含 docker mount 段而不追加 edit)
+**Files**: Create `Dockerfile`, `.dockerignore`, `tests/test_docker_non_root.py`, `tests/test_docker_entrypoint_help.py`（C2/BLK-4 smoke）；Modify `Makefile`；**R2-M1 fix**: `docs/ops/05-deployment.md` § Docker Runtime Volume Mount 段 由 **Plan 12 T9 append-only 追写** 承担 (原声明"Plan 11 T9 owner 承担"是错位——Plan 11 T9 scope 仅 namespace substitution + Upgrade section 见 Plan 11 line 493，无 Docker mount 上下文；本 T9 §3 落地 Docker mount pattern 段与 Plan 11 T9 namespace 段不重叠共存)
 
 **Step 1 · 证伪**：`ls Dockerfile` 报 not exist（仓根）；`docker build . 2>&1 | head -3` 报 Dockerfile 不存在。
 
@@ -240,6 +241,11 @@ CI（`.github/workflows/release.yml`）在 tag push 触发时：wheel build → 
   COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
   COPY --from=builder /usr/local/bin/arx-runner /usr/local/bin/arx-runner
   VOLUME ["/home/custos/.arx"]
+  # R2-M2 fix: pre-USER mkdir + chown 让 volume mount point owner = custos
+  # 首次 `arx-runner enroll` 写 ~/.arx/runner.toml 前必须已有 custos-owned dir
+  # 否则 mount 后目录仍 root-owned → 非 root USER 1000 写入 permission denied
+  RUN mkdir -p /home/custos/.arx /home/custos/.arx/vault /home/custos/.arx/state \
+      && chown -R custos:custos /home/custos
   USER 1000:1000
   WORKDIR /opt/custos
   # C2 fix: ENTRYPOINT 用 arx-runner (Plan 11 lock), 禁 python -m custos (Plan 11 已删)
@@ -440,17 +446,18 @@ def test_removed_property_blocked():
 
 **Step 3 · 实现**：4 JSON Schema 文件 + `README.md`（索引 + additive-only rule + v2 breaking protocol；**additive-only 精准语义 = `current.required ⊆ golden.required` (禁新增 required = breaking) AND `golden.properties ⊆ current.properties` (禁删除 property = breaking)**, 见 BLK-5/C1 fix backward-compat test）+ `tests/fixtures/gateway_contract_v1_golden/*.schema.json`（首次 land 时 golden = schema copy，作为 baseline）
 
-Enrollment schema 示例（H3 fix — 字段名对齐 Plan 11 Task 4 payload wire `token_hash`, lesson #35 single source of truth；`^[a-f0-9]{64}$` invariant 不变）：
+Enrollment schema 示例（H3 fix — 字段名对齐 Plan 11 Task 4 payload wire `token_hash`, lesson #35 single source of truth；`^[a-f0-9]{64}$` invariant 不变；**R2-C1 fix — 补 `agent_version` 字段**：Plan 11 Task 4 line 308 `test_enroll_payload_shape` 断言 payload = `{"token_hash": ..., "runner_id": ..., "agent_version": ..., "capabilities": ...}` 4 字段, 原 schema 遗漏 `agent_version` + `additionalProperties: false` → 真实 payload 会 FAIL v1 schema validation。`agent_version` 归 `required` (Plan 11 T4 payload dict 恒含此 key + `--agent-version` CLI flag 见 line 315); `capabilities` 归 optional properties (Plan 11 line 315 `default=[]`, 未来演化空间保留 per SEMVER MINOR "新增 optional field"))：
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://custos.the-alephain-guild/gateway-contract/v1/enrollment.schema.json",
   "title": "EnrollmentPayload v1",
   "type": "object",
-  "required": ["token_hash", "runner_id"],
+  "required": ["token_hash", "runner_id", "agent_version"],
   "properties": {
     "token_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "runner_id": { "type": "string", "maxLength": 128 },
+    "agent_version": { "type": "string" },
     "capabilities": { "type": "array", "items": { "type": "string" } }
   },
   "additionalProperties": false
@@ -458,6 +465,8 @@ Enrollment schema 示例（H3 fix — 字段名对齐 Plan 11 Task 4 payload wir
 ```
 
 **H3 note**: field name `token_hash` matches Plan 11 Task 4 payload wire (lesson #35 single source of truth — Plan 11 是 wire 定义源, Plan 12 schema follow); pattern `^[a-f0-9]{64}$` invariant unchanged.
+
+**R2-C1 note**: `agent_version` alignment — Plan 11 line 308 payload assertion `{"token_hash": <sha256 hex>, "runner_id": <id>, "agent_version": <str>, "capabilities": <list>}` 4-key dict; `agent_version` required (dict key 恒存, CLI `--agent-version` flag captured per line 315); `capabilities` optional (empty-list default per line 315 `action="append", default=[]`, SEMVER MINOR "新增 optional field" 演化空间保留)。golden snapshot (T7 Step 3) 需含此四字段完整表面。
 其余 3 schema 逐一对齐 `custos.rs:13-30` typed method 参数 + 现有 `nats_client.py` envelope。
 
 **Step 4 · 证实**：`uv run pytest tests/test_gateway_contract_v1_backward_compat.py -v` 全绿；`jsonschema` CLI 或 `check-jsonschema` 校验 4 schema syntactic valid。
@@ -529,12 +538,13 @@ def test_wheel_bytes_differ_without_epoch():
    - `CLAUDE.md` § 6 常用命令表加 `make release` / `make verify-release` 两行
    - `README.md` § "Not Included Yet" 剩余项精简（Cross M1 fix — T5 已处理; T9 只做 inspection-only 复检, 无追加 edit; 避免 lesson #16 三方修改冲突)
    - `docs/lts-commitment.md` 直接引用 `arx-runner` (Plan 11 landed lock)，无联动核对分支；`CHANGELOG.md` §0.2.0 由 T5 唯一负责整合 Plan 11 (breaking) + Plan 12 (additive) 两 plan 项到单 tag entry (Cross H1 fix — T5 责任 = 整合, T9 只做 inspection-only 复检 §0.2.0 结构是否完整含 Removed/Changed/Added 三段) —— 两 plan 同版发布
+   - **R2-M1 fix — `docs/ops/05-deployment.md` § Docker Runtime Volume Mount 段 append-only 追写** (Plan 12 T9 owner, 非 Plan 11 T9): 段内容 = `docker run -v ~/.arx:/home/custos/.arx ghcr.io/the-alephain-guild/custos:v0.2.0 ...` 命令样例 + HOME 挂载点 (`/home/custos/.arx`) 与 host `~/.arx` 语义映射 + UID/GID 与 host user 对齐提示 (`--user "$(id -u):$(id -g)"` 可选) + 卷未挂载时 `arx-runner enroll` 报 permission denied 的 fail-loud message 引用。**归属边界**: 本 T9 只追写此一段, 保留 Plan 11 T9 已写的 namespace substitution + Upgrade section 完整不改 (append-only, 与 Plan 11 T9 段不重叠共存, 避免 lesson #16 merge 冲突)
 4. **CONTRIBUTING.md + SECURITY.md 补齐**：本 Task 承载（原 T5 只 CHANGELOG，本 T9 补面向外部审计员/贡献者的公开仓门面）
    - `CONTRIBUTING.md`：测试运行 (`make verify`) + coding style (`code-style.md` pointer) + PR 流程 + DCO / CLA 说明
    - `SECURITY.md`：vuln 上报入口（GitHub Security Advisories）+ 30d SLA（对齐 `docs/lts-commitment.md`）+ **"provided as-is, no warranty per LICENSE" Apache-2.0 免责声明** (L2 fix)
 5. **版本升级**：pyproject.toml version 已在 T1 → `0.2.0`；本 Task 无需再升
 6. **完成报告章节**（plan 文件末尾）：简要说明实际产出 / IMPROVEMENT 兑现位置 / 跨仓库同步动作
-7. **commit**：`git add .forge/plans/2026-07/12-*.md .forge/README.md CLAUDE.md README.md CONTRIBUTING.md SECURITY.md && git commit -m "docs(custos): mark plan 12 as completed + CONTRIBUTING/SECURITY + CLAUDE.md sync"`
+7. **commit**：`git add .forge/plans/2026-07/12-*.md .forge/README.md CLAUDE.md README.md CONTRIBUTING.md SECURITY.md docs/ops/05-deployment.md && git commit -m "docs(custos): mark plan 12 as completed + CONTRIBUTING/SECURITY + CLAUDE.md sync + docker mount doc"`
 
 **验证**：
 - `grep -c '## \[0\.2\.0\]' CHANGELOG.md` 命中 1
@@ -595,6 +605,9 @@ def test_wheel_bytes_differ_without_epoch():
 | IMPROVEMENT (review-round-1 fix) | Plan 12 Applicable lessons fanout list (Cross M5) | lesson #35 fanout list 扩展含 pyproject.toml + Dockerfile + verify-release.sh + release.yml + docs/lts-commitment.md + docs/ops/05-deployment.md + docs/design/03-implementation.md + README.md + CHANGELOG.md | ✅ |
 | IMPROVEMENT (review-round-1 fix) | Plan 12 T6 test (L1 / FM10) | 加 `test_lts_doc_has_eol_date_row` 断言 doc 内含形如 `| 0.\d+.x | \d{4}-\d{2}-\d{2}` 的 EOL 表行, 防 header 存在但表被 accidentally 空掉的沉默失守 | ✅ |
 | IMPROVEMENT (review-round-1 fix) | Plan 12 SECURITY.md File Inventory + T9 (L2) | SECURITY.md 加 "provided as-is, no warranty per LICENSE" Apache-2.0 免责声明 | ✅ |
+| IMPROVEMENT (review-round-2 fix) | Plan 12 T7 enrollment.schema.json (R2-C1 CRITICAL) | 补 `agent_version` 字段: `required` 加 `"agent_version"` (Plan 11 T4 payload assertion dict key 恒存 + `--agent-version` CLI flag captured per Plan 11 line 315); `properties` 加 `agent_version: {"type": "string"}`; `capabilities` 保 optional (Plan 11 line 315 `default=[]`, SEMVER MINOR "新增 optional field" 演化空间保留)。原 schema `additionalProperties: false` + 遗漏 `agent_version` → Plan 11 runner 发出的真实 4-字段 payload 会 FAIL v1 schema validation, 契约 breaking dead on arrival | ✅ (drafter fix per R2 review) |
+| IMPROVEMENT (review-round-2 fix) | Plan 12 T2 note + T9 §3 + File Inventory (R2-M1 MEDIUM) | Docker mount pattern owner 从"Plan 11 T9 承担"更正为 **Plan 12 T9 append-only 追写** (Plan 11 T9 scope 仅 namespace substitution + Upgrade section 见 Plan 11 line 493, 无 Docker mount 上下文, 原委托无法兑现); File Inventory 补 `docs/ops/05-deployment.md` (Modify) 行; T9 §3 加 bullet 5 描述追写内容 (docker run 命令样例 + HOME 挂载映射 + UID/GID 对齐 + fail-loud message); 与 Plan 11 T9 段 append-only 不重叠共存, 避免 lesson #16 merge 冲突 | ✅ (drafter fix per R2 review) |
+| IMPROVEMENT (review-round-2 fix) | Plan 12 T2 Step 3 Dockerfile + File Inventory (R2-M2 MEDIUM) | Dockerfile 加 pre-USER `RUN mkdir -p /home/custos/.arx /home/custos/.arx/vault /home/custos/.arx/state && chown -R custos:custos /home/custos` (在 `VOLUME` 与 `USER 1000:1000` 之间), 让 volume mount point owner = custos, 防首次 `arx-runner enroll` 写 `~/.arx/runner.toml` permission denied (Cross H4 fix 只 useradd + VOLUME 不建目录, mount 后 anonymous volume 目录仍 root-owned); File Inventory Dockerfile 描述补 pre-USER mkdir + chown 注 | ✅ (drafter fix per R2 review) |
 
 ## 完成报告 (Close-out Report)
 
