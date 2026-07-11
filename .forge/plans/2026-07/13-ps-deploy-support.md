@@ -265,7 +265,7 @@
 | T1 vault put --permission-scope flag | ✅ | 2026-07-11 | 5 tests; explicit choices/default wired to encrypted payload and audit event; `make verify` 446 passed |
 | T2 enrollment.md sandbox pattern + credential_vault.md permission scope 章节 | ✅ | 2026-07-11 | Synced enrollment, credential vault, and domain authorities; `make verify` 446 passed |
 | T3 gateway-contract v1 samples/ | ✅ | 2026-07-11 | 5 samples + Draft 2020-12 validation; jsonschema dev dependency; `make verify` 451 passed in dev+nautilus environment |
-| T4 examples/supertrend-{sandbox,testnet}/ 刷新 v0.2.0 CLI | 🔲 | | 偿还 DEV-12-T9 examples/ 部分 |
+| T4 examples/supertrend-{sandbox,testnet}/ 刷新 v0.2.0 CLI | ✅ | 2026-07-11 | 12 alignment tests; compose config parses; legacy CLI scan 0 hits; `make verify` 463 passed |
 | T5 close-out + 索引 + 红线 gate 表 | 🔲 | | |
 
 ## 偏离与改进日志 (Deviations & Improvements)

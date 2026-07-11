@@ -1,64 +1,84 @@
-# Sandbox deployment example — `NtTradingNodeHost`
+# SuperTrend sandbox with custos 0.2.0
 
-Runs a NautilusTrader strategy through the custos governance surface (vault +
-reconcile + NATS) in **sandbox mode**: a real-time Binance data feed with a
-locally simulated execution venue, so orders are filled against live prices
-without ever reaching the exchange. No real funds, no live credentials required
-for fills.
+This example runs a NautilusTrader strategy with live market data and locally
+simulated fills. Exchange credentials, the age key, and strategy code remain on
+the runner host.
 
-## Prerequisites
-
-The NautilusTrader host runtime is an optional extra and needs Python 3.12+:
+Install the development and NautilusTrader extras on Python 3.12+:
 
 ```bash
-uv sync --extra dev --extra nautilus   # or: pip install "custos-runner[nautilus]"
+uv sync --extra dev --extra nautilus
 ```
 
-A base install (audit / paper mode, `NoopHost`) does not pull NautilusTrader and
-runs on Python 3.11+.
+[`spec-example.json`](spec-example.json) is byte-identical to the informative
+[`deployment_spec_sandbox.json`](../../docs/gateway-contract/v1/samples/deployment_spec_sandbox.json)
+gateway sample. Set its `strategy_path` to the strategy file on this host before
+publishing it.
 
-## The DeploymentSpec
+## 1. Provision one per-key vault entry
 
-[`spec-example.json`](./spec-example.json) is the spec the cloud (arx) hands to
-the runner over NATS. The reconcile loop applies it and calls
-`NtTradingNodeHost.deploy(spec, credential)`.
+Generate an age key once, then pass the secret through stdin. The only accepted
+permission boundary in custos 0.2.x is `trade_no_withdraw`.
 
-| Field | Meaning |
-|-------|---------|
-| `trading_mode` | `sandbox` — real data, simulated fills. `testnet` / `live` place real orders (see the [supertrend-testnet example](../supertrend-testnet/)); the G6 gate guards live. |
-| `strategy_path` | Absolute path to the strategy source on the runner host. |
-| `code_hash` | sha256 of the strategy directory. `null` skips the check (sandbox only, audited); live must pin it. |
-| `connector` | `binance_perpetual` (USDT futures) or `binance` (spot). Other venues are rejected. |
-| `pairs` | Trading pairs; `leverage` pins per-instrument leverage for futures. |
-| `sandbox.starting_balances` | Simulated account seed balances. |
-| `provenance_ref.credential_id` | Vault reference; the runner decrypts it locally — the raw key never leaves the process. |
+```bash
+mkdir -p ~/.arx/vault
+chmod 700 ~/.arx ~/.arx/vault
+age-keygen -o ~/.arx/age.key
+chmod 600 ~/.arx/age.key
 
-## Credential
-
-The runner never receives raw keys over the wire. `credential_id` is resolved by
-the local `credential_vault` (sops + age), which returns:
-
-```json
-{
-  "api_key": "<local only>",
-  "api_secret": "<local only>",
-  "permission_scope": "trade_no_withdraw"
-}
+printf '%s\n' '<sandbox-api-secret>' | uv run arx-runner vault put \
+  --key-id binance-sandbox-key \
+  --tenant-id acme \
+  --api-key '<sandbox-api-key>' \
+  --api-secret-stdin \
+  --age-recipient '<age1-public-key>' \
+  --permission-scope trade_no_withdraw
 ```
 
-The vault rejects any credential whose scope is not `trade_no_withdraw`.
+The command writes `~/.arx/vault/binance-sandbox-key.enc`; it never creates a
+shared multi-credential file.
 
-## What deploy does
+## 2. Create the sanctioned sandbox runner.toml
 
-1. Verifies `code_hash` against the on-disk strategy (skipped + audited when `null`).
-2. Builds the Binance data-client config and the sandbox execution-client config.
-3. Assembles a `TradingNode`, registers the strategy, and runs it in a background
-   task so the reconcile loop is never blocked.
-4. `stop` tears the node down gracefully with a bounded timeout.
+When no enrollment backend is available, a manually constructed runner record
+is an approved non-live path. It does not grant live scope.
 
-Testnet / live promotion has landed — see the
-[supertrend-testnet example](../supertrend-testnet/). The NT MessageBus →
-telemetry bridge is still a follow-up, so per-order execution telemetry is not
-yet uplinked to the cloud. A `live` deploy must clear the G6 gate (host
-capability, venue, `code_hash`, credential scope) and carry cloud-side dual
-approval.
+```bash
+uv run python - <<'PY'
+import time
+from pathlib import Path
+
+from custos.core.runner_toml import RunnerToml
+
+RunnerToml.write(
+    Path.home() / ".arx" / "runner.toml",
+    RunnerToml(
+        tenant_id="acme",
+        runner_id="runner-sandbox-1",
+        backend_url="http://mock-sandbox:8000",
+        long_term_credential="sandbox-local-only",
+        enrolled_at_ns=time.time_ns(),
+    ),
+)
+PY
+```
+
+See the full security and mode constraints in
+[`docs/design/enrollment.md`](../../docs/design/enrollment.md#sandbox-mode-manually-constructed-runnertoml-sanctioned-pattern).
+
+## 3. Start and publish the spec
+
+Start a local JetStream-enabled NATS server, then run:
+
+```bash
+export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
+uv run arx-runner start \
+  --nats-url nats://localhost:4222 \
+  --reconcile-strategy-id supertrend-btcusdt \
+  --use-nt-host \
+  --vault-dir "$HOME/.arx/vault"
+```
+
+Publish `spec-example.json` as the DeploymentSpec payload for the configured
+strategy subject. A `null` `code_hash` is permitted for sandbox and audited as a
+skipped provenance check; live mode requires a matching hash and the G6 gate.

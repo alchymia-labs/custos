@@ -1,12 +1,11 @@
 # custos supertrend-testnet example.
 #
-# One custos runner reconciling a single Binance *testnet* deployment, plus a
-# local NATS with JetStream. No Redis / external state store — custos v1 has no
-# persistent external dependency.
+# One custos runner reconciling a single Binance testnet deployment, plus a
+# local NATS with JetStream. Runtime identity and per-key encrypted credentials
+# live together under ./runtime/.arx and are mounted into the runner.
 #
-# Copy .env.example to .env and adjust the NON-secret runtime config. Exchange
-# API keys are NOT in .env — they live in a sops+age encrypted vault mounted
-# read-only (see README). The age key never leaves your host / this mount.
+# Copy .env.example to .env and adjust the non-secret runtime config. Exchange
+# credentials are provisioned with arx-runner vault put (see README).
 services:
   nats:
     image: nats:2.10-alpine
@@ -16,23 +15,17 @@ services:
 
   runner:
     build:
-      context: ../.. # repo root — custos is built from source (not on PyPI yet)
+      context: ../..
       dockerfile: examples/supertrend-testnet/Dockerfile
     depends_on:
       - nats
     environment:
-      # age private key path inside the container (mounted read-only below).
-      SOPS_AGE_KEY_FILE: /vault/age.key
+      SOPS_AGE_KEY_FILE: /root/.arx/age.key
     volumes:
-      # Your reviewed / backtested strategy directory (read-only).
       - ./strategy:/app/strategy:ro
-      # sops-encrypted credentials + age key. Read-only; keys never leave here.
-      - ./vault:/vault:ro
+      - ./runtime/.arx:/root/.arx
     command:
-      - --tenant-id
-      - ${ARX_TENANT_ID}
-      - --runner-id
-      - ${ARX_RUNNER_ID}
+      - start
       - --nats-url
       - ${ARX_NATS_URL}
       - --reconcile-strategy-id
@@ -40,7 +33,5 @@ services:
       # Select the real NautilusTrader host so testnet execution actually runs.
       # The G6 gate still guards every live deploy regardless of this flag.
       - --use-nt-host
-      - --sops-file
-      - /vault/credentials.enc.json
-      - --age-key-file
-      - /vault/age.key
+      - --vault-dir
+      - /root/.arx/vault

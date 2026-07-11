@@ -1,9 +1,7 @@
 # custos-runner testnet example image.
 #
-# custos is not published to PyPI yet (pre-release), so the image is built from
-# source: the docker-compose build context is the repository root. sops + age
-# are installed because they are the non-custodial credential path — the runner
-# decrypts the exchange keys locally with the mounted age key (see README).
+# This example keeps a source-built image because the official v0.2.0 runtime
+# image does not yet include the NautilusTrader extra, sops, or age.
 FROM python:3.13-slim
 
 RUN apt-get update \
@@ -27,4 +25,5 @@ COPY . /app
 # nautilus extra brings NautilusTrader (needs Python 3.12+; base image is 3.13).
 RUN uv sync --extra nautilus
 
-ENTRYPOINT ["uv", "run", "python", "-m", "custos"]
+ENTRYPOINT ["uv", "run", "arx-runner"]
+CMD ["start"]
