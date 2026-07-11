@@ -1,0 +1,266 @@
+name: release
+
+# Triggered by a stable semver tag push (`v0.2.0`, `v1.3.4`). Release-candidate
+# tags (`v0.2.0-rc.1`) are intentionally excluded here — they belong on a
+# separate workflow that publishes to the PyPI pre-release channel and does not
+# pollute the stable tag series (Plan 12 M6 fix).
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      publish_pypi:
+        description: 'Publish to PyPI (default: true for stable tags)'
+        required: false
+        default: 'true'
+        type: string
+
+# Plan 12 H2 fix: the top-level key is `permissions:` (plural). A silent typo
+# to `permission:` leaves the job without `id-token: write`, which makes
+# sigstore OIDC keyless signing fail with a confusing "no ambient credential"
+# error rather than a permissions error.
+permissions:
+  id-token: write        # sigstore + cosign keyless (OIDC assertion)
+  packages: write        # push image to GHCR
+  contents: write        # create the GitHub Release + notes
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # --- 1/8 build a reproducible wheel; downstream jobs consume the artifact --
+  build-wheel:
+    name: Build wheel + sdist (reproducible)
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: tag
+        run: |
+          ref="${GITHUB_REF#refs/tags/v}"
+          echo "version=${ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Build reproducible wheel + sdist
+        env:
+          # Plan 12 T8: pin epoch to the tagger date's midnight UTC so
+          # rebuilds produce bytes-identical artifacts.
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp && github.event.head_commit.timestamp || '' }}
+        run: |
+          rm -rf dist/
+          uv build
+
+      - name: Record wheel sha256 (provenance)
+        run: |
+          for f in dist/*.whl dist/*.tar.gz; do
+            sha256sum "$f"
+          done | tee dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # --- 2/8 sign every wheel with sigstore keyless -------------------------------
+  sign-wheel:
+    name: Sign wheel (sigstore keyless)
+    needs: build-wheel
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install sigstore LTS extra
+        run: uv sync --extra dev --extra lts
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Sign wheels
+        run: |
+          # `uv run` puts the sigstore CLI on PATH via the .venv shim.
+          uv run bash .github/workflows/scripts/sign-wheel.sh
+
+      - name: Contract test — every wheel has a bundle + sigstore verify passes
+        run: uv run pytest tests/test_wheel_signature.py -v -m ci_only
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-signed
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # --- 3/8 build the OCI image on top of the freshly signed wheel --------------
+  build-docker:
+    name: Build docker image (multi-stage, non-root)
+    needs: [build-wheel, sign-wheel]
+    runs-on: ubuntu-24.04
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          # Consume the signed wheel — an unsigned image release is a
+          # supply-chain gap.
+          name: dist-signed
+          path: dist/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:v${{ needs.build-wheel.outputs.version }}
+            ${{ env.IMAGE_NAME }}:latest
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.version=${{ needs.build-wheel.outputs.version }}
+          provenance: true
+          sbom: true
+
+  # --- 4/8 sign the pushed image with cosign keyless ----------------------------
+  sign-docker:
+    name: Sign docker image (cosign keyless)
+    needs: [build-wheel, build-docker]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image by digest
+        run: |
+          cosign sign --yes \
+            "${IMAGE_NAME}@${IMAGE_DIGEST}"
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_DIGEST: ${{ needs.build-docker.outputs.image_digest }}
+
+  # --- 5/8 publish wheel + sdist to PyPI ---------------------------------------
+  publish-pypi:
+    name: Publish to PyPI (trusted publisher)
+    needs: [build-wheel, sign-wheel]
+    # Skip PyPI publish when the operator explicitly opts out from a
+    # workflow_dispatch invocation. Stable tag pushes always publish.
+    if: github.event_name == 'push' || github.event.inputs.publish_pypi == 'true'
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/custos-runner
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-signed
+          path: dist/
+
+      - name: Strip signature bundles (PyPI only accepts wheel + sdist)
+        run: |
+          rm -f dist/*.sigstore dist/SHA256SUMS
+          ls dist/
+
+      - name: Publish to PyPI via OIDC trusted publisher
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # --- 6/8 publish image to GHCR is done inside build-docker (via docker push) --
+  # This job wires the release-notes rendering after publish steps complete.
+  publish-ghcr:
+    name: Confirm GHCR publish
+    needs: [build-docker, sign-docker]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Assert image reference exists
+        run: |
+          echo "Image ${IMAGE_NAME}:v${VERSION} pushed & signed."
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          VERSION: ${{ needs.build-wheel.outputs.version }}
+
+  # --- 7/8 post-publish smoke: pull wheel + image, verify signatures ------------
+  verify-release:
+    name: Post-publish verify (wheel + image signatures + docker run --help)
+    needs: [build-wheel, publish-pypi, publish-ghcr]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv + sigstore + cosign
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Install sigstore CLI
+        run: |
+          uv sync --extra dev --extra lts
+
+      - name: Run post-publish verify
+        run: uv run bash .github/workflows/scripts/verify-release.sh ${{ needs.build-wheel.outputs.version }}
+
+  # --- 8/8 render GitHub Release notes from CHANGELOG --------------------------
+  release-notes:
+    name: Render GitHub Release notes
+    needs: [build-wheel, verify-release]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract CHANGELOG section for this version
+        id: notes
+        run: |
+          version="${{ needs.build-wheel.outputs.version }}"
+          awk -v v="[${version}]" '
+            $0 ~ "^## " v { flag=1; next }
+            flag && /^## \[/ { exit }
+            flag { print }
+          ' CHANGELOG.md > release-notes.md
+          echo "--- release notes ---"
+          cat release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md is missing an entry for [${version}]." >&2
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build-wheel.outputs.version }}
+          name: v${{ needs.build-wheel.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custos.the-alephain-guild/gateway-contract/v1/telemetry_snapshot.schema.json",
+  "title": "TelemetrySnapshotPayload v1",
+  "description": "Engine-status telemetry snapshot; wrapped in NatsEnvelope on the wire (envelope.payload_schema_version = 1). Sourced from docs/domain.md line 105 (EngineStatus BC). All money-typed fields are Decimal-str per Non-Custodial red line 0.4.",
+  "type": "object",
+  "required": [
+    "runner_id",
+    "spec_id",
+    "phase",
+    "position_count",
+    "order_count",
+    "open_notional",
+    "current_equity",
+    "peak_equity",
+    "drawdown_pct",
+    "sampled_at"
+  ],
+  "properties": {
+    "runner_id": {
+      "type": "string",
+      "description": "Runner identity that emitted the snapshot; MUST match the enrolled runner."
+    },
+    "spec_id": {
+      "type": "string",
+      "description": "Deployment spec the snapshot is scoped to."
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["running", "degraded", "unknown"],
+      "description": "Engine phase vocabulary (docs/domain.md §EngineStatus) — narrower than DeploymentStatus.phase because a snapshot only makes sense for a live engine."
+    },
+    "position_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "order_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "In-flight order count as observed by the engine kernel."
+    },
+    "open_notional": {
+      "type": "string",
+      "description": "Absolute open-position notional; Decimal serialised as string (red line 0.4)."
+    },
+    "current_equity": {
+      "type": "string",
+      "description": "Current equity = open_notional + Σ unrealized_pnl; Decimal-string."
+    },
+    "peak_equity": {
+      "type": "string",
+      "description": "High-water mark equity across the engine session; Decimal-string."
+    },
+    "drawdown_pct": {
+      "type": "string",
+      "description": "(peak_equity - current_equity) / peak_equity * 100; Decimal-string. The reconciler's local fallback breaker consumes this when arx is unreachable (red line 0.3)."
+    },
+    "sampled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 UTC timestamp when the engine sampled the fields; distinct from the envelope's `occurred_at` which marks emission time."
+    }
+  },
+  "additionalProperties": false
+}

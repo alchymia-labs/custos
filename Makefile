@@ -3,7 +3,7 @@
 # 独立开源仓库自足构建入口. 标准化验证入口, 避免裸 shell 触发权限碎片污染
 # .claude/settings.local.json (workspace lesson: 优先 Makefile target 而非裸 uv run).
 
-.PHONY: help install install-nt fmt fmt-check lint check test test-baseline test-nt verify verify-nt clean toolkit-sync-check
+.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker verify verify-nt clean toolkit-sync-check dist sign docker-build docker-sign verify-release release
 
 # 默认 target: help
 .DEFAULT_GOAL := help
@@ -16,6 +16,9 @@ install:  ## 装依赖 (dev extra) — uv sync --extra dev
 
 install-nt:  ## 装依赖 + NT runtime (需 py3.12+) — uv sync --extra dev --extra nautilus
 	uv sync --extra dev --extra nautilus
+
+install-lts:  ## Install release-engineering LTS toolchain (sigstore + pytest-docker)
+	uv sync --extra dev --extra lts
 
 fmt:  ## 格式化代码 (ruff format 改文件)
 	uv run ruff format src/ tests/ scripts/
@@ -53,6 +56,33 @@ verify-nt: check test-nt  ## 发布门 (NT, 需 py3.12+): check + test-nt 全绿
 clean:  ## 清理 pycache / pytest cache / ruff cache
 	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .pytest_cache .ruff_cache .mypy_cache
+
+# --- Plan 12 release engineering ---------------------------------------------
+# `make dist` produces the signed-artifact input; `docker-build` consumes it.
+# `verify-release` is the post-publish smoke gate the CI job invokes after
+# uploading to PyPI + GHCR.
+
+dist:  ## Build a reproducible wheel + sdist to dist/ (respects SOURCE_DATE_EPOCH)
+	uv build
+
+sign:  ## Sign every wheel under dist/ with sigstore keyless (requires OIDC; runs in CI)
+	bash .github/workflows/scripts/sign-wheel.sh
+
+docker-build: dist  ## Build custos-runner:test image from the local dist/*.whl wheel
+	docker build -t custos-runner:test .
+
+docker-sign:  ## Sign the built docker image with cosign keyless (requires OIDC; runs in CI)
+	@echo "docker-sign is exercised by the CI release workflow (needs GHCR + OIDC)." >&2
+	@echo "Run cosign manually only for out-of-band re-signing." >&2
+
+test-docker: docker-build  ## Run the docker-marker gates locally (image size / non-root / entrypoint help)
+	uv run pytest -m docker tests/test_docker_non_root.py tests/test_docker_entrypoint_help.py tests/test_docker_image_size.py -v
+
+verify-release:  ## Post-publish smoke: pull wheel + verify sig, pull image + verify sig + smoke run
+	@bash .github/workflows/scripts/verify-release.sh $(VERSION)
+
+release: dist sign docker-build docker-sign  ## Full local release rehearsal (real publish still lives in CI)
+	@echo "Local release rehearsal complete. Publish to PyPI + GHCR runs in CI." >&2
 
 toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ optional pandas_ta) for drift
 	@if [ -z "$$PS_ROOT" ]; then \

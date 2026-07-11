@@ -102,3 +102,56 @@ Plan 00c examples/supertrend-testnet/ 将提供:
 ## 常见部署问题
 
 见 [`runbook.md`](runbook.md) §常见故障排查.
+
+## Docker Runtime Volume Mount
+
+Since 0.2.0 the runtime image
+(`ghcr.io/the-alephain-guild/custos:v0.2.0`) is a multi-stage build
+that runs as UID/GID 1000 with `HOME=/home/custos` and declares
+`VOLUME ["/home/custos/.arx"]` for persistent state. Operators bind
+the container's `~/.arx` to the host `~/.arx` so per-key `.enc`
+vault files and the `runner.toml` enrollment record survive
+container restarts.
+
+Recommended invocation:
+
+```bash
+docker run --rm \
+    --name custos \
+    -v "$HOME/.arx:/home/custos/.arx" \
+    --user "$(id -u):$(id -g)" \
+    ghcr.io/the-alephain-guild/custos:v0.2.0 start \
+    --tenant-id acme \
+    --runner-id "$(cat ~/.arx/runner.toml.runner_id)"
+```
+
+Notes:
+
+- `--user "$(id -u):$(id -g)"` aligns the container process with the
+  host user's UID/GID so bind-mounted files stay owned by the operator
+  outside the container. Without this override the container writes as
+  UID 1000, which on a host where the operator has a different UID
+  results in files that read as `1000:1000` at rest — safe (correct
+  ownership inside the container) but inconvenient (`chown -R`
+  needed on the host to edit them).
+- The image bakes `mkdir -p ~/.arx{,/vault,/state} && chown -R custos:custos ~/`
+  during build (Plan 12 R2-M2 fix). A bind mount of an existing
+  host `~/.arx` overrides those in-image directories, so the operator
+  is responsible for ensuring the host directory exists and is
+  readable by the mapped UID. Missing directory + missing volume =
+  the first `arx-runner enroll` inside the container fails with
+  `PermissionError: [Errno 13] Permission denied: '/home/custos/.arx/runner.toml'`
+  — the daemon's structured log surfaces this fail-loud rather than
+  silently degrading, so an operator sees the mount misconfiguration
+  in the first reconcile iteration.
+- OCI provenance labels
+  (`org.opencontainers.image.revision` / `.source` / `.version`) are
+  baked into the image at CI build time. Auditors can trace back to
+  the exact tag + commit via `docker inspect --format
+  '{{index .Config.Labels "org.opencontainers.image.revision"}}'
+  ghcr.io/the-alephain-guild/custos:v0.2.0`.
+- Signature verification lives in
+  [`../../.github/workflows/scripts/verify-release.sh`](../../.github/workflows/scripts/verify-release.sh) —
+  operators paranoid about supply-chain provenance can re-run it
+  locally after `docker pull`.
+

@@ -144,15 +144,18 @@ to external clients.
 
 ## Not Included Yet
 
-The following are deliberately out of scope for the initial extraction and
-tracked as follow-ups:
+Most of the original 0.1.x follow-ups shipped in 0.2.0. The distribution +
+release-engineering + LTS-policy items are documented in
+[`CHANGELOG.md`](CHANGELOG.md) and [`docs/lts-commitment.md`](docs/lts-commitment.md);
+public-repo façade lives in [`CONTRIBUTING.md`](CONTRIBUTING.md) +
+[`SECURITY.md`](SECURITY.md).
 
-- **CI + signed release pipeline** — signed wheel + signed docker image
-  (`ghcr.io/...`) + reproducible build (ADR-012 v4 stage-3 action items).
-- **Contract versioning mechanism** — custos ↔ arx OpenAPI/JSON Schema
-  registry + SemVer tagging.
-- **`CONTRIBUTING.md` + `SECURITY.md`** — public-repo façade completion.
-- **Python package rename** — completed (Plan 05, `arx_runner` → `custos`).
-- **Telemetry uplink bridge** — the NT `MessageBus` → arx telemetry actor is not
-  wired yet, so per-order execution events (fills / `OrderDenied`) are observable
-  only in the runner's local logs, not uplinked to the cloud.
+The remaining follow-ups tracked here:
+
+- **Telemetry uplink bridge** — the NT `MessageBus` → arx telemetry actor is
+  not wired yet, so per-order execution events (fills / `OrderDenied`) are
+  observable only in the runner's local logs, not uplinked to the cloud.
+- **1.0.0 promote** — the `CustosGatewayImpl` on the arx side ships as a
+  wired-later stub; `docs/upgrade-path.md` documents the promote judgment:
+  arx-side wire ready + three consecutive minor releases without breaking
+  changes + gateway-contract v1 100% covered.

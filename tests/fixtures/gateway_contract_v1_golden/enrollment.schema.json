@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custos.the-alephain-guild/gateway-contract/v1/enrollment.schema.json",
+  "title": "EnrollmentPayload v1",
+  "description": "Body posted by custos-runner at first-boot enrollment; the arx-side coordination service resolves tenant_id server-side from the token_hash. Sourced from Plan 11 T4 CLI wire (see tests/test_cli_enroll.py:220).",
+  "type": "object",
+  "required": ["token_hash", "runner_id", "agent_version"],
+  "properties": {
+    "token_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest of the one-shot enrollment token; the raw token never crosses the wire."
+    },
+    "runner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Client-generated runner identity; carried in all downstream heartbeat / status subjects."
+    },
+    "agent_version": {
+      "type": "string",
+      "description": "custos-runner version string, e.g. 0.2.0 — arx uses this to gate deprecation warnings."
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional runner capability tags (nautilus / noop-host / …). Default: []."
+    }
+  },
+  "additionalProperties": false
+}

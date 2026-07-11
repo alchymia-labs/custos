@@ -38,6 +38,10 @@
 - **custos → arx**: pull `DeploymentSpec` + push 遥测/heartbeat/reconcile status
 - **custos ↛ Crucible**: 从不直接对话, arx 中介
 - **单一外部入口**: 所有外部访问 custos 状态必须经 arx 的 `gatekeeper` 与 `CustosGateway`
+- **契约 v1 冻结于 `docs/gateway-contract/v1/`** (Plan 12 close-out 落地) — 四个
+  payload (enrollment / deployment_status / telemetry_snapshot / heartbeat)
+  的 JSON Schema + backward-compat golden gate. Breaking change 走
+  `docs/gateway-contract/v2/`.
 
 详见 [`README.md#Contract with Arx`](README.md) + [`docs/domain.md`](docs/domain.md) §分层信任边界.
 
@@ -95,6 +99,9 @@
 | 列全部 target | `make help` |
 | 单跑 G6 gate 测试 | `uv run pytest tests/test_g6_gate.py -v` |
 | Non-Custodial 红线 grep | 见 `.claude/rules/verification.md` §红线专项检查 |
+| Docker 门 (image size + non-root + entrypoint smoke) | `make test-docker` |
+| Release rehearsal (wheel + docker + sign, 本地) | `make release` |
+| Post-publish verify (wheel + image signature + smoke) | `make verify-release VERSION=0.2.0` |
 
 ---
 

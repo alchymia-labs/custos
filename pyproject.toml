@@ -45,6 +45,15 @@ nt-rust = []
 all-engines = [
     "custos-runner[nautilus]",
 ]
+# Long-Term-Support / release-engineering toolchain (Plan 12): sigstore keyless
+# wheel signing (T3) + pytest-docker helpers for the Docker-image test gates
+# (T2). Explicit sigstore major pin (>=3.0,<4.0, Plan 12 H6): sigstore 3.x is
+# the current stable line; a future 4.x is a breaking API bump and must land
+# through a coordinated CI-workflow refresh, not a silent transitive upgrade.
+lts = [
+    "sigstore>=3.0,<4.0",
+    "pytest-docker>=3",
+]
 
 [project.scripts]
 # Single console entry — the pre-0.2.0 `custos` script was retired to avoid
@@ -61,13 +70,33 @@ build-backend = "hatchling.build"
 # 显式告诉 hatchling 打包 src/custos/.
 packages = ["src/custos"]
 
+# Plan 12 T8 reproducible-build hook. The Python file `hatch_build.py` at the
+# repo root exports a hatchling `BuildHookInterface` subclass that honours the
+# `SOURCE_DATE_EPOCH` environment variable so `uv build` produces
+# bytes-identical wheels across rebuilds. hatchling >= 1.20 already respects
+# `SOURCE_DATE_EPOCH` natively; the hook is a defence-in-depth belt so a
+# hatchling downgrade or a future opt-out flag does not silently disable the
+# reproducibility guarantee.
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 [tool.uv]
 package = true
+# sigstore-python 3.x pulls `sigstore-protobuf-specs` from PyPI as a
+# pre-release build (0.3.3.dev-family), so resolving the `lts` extra with the
+# default uv setting fails ("pre-releases weren't enabled"). This lock is
+# release-engineering-adjacent and won't leak into the default `dev` sync path
+# (uv only installs what a given `--extra` selects), but the resolver still
+# walks every optional-dependencies group when building the lock.
+prerelease = "allow"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [
     "integration: requires provisioned external infrastructure (real testnet credential, network reachability); skips cleanly if unmet",
+    "docker: requires a functional Docker daemon reachable from the test host; Plan 12 T2 Docker image contract gates",
+    "ci_only: requires GitHub Actions OIDC (sigstore keyless signing); Plan 12 T3 wheel-signature contract; local runs skip",
+    "slow: expensive (double `uv build` reproducibility test, minutes-scale); Plan 12 T8 nightly CI job",
 ]
 
 [tool.ruff]

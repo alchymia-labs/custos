@@ -1,0 +1,39 @@
+# Keep build context slim: only `dist/*.whl` and the wheel-friendly source
+# tree need to reach the daemon. Everything else — VCS metadata, forge plans,
+# venv, tests, docs, examples — bloats the context and slows every `docker
+# build` on cold cache.
+
+.git/
+.gitignore
+.gitattributes
+
+# Forge / plan bookkeeping — not part of the runtime image
+.forge/
+.claude/
+.planning/
+.codex-plugin/
+.cursor-plugin/
+
+# Virtualenv + tooling caches
+.venv/
+.venvs/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+__pycache__/
+*.pyc
+*.pyo
+
+# Tests + examples ship in-source but never in the runtime image
+tests/
+examples/
+docs/
+
+# Editor cruft
+.vscode/
+.idea/
+.DS_Store
+
+# Local artefacts we don't want baked into `dist/*.whl` copies
+build/
+*.egg-info/

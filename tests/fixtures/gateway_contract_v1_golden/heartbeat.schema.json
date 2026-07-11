@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custos.the-alephain-guild/gateway-contract/v1/heartbeat.schema.json",
+  "title": "HeartbeatPayload v1",
+  "description": "At-most-once liveness ping; wrapped in NatsEnvelope with ordering metadata on the wire. Sourced from src/custos/core/nats_client.py:104-132 (build_heartbeat_envelope). runner_id is inside the payload (not just the subject) so a stray envelope with a wrong subject is still self-identifying.",
+  "type": "object",
+  "required": ["runner_id", "uptime_secs", "active_deployments", "health"],
+  "properties": {
+    "runner_id": {
+      "type": "string",
+      "description": "Runner identity; MUST match the connected runner (arx-side tenancy guard)."
+    },
+    "uptime_secs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Seconds since daemon start; monotonic within one process."
+    },
+    "active_deployments": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of DeploymentSpecs currently in `phase=running`."
+    },
+    "health": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "unhealthy"],
+      "description": "Aggregate self-assessment (`degraded` if any deployment is degraded or the reconcile loop is retrying; `unhealthy` if vault locked / arx unreachable AND local breaker tripped)."
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,7 +1,8 @@
 # 12 — custos distribution: signed wheel + docker image + SEMVER/LTS + gateway contract v1
 
-> **Status**: 🔲 Not started
+> **Status**: ✅ Completed
 > **Created**: 2026-07-10
+> **Completed**: 2026-07-11
 > **Project**: custos (`tesseract-trading/custos/`)
 > **Wave**: v1-team-full-loop
 > **For Claude**: `/forge:execute` 单会话可完成（中粒度 6-10h，多 track 但每 track 独立）
@@ -570,15 +571,15 @@ def test_wheel_bytes_differ_without_epoch():
 
 | Task | Status | Completed | Notes |
 |------|--------|-----------|-------|
-| T1 pyproject SEMVER + scripts + lts extras | 🔲 | | DP4 (0.x LTS 起点) + DP5 **RESOLVED** (Plan 11 lock `arx-runner`) — T1 只加 `[project.optional-dependencies].lts` + hatch build hook；`[project.scripts]` + version bump 已由 Plan 11 落地 |
-| T2 Dockerfile 多阶段 + non-root | 🔲 | | DP2 (GHCR target) |
-| T3 Wheel signing (sigstore) | 🔲 | | DP1 (sigstore keyless) |
-| T4 CI release workflow | 🔲 | | DP2 + DP1 组合；实跑推迟 T9 gate |
-| T5 CHANGELOG scaffold | 🔲 | | Keep-a-Changelog 格式 |
-| T6 LTS commitment + upgrade path | 🔲 | | DP7 (EOL 12mo + SLA 30d) |
-| T7 Gateway contract v1 spec | 🔲 | | DP3 (JSON Schema) + DP8 (snapshot golden) |
-| T8 Reproducible build | 🔲 | | DP6 (SOURCE_DATE_EPOCH + uv.lock) |
-| T9 Close-out (CONTRIBUTING + SECURITY + index sync) | 🔲 | | lesson #35 script name fanout 联动检 |
+| T1 pyproject SEMVER + scripts + lts extras | ✅ | 2026-07-11 | DP4 + DP5 RESOLVED. Only adds `[project.optional-dependencies].lts` + `[tool.hatch.build.hooks.custom]` + pytest markers + `[tool.uv].prerelease = "allow"` (sigstore transitive requires it). commit `68fe6cf` |
+| T2 Dockerfile 多阶段 + non-root | ✅ | 2026-07-11 | DP2. USER 1000:1000, VOLUME + pre-USER mkdir/chown (R2-M2). Local image 160 MB (well under 800 MB FM11 ceiling). commit `509c127` |
+| T3 Wheel signing (sigstore) | ✅ | 2026-07-11 | DP1. sign-wheel.sh with H6 grep-verify of `--output-signature` flag; ci_only tests skip locally. commit `0b72d59` |
+| T4 CI release workflow | ✅ | 2026-07-11 | DP1+DP2. 8-job DAG (H5), plural permissions (H2), stable-tag pattern (M6), build-docker consumes signed wheel (H1). Real first run deferred to first tag push. commit `f68e581` |
+| T5 CHANGELOG scaffold | ✅ | 2026-07-11 | Keep-a-Changelog; single 0.2.0 entry integrates Plan 11 breaking + Plan 12 additive (Cross H1). commit `446c9ef` |
+| T6 LTS commitment + upgrade path | ✅ | 2026-07-11 | DP7. EOL 12 months + SLA 30 days + Key Rotation Protocol + Deviations Log. L1 EOL date row test. commit `8222281` |
+| T7 Gateway contract v1 spec | ✅ | 2026-07-11 | DP3 + DP8. 4 schemas + goldens + 3 BLK-5 negative shape tests. R2-C1 `agent_version` present in enrollment. commit `d570e31` |
+| T8 Reproducible build | ✅ | 2026-07-11 | DP6. Identical-with-epoch passes (~19s); `test_wheel_bytes_differ_without_epoch` `xfail(strict=True)` per M4 pre-anticipated: hatchling ≥1.20 native deterministic makes the epoch defence-in-depth. commit `df389f1` |
+| T9 Close-out (CONTRIBUTING + SECURITY + docker mount doc + index sync) | ✅ | 2026-07-11 | CONTRIBUTING + SECURITY landed; docker mount doc appended to `docs/ops/05-deployment.md` (R2-M1 append-only); CLAUDE.md § 2 + § 6 synced; .forge/README.md index updated. commit `4950a50` |
 
 ## 偏离与改进日志 (Deviations & Improvements)
 
@@ -609,19 +610,63 @@ def test_wheel_bytes_differ_without_epoch():
 | IMPROVEMENT (review-round-2 fix) | Plan 12 T2 note + T9 §3 + File Inventory (R2-M1 MEDIUM) | Docker mount pattern owner 从"Plan 11 T9 承担"更正为 **Plan 12 T9 append-only 追写** (Plan 11 T9 scope 仅 namespace substitution + Upgrade section 见 Plan 11 line 493, 无 Docker mount 上下文, 原委托无法兑现); File Inventory 补 `docs/ops/05-deployment.md` (Modify) 行; T9 §3 加 bullet 5 描述追写内容 (docker run 命令样例 + HOME 挂载映射 + UID/GID 对齐 + fail-loud message); 与 Plan 11 T9 段 append-only 不重叠共存, 避免 lesson #16 merge 冲突 | ✅ (drafter fix per R2 review) |
 | IMPROVEMENT (review-round-2 fix) | Plan 12 T2 Step 3 Dockerfile + File Inventory (R2-M2 MEDIUM) | Dockerfile 加 pre-USER `RUN mkdir -p /home/custos/.arx /home/custos/.arx/vault /home/custos/.arx/state && chown -R custos:custos /home/custos` (在 `VOLUME` 与 `USER 1000:1000` 之间), 让 volume mount point owner = custos, 防首次 `arx-runner enroll` 写 `~/.arx/runner.toml` permission denied (Cross H4 fix 只 useradd + VOLUME 不建目录, mount 后 anonymous volume 目录仍 root-owned); File Inventory Dockerfile 描述补 pre-USER mkdir + chown 注 | ✅ (drafter fix per R2 review) |
 
+### DEVIATION: DEV-12-T1-UV-PRERELEASE-ALLOW (low)
+- **等级**: 低
+- **原因**: sigstore-python 3.x 依赖 `sigstore-protobuf-specs` 作 pre-release build (e.g. `0.3.3.dev*`)。加 `[project.optional-dependencies].lts` 后 `uv sync --extra dev` (即使不请求 `--extra lts`) 会尝试全 lock 每个 optional group,pre-release 默认拒绝导致整体解锁失败:`your project's requirements are unsatisfiable ... betterproto was requested with a pre-release marker`。
+- **影响**: `pyproject.toml [tool.uv]` 段加 `prerelease = "allow"`。仅影响 lock 时解析行为,不影响运行时 (uv 只装被请求的 extras);`nautilus` extra 已允许 `sigstore-protobuf-specs` 家族的 upstream 定义。
+- **决定**: Option A — 声明 `[tool.uv].prerelease = "allow"`,commit 后 `make verify` 全绿, lts extra 可 install。替代方案 (改 sigstore 版本 pin 到 <3.4 排除 pre-release 传递依赖) 会与 H6 fix 的 `sigstore>=3.0,<4.0` 显式 major pin 冲突,弃用。
+- **更新的文档**: `pyproject.toml` 加注释说明该 flag 的动机。CHANGELOG.md 未列 (build-config 内部行为,对用户无 observable 影响)。
+
+### DEVIATION: DEV-12-T2-DOCKER-PIP-INSTALL-BY-PATH (low)
+- **等级**: 低
+- **原因**: Dockerfile 首版按 spec 用 `pip install --no-index --find-links=/tmp custos-runner`,但 `--no-index` 也阻 transitive deps (`nats-py` / `pydantic` / `structlog` / `uuid6`) 从 PyPI 解析 → `ERROR: Could not find a version that satisfies the requirement nats-py>=2.9`。
+- **影响**: Dockerfile builder stage 改成显式 wheel path: `pip install /tmp/custos_runner-*.whl`。仍防 PyPI fallback 到 older custos-runner (pip 用文件路径直装, 不走 index 解析 custos-runner 本身),transitive 从 PyPI 正常解析。
+- **决定**: Option A — 显式 wheel path 装, 注释说明 H1 意图 (custos-runner 本身不 fallback PyPI) 与 transitive 保留正常解析的分层。
+- **更新的文档**: Dockerfile 注释扩展。
+
+### DEVIATION: DEV-12-T8-EPOCH-XFAIL-STRICT (low)
+- **等级**: 低
+- **原因**: Plan 12 M4 fix 已经预告 "若 hatchling ≥ 1.20 已 native deterministic 到不依赖 epoch, 本 test 会 pass 而与预期反向 — 此时 executor 需 grep hatchling changelog + docs 判断是否可放弃 SOURCE_DATE_EPOCH pin, 或改用 xfail marker + doc 记录"。实际跑 `test_wheel_bytes_differ_without_epoch` 结果 = wheel 字节完全一致 (hatchling 1.20+ native deterministic)。
+- **影响**: 采纳 M4 明示的第二条路径 — `pytest.mark.xfail(strict=True, reason="...")`。epoch pin 保留在 `hatch_build.py` 作 defence-in-depth。若 hatchling 未来回退到非-deterministic, xfail-strict 会 unexpected-pass, 触发 fail = surfaced regression。
+- **决定**: 保留 SOURCE_DATE_EPOCH pin + xfail(strict=True) marker。`docs/reproducible-build.md` 已注明该分层。
+- **更新的文档**: `docs/reproducible-build.md` §Automated verification 段末; test 顶部 docstring; test 的 xfail reason 字段。
+
+### DEVIATION: DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP (low, observation only)
+- **等级**: 低 (观察项, 非 Plan 12 scope 修复)
+- **原因**: Plan 12 T9 §3 bullet 5 R2-M1 fix 声明 "保留 Plan 11 T9 已写的 namespace substitution + Upgrade section 完整不改 (append-only)"。执行时 grep `git show --stat 62a155a` (Plan 11 squash) 确认 Plan 11 T9 **未触及** `docs/ops/05-deployment.md` — 该文件仍含 pre-Plan-11 内容 (`python -m custos` / `~/.custos/vault/` / `--sops-file` / `--age-key-file` 等已删除的 CLI flags)。
+- **影响**: docs/ops/05-deployment.md 除本 Plan 12 T9 追写的 Docker Runtime Volume Mount 段外, 其余内容与 Plan 11 0.2.0 现状 (arx-runner + ~/.arx/ + per-key .enc) 不一致。**scope 边界纪律**: Plan 12 T9 只追写 Docker Runtime Volume Mount 段, 不越界修复 Plan 11 T9 遗漏 (避免 lesson #16 三方修改冲突; 避免超出 append-only 授权)。
+- **决定**: 登记为 observation 交 Plan 11 close-out follow-up 或独立 docs plan 处理。Plan 12 close-out 不阻塞。
+- **更新的文档**: 本偏离日志 + 交主会话 follow-up 决策。
+
 ## 完成报告 (Close-out Report)
 
-*(执行完成后在此填写)*
+- **完成日期**: 2026-07-11
+- **总 Task 数**: 9 (T1..T9 全部 ✅)
+- **偏离数**: 4 all-low (原 20 R1+R2 IMPROVEMENT 已 fold 到 spec + 4 execution-time DEVs) — 详见偏离日志
+- **实施 commit 范围**: `68fe6cf..4950a50` (9 commits) on branch `custos/plan-12/runner` (worktree `.worktree/plan-12-runner`)
+- **验证结果**: 全部通过 — `make verify` 除单一 pre-existing `test_toolkit_provenance` 外全绿 (该 test fail 与 Plan 12 变更无关, 是 base 环境 pkg_resources / setuptools ≥70 迁移问题)
+- **失败模式覆盖**: 22 new test methods across 8 new test files (test_pyproject_scripts_declared / test_docker_non_root / test_docker_entrypoint_help / test_docker_image_size / test_wheel_signature / test_release_workflow_shape / test_lts_commitment_doc / test_gateway_contract_v1_backward_compat / test_reproducible_build) covering 11 failure modes (FM1-FM11)
+- **契约影响**: 4 new JSON Schemas (docs/gateway-contract/v1/) freeze the CustosGateway payload wire; 8 new authoritative docs (CHANGELOG, lts-commitment, upgrade-path, reproducible-build, gateway-contract/v1/README, CONTRIBUTING, SECURITY) + 1 doc extended (docs/ops/05-deployment.md `## Docker Runtime Volume Mount` append-only)
 
-- **完成日期**: {YYYY-MM-DD}
-- **总 Task 数**: 9
-- **偏离数**: {N}（详见偏离日志）
-- **验证结果**: 全部通过 / 部分通过
-- **遗留项**:
-  - ~~Plan 11 script name lock 联动~~ **RESOLVED** — Plan 11 clean-break 已 lock `arx-runner` 单一 entry (2026-07-10 CEO directive)
-  - arx-79 CustosGateway wire ready 后 1.0.0 promote 判据触发 (upgrade-path.md 规则)
-  - 自动化 LTS status page（follow-up plan）
-  - Docker image bit-for-bit 复现（buildkit timestamp workstream，follow-up plan）
+### 红线 gate 满足度 (lesson #40)
+
+| Red line | Code coverage | Runtime wire | Defer status | Follow-up plan ref |
+|----------|---------------|--------------|--------------|---------------------|
+| 0.1 Key/KEK 永不出进程 | Plan 11 T5-T7 landed (PerKeyVault + sops+age, unchanged by Plan 12); Plan 12 pyproject `[tool.uv].prerelease = "allow"` does not introduce cloud SDK; Dockerfile does not add SSH / cloud CLI | Runtime unchanged from Plan 11 T7 (`arx-runner start` → PerKeyVault load path) | None — Plan 12 is distribution scope, no runtime credential path touched | — |
+| 0.2 G6 host gate 不绕过 | Plan 00c landed (unchanged by Plan 12); Dockerfile `ENTRYPOINT ["arx-runner", "start"]` routes through `_daemon.py` → NtTradingNodeHost G6 gate the same as bare-metal run | Runtime unchanged | None | — |
+| 0.3 Reconcile 失联 ≠ 停止 | Plan 04 landed (unchanged); Docker `VOLUME ["/home/custos/.arx"]` persists `runner.toml` + `.enc` across container restarts so a reconnect after arx outage picks up the same state and the FallbackBreaker remains authoritative | Runtime unchanged | None | — |
+| 0.4 Money math Decimal / wire str | Plan 04 T-Decimal landed (unchanged); Plan 12 T7 telemetry_snapshot.schema.json pins the 4 money fields (open_notional / current_equity / peak_equity / drawdown_pct) as JSON Schema `type: "string"` with a description that names the Decimal → str contract | Runtime unchanged; schema is Layer-1 documentation gate | None | — |
+
+Plan 12 is distribution-scope (packaging + release engineering + docs); no runtime execution paths were introduced or modified. The red-line gates listed above reflect that no defer decision was needed — every runtime touch surface remained at the Plan 11 / Plan 04 baseline.
+
+### 遗留项 (follow-ups)
+
+- **arx-79 wire ready → 1.0.0 promote judgment** — the promote checklist is now formalised in `docs/upgrade-path.md`; the trigger is arx-side `CustosGatewayImpl` moving off `CoordinationError::Unavailable`.
+- **Automated LTS status page** — Plan 12 ships hand-maintained `docs/lts-commitment.md`. A follow-up plan converts this to a machine-readable feed + status page.
+- **Docker image bit-for-bit reproducibility** — currently only the wheel is byte-identical; the image is provenance-labelled + cosign-signed but not deterministic. Follow-up plan for buildkit `SOURCE_DATE_EPOCH` pinning.
+- **DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP** (from偏离日志) — `docs/ops/05-deployment.md` pre-Plan-11 content (`python -m custos` / `~/.custos/` / `--sops-file`) was not touched by Plan 11 T9 squash; Plan 12 T9 only appended the Docker Runtime Volume Mount section. A follow-up docs pass should refresh the systemd / manual-install snippets to the 0.2.0 CLI shape.
+- **T4 first real CI run** — the 8-job release workflow ran no live tag yet; the first `v0.2.0` tag push executes it. `verify-release.sh` is the Layer 3 smoke on that run.
+- **T3 sigstore keyless real sign** — CI-only; local `ci_only` tests skip. Real signature bundle appears next to the wheel on the first release run.
 
 ---
 
