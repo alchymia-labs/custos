@@ -26,17 +26,22 @@
 echo $SOPS_AGE_KEY_FILE
 ls -la $SOPS_AGE_KEY_FILE  # 权限应 -rw-------
 
-# 2. 手动 sops 解密试试
-sops --decrypt ~/.custos/vault.yaml | head -5
+# 2. 手动 sops 解密某 key (0.2.0 起 per-key .enc 模型, 每 credential 一个文件)
+ls -la ~/.arx/vault/         # 权限应 drwx------ (0700), 每 .enc 应 -rw------- (0600)
+sops --decrypt ~/.arx/vault/binance-paper.enc | head -5
 
-# 3. 检查 age pubkey (sops encrypt 时用的)
-grep 'age' ~/.custos/vault.yaml | head -5
+# 3. 检查该 .enc 的 age recipients (sops encrypt 时用的 public key)
+grep -A 3 'age:' ~/.arx/vault/binance-paper.enc | head -10
 
 # 4. 对比本地 age key 的 pubkey
 age-keygen -y $SOPS_AGE_KEY_FILE
+
+# 5. 一键复合校验 (arx-runner 内置, 复用 credential_vault._verify_permission_scope)
+arx-runner vault verify --key-id binance-paper
 ```
 
-**修复**: 见 [`../design/credential_vault.md`](../design/credential_vault.md) §KEK provisioning.
+**修复**: 见 [`../design/credential_vault.md`](../design/credential_vault.md) §KEK provisioning +
+`arx-runner vault put --key-id <key-id>` 重新加密该 credential.
 
 ### 2. `venue_auth_failed`
 
@@ -81,8 +86,10 @@ print(c.account())
 
 **排查步骤**:
 ```bash
-# 1. 计算本地策略 hash
-sha256sum ~/.custos/strategies/<strategy_id>/*.py
+# 1. 定位策略 pip 包 + 计算 hash (0.2.0 起策略走 register_strategy 装饰器 + pip 分发,
+#    非 filesystem 存放; 定位方式 = pip show <strategy-package> → Location + 目录 sha256sum)
+uv pip show <strategy-package> | grep '^Location:'
+sha256sum "$(uv pip show <strategy-package> | awk '/^Location:/ {print $2}')/<strategy_module>/*.py"
 
 # 2. 从 arx 拉 spec 看 code_hash
 # (arx dashboard 或 nats-cli 订阅 spec subject)
@@ -109,8 +116,8 @@ sha256sum ~/.custos/strategies/<strategy_id>/*.py
 # 1. 检查 arx NATS 可达
 telnet arx.internal 4222
 
-# 2. 检查 custos WAL 大小 (若过大接近 disk 满)
-du -sh ~/.custos/wal/
+# 2. 检查 custos telemetry WAL 大小 (若过大接近 disk 满)
+du -sh ~/.arx/state/telemetry-wal.db
 
 # 3. 手动触发重连 (通常 nats-py auto reconnect, 无需)
 ```
@@ -136,7 +143,8 @@ du -sh ~/.custos/wal/
 2. `journalctl -u custos -n 100` 看崩溃前 100 行
 3. 如涉及 NT panic / segfault → 上报 issue + rollback NT 版本
 4. `systemctl restart custos` 重启 (systemd unit 已配 `Restart=on-failure`)
-5. NT 通过 checkpoint (`~/.custos/state/`) 幂等恢复
+5. NT 通过 checkpoint (`~/.arx/state/`) 幂等恢复; `runner_id` + `long_term_credential`
+   从 `~/.arx/runner.toml` 恢复无需重新 enroll
 
 ### 云端 (arx) 长时间失联
 

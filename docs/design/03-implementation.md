@@ -40,11 +40,13 @@
 custos/
 ├── src/custos/               ← Python 模块 (导入名 custos, pip 名 custos-runner)
 │   ├── __init__.py
-│   ├── __main__.py            ← 薄 shim (from custos.cli.main import main)
+│   ├── __main__.py            ← 薄 shim (`from custos.cli.main import main`; main 是 0.2.0 legacy stub)
 │   ├── core/                  ← 引擎无关承重墙
 │   │   ├── config.py          ← DeploymentSpec / TransportEnvelope Pydantic 模型
-│   │   ├── enrollment.py      ← EnrollmentToken 配对 + runner_id 持久
-│   │   ├── credential_vault.py ← sops+age 本地 KEK vault
+│   │   ├── enrollment.py      ← 一次性 EnrollmentToken NATS 低层 client (供 CLI 层调用)
+│   │   ├── credential_vault.py ← _BaseVault + AuditEvent enum + CredentialVault mock (SopsAgeVault 已在 0.2.0 删除)
+│   │   ├── per_key_vault.py   ← PerKeyVault 生产 runtime (~/.arx/vault/<key-id>.enc, 0.2.0 起唯一 runtime 路径)
+│   │   ├── runner_toml.py     ← ~/.arx/runner.toml 原子写 + 0600 mode 契约
 │   │   ├── nats_client.py     ← JetStream client + build_subject() 函数
 │   │   ├── reconcile.py       ← ReconcileLoop (level-triggered)
 │   │   ├── deployment_reconciler.py ← reconcile 高层编排
@@ -56,7 +58,14 @@ custos/
 │   │   ├── strategy_loader.py ← 策略加载
 │   │   └── venue_binance.py   ← Binance venue 适配
 │   └── cli/
-│       └── main.py            ← daemon 入口 (asyncio 编排 6 模块)
+│       ├── main.py            ← 0.2.0 legacy stub (`python -m custos` → sys.exit(2) + pointer)
+│       ├── _daemon.py         ← run_daemon coroutine + _build_vault/_build_host/_build_reconciler/_heartbeat_loop
+│       ├── validators.py      ← boundary 校验 (`validate_id` + `validate_backend_url` scheme allowlist)
+│       └── subcommands/       ← `arx-runner` 五子命令
+│           ├── __init__.py    ← main(argv) dispatcher (argparse add_subparsers)
+│           ├── enroll.py      ← HTTP POST /api/v1/enrollments + runner.toml 持久
+│           ├── vault.py       ← put / verify / list (sops encrypt per-key)
+│           └── start.py       ← 读 runner.toml → _daemon.run_daemon(ns)
 │
 ├── tests/                     ← pytest 测试 (115 pass baseline, 9 wire_shapes fail known)
 ├── scripts/
@@ -93,16 +102,28 @@ uv sync --extra dev
 
 ### 跑 daemon (paper mode 默认)
 
+自 0.2.0 起, 通过 `arx-runner` console script 三步操作 (Plan 11 clean-break;
+`python -m custos` 已 `sys.exit(2)`):
+
 ```bash
-python -m custos --tenant-id acme --runner-id runner-7 --nats-url nats://localhost:4222
+# 一次性: enroll → 落 ~/.arx/runner.toml (mode 0600)
+arx-runner enroll --token <one-time-token> --backend https://arx.internal:8000 \
+                  --tenant-id acme --runner-id runner-7
+
+# 一次性 (每 credential): sops+age encrypt → ~/.arx/vault/<key-id>.enc
+export SOPS_AGE_RECIPIENT=age1...
+arx-runner vault put --key-id binance-paper --api-key-stdin --api-secret-stdin
+
+# 日常启动 (读 ~/.arx/runner.toml + ~/.arx/vault/*.enc)
+export SOPS_AGE_KEY_FILE=~/.arx/age.key
+arx-runner start --nats-url nats://localhost:4222
 ```
 
-参数:
-- `--tenant-id` — 用户 tenant 标识 (必)
-- `--runner-id` — Runner 标识 (可省, 走 EnrollmentToken 首次配对)
+关键 `start` 参数:
 - `--nats-url` — arx NATS endpoint (默认 `nats://localhost:4222`)
-- `--sops-file` + `--age-key-file` — sops+age 凭据 (可省, 走 CLI prompt)
-- `--paper-only` — 强制 paper 模式 (默认 True, live 需 G6 gate 显式放行)
+- `--wal-path` — telemetry WAL 路径 (默认 `~/.arx/state/telemetry-wal.db`)
+- `--engine` — 引擎选择 (默认 `nautilus`, 未来 `hummingbot` / `athanor` 等接入槽已预留)
+- `tenant_id` / `runner_id` / `long_term_credential` 从 `~/.arx/runner.toml` 读, 不再走 CLI flag
 
 ### 跑测试
 
