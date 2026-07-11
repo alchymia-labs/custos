@@ -94,6 +94,12 @@
 | **EnrollmentToken** | `token_id` · `tenant_id` · `token_hash`(sha256, 明文只在配对时可见一次) · `scope_bitmap` · `paper_only`(bool) · `issued_by` · `expires_at` · `used_at` · `revoked_at` | 一次性使用；`used_at` 后置立即失效；`paper_only=true` 的 token 配对出的 Runner 永远不发放 live scope |
 | **HostIdentity** | `host_identity_id` · `runner_id` · `pubkey`(ed25519, 本地生成) · `hardware_fingerprint`(可选, 用户可关) · `created_at` | `pubkey` 私钥永远不出本地；配对协议基于此 pubkey 建立 mTLS 或 NATS auth |
 
+**Sandbox/testnet operational path**：无真实 enrollment backend 时，可手工构造字段完整的
+`~/.arx/runner.toml` 作为受支持的本地非 live 启动路径。该例外不产生 EnrollmentToken、
+不授予 live scope，并保留目录 `0700` / 文件 `0600` 权限约束；进入 live mode 必须改走正式
+的一次性 token enrollment。字段与生成约束以
+[`docs/design/enrollment.md`](design/enrollment.md) 的 sanctioned pattern 为准。
+
 ### 1.2 声明式 reconcile（Spec / Status / Loop）
 
 **职责**：拉云端期望态（DeploymentSpec），本地对齐（NT 启停 / 参数变更），回报实际态（DeploymentStatus）。对齐 ArgoCD level-triggered 模式——失联 ≠ 停止，停止必经显式 spec 变更。

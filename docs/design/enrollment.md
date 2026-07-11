@@ -72,6 +72,40 @@ ok = await client.enroll(plaintext_token, agent_version="0.2.0")
 publish 从未到达 broker，本地持久化仍让 runner 可用；云端会拒绝未对齐 runner 的
 heartbeat，直到 enrollment 被 reconcile。
 
+## Sandbox mode: manually-constructed runner.toml (sanctioned pattern)
+
+在 sandbox 或 exchange testnet 环境中，如果没有可用的 arx enrollment backend，手工
+构造 `~/.arx/runner.toml` 是受支持的本地启动路径，不是绕过 production enrollment 的
+hack。该路径仅用于非 live 模式；它不签发 EnrollmentToken、不授予 live scope，也不改变
+production 主路径的一次性 token 契约。
+
+文件必须与 [`RunnerToml`](../../src/custos/core/runner_toml.py) dataclass 保持完全一致，
+包含以下五个字段：
+
+- `tenant_id`
+- `runner_id`
+- `backend_url`
+- `long_term_credential`
+- `enrolled_at_ns`
+
+可使用 `backend_url = "http://mock-<mode>:8000"`（例如 `mock-sandbox` 或
+`mock-testnet`）明确表示本次运行不依赖真实 enrollment wire；`enrolled_at_ns` 可由
+`time.time_ns()` 生成。`long_term_credential` 应使用仅限本地非 live 环境的占位值，不能
+复用 production credential。
+
+```toml
+tenant_id = "acme"
+runner_id = "runner-sandbox-1"
+backend_url = "http://mock-sandbox:8000"
+long_term_credential = "sandbox-local-only"
+enrolled_at_ns = 1783728000000000000
+```
+
+即使是手工构造，权限约束也不放宽：`~/.arx/` 必须为 `0700`，
+`~/.arx/runner.toml` 必须为 `0600`。推荐由调用
+`RunnerToml.write(path, record)` 的短脚本生成，以复用 atomic write、目录权限和文件权限
+检查。进入 live mode 前必须删除该占位配置并完成正式 `arx-runner enroll`。
+
 ## 红线契约
 
 - **token 明文不落云端库**：云端只存 sha256 hash（`hash_token`），明文只在用户

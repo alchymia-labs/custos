@@ -58,6 +58,18 @@ runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**K
 `_emit_decrypt_audit` 发 `CredentialDecrypted` 审计事件（只带 `credential_id` 引用，
 **plaintext 永不进审计日志**）。
 
+## Permission scope
+
+`trade_no_withdraw` 是 custos v0.2.x 唯一合法的 credential permission scope。
+`arx-runner vault put` 通过显式的
+`--permission-scope {trade_no_withdraw}` flag 接收该值，并在省略 flag 时使用相同默认值；
+写入的 encrypted payload 和 `CredentialEncrypted` audit event 都记录这一非敏感 metadata。
+decrypt 时 `_verify_permission_scope` 再次执行同一安全边界，形成写入端与读取端的双层防御。
+
+新增任何 scope 都是公开 CLI 与跨系统权限契约扩展，必须发布 custos minor version，并同步
+更新 arx 的 producer/authorization contract、两侧 schema 与契约测试。在这些更新完成前，
+不得通过绕过 argparse choices 或修改 encrypted payload 的方式引入新值。
+
 ## 红线契约
 
 - **KEK 不出本地**：age 私钥 / Vault token 永不离开 runner 主机；云端 schema 永不
