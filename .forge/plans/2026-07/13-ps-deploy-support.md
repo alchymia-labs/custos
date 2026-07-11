@@ -1,6 +1,6 @@
 # 13 — custos 支撑 ps `deploy/custos/` 目标 (permission-scope flag + sandbox runner.toml sanctioned + spec samples + example 刷新)
 
-> **Status**: 🔲 Not started
+> **Status**: ⏳ In Progress
 > **Created**: 2026-07-11
 > **Project**: custos (`tesseract-trading/custos/`)
 > **Wave**: independent (CEO 2026-07-11 提出, 支撑 ps 侧 Plan 49 `deploy/custos/` target)
@@ -91,19 +91,22 @@
 | `src/custos/core/credential_vault.py` | Modify | `_verify_permission_scope` 保持不变; `credential_vault.py:112` `CredentialVault` mock 里的硬编码 `"trade_no_withdraw"` 保留 (只 mock 内部, 不影响 CLI 收敛决策); 无 write path change (vault.py 侧承担) |
 | `docs/design/credential_vault.md` | Modify | 追加 "Permission scope" 段, 明说 `trade_no_withdraw` 是唯一 v0.2.x 合法值, 加值需 minor bump + 双侧 update |
 | `docs/design/enrollment.md` | Modify | 追加 "Sandbox mode: manually-constructed runner.toml" 章节, 展示 `RunnerToml` dataclass 5 字段 + `backend_url = "http://mock-<mode>:8000"` 示例 + `enrolled_at_ns = time.time_ns()` 允许 |
+| `docs/domain.md` | Modify | 在 Runner / EnrollmentToken domain 中记录 sandbox/testnet 无控制面时可手工构造 runner.toml 的受限 sanctioned path |
 | `docs/gateway-contract/v1/samples/enrollment.json` | Create | 4 字段 valid payload sample (对应 Plan 12 T7 schema) |
 | `docs/gateway-contract/v1/samples/deployment_status.json` | Create | phase=`running` sample |
 | `docs/gateway-contract/v1/samples/telemetry_snapshot.json` | Create | 4 money 字段 str-decimal 示例 |
 | `docs/gateway-contract/v1/samples/heartbeat.json` | Create | 基础 sample |
 | `docs/gateway-contract/v1/samples/deployment_spec_sandbox.json` | Create | supertrend sandbox spec 完整示例, 供 ps publish-spec.py 对照 (含 `provenance_ref.credential_id` 命名); **M1 fix**: informative role (custos consumer 期望), 明说与 arx 侧待 arx-79 wire close-out 时收敛以 arx authoritative |
 | `docs/gateway-contract/v1/deployment_spec.schema.json` | Create | **M1 fix (R1 review)** — 与 4 wire schema 同级; 最小 required fields (`spec_id / generation / trading_mode / lifecycle_state / strategy_path / provenance_ref`); `code_hash` optional + description 注 "live mode requires non-null"; sandbox 特有 `sandbox.starting_balances` optional |
+| `pyproject.toml` | Modify | dev extra 增加 `jsonschema>=4.20`, 用于 sample/schema 契约测试 |
+| `uv.lock` | Modify | 锁定新增 jsonschema dev 依赖及其传递依赖 |
 | `examples/supertrend-sandbox/README.md` | Rewrite | v0.1.x → v0.2.0 CLI 三命令流程; 与 `docs/gateway-contract/v1/samples/deployment_spec_sandbox.json` cross-link |
 | `examples/supertrend-sandbox/spec-example.json` | Modify | 命名/结构对齐 sample (软链或复制); 无 v0.1.x 特有字段 |
 | `examples/supertrend-testnet/README.md` | Rewrite | 同 sandbox: 换 v0.2.0 三命令; 交易所 testnet 场景说明 permission-scope 强制 trade_no_withdraw |
 | `examples/supertrend-testnet/docker-compose.yaml` | Rewrite | command 从 `--sops-file` → `arx-runner start --nats-url ... --reconcile-strategy-id ...`; vault 挂载改 per-key .enc 目录 |
 | `examples/supertrend-testnet/.env.example` | Modify | 删掉隐式 sops-file 引用; 只保留 tenant/runner/nats 变量 |
 | `examples/supertrend-testnet/vault-fixture/credentials.example.json` | Modify | 结构改 per-key 单文件示范 (非 multi-credential JSON, Plan 11 已删) |
-| `examples/supertrend-testnet/Dockerfile` | Modify | **M2 fix (R1 self-review 2026-07-11, grep 实证)**: 现状 `ENTRYPOINT ["uv", "run", "python", "-m", "custos"]` (L29) 硬命中 legacy CLI (Plan 11 已 clean-break `python -m custos`)。改为 `ENTRYPOINT ["uv", "run", "arx-runner"]`, `CMD ["start"]` (与 Plan 12 official Dockerfile ENTRYPOINT 结构一致); 或直接删除 example Dockerfile 换成 docker-compose 消费 Plan 12 official image (推荐, 减少 example 维护面) |
+| `examples/supertrend-testnet/Dockerfile` | Delete | **M2 fix (R1 self-review 2026-07-11, grep 实证)**: 删除含 legacy `python -m custos` 的重复 example image build; docker-compose 改为消费 Plan 12 official image, 减少维护面 |
 | `tests/test_vault_put_permission_scope.py` | Create | 5 test: default trade_no_withdraw / explicit trade_no_withdraw 通过 / --permission-scope withdraw fail (choices 拦) / --permission-scope 缺省 default 落到 encrypted payload / audit event 含 scope |
 | `tests/test_gateway_contract_v1_samples.py` | Create | 5 test: 4 samples 通过对应 schema validation + 1 deployment_spec sample syntactic valid JSON |
 | `tests/test_examples_docs_v020_alignment.py` | Create | **H1 fix (R1 self-review 2026-07-11)** — 改用 file-parse (yaml/json parse) 而非 grep-based, 减少未来编码 / 大小写 / pattern rename 脆性: `pytest.mark.parametrize` 遍历 `examples/*/{README.md,docker-compose.yaml,Dockerfile,.env.example}`, 对 yaml/json 文件 parse 后断言 command list 无 `--sops-file` / `--age-key-file`, 对 markdown / Dockerfile 用 `Path.read_text()` + `assert "--sops-file" not in text` + `assert "-m custos" not in text` (完整 token 匹配, 不用 regex) |
@@ -142,7 +145,7 @@
 
 ### Task 2: `docs/design/enrollment.md` 追加 sandbox runner.toml sanctioned pattern
 
-**Files**: Modify `docs/design/enrollment.md` + `docs/design/credential_vault.md`
+**Files**: Modify `docs/design/enrollment.md` + `docs/design/credential_vault.md` + `docs/domain.md`
 
 **Step 1 (证伪)**: `grep 'sandbox' docs/design/enrollment.md` 命中 0 或极少 (当前仅描述真 enroll HTTP 流程)。
 
@@ -158,14 +161,17 @@
   - 明说 `trade_no_withdraw` 是 v0.2.x 唯一合法值
   - 加值需 minor version bump + 双侧 (custos + arx) update
   - `--permission-scope` CLI flag 为 explicit 传, default 与硬约束一致
+- `docs/domain.md` Runner / EnrollmentToken domain:
+  - 补充 sandbox/testnet 无真实 arx backend 时可手工构造 runner.toml 的受限 operational path
+  - 明确该路径不签发 live scope, 不放宽 production enrollment 的一次性 token 契约
 
 **Step 3 (验)**: grep 章节标题命中; 手工过一遍章节可读性 (对策略作者友好)。
 
-**Step 4 (提交)**: `git add docs/design/enrollment.md docs/design/credential_vault.md`, commit `docs(custos): plan-13-t2 enrollment sandbox pattern + vault permission_scope sanctioned`。
+**Step 4 (提交)**: `git add docs/design/enrollment.md docs/design/credential_vault.md docs/domain.md`, commit `docs(custos): plan-13-t2 enrollment sandbox pattern + vault permission_scope sanctioned`。
 
 ### Task 3: gateway-contract v1 samples/ 目录
 
-**Files**: Create `docs/gateway-contract/v1/samples/{enrollment,deployment_status,telemetry_snapshot,heartbeat,deployment_spec_sandbox}.json` + `tests/test_gateway_contract_v1_samples.py`
+**Files**: Create `docs/gateway-contract/v1/samples/{enrollment,deployment_status,telemetry_snapshot,heartbeat,deployment_spec_sandbox}.json` + `docs/gateway-contract/v1/deployment_spec.schema.json` + `tests/test_gateway_contract_v1_samples.py`; Modify `pyproject.toml` + `uv.lock`
 
 **Step 1 (证伪)**: `ls docs/gateway-contract/v1/samples/` → ENOENT; `pytest tests/test_gateway_contract_v1_samples.py` 红。
 
@@ -178,17 +184,17 @@
   - `deployment_spec_sandbox.json`: supertrend sandbox 完整 spec (参考 `examples/supertrend-sandbox/spec-example.json` 但对齐 Plan 11 后命名)
 - Tests: 5 sample loads 通过对应 `jsonschema.validate` (4 wire + 1 deployment_spec 现有 schema 覆盖); **L3 fix (R1 self-review 2026-07-11, grep 实证)**: `custos/pyproject.toml` 当前 dev extra 无 `jsonschema` (grep 命中 0), T3 Step 3 pyproject 加 `[project.optional-dependencies].dev` 追加 `"jsonschema>=4.20"` + `make install` 重装; 或 T3 test 用 `check-jsonschema` CLI subprocess call 避免 python dep (但 python 库更 test-native)
 
-**Step 3 (实现)**: 落 5 JSON + test。测试用 `pytest.mark.parametrize` 覆盖 4 schema-validated samples。
+**Step 3 (实现)**: 落 5 JSON + deployment spec informative schema + test; dev extra 加 `jsonschema>=4.20` 并更新 `uv.lock`。测试用 `pytest.mark.parametrize` 覆盖 5 个 schema-validated samples。
 
 **Step 4 (验)**: 
 - `uv run pytest tests/test_gateway_contract_v1_samples.py -v` 全绿
 - `jq . docs/gateway-contract/v1/samples/*.json` 每个都 valid
 
-**Step 5 (提交)**: `git add docs/gateway-contract/v1/samples/ tests/test_gateway_contract_v1_samples.py`, commit `feat(custos): plan-13-t3 gateway contract v1 samples (4 wire + 1 deployment_spec sandbox)`。
+**Step 5 (提交)**: `git add docs/gateway-contract/v1/deployment_spec.schema.json docs/gateway-contract/v1/samples/ tests/test_gateway_contract_v1_samples.py pyproject.toml uv.lock`, commit `feat(custos): plan-13-t3 gateway contract v1 samples (4 wire + 1 deployment_spec sandbox)`。
 
 ### Task 4: examples/supertrend-{sandbox,testnet}/ 刷新到 v0.2.0 CLI
 
-**Files**: Rewrite `examples/supertrend-sandbox/README.md` + `examples/supertrend-testnet/{README.md,docker-compose.yaml,.env.example,vault-fixture/credentials.example.json}` + Create `tests/test_examples_docs_v020_alignment.py`
+**Files**: Rewrite `examples/supertrend-sandbox/{README.md,spec-example.json}` + `examples/supertrend-testnet/{README.md,docker-compose.yaml,.env.example,vault-fixture/credentials.example.json}`; Delete `examples/supertrend-testnet/Dockerfile`; Create `tests/test_examples_docs_v020_alignment.py`
 
 **Step 1 (证伪)**: `grep -rn 'sops-file\|age-key-file\|python -m custos' examples/` 命中 (需迁移); `pytest tests/test_examples_docs_v020_alignment.py` 红。
 
@@ -198,6 +204,7 @@
   ```yaml
   command: ["start", "--nats-url", "${ARX_NATS_URL}", "--reconcile-strategy-id", "${ARX_STRATEGY_ID}", "--use-nt-host", "--vault-dir", "/home/custos/.arx/vault"]
   ```
+- `examples/supertrend-testnet/Dockerfile`: 删除重复的 legacy image build; compose 使用 Plan 12 official image
 - `examples/supertrend-testnet/.env.example`: 删 sops-file 引用, 增 `ARX_TENANT_ID / ARX_RUNNER_ID / ARX_NATS_URL / ARX_STRATEGY_ID` (与 Plan 11 CLI 对齐)
 - `examples/supertrend-testnet/vault-fixture/credentials.example.json`: 从 multi-credential 改单 key-id 结构示范
 - `examples/supertrend-sandbox/spec-example.json`: **M3 fix (R1 review)** — 起步用 verbatim copy from `docs/gateway-contract/v1/samples/deployment_spec_sandbox.json` (同仓 across dirs 软链 git 技术可行但增加路径解析复杂度); 未来若两处频繁 drift 再软链化; 一处 test (`test_examples_sandbox_spec_matches_sample`) 断言两文件内容 byte-identical
@@ -266,6 +273,7 @@
 | DEVIATION | `--permission-scope` choices 只 1 值 | 目前 choices=["trade_no_withdraw"] 只 1 合法值, 为未来加 scope (e.g. `spot_only`) 预留结构。加值需 minor bump + arx 侧同步。 | ✅ CEO 2026-07-11 |
 | IMPROVEMENT | audit event 含 scope | scope 是 metadata 非 secret, log 是 audit 兑现 (对账不静默); Plan 11 lesson #21 精神 | — |
 | IMPROVEMENT | sample fixture 与 schema 同层 | 单源真理, 消费者 grep sample vs schema 关联清晰 | — |
+| IMPROVEMENT | 执行前计划一致性修正 | T2 按 mandatory-rules 补 `docs/domain.md`; T3 补 deployment spec schema + jsonschema dependency/lockfile 的文件与 commit scope; T4 明确删除 legacy example Dockerfile 并补齐 sandbox spec 文件清单。 | ✅ 用户 2026-07-11 |
 
 ## 关联文档 (Related Documents)
 
