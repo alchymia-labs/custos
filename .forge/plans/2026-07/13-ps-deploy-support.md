@@ -1,6 +1,6 @@
 # 13 — custos 支撑 ps `deploy/custos/` 目标 (permission-scope flag + sandbox runner.toml sanctioned + spec samples + example 刷新)
 
-> **Status**: ⏳ In Progress
+> **Status**: ✅ Completed
 > **Created**: 2026-07-11
 > **Project**: custos (`tesseract-trading/custos/`)
 > **Wave**: independent (CEO 2026-07-11 提出, 支撑 ps 侧 Plan 49 `deploy/custos/` target)
@@ -245,16 +245,16 @@
 
 ## 验证清单 (Verification)
 
-- [ ] `uv run pytest tests/test_vault_put_permission_scope.py tests/test_gateway_contract_v1_samples.py tests/test_examples_docs_v020_alignment.py -v` 全绿 (5+5+多=~15 tests)
-- [ ] `make verify` 全绿 (441 → 447+ passed, 1 xfailed 不变)
-- [ ] `arx-runner vault put --help` 显示 `--permission-scope` flag + `choices=["trade_no_withdraw"]`
-- [ ] `arx-runner vault put --permission-scope withdraw ...` exit 2 (argparse choices 拒)
-- [ ] `docs/design/enrollment.md` 含 "Sandbox mode: manually-constructed runner.toml" 章节标题
-- [ ] `docs/design/credential_vault.md` 含 "Permission scope" 章节标题
-- [ ] `ls docs/gateway-contract/v1/samples/` 有 5 files (4 wire + 1 deployment_spec_sandbox)
-- [ ] `jsonschema` validate 4 samples vs corresponding schema 全 pass
-- [ ] `grep -rn 'sops-file\|age-key-file\|python -m custos' examples/` 0 命中
-- [ ] Non-Custodial 红线 grep (对齐 verification.md §红线专项检查): 
+- [x] `uv run pytest tests/test_vault_put_permission_scope.py tests/test_gateway_contract_v1_samples.py tests/test_examples_docs_v020_alignment.py -v` 全绿 (23 passed)
+- [x] `make verify` 全绿 (464 passed, 4 skipped, 1 xfailed)
+- [x] `arx-runner vault put --help` 显示 `--permission-scope` flag + `choices=["trade_no_withdraw"]`
+- [x] `arx-runner vault put --permission-scope withdraw ...` exit 2 (argparse choices 拒)
+- [x] `docs/design/enrollment.md` 含 "Sandbox mode: manually-constructed runner.toml" 章节标题
+- [x] `docs/design/credential_vault.md` 含 "Permission scope" 章节标题
+- [x] `ls docs/gateway-contract/v1/samples/` 有 5 files (4 wire + 1 deployment_spec_sandbox)
+- [x] `jsonschema` validate 5 samples vs corresponding schema 全 pass；informative spec extension regression 通过
+- [x] `grep -rn 'sops-file\|age-key-file\|python -m custos' examples/` 0 命中
+- [x] Non-Custodial 红线 grep (对齐 verification.md §红线专项检查):
   - `permission_scope` 从 CLI flag 单源, 不硬编码 (grep 无残留硬编码 fallback)
   - examples/ 无 `.env` 引用 raw API secret (与 nautilus deploy/conf/.env 明文对照, 本 plan 后 example 明说 vault put)
 
@@ -266,7 +266,7 @@
 | T2 enrollment.md sandbox pattern + credential_vault.md permission scope 章节 | ✅ | 2026-07-11 | Synced enrollment, credential vault, and domain authorities; `make verify` 446 passed |
 | T3 gateway-contract v1 samples/ | ✅ | 2026-07-11 | 5 samples + Draft 2020-12 validation; jsonschema dev dependency; `make verify` 451 passed in dev+nautilus environment |
 | T4 examples/supertrend-{sandbox,testnet}/ 刷新 v0.2.0 CLI | ✅ | 2026-07-11 | 12 alignment tests; compose config parses; legacy CLI scan 0 hits; `make verify` 463 passed |
-| T5 close-out + 索引 + 红线 gate 表 | 🔲 | | |
+| T5 close-out + 索引 + 红线 gate 表 | ✅ | 2026-07-11 | Final verification 464 passed; index and close-out report updated |
 
 ## 偏离与改进日志 (Deviations & Improvements)
 
@@ -290,6 +290,27 @@
 - custos Plan 12 (`12-custos-distribution-signed-wheel-docker-lts.md`) — 遗留项 DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP 本 plan 偿还 examples/ 部分
 - custos `docs/design/enrollment.md` + `docs/design/credential_vault.md` — 权威文档 modify 目标
 - custos `docs/gateway-contract/v1/*.schema.json` — Plan 12 T7 wire 契约, 本 plan 加 samples
+
+## 完成报告 (Close-out Report)
+
+- **完成日期**: 2026-07-11
+- **总 Task 数**: 5
+- **偏离数**: 3 (单值 permission scope、base-extra 验证漂移、testnet 专用 Dockerfile；详见偏离日志)
+- **验证结果**: 全部通过 — focused 23 passed；`make verify` 464 passed / 4 skipped / 1 xfailed；Ruff format + lint 通过
+- **实施 commit 范围**: `dd0811c` through `94c9154`（另含 plan consistency commits `158a2c2` / `5395563`）
+- **契约影响**: `docs/design/enrollment.md`、`docs/design/credential_vault.md`、`docs/domain.md`、`docs/gateway-contract/v1/`、`examples/supertrend-{sandbox,testnet}/`
+- **红线守护**: 0.1–0.3 专项扫描零命中；0.4 仅命中 vendored warmup snapshot 的 5 个既有非 fund-flow 豁免，本 plan 未修改该文件
+- **失败模式覆盖**: 非法 permission scope argparse fail-fast；scope payload/audit 双落点；5 份 sample schema validation；informative spec arx extension compatibility；legacy CLI token / secret-free env / compose command / Docker entrypoint alignment
+- **遗留项**: (1) official image 未包含 NautilusTrader + sops + age，testnet example 暂用专用 Dockerfile；(2) `make install` 后 base-only 环境的 toolkit provenance test 缺少正确 skip/轻量依赖
+
+### 红线 gate 满足度 (lesson #40)
+
+| red_line | code_coverage | runtime_wire | defer_status | follow_up_plan_ref |
+|----------|---------------|--------------|--------------|--------------------|
+| 0.1 Key/KEK 永不出进程 | `test_permission_scope_written_to_encrypted_payload` + `test_permission_scope_in_audit_event` | `vault put` flag → encrypted payload + metadata-only audit event；CLI secret sources 不变，sops subprocess 仍仅通过 stdin 接收 plaintext payload | in-scope, fully wired | none |
+| 0.2 G6 host gate 不绕过 | 全量 regression 通过；examples 保留 `--use-nt-host` 与 live G6 说明 | Plan 03/11 runtime wire 未修改 | preserved | none |
+| 0.3 Reconcile 失联 ≠ 停止 | 全量 reconcile / fallback regression 通过 | Plan 04 runtime wire 未修改 | preserved | none |
+| 0.4 Money math Decimal / wire str | telemetry sample schema test锁定四个 money 字段为 string | 本 plan 无 money runtime 改动 | out-of-scope, contract sample only | none |
 
 ---
 
