@@ -281,6 +281,7 @@
 | DEVIATION | `make install` 后 base verify 的既有 extra 漂移 | `make install` (`uv sync --extra dev`) 会移除 nautilus extra；未 skip 的 `test_toolkit_import_bootstrap_resolves_shared_and_pandas_ta` 随后因 dev 环境无 `pkg_resources` 失败（387 passed, 1 failed）。本 plan 不扩 scope 修改既有 toolkit/test 依赖契约；恢复规则允许的 `uv sync --extra dev --extra nautilus` 后 `make verify` 451 passed。需由独立 infra plan 决定让该测试在 base 环境 skip，或补足其轻量依赖。 | ⚠️ 待后续 plan |
 | DEVIATION | T4 保留 testnet 专用 Dockerfile | 执行时实证 Plan 12 official image 的 ENTRYPOINT 已含 `start`，且 image 未安装 nautilus extra、sops、age；直接消费会使 compose 重复 `start` 且 testnet/vault runtime 不可用。经用户批准，保留并现代化 example Dockerfile；official image 能力缺口 defer 到 distribution follow-up。 | ✅ 用户 2026-07-11 |
 | IMPROVEMENT | T4 YAML test 依赖闭环 | alignment test 使用结构化 YAML parse；把项目已有的 `pyyaml>=6` 同时加入 dev extra，避免干净 dev 环境 collection fail。 | ✅ 用户 2026-07-11 继续授权 |
+| IMPROVEMENT | 自省 R1: informative spec 允许 arx 扩展 | 顶层 `additionalProperties: false` 会把 custos 单侧最小 consumer shape 误当成封闭 producer 契约，拒绝已存在的 `approved_by` / `risk_config` 等 arx-owned 字段；改为 `true` 并新增 extension regression test，嵌套对象仍保持严格。 | ✅ self-reflect round 1 |
 
 ## 关联文档 (Related Documents)
 

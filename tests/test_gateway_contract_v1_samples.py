@@ -30,3 +30,11 @@ def test_gateway_contract_sample_validates_against_schema(
     sample = _load_json(CONTRACT_DIR / "samples" / f"{sample_name}.json")
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema, format_checker=FormatChecker()).validate(sample)
+
+
+def test_informative_deployment_spec_allows_arx_owned_extensions() -> None:
+    schema = _load_json(CONTRACT_DIR / "deployment_spec.schema.json")
+    sample = _load_json(CONTRACT_DIR / "samples" / "deployment_spec_sandbox.json")
+    sample["approved_by"] = ["alice", "bob"]
+    sample["risk_config"] = {"max_notional_per_runner": "200"}
+    Draft202012Validator(schema).validate(sample)

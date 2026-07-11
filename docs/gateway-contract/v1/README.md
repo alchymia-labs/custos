@@ -23,7 +23,8 @@ the minimum DeploymentSpec shape custos currently consumes. They are informative
 arx is the producer and custos is the consumer. When the arx-side wire contract lands, any
 disagreement must converge on the arx authoritative shape before this schema can become
 normative. In particular, `code_hash` remains optional here, while live mode requires a
-non-null value at the G6 runtime gate.
+non-null value at the G6 runtime gate. The informative schema permits additional top-level
+properties so arx-owned extensions are not falsely rejected before that convergence.
 
 ## Additive-only rule
 
