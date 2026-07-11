@@ -1,21 +1,37 @@
-"""CLI --engine dispatch tests."""
+"""Engine dispatch through ``_daemon._build_host``.
+
+Post-Plan-11 the flat parser is gone; the reconciler wire lives in
+``custos.cli._daemon``. These tests exercise ``_build_host``'s engine
+selection directly without a legacy parser hop.
+"""
 
 from __future__ import annotations
 
+import argparse
+
 import pytest
 
-from custos.cli.main import _build_host, _parse_args
+from custos.cli._daemon import _build_host
 from custos.engines.nautilus.host import NoopHost
 
 
+def _ns(engine: str = "nautilus", use_nt_host: bool = False) -> argparse.Namespace:
+    return argparse.Namespace(
+        tenant_id="t",
+        runner_id="r",
+        engine=engine,
+        use_nt_host=use_nt_host,
+    )
+
+
 def test_cli_engine_defaults_to_nautilus() -> None:
-    args = _parse_args(["--tenant-id", "t", "--runner-id", "r"])
+    args = _ns()
     assert args.engine == "nautilus"
     host = _build_host(args)
     assert isinstance(host, NoopHost)
 
 
 def test_cli_engine_unknown_rejected() -> None:
-    args = _parse_args(["--tenant-id", "t", "--runner-id", "r", "--engine", "hummingbot"])
+    args = _ns(engine="hummingbot")
     with pytest.raises(SystemExit, match="not available"):
         _build_host(args)

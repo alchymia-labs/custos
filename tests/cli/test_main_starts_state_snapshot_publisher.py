@@ -1,25 +1,28 @@
-"""Runner entry-point wires the state snapshot publisher (04b-fix HIGH-1).
+"""Runner entry-point wires the state snapshot publisher.
 
-The 04b squash-merge shipped ``StateSnapshotPublisher`` (``core/state_snapshot.py``)
-but the runner entry point (``cli/main.py``) never constructed or started it, so
-a real deployment published zero snapshots at runtime. This test locks in that
-``_run`` schedules ``publisher.run()`` alongside the reconciler + heartbeat when
-``--reconcile-strategy-id`` is set.
+The ``StateSnapshotPublisher`` (``core/state_snapshot.py``) must be
+constructed and started when ``--reconcile-strategy-id`` is set;
+otherwise a real deployment ships zero snapshots at runtime. Post-Plan-11
+the entry point lives in ``custos.cli._daemon.run_daemon`` (extracted
+verbatim from the pre-Plan-11 ``cli/main._run``) — this test locks in
+the wire at its new home.
 
-The publisher is spec-scoped; it iterates ``reconciler.active_spec_ids()`` on
-each interval so a runner running N concurrent deployments still publishes one
-snapshot per active spec.
+The publisher is spec-scoped; it iterates ``reconciler.active_spec_ids()``
+on each interval so a runner running N concurrent deployments still
+publishes one snapshot per active spec.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
 import signal
+from pathlib import Path
 
 import pytest
 
-from custos.cli import main as cli_main
+from custos.cli import _daemon as cli_main
 from custos.core.deployment_reconciler import DeploymentReconciler
 
 
@@ -120,28 +123,32 @@ async def test_main_starts_state_snapshot_publisher(monkeypatch, tmp_path) -> No
 
     monkeypatch.setattr(cli_main, "_heartbeat_loop", _fake_heartbeat)
 
-    args = cli_main._parse_args(
-        [
-            "--tenant-id",
-            "acme",
-            "--runner-id",
-            "runner-1",
-            "--reconcile-strategy-id",
-            "strat-1",
-            "--wal-path",
-            str(tmp_path / "wal.db"),
-        ]
+    # Post-Plan-11 there is no _parse_args; hand-build the namespace the
+    # daemon expects (fields verbatim from arx-runner start).
+    args = argparse.Namespace(
+        tenant_id="acme",
+        runner_id="runner-1",
+        reconcile_strategy_id="strat-1",
+        wal_path=Path(str(tmp_path / "wal.db")),
+        nats_url="nats://localhost:4222",
+        heartbeat_interval=10.0,
+        enrollment_path=Path(str(tmp_path / "enrollment.json")),
+        enrollment_token=None,
+        vault_dir=Path(str(tmp_path / "vault")),
+        use_nt_host=False,
+        engine="nautilus",
+        snapshot_interval_secs=10.0,
     )
 
-    # Kick off _run and stop it shortly — long enough that background tasks
-    # have started but short enough not to block the suite.
+    # Kick off run_daemon and stop it shortly — long enough that background
+    # tasks have started but short enough not to block the suite.
     async def _stop_soon() -> None:
         await asyncio.sleep(0.05)
-        # SIGTERM triggers the stop event installed by _run.
+        # SIGTERM triggers the stop event installed by run_daemon.
         os.kill(os.getpid(), signal.SIGTERM)
 
     stop_task = asyncio.create_task(_stop_soon())
-    rc = await cli_main._run(args)
+    rc = await cli_main.run_daemon(args)
     await stop_task
     assert rc == 0
 

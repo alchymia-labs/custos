@@ -182,7 +182,7 @@ async def test_breaker_trips_on_drawdown_during_arx_disconnect() -> None:
 def test_reconciler_constructs_all_three_guards() -> None:
     """The composition root wires all three local guards into the reconciler
     (runtime wire, not just defined)."""
-    from custos.cli.main import _build_reconciler
+    from custos.cli._daemon import _build_reconciler
 
     args = SimpleNamespace(tenant_id="acme", runner_id="runner-7")
     reconciler = _build_reconciler(args, object(), object(), object())  # type: ignore[arg-type]

@@ -75,8 +75,47 @@ transition; paper / dev runs use the `NoopHost` stub (default), while
 
 ```bash
 uv sync --extra dev
-python -m custos --tenant-id acme --runner-id runner-7
+
+# 1. Pair the runner with the backend (writes ~/.arx/runner.toml at 0600).
+arx-runner enroll --token <ONE-SHOT-TOKEN> --backend http://team-server:8000 \
+    --tenant-id acme --runner-id runner-7
+
+# 2. Provision exchange credentials (one .enc per key-id, sops+age encrypted).
+export SOPS_AGE_RECIPIENT=age1...
+export MY_API_SECRET=...
+arx-runner vault put --key-id binance-paper --tenant-id acme \
+    --api-key <PUBLIC-KEY> --api-secret-env MY_API_SECRET
+
+# 3. Start the reconcile / telemetry / heartbeat loop.
+arx-runner start
 ```
+
+## Upgrade from 0.1.x (Breaking Change — 0.2.0)
+
+Version 0.2.0 introduces a clean-break CLI redesign aligned with arx
+`docs/team-self-hosted-lifecycle.md` Phase 0.2 + 0.3. Existing operators
+must run through the following steps once:
+
+1. `pip install --upgrade custos-runner` (or `uv sync --extra dev`).
+2. The `python -m custos ...` / `custos ...` entry points are **removed**
+   — they now exit code 2 with a pointer to `arx-runner start`. Use the
+   subcommand dispatcher instead.
+3. Move persisted state from `~/.custos/` to `~/.arx/`:
+   ```bash
+   mv ~/.custos/enrollment.json ~/.arx/enrollment.json
+   mv ~/.custos/state ~/.arx/state
+   # (assumes bash / zsh; on POSIX `sh` run the two mv statements verbatim)
+   ```
+4. The legacy `SopsAgeVault` multi-credential-in-one-JSON sops file is
+   removed. Decrypt any old vault manually with `sops --decrypt <path>`
+   and re-add each key via `arx-runner vault put` (per-key `.enc` model).
+5. The `--sops-file` / `--age-key-file` flags are gone. `arx-runner start`
+   now reads `~/.arx/vault/<key-id>.enc` files directly through
+   `PerKeyVault`.
+
+No auto-migration command is provided (CEO clean-break directive
+2026-07-10). The one-time operator cost avoids long-term dual-CLI /
+dual-namespace drift.
 
 ## Contract with Arx (Gateway)
 

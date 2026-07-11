@@ -11,12 +11,32 @@ runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**K
 本地」红线的工程兑现点，也是 custos 必须开源的根本原因：operator 能审计这段代码，才
 敢把 key 交给 daemon。
 
-V1 实现：
+0.2.0+ 实现（clean-break，CEO 2026-07-10 directive）：
 
-- **`CredentialVault`（Mock）**：返回占位凭证 dict + emit 审计事件，供 test / dev。
-- **`SopsAgeVault`**：shell out 到 `sops --decrypt`（age 私钥经 `SOPS_AGE_KEY_FILE`
-  定位），读解密后的 secret + emit 审计事件，**永不日志 plaintext**。
+- **`PerKeyVault`（生产 runtime reader）** — `src/custos/core/per_key_vault.py`：
+  每个凭证独立一个 `~/.arx/vault/<key-id>.enc` 文件（sops+age 加密），reconciler
+  runtime 通过 `sops --decrypt` shell out 读取，`SOPS_AGE_KEY_FILE` env 定位私钥。
+  继承 `_BaseVault` 保留 `_verify_permission_scope` + `_emit_decrypt_audit` 两条
+  invariant，**永不日志 plaintext**。
+- **`arx-runner vault put`（写入 CLI）** — `src/custos/cli/subcommands/vault.py`：
+  一次一条 credential 写入 `.enc` 文件（`subprocess.run(input=...)` 直传 stdin，
+  无 shell buffer 持 plaintext），emit `CredentialEncrypted` 审计事件。
+- **`arx-runner vault verify` / `list`**：verify 独立跑一次 decrypt 路径 + scope
+  invariant 复检；list 扫目录列 key-ids 并对 mode & 0o077 的 `.enc` 打 stderr 警告。
+- **`CredentialVault`（Mock）**：test/dev harness 保留，返回占位凭证 dict + emit
+  审计事件，**永不接入 runtime**（`_daemon._build_vault` unconditional
+  `PerKeyVault`）。
+- **`SopsAgeVault`（旧多 credential JSON 类）已删除**：0.2.0 breaking change。
+  旧用户手工跑 `sops --decrypt <老文件>` 后逐条 `arx-runner vault put` 迁移。
 - **未来**：Hashicorp Vault provider（team tier）——Vault token 也只在 runner。
+
+## Removed in 0.2.0
+
+- `SopsAgeVault(sops_file=..., age_key_file=...)` — 多 credential in one JSON 文件
+  的旧模型。CEO clean-break directive (2026-07-10)：**无 fallback read path，无
+  自动迁移命令**。旧用户升级路径：手工 `sops --decrypt` 老 JSON → 逐个
+  `arx-runner vault put` 建 per-key `.enc`。理由：消除 lesson #35 dual-source
+  boundary constant + write-path race in the JSON multi-credential model。
 
 ## 关键接口
 
@@ -29,9 +49,10 @@ V1 实现：
 | 符号 | 签名 | 说明 |
 |------|------|------|
 | `CredentialVaultProtocol` | `decrypt(credential_id: str) -> dict` | 金库接口；实现必须在每次成功 decrypt 时 emit 审计事件 + 校验 `permission_scope` 非提币 |
-| `CredentialVault` | `decrypt(credential_id) -> dict` | Mock 金库（test/dev） |
-| `SopsAgeVault` | `__init__(*, sops_file, age_key_file, tenant_id, initiator)` + `decrypt(...)` | sops+age CLI 集成 |
-| `AuditEvent` | `enum`（`CREDENTIAL_DECRYPTED = "CredentialDecrypted"`） | 闭枚举，防 rename 静默破坏审计 writer 的 pattern match |
+| `_BaseVault` | `_verify_permission_scope` + `_emit_decrypt_audit` | 共享 invariant，`CredentialVault` / `PerKeyVault` 都继承 |
+| `CredentialVault` | `decrypt(credential_id) -> dict` | Mock 金库（test/dev；runtime 不接入） |
+| `PerKeyVault` | `__init__(*, vault_dir, tenant_id, initiator)` + `decrypt(...)` | 生产 runtime reader，读 `~/.arx/vault/<key-id>.enc` |
+| `AuditEvent` | `enum`（`CREDENTIAL_DECRYPTED = "CredentialDecrypted"`, `CREDENTIAL_ENCRYPTED = "CredentialEncrypted"`） | 闭枚举，防 rename 静默破坏审计 writer 的 pattern match |
 
 `_verify_permission_scope` 拒收 `permission_scope != "trade_no_withdraw"` 的凭证；
 `_emit_decrypt_audit` 发 `CredentialDecrypted` 审计事件（只带 `credential_id` 引用，

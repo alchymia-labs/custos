@@ -1,6 +1,6 @@
 [project]
 name = "custos-runner"
-version = "0.1.0"
+version = "0.2.0"
 description = "Custos: non-custodial self-hosted runner for the Alephain Guild ecosystem (NautilusTrader-adjacent, declarative reconcile + telemetry actor + local key vault)"
 requires-python = ">=3.11"
 dependencies = [
@@ -45,6 +45,12 @@ nt-rust = []
 all-engines = [
     "custos-runner[nautilus]",
 ]
+
+[project.scripts]
+# Single console entry — the pre-0.2.0 `custos` script was retired to avoid
+# long-term dual-CLI drift; `python -m custos` still exits 2 with a pointer
+# to `arx-runner start` (see src/custos/cli/main.py).
+arx-runner = "custos.cli.subcommands:main"
 
 [build-system]
 requires = ["hatchling"]
