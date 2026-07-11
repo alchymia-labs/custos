@@ -1,6 +1,6 @@
 # 14 — Clean deployment runtime contract for downstream strategy repositories
 
-> **Status**: 🔲 Not started
+> **Status**: ⏳ In Progress
 > **Created**: 2026-07-11
 > **Project**: custos
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -818,7 +818,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 
 | Task | Status | Completed | Notes |
 |---|---|---|---|
-| T1 DeploymentSpec consumer contract | 🔲 | — | — |
+| T1 DeploymentSpec consumer contract | ✅ | 2026-07-11 | Strict model, generated conditional schema, reconciler validation |
 | T2 DeploymentMessage/publication CLI | 🔲 | — | — |
 | T3 standalone JetStream bootstrap | 🔲 | — | — |
 | T4 retry/readiness/engine clean break | 🔲 | — | — |
@@ -836,7 +836,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | DECISION | Docker distribution | 单一完整官方镜像，不发布 base image | ✅ 用户 2026-07-11 |
 | DECISION | Compatibility | 不做 PS 过渡兼容；custos 完成后 PS 从干净 0.3.0 开始 | ✅ 用户 2026-07-11 |
 | IMPROVEMENT | Public seam | 用 DeploymentMessage 深模块替代下游理解多个内部模块 | 待执行 |
-| IMPROVEMENT | Runtime truth | schema validation 升级为真实 consumer runtime validation | 待执行 |
+| IMPROVEMENT | Runtime truth | schema validation 升级为真实 consumer runtime validation；model 与 JSON Schema 同时锁定 mode 条件 | ✅ T1 |
 | IMPROVEMENT | Reliability | subscribe 文档承诺与实际 retry 行为收敛 | 待执行 |
 | IMPROVEMENT | Base verification | 拆分 shared bootstrap 与 nautilus-only pandas_ta import，并用 `verify-base-clean` 防预装 NT 掩盖 dev-only 失败 | ✅ 用户 2026-07-11 |
 

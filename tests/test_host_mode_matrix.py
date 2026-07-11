@@ -77,6 +77,8 @@ def _matrix_spec(mode: str, strategy_dir) -> dict:
         "trading_mode": mode,
         "lifecycle_state": "running",
         "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
         "strategy_path": str(strategy_dir / "strategy.py"),
         "code_hash": compute_strategy_dir_hash(strategy_dir),
         "sandbox": {"starting_balances": ["10_000 USDT"]},

@@ -80,12 +80,18 @@ def _make_reconciler(host=None, vault=None, nats=None) -> DeploymentReconciler:
     )
 
 
-def _spec(spec_id: str, generation: int, lifecycle: str = "paper") -> dict:
+def _spec(spec_id: str, generation: int, lifecycle: str = "running") -> dict:
     return {
         "spec_id": spec_id,
         "generation": generation,
+        "trading_mode": "sandbox",
         "lifecycle_state": lifecycle,
+        "strategy_path": "/opt/strategies/test/strategy.py",
         "provenance_ref": {"credential_id": f"cred-{spec_id}"},
+        "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
+        "sandbox": {"starting_balances": ["10_000 USDT"]},
     }
 
 

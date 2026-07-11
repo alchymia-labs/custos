@@ -1,8 +1,8 @@
 # Gateway Contract v1
 
-The four normative JSON Schemas in this directory freeze the wire shape of the four
-CustosGateway payloads that flow between the `custos-runner` daemon and
-the arx-side coordination service:
+The normative JSON Schemas in this directory freeze the wire shape of the
+Custos deployment consumer contract and the four CustosGateway payloads that
+flow between the `custos-runner` daemon and the arx-side coordination service:
 
 | Schema | Payload |
 | ------ | ------- |
@@ -12,27 +12,27 @@ the arx-side coordination service:
 | [`heartbeat.schema.json`](heartbeat.schema.json) | `handle_heartbeat` payload — at-most-once liveness ping |
 
 [`samples/`](samples/) contains one normative example for each of these four schemas.
-CI validates every sample, including the informative deployment spec below, against its
+CI validates every sample, including the deployment spec below, against its
 corresponding Draft 2020-12 schema.
 
-## Informative deployment spec
+## DeploymentSpec consumer contract
 
 [`deployment_spec.schema.json`](deployment_spec.schema.json) and
 [`samples/deployment_spec_sandbox.json`](samples/deployment_spec_sandbox.json) describe
-the minimum DeploymentSpec shape custos currently consumes. They are informative because
-arx is the producer and custos is the consumer. When the arx-side wire contract lands, any
-disagreement must converge on the arx authoritative shape before this schema can become
-normative. In particular, `code_hash` remains optional here, while live mode requires a
-non-null value at the G6 runtime gate. The informative schema permits additional top-level
-properties so arx-owned extensions are not falsely rejected before that convergence.
+the normative DeploymentSpec shape accepted by the Custos runtime. The schema is generated
+from `custos.contracts.DeploymentSpec`, and CI requires the checked-in JSON to remain exactly
+equal to `DeploymentSpec.model_json_schema()`. Unknown top-level properties are rejected.
+`generation` starts at 1, lifecycle is one of `running`, `paused`, `stopped`, or `archived`,
+sandbox mode requires starting balances, and live mode requires a lowercase 64-character
+SHA-256 `code_hash`.
 
 ## Additive-only rule
 
-**Adding an optional field is a MINOR bump.** Both the producer and the
-consumer must land the same minor before they can rely on it, but v1
-schema validators (with `additionalProperties: false` at the moment; a
-future MINOR may relax to `additionalProperties: {...}` for extension
-fields) simply won't emit the field on the older side.
+**Adding an optional field is a coordinated MINOR bump.** The producer and
+consumer must land the same minor before the producer emits it. Because the
+consumer uses `additionalProperties: false`, an older runner rejects a field
+it does not know instead of silently accepting a misspelling or unsupported
+extension.
 
 **Adding a new required field is a MAJOR bump.** An old runner would not
 emit the field; validation would fail.

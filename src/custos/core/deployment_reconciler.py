@@ -21,6 +21,9 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol
 
+from pydantic import ValidationError
+
+from custos.contracts import DeploymentSpec, TradingMode
 from custos.core.engine_protocol import ExecutionEngineProtocol
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.g6_gate import check_g6_gate
@@ -138,6 +141,15 @@ class DeploymentReconciler:
 
     async def handle_spec(self, spec: dict) -> None:
         """Process one DeploymentSpec snapshot. Generation 幂等 + drift 检测。"""
+        try:
+            validated = DeploymentSpec.model_validate(spec)
+        except ValidationError as exc:
+            _log.error(
+                "deployment_spec_validation_failed",
+                error_count=exc.error_count(),
+            )
+            return
+        spec = validated.model_dump(mode="json")
         spec_id = spec.get("spec_id")
         if not spec_id:
             _log.error("deployment_spec_missing_spec_id", payload_keys=list(spec.keys()))
@@ -246,7 +258,7 @@ class DeploymentReconciler:
         anything actually changed — a no-op refresh stays silent so the log
         signal remains meaningful (audit-not-silent + no-log-spam)."""
 
-        live = spec.get("lifecycle_state") == "live"
+        live = spec.get("trading_mode") == TradingMode.LIVE.value
         changed = False
 
         if self.local_cap is not None:
@@ -262,6 +274,7 @@ class DeploymentReconciler:
                 "risk_config_refreshed",
                 spec_id=spec.get("spec_id"),
                 generation=spec.get("generation"),
+                trading_mode=spec.get("trading_mode"),
                 lifecycle_state=spec.get("lifecycle_state"),
                 cap=str(self.local_cap.config.max_notional_per_runner)
                 if self.local_cap is not None

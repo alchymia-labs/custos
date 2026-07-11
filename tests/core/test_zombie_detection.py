@@ -144,6 +144,21 @@ class _FakeNats:
         self.status_calls.append((spec_id, payload))
 
 
+def _sandbox_spec() -> dict:
+    return {
+        "spec_id": "s-1",
+        "generation": 1,
+        "trading_mode": "sandbox",
+        "lifecycle_state": "running",
+        "strategy_path": "/opt/strategies/test/strategy.py",
+        "provenance_ref": {"credential_id": "cred-s-1"},
+        "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
+        "sandbox": {"starting_balances": ["10_000 USDT"]},
+    }
+
+
 async def test_zombie_detection_works_when_arx_disconnected() -> None:
     """The watchdog escalates a stuck engine to degraded from purely local
     connectivity checks — no inbound cloud command needed (autonomy = red line
@@ -158,8 +173,8 @@ async def test_zombie_detection_works_when_arx_disconnected() -> None:
         zombie_watchdog=ZombieWatchdog(grace_secs=0.0),
     )
 
-    # Deploy a paper spec (no cloud round trip beyond this initial spec).
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    # Deploy a sandbox spec (no cloud round trip beyond this initial spec).
+    await reconciler.handle_spec(_sandbox_spec())
     # Then simulate the loop's periodic tick with the cloud silent.
     await reconciler._watchdog_tick()
 

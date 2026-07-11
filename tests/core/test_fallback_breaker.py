@@ -121,6 +121,21 @@ class _FakeNats:
         self.status_calls.append((spec_id, payload))
 
 
+def _sandbox_spec() -> dict:
+    return {
+        "spec_id": "s-1",
+        "generation": 1,
+        "trading_mode": "sandbox",
+        "lifecycle_state": "running",
+        "strategy_path": "/opt/strategies/test/strategy.py",
+        "provenance_ref": {"credential_id": "cred-s-1"},
+        "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
+        "sandbox": {"starting_balances": ["10_000 USDT"]},
+    }
+
+
 async def test_breaker_trips_during_arx_disconnect() -> None:
     """The breaker flattens autonomously from the reconcile-loop tick — no cloud
     command needed while arx is unreachable (red line 0.3 hard limit)."""
@@ -135,7 +150,7 @@ async def test_breaker_trips_during_arx_disconnect() -> None:
         fallback_breaker=breaker,
     )
 
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    await reconciler.handle_spec(_sandbox_spec())
     await reconciler._breaker_tick()
 
     assert host.flatten_calls == [("s-1", "notional_breach")]
@@ -163,7 +178,7 @@ async def test_breaker_trips_on_drawdown_during_arx_disconnect() -> None:
         fallback_breaker=breaker,
     )
 
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    await reconciler.handle_spec(_sandbox_spec())
 
     # First tick: seed peak_equity = 500 (no breach, no trip).
     await reconciler._breaker_tick()

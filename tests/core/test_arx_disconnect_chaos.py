@@ -97,13 +97,28 @@ def _reconciler(host: _ChaosHost, nats: _DisconnectedNats) -> DeploymentReconcil
     )
 
 
+def _sandbox_spec() -> dict:
+    return {
+        "spec_id": "s-1",
+        "generation": 1,
+        "trading_mode": "sandbox",
+        "lifecycle_state": "running",
+        "strategy_path": "/opt/strategies/test/strategy.py",
+        "provenance_ref": {"credential_id": "cred-s-1"},
+        "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
+        "sandbox": {"starting_balances": ["10_000 USDT"]},
+    }
+
+
 async def test_arx_disconnect_reconciler_no_crash() -> None:
     host = _ChaosHost()
     nats = _DisconnectedNats()
     reconciler = _reconciler(host, nats)
 
     # Every status publish fails; the flow must still complete and advance state.
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    await reconciler.handle_spec(_sandbox_spec())
     await reconciler._watchdog_tick()
     await reconciler._breaker_tick()
 
@@ -115,7 +130,7 @@ async def test_arx_disconnect_cap_breaker_zombie_continue() -> None:
     nats = _DisconnectedNats()
     reconciler = _reconciler(host, nats)
 
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    await reconciler.handle_spec(_sandbox_spec())
     await reconciler._watchdog_tick()
     await reconciler._breaker_tick()
 
@@ -191,7 +206,7 @@ async def test_arx_disconnect_long_run_guards_persist() -> None:
     nats = _DisconnectedNats()
     reconciler = _reconciler(host, nats)
 
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    await reconciler.handle_spec(_sandbox_spec())
 
     # Simulate ~60 reconciler tick iterations (order of an hour at 60s poll).
     for _ in range(60):

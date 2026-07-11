@@ -53,9 +53,13 @@ def _live_spec(strategy_dir) -> dict:
         "spec_id": "live-int-1",
         "generation": 1,
         "trading_mode": "live",
+        "lifecycle_state": "running",
         "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
         "strategy_path": str(strategy_dir / "strategy.py"),
         "code_hash": compute_strategy_dir_hash(strategy_dir),
+        "provenance_ref": {"credential_id": "cred-live"},
     }
 
 

@@ -85,6 +85,23 @@ def _make_reconciler() -> DeploymentReconciler:
     )
 
 
+def _spec(generation: int, **overrides) -> dict:
+    spec = {
+        "spec_id": "s-1",
+        "generation": generation,
+        "trading_mode": "sandbox",
+        "lifecycle_state": "running",
+        "strategy_path": "/opt/strategies/test/strategy.py",
+        "provenance_ref": {"credential_id": "cred-s-1"},
+        "connector": "binance_perpetual",
+        "pairs": ["BTC-USDT"],
+        "leverage": 1,
+        "sandbox": {"starting_balances": ["10_000 USDT"]},
+    }
+    spec.update(overrides)
+    return spec
+
+
 async def test_local_cap_refreshes_when_spec_changes_max_notional() -> None:
     """Operator raises ``max_notional_per_runner`` in the spec — the very next
     reconciled spec must swap the local cap's config so orders up to the new
@@ -92,14 +109,7 @@ async def test_local_cap_refreshes_when_spec_changes_max_notional() -> None:
 
     reconciler = _make_reconciler()
     # Default floor: paper cap = 200. Spec 1 raises it to 500.
-    await reconciler.handle_spec(
-        {
-            "spec_id": "s-1",
-            "generation": 1,
-            "lifecycle_state": "paper",
-            "risk_config": {"max_notional_per_runner": "500"},
-        }
-    )
+    await reconciler.handle_spec(_spec(1, risk_config={"max_notional_per_runner": "500"}))
     assert reconciler.local_cap.config.max_notional_per_runner == Decimal("500")
     assert await reconciler.local_cap.allows(
         symbol="BTCUSDT", current_open=Decimal("0"), new_order_notional=Decimal("450")
@@ -107,14 +117,7 @@ async def test_local_cap_refreshes_when_spec_changes_max_notional() -> None:
 
     # Spec 2 (generation +1) lowers the cap to 100 — the next order over 100
     # must be refused even though the previous cap allowed it.
-    await reconciler.handle_spec(
-        {
-            "spec_id": "s-1",
-            "generation": 2,
-            "lifecycle_state": "paper",
-            "risk_config": {"max_notional_per_runner": "100"},
-        }
-    )
+    await reconciler.handle_spec(_spec(2, risk_config={"max_notional_per_runner": "100"}))
     assert reconciler.local_cap.config.max_notional_per_runner == Decimal("100")
     allowed = await reconciler.local_cap.allows(
         symbol="BTCUSDT", current_open=Decimal("0"), new_order_notional=Decimal("450")
@@ -129,12 +132,7 @@ async def test_fallback_breaker_refreshes_when_spec_changes_max_notional() -> No
     reconciler = _make_reconciler()
     # Default floor: breaker max_notional = 1000. Raise to 3000.
     await reconciler.handle_spec(
-        {
-            "spec_id": "s-1",
-            "generation": 1,
-            "lifecycle_state": "paper",
-            "risk_config": {"fallback_breaker": {"max_notional": "3000"}},
-        }
+        _spec(1, risk_config={"fallback_breaker": {"max_notional": "3000"}})
     )
     assert reconciler.fallback_breaker._config.max_notional == Decimal("3000")
 
@@ -150,44 +148,38 @@ async def test_risk_config_refresh_is_noop_when_unchanged() -> None:
     on unchanged config in the second-generation path either."""
 
     reconciler = _make_reconciler()
-    await reconciler.handle_spec(
-        {
-            "spec_id": "s-1",
-            "generation": 1,
-            "lifecycle_state": "paper",
-            "risk_config": {"max_notional_per_runner": "500"},
-        }
-    )
+    await reconciler.handle_spec(_spec(1, risk_config={"max_notional_per_runner": "500"}))
     initial_cap = reconciler.local_cap.config
     initial_breaker = reconciler.fallback_breaker._config
 
     # A generation +1 spec with the same risk_config: refresh detects no
     # change and preserves the same config identity semantics (value equal).
-    await reconciler.handle_spec(
-        {
-            "spec_id": "s-1",
-            "generation": 2,
-            "lifecycle_state": "paper",
-            "risk_config": {"max_notional_per_runner": "500"},
-        }
-    )
+    await reconciler.handle_spec(_spec(2, risk_config={"max_notional_per_runner": "500"}))
     assert reconciler.local_cap.config == initial_cap
     assert reconciler.fallback_breaker._config == initial_breaker
 
 
-async def test_risk_config_refresh_uses_lifecycle_for_live_floor() -> None:
+async def test_risk_config_refresh_uses_trading_mode_for_live_floor() -> None:
     """When the spec has no explicit ``max_notional_per_runner``, ``from_spec``
     picks the paper or live floor from the ``live`` kwarg. The refresh must
-    pass the current lifecycle_state so a spec flipped to ``live`` gets the
+        pass the current trading_mode so a spec flipped to ``live`` gets the
     live floor (higher default), not the paper floor."""
 
     reconciler = _make_reconciler()
-    # Paper spec: no risk_config → paper floor.
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 1, "lifecycle_state": "paper"})
+    # Sandbox spec: no risk_config uses the non-live floor.
+    await reconciler.handle_spec(_spec(1))
     from custos.core.local_cap import LIVE_CAP_FLOOR_USD, PAPER_CAP_FLOOR_USD
 
     assert reconciler.local_cap.config.max_notional_per_runner == PAPER_CAP_FLOOR_USD
 
     # Flip to live: refresh must upgrade to the live floor.
-    await reconciler.handle_spec({"spec_id": "s-1", "generation": 2, "lifecycle_state": "live"})
+    await reconciler.handle_spec(
+        _spec(
+            2,
+            trading_mode="live",
+            lifecycle_state="stopped",
+            sandbox=None,
+            code_hash="a" * 64,
+        )
+    )
     assert reconciler.local_cap.config.max_notional_per_runner == LIVE_CAP_FLOOR_USD

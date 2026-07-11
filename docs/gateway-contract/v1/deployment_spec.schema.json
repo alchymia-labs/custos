@@ -1,79 +1,174 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "LifecycleState": {
+      "enum": ["running", "paused", "stopped", "archived"],
+      "title": "LifecycleState",
+      "type": "string"
+    },
+    "ProvenanceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "credential_id": {
+          "minLength": 1,
+          "title": "Credential Id",
+          "type": "string"
+        }
+      },
+      "required": ["credential_id"],
+      "title": "ProvenanceRef",
+      "type": "object"
+    },
+    "SandboxConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "starting_balances": {
+          "items": {"type": "string"},
+          "minItems": 1,
+          "title": "Starting Balances",
+          "type": "array"
+        }
+      },
+      "required": ["starting_balances"],
+      "title": "SandboxConfig",
+      "type": "object"
+    },
+    "TradingMode": {
+      "enum": ["sandbox", "testnet", "live"],
+      "title": "TradingMode",
+      "type": "string"
+    }
+  },
   "$id": "https://custos.the-alephain-guild/gateway-contract/v1/deployment_spec.schema.json",
-  "title": "DeploymentSpecPayload v1 (informative consumer shape)",
-  "description": "Minimum DeploymentSpec shape currently consumed by custos. This schema is informative until the arx producer contract is authoritative. Live mode requires a non-null code_hash at the G6 runtime gate.",
-  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {"trading_mode": {"const": "live"}},
+        "required": ["trading_mode"]
+      },
+      "then": {
+        "properties": {
+          "code_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          }
+        },
+        "required": ["code_hash"]
+      }
+    },
+    {
+      "if": {
+        "properties": {"trading_mode": {"const": "sandbox"}},
+        "required": ["trading_mode"]
+      },
+      "then": {
+        "properties": {
+          "sandbox": {
+            "properties": {
+              "starting_balances": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "required": ["starting_balances"],
+            "type": "object"
+          }
+        },
+        "required": ["sandbox"]
+      }
+    }
+  ],
+  "description": "Validated desired state accepted by the Custos runtime.",
+  "properties": {
+    "spec_id": {
+      "minLength": 1,
+      "title": "Spec Id",
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 1,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "trading_mode": {"$ref": "#/$defs/TradingMode"},
+    "lifecycle_state": {"$ref": "#/$defs/LifecycleState"},
+    "strategy_path": {
+      "minLength": 1,
+      "title": "Strategy Path",
+      "type": "string"
+    },
+    "provenance_ref": {"$ref": "#/$defs/ProvenanceRef"},
+    "connector": {
+      "minLength": 1,
+      "title": "Connector",
+      "type": "string"
+    },
+    "pairs": {
+      "items": {"type": "string"},
+      "minItems": 1,
+      "title": "Pairs",
+      "type": "array"
+    },
+    "leverage": {
+      "minimum": 1,
+      "title": "Leverage",
+      "type": "integer"
+    },
+    "strategy_config": {
+      "additionalProperties": true,
+      "title": "Strategy Config",
+      "type": "object"
+    },
+    "strategy_registry_name": {
+      "anyOf": [{"type": "string"}, {"type": "null"}],
+      "default": null,
+      "title": "Strategy Registry Name"
+    },
+    "code_hash": {
+      "anyOf": [
+        {"pattern": "^[a-f0-9]{64}$", "type": "string"},
+        {"type": "null"}
+      ],
+      "default": null,
+      "title": "Code Hash"
+    },
+    "log_level": {
+      "default": "INFO",
+      "title": "Log Level",
+      "type": "string"
+    },
+    "sandbox": {
+      "anyOf": [{"$ref": "#/$defs/SandboxConfig"}, {"type": "null"}],
+      "default": null
+    },
+    "approved_by": {
+      "items": {"type": "string"},
+      "title": "Approved By",
+      "type": "array"
+    },
+    "risk_config": {
+      "additionalProperties": true,
+      "title": "Risk Config",
+      "type": "object"
+    },
+    "nautilus_config": {
+      "additionalProperties": true,
+      "title": "Nautilus Config",
+      "type": "object"
+    }
+  },
   "required": [
     "spec_id",
     "generation",
     "trading_mode",
     "lifecycle_state",
     "strategy_path",
-    "provenance_ref"
+    "provenance_ref",
+    "connector",
+    "pairs",
+    "leverage"
   ],
-  "properties": {
-    "spec_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "generation": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "trading_mode": {
-      "type": "string",
-      "enum": ["sandbox", "testnet", "live"]
-    },
-    "lifecycle_state": {
-      "type": "string",
-      "minLength": 1
-    },
-    "strategy_path": {
-      "type": "string",
-      "minLength": 1
-    },
-    "code_hash": {
-      "type": ["string", "null"],
-      "pattern": "^[a-f0-9]{64}$",
-      "description": "Optional for sandbox/testnet. Live mode requires a non-null SHA-256 directory hash at runtime."
-    },
-    "connector": {
-      "type": "string",
-      "minLength": 1
-    },
-    "pairs": {
-      "type": "array",
-      "items": { "type": "string", "minLength": 1 }
-    },
-    "leverage": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "log_level": {
-      "type": "string"
-    },
-    "sandbox": {
-      "type": "object",
-      "properties": {
-        "starting_balances": {
-          "type": "array",
-          "items": { "type": "string", "minLength": 1 }
-        }
-      },
-      "additionalProperties": false
-    },
-    "provenance_ref": {
-      "type": "object",
-      "required": ["credential_id"],
-      "properties": {
-        "credential_id": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": true
+  "title": "DeploymentSpecPayload v1",
+  "type": "object"
 }
