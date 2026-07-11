@@ -1,0 +1,6 @@
+{
+  "token_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "runner_id": "runner-sandbox-1",
+  "agent_version": "0.2.0",
+  "capabilities": ["nautilus", "sandbox"]
+}

@@ -1,0 +1,12 @@
+{
+  "runner_id": "runner-sandbox-1",
+  "spec_id": "supertrend-btc-sandbox-001",
+  "phase": "running",
+  "position_count": 1,
+  "order_count": 0,
+  "open_notional": "1500.5",
+  "current_equity": "10025.75",
+  "peak_equity": "10100.00",
+  "drawdown_pct": "0.7351485148514851485",
+  "sampled_at": "2026-07-11T08:00:05Z"
+}

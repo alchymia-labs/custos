@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://custos.the-alephain-guild/gateway-contract/v1/deployment_spec.schema.json",
+  "title": "DeploymentSpecPayload v1 (informative consumer shape)",
+  "description": "Minimum DeploymentSpec shape currently consumed by custos. This schema is informative until the arx producer contract is authoritative. Live mode requires a non-null code_hash at the G6 runtime gate.",
+  "type": "object",
+  "required": [
+    "spec_id",
+    "generation",
+    "trading_mode",
+    "lifecycle_state",
+    "strategy_path",
+    "provenance_ref"
+  ],
+  "properties": {
+    "spec_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "trading_mode": {
+      "type": "string",
+      "enum": ["sandbox", "testnet", "live"]
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strategy_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "code_hash": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Optional for sandbox/testnet. Live mode requires a non-null SHA-256 directory hash at runtime."
+    },
+    "connector": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pairs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "leverage": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "log_level": {
+      "type": "string"
+    },
+    "sandbox": {
+      "type": "object",
+      "properties": {
+        "starting_balances": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance_ref": {
+      "type": "object",
+      "required": ["credential_id"],
+      "properties": {
+        "credential_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

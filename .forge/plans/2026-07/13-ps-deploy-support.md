@@ -98,6 +98,7 @@
 | `docs/gateway-contract/v1/samples/heartbeat.json` | Create | 基础 sample |
 | `docs/gateway-contract/v1/samples/deployment_spec_sandbox.json` | Create | supertrend sandbox spec 完整示例, 供 ps publish-spec.py 对照 (含 `provenance_ref.credential_id` 命名); **M1 fix**: informative role (custos consumer 期望), 明说与 arx 侧待 arx-79 wire close-out 时收敛以 arx authoritative |
 | `docs/gateway-contract/v1/deployment_spec.schema.json` | Create | **M1 fix (R1 review)** — 与 4 wire schema 同级; 最小 required fields (`spec_id / generation / trading_mode / lifecycle_state / strategy_path / provenance_ref`); `code_hash` optional + description 注 "live mode requires non-null"; sandbox 特有 `sandbox.starting_balances` optional |
+| `docs/gateway-contract/v1/README.md` | Modify | 区分 4 份 normative wire schema/sample 与 informative deployment spec consumer shape |
 | `pyproject.toml` | Modify | dev extra 增加 `jsonschema>=4.20`, 用于 sample/schema 契约测试 |
 | `uv.lock` | Modify | 锁定新增 jsonschema dev 依赖及其传递依赖 |
 | `examples/supertrend-sandbox/README.md` | Rewrite | v0.1.x → v0.2.0 CLI 三命令流程; 与 `docs/gateway-contract/v1/samples/deployment_spec_sandbox.json` cross-link |
@@ -171,7 +172,7 @@
 
 ### Task 3: gateway-contract v1 samples/ 目录
 
-**Files**: Create `docs/gateway-contract/v1/samples/{enrollment,deployment_status,telemetry_snapshot,heartbeat,deployment_spec_sandbox}.json` + `docs/gateway-contract/v1/deployment_spec.schema.json` + `tests/test_gateway_contract_v1_samples.py`; Modify `pyproject.toml` + `uv.lock`
+**Files**: Create `docs/gateway-contract/v1/samples/{enrollment,deployment_status,telemetry_snapshot,heartbeat,deployment_spec_sandbox}.json` + `docs/gateway-contract/v1/deployment_spec.schema.json` + `tests/test_gateway_contract_v1_samples.py`; Modify `docs/gateway-contract/v1/README.md` + `pyproject.toml` + `uv.lock`
 
 **Step 1 (证伪)**: `ls docs/gateway-contract/v1/samples/` → ENOENT; `pytest tests/test_gateway_contract_v1_samples.py` 红。
 
@@ -190,7 +191,7 @@
 - `uv run pytest tests/test_gateway_contract_v1_samples.py -v` 全绿
 - `jq . docs/gateway-contract/v1/samples/*.json` 每个都 valid
 
-**Step 5 (提交)**: `git add docs/gateway-contract/v1/deployment_spec.schema.json docs/gateway-contract/v1/samples/ tests/test_gateway_contract_v1_samples.py pyproject.toml uv.lock`, commit `feat(custos): plan-13-t3 gateway contract v1 samples (4 wire + 1 deployment_spec sandbox)`。
+**Step 5 (提交)**: `git add docs/gateway-contract/v1/README.md docs/gateway-contract/v1/deployment_spec.schema.json docs/gateway-contract/v1/samples/ tests/test_gateway_contract_v1_samples.py pyproject.toml uv.lock`, commit `feat(custos): plan-13-t3 gateway contract v1 samples (4 wire + 1 deployment_spec sandbox)`。
 
 ### Task 4: examples/supertrend-{sandbox,testnet}/ 刷新到 v0.2.0 CLI
 
@@ -261,7 +262,7 @@
 |------|--------|-----------|-------|
 | T1 vault put --permission-scope flag | ✅ | 2026-07-11 | 5 tests; explicit choices/default wired to encrypted payload and audit event; `make verify` 446 passed |
 | T2 enrollment.md sandbox pattern + credential_vault.md permission scope 章节 | ✅ | 2026-07-11 | Synced enrollment, credential vault, and domain authorities; `make verify` 446 passed |
-| T3 gateway-contract v1 samples/ | 🔲 | | 5 samples + jsonschema validation test |
+| T3 gateway-contract v1 samples/ | ✅ | 2026-07-11 | 5 samples + Draft 2020-12 validation; jsonschema dev dependency; `make verify` 451 passed in dev+nautilus environment |
 | T4 examples/supertrend-{sandbox,testnet}/ 刷新 v0.2.0 CLI | 🔲 | | 偿还 DEV-12-T9 examples/ 部分 |
 | T5 close-out + 索引 + 红线 gate 表 | 🔲 | | |
 
@@ -274,6 +275,8 @@
 | IMPROVEMENT | audit event 含 scope | scope 是 metadata 非 secret, log 是 audit 兑现 (对账不静默); Plan 11 lesson #21 精神 | — |
 | IMPROVEMENT | sample fixture 与 schema 同层 | 单源真理, 消费者 grep sample vs schema 关联清晰 | — |
 | IMPROVEMENT | 执行前计划一致性修正 | T2 按 mandatory-rules 补 `docs/domain.md`; T3 补 deployment spec schema + jsonschema dependency/lockfile 的文件与 commit scope; T4 明确删除 legacy example Dockerfile 并补齐 sandbox spec 文件清单。 | ✅ 用户 2026-07-11 |
+| IMPROVEMENT | gateway contract role 文档同步 | 新增 informative deployment spec schema 后同步 `docs/gateway-contract/v1/README.md`, 明确它不进入 4 份 normative arx wire schema 的 backward-compat freeze。 | ✅ 用户 2026-07-11 修正授权 |
+| DEVIATION | `make install` 后 base verify 的既有 extra 漂移 | `make install` (`uv sync --extra dev`) 会移除 nautilus extra；未 skip 的 `test_toolkit_import_bootstrap_resolves_shared_and_pandas_ta` 随后因 dev 环境无 `pkg_resources` 失败（387 passed, 1 failed）。本 plan 不扩 scope 修改既有 toolkit/test 依赖契约；恢复规则允许的 `uv sync --extra dev --extra nautilus` 后 `make verify` 451 passed。需由独立 infra plan 决定让该测试在 base 环境 skip，或补足其轻量依赖。 | ⚠️ 待后续 plan |
 
 ## 关联文档 (Related Documents)
 

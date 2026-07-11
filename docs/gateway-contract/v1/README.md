@@ -1,6 +1,6 @@
 # Gateway Contract v1
 
-The four JSON Schemas in this directory freeze the wire shape of the four
+The four normative JSON Schemas in this directory freeze the wire shape of the four
 CustosGateway payloads that flow between the `custos-runner` daemon and
 the arx-side coordination service:
 
@@ -10,6 +10,20 @@ the arx-side coordination service:
 | [`deployment_status.schema.json`](deployment_status.schema.json) | `record_deployment_status` observation body — reconciler heartbeat of what the runner actually has running |
 | [`telemetry_snapshot.schema.json`](telemetry_snapshot.schema.json) | `ingest_telemetry` snapshot body — engine-status telemetry from the telemetry actor |
 | [`heartbeat.schema.json`](heartbeat.schema.json) | `handle_heartbeat` payload — at-most-once liveness ping |
+
+[`samples/`](samples/) contains one normative example for each of these four schemas.
+CI validates every sample, including the informative deployment spec below, against its
+corresponding Draft 2020-12 schema.
+
+## Informative deployment spec
+
+[`deployment_spec.schema.json`](deployment_spec.schema.json) and
+[`samples/deployment_spec_sandbox.json`](samples/deployment_spec_sandbox.json) describe
+the minimum DeploymentSpec shape custos currently consumes. They are informative because
+arx is the producer and custos is the consumer. When the arx-side wire contract lands, any
+disagreement must converge on the arx authoritative shape before this schema can become
+normative. In particular, `code_hash` remains optional here, while live mode requires a
+non-null value at the G6 runtime gate.
 
 ## Additive-only rule
 
