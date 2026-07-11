@@ -82,6 +82,12 @@ def _register_put(actions: argparse._SubParsersAction) -> None:
         default=None,
         help="Age public key recipient (or SOPS_AGE_RECIPIENT env).",
     )
+    p.add_argument(
+        "--permission-scope",
+        choices=["trade_no_withdraw"],
+        default="trade_no_withdraw",
+        help="Credential permission boundary (v0.2.x: trade_no_withdraw only).",
+    )
     p.add_argument("--vault-dir", type=Path, default=DEFAULT_VAULT_DIR)
     p.set_defaults(action_handler=_put)
 
@@ -158,7 +164,7 @@ def _put(args: argparse.Namespace) -> int:
         args.key_id: {
             "api_key": args.api_key,
             "api_secret": api_secret,
-            "permission_scope": "trade_no_withdraw",
+            "permission_scope": args.permission_scope,
         }
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
@@ -225,7 +231,7 @@ def _put(args: argparse.Namespace) -> int:
             pass
         raise
 
-    _emit_encrypt_audit(args.key_id, args.tenant_id)
+    _emit_encrypt_audit(args.key_id, args.tenant_id, args.permission_scope)
     print(f"credential encrypted to {enc_path}")
     return 0
 
@@ -260,7 +266,7 @@ def _resolve_api_secret(args: argparse.Namespace) -> str:
     return secret
 
 
-def _emit_encrypt_audit(key_id: str, tenant_id: str) -> None:
+def _emit_encrypt_audit(key_id: str, tenant_id: str, permission_scope: str) -> None:
     timestamp = datetime.now(UTC).isoformat()
     _log.info(
         "credential_encrypted",
@@ -268,6 +274,7 @@ def _emit_encrypt_audit(key_id: str, tenant_id: str) -> None:
             "audit_event": AuditEvent.CREDENTIAL_ENCRYPTED.value,
             "key_id": key_id,
             "tenant_id": tenant_id,
+            "permission_scope": permission_scope,
             "timestamp": timestamp,
         },
     )

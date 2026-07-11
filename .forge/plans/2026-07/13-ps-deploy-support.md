@@ -121,7 +121,7 @@
 
 **Step 1 (证伪)**: `uv run pytest tests/test_vault_put_permission_scope.py` 红 (module 不存在); `arx-runner vault put --permission-scope trade_no_withdraw --help` 应识别 flag → 当前失败 (unrecognized argument)。
 
-**Step 1.5 Foundation Scan 结论 (2026-07-11 起草时补齐)**: 现状 = `src/custos/cli/subcommands/vault.py:161` 硬编码 `"permission_scope": "trade_no_withdraw"` 到 encrypted payload; `src/custos/core/credential_vault.py:112` 另有一处硬编码 (`CredentialVault` mock)。T1 实现方向确定: **"新增 CLI flag → 收敛硬编码为 args.permission_scope 单源"** (非"表面新增 flag + 底层已有写入"), 硬编码字符串从 2 处 (vault.py + credential_vault.py) 收敛为 1 处 (CLI arg default via argparse)。
+**Step 1.5 Foundation Scan 结论 (2026-07-11 起草时补齐)**: 现状 = `src/custos/cli/subcommands/vault.py:161` 硬编码 `"permission_scope": "trade_no_withdraw"` 到 encrypted payload; `src/custos/core/credential_vault.py:112` 另有一处硬编码 (`CredentialVault` mock)。T1 实现方向确定: **"新增 CLI flag → 收敛 CLI write path 为 args.permission_scope 单源"** (非"表面新增 flag + 底层已有写入")。`CredentialVault` mock 的安全 fixture 默认值保留, 不属于 CLI write path。
 
 **Step 2 (写失败测试)**: 5 test 覆盖 KDT 决策:
 - `test_default_permission_scope_is_trade_no_withdraw`: 不传 --permission-scope, 生成的 .enc 解密后 payload `permission_scope == "trade_no_withdraw"`
@@ -259,7 +259,7 @@
 
 | Task | Status | Completed | Notes |
 |------|--------|-----------|-------|
-| T1 vault put --permission-scope flag | 🔲 | | 5 tests; Step 1.5 补 Foundation Scan 决定底层实现方向 |
+| T1 vault put --permission-scope flag | ✅ | 2026-07-11 | 5 tests; explicit choices/default wired to encrypted payload and audit event; `make verify` 446 passed |
 | T2 enrollment.md sandbox pattern + credential_vault.md permission scope 章节 | 🔲 | | 纯文档 |
 | T3 gateway-contract v1 samples/ | 🔲 | | 5 samples + jsonschema validation test |
 | T4 examples/supertrend-{sandbox,testnet}/ 刷新 v0.2.0 CLI | 🔲 | | 偿还 DEV-12-T9 examples/ 部分 |
