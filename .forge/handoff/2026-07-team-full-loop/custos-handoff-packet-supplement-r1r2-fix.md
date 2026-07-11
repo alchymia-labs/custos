@@ -80,7 +80,9 @@ execute-team spawn prompt 中**必嵌入以下 3 grep gate**:
 git log --oneline | grep -q 'plan 11 t8'
 
 # Gate 2: arx-runner console-script 已 registered (Plan 11 T8 完成信号)
-grep -q '"arx-runner"' pyproject.toml
+# NOTE: TOML bare key (no quotes on key), so grep the full assignment line.
+# Alternative authoritative check: python3 -c "import tomllib; d=tomllib.loads(open('pyproject.toml','rb').read()); assert d['project']['scripts']['arx-runner']=='custos.cli.subcommands:main'"
+grep -q '^arx-runner = "custos.cli.subcommands:main"' pyproject.toml
 
 # Gate 3: SopsAgeVault 已完全删除 (Plan 11 T7 clean-break 完成信号)
 [ "$(grep -c 'SopsAgeVault' src/custos/core/credential_vault.py)" = "0" ]
