@@ -21,7 +21,7 @@
    - `docs/gateway-contract/v1/` sample fixture (T3 publish-spec.py code_hash 算法对齐 + 测试 fixture 参考)
    - custos `examples/supertrend-{sandbox,testnet}/` 刷新到 v0.2.0 CLI (Plan 12 遗留项 `DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP` 同源问题, 用 v0.1.x 风格 `--sops-file` flag 已 Plan 11 clean-break)
 
-2. **Plan 12 遗留项 DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP** (`.forge/plans/2026-07/12-*.md:667`) — `docs/ops/05-deployment.md` pre-Plan-11 systemd/manual-install snippets 未刷; `examples/supertrend-{sandbox,testnet}/` 属同源, 也未刷。ps 侧 deploy/custos 起草时暴露此遗留项急迫性 (用户读 example 学 v0.2.0 用法会撞到 v0.1.x 风格误导)。
+2. **Plan 12 遗留项 DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP** (`.forge/plans/2026-07/12-*.md:667`) — 起草时 `docs/ops/05-deployment.md` 与 `examples/supertrend-{sandbox,testnet}/` 均未刷新。执行前者已由 `88769e5` 独立解决，examples 仍保留 v0.1.x 风格；本 plan 只完成剩余 examples gap。
 
 3. **Plan 11 CEO clean-break directive (2026-07-10)** — clean-break 时删了 `SopsAgeVault` + `--sops-file` + `--age-key-file` + legacy `python -m custos` 入口; `permission_scope` 默认走隐含值 (per-key vault put 时未 explicit)。ps 侧 bootstrap 想 explicit 传 scope 时无 flag 承接。
 
@@ -76,7 +76,7 @@
 | samples role: normative vs informative | **L4 fix (R1 self-review 2026-07-11)** — 4 wire samples (enrollment/deployment_status/telemetry_snapshot/heartbeat) = **normative** (对应 Plan 12 T7 schema, jsonschema.validate 双向锁); `deployment_spec_sandbox.json` = **informative** (等 arx-79 wire close-out 时若与 arx-side 定义分歧, 收敛以 arx authoritative), M1 fix 的 `deployment_spec.schema.json` 起步 informative, arx-79 landed 后升级 normative | 契约诚实性: 单侧起草的 schema 是 "consumer 期望" 非 producer 契约 |
 | deployment_spec sample 是不是本 plan 首次落 + 有无对应 schema | 是 — Plan 12 只落 4 wire payload schema 无 deployment_spec。**M1 fix (R1 self-review 2026-07-11)**: 本 plan T3 顺手加 `deployment_spec.schema.json` (与 4 wire schema 同级, 从 `deployment_spec_sandbox.json` 反推最小 required fields: `spec_id / generation / trading_mode / lifecycle_state / strategy_path / provenance_ref`; sandbox 特有字段如 `sandbox.starting_balances` optional; live 特有 `code_hash` 用 conditional 加成 required 需要 draft-2020-12 `if/then`, 起步简化为 optional 并在 description 注明 "live mode requires non-null"), sample validation test 同 pattern 加对应断言 | sample + schema 双源, 未来 spec 结构漂移有契约兜底 |
 | deployment_spec.schema 与 arx 侧同源 | 起步 informative (custos 单侧起草), 明说待 arx-79 wire close-out 时若与 arx-side 定义分歧, 收敛以 arx 侧 authoritative (arx 是 spec producer, custos 是 consumer) | 契约诚实性: custos 单侧起草的 schema 是 "consumer 期望", 非 producer 契约 |
-| examples/ 刷新是否 batch 到本 plan | 是, 与 T1/T2/T3 强关联 (用户读 example 学 v0.2.0 CLI, 与本 plan 三处支撑同源) | 单点偿还 DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP 遗留项的 examples/ 部分 (docs/ops/05-deployment.md systemd 部分单独 defer) |
+| examples/ 刷新是否 batch 到本 plan | 是, 与 T1/T2/T3 强关联 (用户读 example 学 v0.2.0 CLI, 与本 plan 三处支撑同源) | 完成 DEV-12-T9-PLAN-11-T9-DOCS-OPS-GAP 在 `88769e5` 后剩余的 examples 部分 |
 | examples/ 是否用 make 或 docker-compose | 保持 docker-compose 惯例 (与 Plan 12 T2 Dockerfile ENTRYPOINT arx-runner start 对齐), 但 command 语法改新 CLI shape (三命令组合而非单一 --sops-file) | 用户已熟悉 docker-compose UX, 不引入新概念 |
 
 ## 承载决策 (Capability Hosting Decision)
@@ -107,7 +107,9 @@
 | `examples/supertrend-testnet/docker-compose.yaml` | Rewrite | command 从 `--sops-file` → `arx-runner start --nats-url ... --reconcile-strategy-id ...`; vault 挂载改 per-key .enc 目录 |
 | `examples/supertrend-testnet/.env.example` | Modify | 删掉隐式 sops-file 引用; 只保留 tenant/runner/nats 变量 |
 | `examples/supertrend-testnet/vault-fixture/credentials.example.json` | Modify | 结构改 per-key 单文件示范 (非 multi-credential JSON, Plan 11 已删) |
-| `examples/supertrend-testnet/Dockerfile` | Delete | **M2 fix (R1 self-review 2026-07-11, grep 实证)**: 删除含 legacy `python -m custos` 的重复 example image build; docker-compose 改为消费 Plan 12 official image, 减少维护面 |
+| `examples/supertrend-testnet/Dockerfile` | Modify | 保留 testnet 专用 image：继续安装 NautilusTrader + sops + age，入口迁移为 `ENTRYPOINT ["uv", "run", "arx-runner"]` + `CMD ["start"]`；官方 Plan 12 image 当前缺这三项 runtime 能力，不能承载本示例 |
+| `pyproject.toml` | Modify | dev extra 同步加入现有 `pyyaml>=6`，确保 alignment test 在干净 dev 环境可解析 compose YAML |
+| `uv.lock` | Modify | 同步 dev extra metadata（PyYAML 已由 nautilus extra 锁定，无新增 package） |
 | `tests/test_vault_put_permission_scope.py` | Create | 5 test: default trade_no_withdraw / explicit trade_no_withdraw 通过 / --permission-scope withdraw fail (choices 拦) / --permission-scope 缺省 default 落到 encrypted payload / audit event 含 scope |
 | `tests/test_gateway_contract_v1_samples.py` | Create | 5 test: 4 samples 通过对应 schema validation + 1 deployment_spec sample syntactic valid JSON |
 | `tests/test_examples_docs_v020_alignment.py` | Create | **H1 fix (R1 self-review 2026-07-11)** — 改用 file-parse (yaml/json parse) 而非 grep-based, 减少未来编码 / 大小写 / pattern rename 脆性: `pytest.mark.parametrize` 遍历 `examples/*/{README.md,docker-compose.yaml,Dockerfile,.env.example}`, 对 yaml/json 文件 parse 后断言 command list 无 `--sops-file` / `--age-key-file`, 对 markdown / Dockerfile 用 `Path.read_text()` + `assert "--sops-file" not in text` + `assert "-m custos" not in text` (完整 token 匹配, 不用 regex) |
@@ -195,7 +197,7 @@
 
 ### Task 4: examples/supertrend-{sandbox,testnet}/ 刷新到 v0.2.0 CLI
 
-**Files**: Rewrite `examples/supertrend-sandbox/{README.md,spec-example.json}` + `examples/supertrend-testnet/{README.md,docker-compose.yaml,.env.example,vault-fixture/credentials.example.json}`; Delete `examples/supertrend-testnet/Dockerfile`; Create `tests/test_examples_docs_v020_alignment.py`
+**Files**: Rewrite `examples/supertrend-sandbox/{README.md,spec-example.json}` + `examples/supertrend-testnet/{README.md,docker-compose.yaml,.env.example,vault-fixture/credentials.example.json,Dockerfile}`; Modify `pyproject.toml` + `uv.lock`; Create `tests/test_examples_docs_v020_alignment.py`
 
 **Step 1 (证伪)**: `grep -rn 'sops-file\|age-key-file\|python -m custos' examples/` 命中 (需迁移); `pytest tests/test_examples_docs_v020_alignment.py` 红。
 
@@ -205,7 +207,7 @@
   ```yaml
   command: ["start", "--nats-url", "${ARX_NATS_URL}", "--reconcile-strategy-id", "${ARX_STRATEGY_ID}", "--use-nt-host", "--vault-dir", "/home/custos/.arx/vault"]
   ```
-- `examples/supertrend-testnet/Dockerfile`: 删除重复的 legacy image build; compose 使用 Plan 12 official image
+- `examples/supertrend-testnet/Dockerfile`: 保留 testnet 专用 build（官方 image 当前不含 nautilus/sops/age），入口从 legacy `python -m custos` 改为 `ENTRYPOINT ["uv", "run", "arx-runner"]` + `CMD ["start"]`
 - `examples/supertrend-testnet/.env.example`: 删 sops-file 引用, 增 `ARX_TENANT_ID / ARX_RUNNER_ID / ARX_NATS_URL / ARX_STRATEGY_ID` (与 Plan 11 CLI 对齐)
 - `examples/supertrend-testnet/vault-fixture/credentials.example.json`: 从 multi-credential 改单 key-id 结构示范
 - `examples/supertrend-sandbox/spec-example.json`: **M3 fix (R1 review)** — 起步用 verbatim copy from `docs/gateway-contract/v1/samples/deployment_spec_sandbox.json` (同仓 across dirs 软链 git 技术可行但增加路径解析复杂度); 未来若两处频繁 drift 再软链化; 一处 test (`test_examples_sandbox_spec_matches_sample`) 断言两文件内容 byte-identical
@@ -216,7 +218,7 @@
 - `grep -rn 'sops-file\|age-key-file\|python -m custos' examples/` 0 命中
 - 手工过一遍 README (第三方读者视角) 步骤可跑
 
-**Step 4 (提交)**: `git add examples/supertrend-sandbox/ examples/supertrend-testnet/ tests/test_examples_docs_v020_alignment.py`, commit `refactor(custos): plan-13-t4 examples refresh to v0.2.0 CLI (偿还 DEV-12-T9-PLAN-11-T9 examples/ 部分)`。
+**Step 4 (提交)**: `git add examples/supertrend-sandbox/ examples/supertrend-testnet/ tests/test_examples_docs_v020_alignment.py pyproject.toml uv.lock`, commit `refactor(custos): plan-13-t4 examples refresh to v0.2.0 CLI (偿还 DEV-12-T9-PLAN-11-T9 examples/ 部分)`。
 
 ### Task 5: close-out + 索引 + 红线 gate 表
 
@@ -229,7 +231,7 @@
 - 验证结果 (`make verify` 447 passed 或类似, +6 tests from Plan 12 baseline 441)
 - 契约影响: `docs/design/enrollment.md` + `docs/design/credential_vault.md` + `docs/gateway-contract/v1/samples/` + `examples/`
 - 红线守护 grep 记录
-- 遗留项: `docs/ops/05-deployment.md` systemd/manual-install snippets 仍未刷 (DEV-12-T9 主体遗留项, 单独 plan defer)
+- 遗留项: official Plan 12 image 尚不含 NautilusTrader + sops + age，testnet example 暂保留专用 Dockerfile；distribution follow-up 决定是否扩充 official runtime image
 
 **Step 3 (红线 gate 满足度 table, lesson #40)**:
 | red_line | code_coverage | runtime_wire | defer_status | follow_up_plan_ref |
@@ -270,13 +272,15 @@
 
 | 类型 | 位置 | 描述 | 已批准 |
 |------|------|------|--------|
-| DEVIATION | `docs/ops/05-deployment.md` systemd/manual-install snippets 遗留 | 本 plan 偿还 DEV-12-T9 的 `examples/` 部分, 但 `docs/ops/05-deployment.md` pre-Plan-11 systemd/manual-install snippets 仍未刷。原因: 属独立 audience (systemd operator vs example 用户), 应独立 plan; 且需先 arx backend 落地明确真 enroll pattern 才好刷。 | ⏳ Plan 14+ (待定) |
+| IMPROVEMENT | `docs/ops/05-deployment.md` 遗留已由并行提交解决 | 起草时记录的 systemd/manual-install gap 已在本 plan 执行前由 `88769e5` 刷新；T4 只处理仍存在的 examples gap。 | ✅ `88769e5` |
 | DEVIATION | `--permission-scope` choices 只 1 值 | 目前 choices=["trade_no_withdraw"] 只 1 合法值, 为未来加 scope (e.g. `spot_only`) 预留结构。加值需 minor bump + arx 侧同步。 | ✅ CEO 2026-07-11 |
 | IMPROVEMENT | audit event 含 scope | scope 是 metadata 非 secret, log 是 audit 兑现 (对账不静默); Plan 11 lesson #21 精神 | — |
 | IMPROVEMENT | sample fixture 与 schema 同层 | 单源真理, 消费者 grep sample vs schema 关联清晰 | — |
-| IMPROVEMENT | 执行前计划一致性修正 | T2 按 mandatory-rules 补 `docs/domain.md`; T3 补 deployment spec schema + jsonschema dependency/lockfile 的文件与 commit scope; T4 明确删除 legacy example Dockerfile 并补齐 sandbox spec 文件清单。 | ✅ 用户 2026-07-11 |
+| IMPROVEMENT | 执行前计划一致性修正 | T2 按 mandatory-rules 补 `docs/domain.md`; T3 补 deployment spec schema + jsonschema dependency/lockfile 的文件与 commit scope; T4 补齐 sandbox spec 文件清单。 | ✅ 用户 2026-07-11 |
 | IMPROVEMENT | gateway contract role 文档同步 | 新增 informative deployment spec schema 后同步 `docs/gateway-contract/v1/README.md`, 明确它不进入 4 份 normative arx wire schema 的 backward-compat freeze。 | ✅ 用户 2026-07-11 修正授权 |
 | DEVIATION | `make install` 后 base verify 的既有 extra 漂移 | `make install` (`uv sync --extra dev`) 会移除 nautilus extra；未 skip 的 `test_toolkit_import_bootstrap_resolves_shared_and_pandas_ta` 随后因 dev 环境无 `pkg_resources` 失败（387 passed, 1 failed）。本 plan 不扩 scope 修改既有 toolkit/test 依赖契约；恢复规则允许的 `uv sync --extra dev --extra nautilus` 后 `make verify` 451 passed。需由独立 infra plan 决定让该测试在 base 环境 skip，或补足其轻量依赖。 | ⚠️ 待后续 plan |
+| DEVIATION | T4 保留 testnet 专用 Dockerfile | 执行时实证 Plan 12 official image 的 ENTRYPOINT 已含 `start`，且 image 未安装 nautilus extra、sops、age；直接消费会使 compose 重复 `start` 且 testnet/vault runtime 不可用。经用户批准，保留并现代化 example Dockerfile；official image 能力缺口 defer 到 distribution follow-up。 | ✅ 用户 2026-07-11 |
+| IMPROVEMENT | T4 YAML test 依赖闭环 | alignment test 使用结构化 YAML parse；把项目已有的 `pyyaml>=6` 同时加入 dev extra，避免干净 dev 环境 collection fail。 | ✅ 用户 2026-07-11 继续授权 |
 
 ## 关联文档 (Related Documents)
 
