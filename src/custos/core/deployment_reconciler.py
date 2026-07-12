@@ -306,7 +306,10 @@ class DeploymentReconciler:
             await self.execution_engine.stop(spec_id)
             return ""
         # 新部署: 解密 credential → 过完整 G6 gate (含 scope 兜底层) → deploy。
-        if state.container_id is None:
+        # A successful stop stores an empty container id. Any later active
+        # generation must create a fresh engine instance, not reconfigure the
+        # instance that stop() already removed.
+        if not state.container_id:
             cred = self.credential_vault.decrypt(self._credential_ref(spec, spec_id))
             check_g6_gate(self.execution_engine, spec, cred)
             return await self.execution_engine.deploy(spec, cred)

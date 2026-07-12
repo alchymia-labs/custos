@@ -53,6 +53,9 @@ plan-index §6 WR-NATS-2 demux），不混在 telemetry 流里，让 consumer di
 - **幂等 + level-triggered**：同 `generation` 多次到达不重复执行，防重放导致重复起停。
 - **terminal status truth**：成功应用 `lifecycle_state=stopped/archived` 后上报
   `phase=stopped`；其他成功 reconcile 上报 `phase=running`。停止动作不能继续伪装为运行态。
+- **stopped reactivation**：stop 后本地 `container_id` 为空；更高 generation 回到 active
+  lifecycle 时必须重新解密 credential、重过 G6 并调用 `deploy()`，不能对已被 host 删除的
+  engine instance 调 `reconfigure()`。
 - **严格 consumer contract**：每个 payload 先经过
   `custos.contracts.DeploymentMessage.parse()` 恢复 canonical subject 并校验 tenant，内部 spec
   再经过 `DeploymentSpec.model_validate()`；未知字段、generation 0、无效 lifecycle、

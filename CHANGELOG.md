@@ -36,8 +36,8 @@ for an older runner.
   Kubernetes probes. Readiness is asserted only after the deployment
   subscription succeeds and is cleared on shutdown or retry.
 - A hermetic standalone acceptance test covering real NATS bootstrap,
-  sops+age vault decrypt, running-to-stopped generation reconciliation, status
-  publication, and readiness through the official image.
+  sops+age vault decrypt, running-to-stopped-to-running generation
+  reconciliation, status publication, and readiness through the official image.
 
 ### Changed
 
@@ -69,6 +69,8 @@ for an older runner.
   does not infer the `.enc` payload as binary.
 - Live checks use `trading_mode == "live"` instead of conflating execution mode
   with lifecycle state.
+- A higher-generation active spec after `stopped` now creates a fresh engine
+  deployment and re-runs Vault/G6 checks instead of reconfiguring a removed one.
 
 ### Security
 

@@ -162,6 +162,22 @@ async def test_stopped_lifecycle_triggers_stop() -> None:
 
 
 @pytest.mark.asyncio
+async def test_stopped_deployment_reactivation_redeploys() -> None:
+    host = _FakeHost()
+    vault = _FakeVault()
+    reconciler = _make_reconciler(host=host, vault=vault)
+
+    await reconciler.handle_spec(_spec("s-1", generation=1))
+    await reconciler.handle_spec(_spec("s-1", generation=2, lifecycle="stopped"))
+    await reconciler.handle_spec(_spec("s-1", generation=3))
+
+    assert len(host.deploy_calls) == 2
+    assert host.stop_calls == ["s-1"]
+    assert host.reconfigure_calls == []
+    assert vault.decrypt_calls == ["cred-s-1", "cred-s-1"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("lifecycle", ["stopped", "archived"])
 async def test_terminal_lifecycle_reports_stopped_phase(lifecycle: str) -> None:
     host = _FakeHost()

@@ -165,7 +165,7 @@ async def _next_status_with_logs(subscription, generation: int, runner: str) -> 
 
 @pytest.mark.docker
 @pytest.mark.integration
-async def test_standalone_runtime_reconciles_running_then_stopped(tmp_path: Path) -> None:
+async def test_standalone_runtime_reconciles_running_stopped_running(tmp_path: Path) -> None:
     _require_runtime_image()
     suffix = uuid.uuid4().hex[:10]
     network = f"custos-acceptance-{suffix}"
@@ -348,6 +348,16 @@ async def test_standalone_runtime_reconciles_running_then_stopped(tmp_path: Path
         assert stopped["phase"] == "stopped"
         assert stopped["health"] == "healthy"
         assert stopped["container_id"] == ""
+
+        restarted_spec = tmp_path / "restarted.json"
+        _write_spec(restarted_spec, generation=3, lifecycle_state="running")
+        await asyncio.to_thread(_publish_spec, network, tmp_path, restarted_spec.name)
+        restarted = await _next_status_with_logs(
+            subscription, generation=3, runner=runner_container
+        )
+        assert restarted["phase"] == "running"
+        assert restarted["health"] == "healthy"
+        assert restarted["container_id"] == f"container-{SPEC_ID}"
         await _wait_for_runner_health(runner_container)
     finally:
         if connection is not None:

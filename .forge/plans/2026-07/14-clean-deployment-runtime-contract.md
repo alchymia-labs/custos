@@ -763,7 +763,23 @@ make verify-runtime
 git commit -m "docs(custos): document 0.3.0 clean deployment contract"
 ```
 
-### Task 10: Close-out
+### Task 10: Reactivate a stopped deployment through deploy
+
+**Files**: Modify reconciler, unit tests, standalone acceptance, and reconcile design docs.
+
+Self-reflection found that stop stores an empty `container_id`; a later higher-generation
+`lifecycle_state=running` therefore entered `reconfigure()` instead of `deploy()`. Lock the
+full lifecycle wire as `running → stopped → running`:
+
+1. Add a failing unit contract proving reactivation decrypts credentials and invokes a second
+   deploy without calling reconfigure.
+2. Extend the hermetic official-image acceptance with generation 3 `running` and assert a new
+   running status/container id after the stopped generation.
+3. Treat any inactive state (`container_id` is absent/empty) as requiring deploy.
+4. Sync `docs/design/reconcile.md`, run focused tests plus `make verify-runtime`, and commit
+   `fix(custos): redeploy stopped lifecycle on reactivation`.
+
+### Task 11: Close-out
 
 **Files**: Modify this plan and `.forge/README.md`。
 
@@ -831,7 +847,8 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T7 release runtime gate | ✅ | 2026-07-12 | Pre-push verify-runtime; post-publish CLI/NT/vault/cosign contract |
 | T8 hermetic standalone acceptance | ✅ | 2026-07-12 | Real NATS/vault/readiness wire; running→stopped; official-image Compose |
 | T9 0.3.0 docs/version | ✅ | 2026-07-12 | 0.3.0 version/docs/downstream gate; base 484 passed, NT 548 passed, runtime 13+1 passed |
-| T10 close-out | 🔲 | — | — |
+| T10 stopped lifecycle reactivation | ✅ | 2026-07-12 | Unit red→green; running→stopped→running official-image wire; 549 project tests + runtime 13+1 passed |
+| T11 close-out | 🔲 | — | — |
 
 ## 偏离与改进日志 (Deviations & Improvements)
 
@@ -847,6 +864,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | IMPROVEMENT | Terminal status truth | T8 acceptance 暴露成功 stop/archive 仍硬编码上报 running；补充 reconciler phase 映射与单元测试 | ✅ 用户 2026-07-12 |
 | IMPROVEMENT | sops JSON decrypt | 官方 sops 3.13.2 对 `.enc` 推断 binary，真实 vault decrypt 失败；显式锁定 JSON input/output type 并保留容器 canary | ✅ 用户 2026-07-12 |
 | IMPROVEMENT | Version fanout | clean-base 门暴露遗留 `test_project_version_is_0_2_0`；同步升级版本断言，并新增 pyproject/lock/CHANGELOG/docs alignment contract | ✅ T9 |
+| IMPROVEMENT | Lifecycle reactivation | self-reflection 暴露 stop 后空 `container_id` 会让更高 generation running 误走 reconfigure；增加 running→stopped→running unit + official-image wire 并按 inactive state 重新 deploy | ✅ 用户 2026-07-12 |
 
 ---
 
