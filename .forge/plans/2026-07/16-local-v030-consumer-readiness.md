@@ -314,6 +314,11 @@ verify-local-v030: docker-build-local-v030
 		--format '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 ```
 
+**2026-07-12 approved amendment**: `docker-build` must inject the same
+`org.opencontainers.image.revision=$(SOURCE_REVISION)` label. Otherwise
+`verify-runtime` builds `custos-runner:test` and immediately violates the shared Docker runtime
+contract that requires a 40-character source revision.
+
 不创建 `custos-base`，不创建 Git tag，不 push registry。
 
 **Step 4 — 验证通过**:
@@ -433,6 +438,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 - [ ] live spec 可通过 `deployment validate --strategy-dir`
 - [ ] local image version 为 0.3.0
 - [ ] local image 带当前 source revision
+- [ ] generic `custos-runner:test` build 同样带 source revision
 - [ ] Docker runtime 13 项通过
 - [ ] standalone NATS wire 通过
 - [ ] docs/examples 不再假定 GHCR v0.3.0 已发布
@@ -448,8 +454,8 @@ git commit -m "docs(custos): mark plan 16 as completed"
 |---|---|---|---|
 | T1 Deployment boundary IDs | ✅ | 2026-07-12 | safe ID enforced in model/schema/docs |
 | T2 validate-time public hash | ✅ | 2026-07-12 | validate and publish share `_load_spec` hash seam |
-| T3 local v0.3.0 image gate | ✅ | 2026-07-12 | image `2e36e486…aed5a`; revision `777bab7…eff4`; Docker 15 + standalone 1 passed |
-| T4 release workflow DAG | 🔲 | | no publication |
+| T3 local v0.3.0 image gate | ✅ | 2026-07-12 | local image `2e36e486…aed5a`; generic image `b3bd90e8…d77c`; both revision-labelled; runtime gates passed |
+| T4 release workflow DAG | ⏳ | | TDD red in progress; no publication |
 | T5 local artifact truth docs | 🔲 | | remote release deferred |
 | T6 close-out | 🔲 | | |
 
@@ -462,6 +468,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 | DEFERRED | Namespace | 不在本计划决定最终 GitHub/GHCR owner | ✅ 用户 2026-07-12 |
 | IMPROVEMENT | Contract validation | spec/vault/NATS 边界统一 safe ID | ✅ Plan 16 T1 |
 | IMPROVEMENT | Public CLI | validate 与 publish 共享 strategy hash seam | ✅ Plan 16 T2 |
+| IMPROVEMENT | Local provenance | `docker-build` 与 v0.3.0 target 统一注入 source revision | ✅ 用户 2026-07-12 |
 
 ---
 

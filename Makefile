@@ -76,7 +76,10 @@ sign:  ## Sign every wheel under dist/ with sigstore keyless (requires OIDC; run
 	bash .github/workflows/scripts/sign-wheel.sh
 
 docker-build: dist  ## Build custos-runner:test image from the local dist/*.whl wheel
-	docker build -t custos-runner:test .
+	docker build \
+		--label org.opencontainers.image.revision=$(SOURCE_REVISION) \
+		--tag custos-runner:test \
+		.
 
 docker-build-local-v030: dist  ## Build the local v0.3.0 consumer image with source provenance
 	docker build \
