@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 
 import pytest
 
-IMAGE = "custos-runner:test"
+IMAGE = os.environ.get("CUSTOS_TEST_IMAGE", "custos-runner:test")
 
 
 def _require_image() -> None:

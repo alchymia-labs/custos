@@ -132,11 +132,6 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Gate complete Docker and standalone runtime
-        run: |
-          make install
-          make verify-runtime
-
       - uses: actions/download-artifact@v4
         with:
           # Consume the signed wheel — an unsigned image release is a
@@ -162,14 +157,31 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:v${{ needs.build-wheel.outputs.version }}
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:candidate-${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
             org.opencontainers.image.version=${{ needs.build-wheel.outputs.version }}
           provenance: true
           sbom: true
+
+      - name: Gate exact candidate Docker and standalone runtime
+        env:
+          CUSTOS_TEST_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          docker pull "${CUSTOS_TEST_IMAGE}"
+          make install
+          make verify-runtime-existing
+
+      - name: Promote verified digest to stable image tags
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          VERSION: ${{ needs.build-wheel.outputs.version }}
+        run: |
+          docker buildx imagetools create --prefer-index=false \
+            --tag "${IMAGE_NAME}:v${VERSION}" \
+            --tag "${IMAGE_NAME}:latest" \
+            "${IMAGE_NAME}@${IMAGE_DIGEST}"
 
   # --- 4/8 sign the pushed image with cosign keyless ----------------------------
   sign-docker:

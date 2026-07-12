@@ -13,12 +13,13 @@ Gated behind ``@pytest.mark.docker``.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 
 import pytest
 
-IMAGE = "custos-runner:test"
+IMAGE = os.environ.get("CUSTOS_TEST_IMAGE", "custos-runner:test")
 CEILING_BYTES = 1280 * 1024 * 1024
 
 

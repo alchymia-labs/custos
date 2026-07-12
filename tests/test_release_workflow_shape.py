@@ -103,20 +103,58 @@ def test_release_verifies_clean_base_before_nautilus_runtime() -> None:
     assert base_gate < install_nt < verify_nt
 
 
-def test_release_gates_complete_runtime_before_image_push() -> None:
+def test_release_gates_complete_runtime_before_stable_tag_promotion() -> None:
     text = _read()
 
-    runtime_gate = text.index("make verify-runtime")
-    image_push = text.index("push: true")
+    runtime_gate = text.index("make verify-runtime-existing")
+    stable_promotion = text.index("docker buildx imagetools create")
 
-    assert runtime_gate < image_push
+    assert runtime_gate < stable_promotion
+
+
+def test_signed_wheel_precedes_candidate_build_and_runtime_gate() -> None:
+    """The tested candidate must be built from the signed wheel artifact."""
+    text = _read()
+
+    signed_wheel = text.index("name: dist-signed", text.index("build-docker:"))
+    candidate_build = text.index("id: build", text.index("build-docker:"))
+    runtime_gate = text.index("make verify-runtime-existing", text.index("build-docker:"))
+
+    assert signed_wheel < candidate_build < runtime_gate
+
+
+def test_stable_tags_promote_the_runtime_verified_candidate_digest() -> None:
+    """Stable tags must be aliases of the tested digest, never a rebuild."""
+    text = _read()
+    build_docker = text.index("build-docker:")
+    candidate_tag = text.index("candidate-${{ github.sha }}", build_docker)
+    runtime_gate = text.index("make verify-runtime-existing", build_docker)
+    promotion = text.index("docker buildx imagetools create", build_docker)
+    digest_binding = text.index("IMAGE_DIGEST: ${{ steps.build.outputs.digest }}", runtime_gate)
+
+    assert candidate_tag < runtime_gate < digest_binding < promotion
+    promotion_block = text[promotion : promotion + 700]
+    assert "--prefer-index=false" in promotion_block
+    assert '"${IMAGE_NAME}@${IMAGE_DIGEST}"' in promotion_block
+    assert '--tag "${IMAGE_NAME}:v${VERSION}"' in promotion_block
+    assert '--tag "${IMAGE_NAME}:latest"' in promotion_block
+
+
+def test_runtime_gate_targets_candidate_digest() -> None:
+    text = _read()
+    build_docker = text.index("build-docker:")
+    runtime_gate = text.index("make verify-runtime-existing", build_docker)
+    gate_block = text[runtime_gate - 300 : runtime_gate + 300]
+
+    assert "CUSTOS_TEST_IMAGE" in gate_block
+    assert "${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}" in gate_block
 
 
 def test_release_publishes_version_and_latest_image_tags() -> None:
     text = _read()
 
-    assert "${{ env.IMAGE_NAME }}:v${{ needs.build-wheel.outputs.version }}" in text
-    assert "${{ env.IMAGE_NAME }}:latest" in text
+    assert '--tag "${IMAGE_NAME}:v${VERSION}"' in text
+    assert '--tag "${IMAGE_NAME}:latest"' in text
 
 
 def test_verify_runtime_target_covers_docker_and_standalone_contracts() -> None:

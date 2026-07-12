@@ -13,12 +13,13 @@ side-effect-free — it does not build the image itself.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 
 import pytest
 
-IMAGE = "custos-runner:test"
+IMAGE = os.environ.get("CUSTOS_TEST_IMAGE", "custos-runner:test")
 
 
 @pytest.mark.docker

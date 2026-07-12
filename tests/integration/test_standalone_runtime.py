@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -13,7 +14,7 @@ from pathlib import Path
 import nats
 import pytest
 
-IMAGE = "custos-runner:test"
+IMAGE = os.environ.get("CUSTOS_TEST_IMAGE", "custos-runner:test")
 TENANT_ID = "acceptance"
 RUNNER_ID = "runner-acceptance"
 STRATEGY_ID = "strategy-acceptance"

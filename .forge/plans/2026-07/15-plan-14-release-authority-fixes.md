@@ -1,6 +1,6 @@
 # 15 — Plan 14 release artifact and authority contract fixes
 
-> **Status**: 🔲 Not started
+> **Status**: ⏳ In Progress
 > **Created**: 2026-07-12
 > **Project**: custos
 > **Source**: 2026-07-12 inline Plan 14 audit in the originating conversation
@@ -201,7 +201,7 @@ git commit -m "docs(custos): document release artifact identity truthfully"
 
 | Fix | Priority | Status | Completed | Notes |
 |---|---|---|---|---|
-| F1 exact candidate digest promotion | P1 | 🔲 | — | — |
+| F1 exact candidate digest promotion | P1 | ✅ | 2026-07-12 | Signed wheel → candidate digest → 13+1 runtime gates → same-digest stable promotion |
 | F2 domain authority alignment | P1 | 🔲 | — | — |
 | F3 reproducibility truth + prevention | P3 | 🔲 | — | — |
 | F4 close-out | P1 | 🔲 | — | — |

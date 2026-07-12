@@ -14,12 +14,13 @@ crashes on start is still caught.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 
 import pytest
 
-IMAGE = "custos-runner:test"
+IMAGE = os.environ.get("CUSTOS_TEST_IMAGE", "custos-runner:test")
 
 
 @pytest.mark.docker
