@@ -1,7 +1,8 @@
 # 14 — Clean deployment runtime contract for downstream strategy repositories
 
-> **Status**: ⏳ In Progress
+> **Status**: ✅ Completed
 > **Created**: 2026-07-11
+> **Completed**: 2026-07-12
 > **Project**: custos
 > **For Claude**: Use `/forge:execute` to implement this plan.
 > **Depends on**: Plan 13 ✅ Completed (`a099a63`)
@@ -812,27 +813,27 @@ git commit -m "docs(custos): mark plan 14 as completed"
 
 ## 验证清单 (Verification)
 
-- [ ] `make verify-base-clean`（内部执行 `uv sync --extra dev` + `make verify`）
-- [ ] dev-only base gate 不安装 setuptools/pandas/NautilusTrader，NT-only import test 正确 skip
-- [ ] `make install-nt` 后 NT-only pandas_ta import test 实际运行（非 skip）
-- [ ] `make verify-nt`
-- [ ] `make test-docker`
-- [ ] `make verify-runtime`
-- [ ] `arx-runner deployment validate` 对合法/非法 spec 行为正确
-- [ ] `arx-runner nats bootstrap` fresh/idempotent/update 三种路径通过
-- [ ] subscribe 首次失败不会终止 reconciler
-- [ ] readiness 只在 subscription 成功后出现
-- [ ] `DeploymentMessage` producer/consumer round-trip
-- [ ] factory 能收到完整 `strategy_config`
-- [ ] live 判断使用 `trading_mode`，不再使用 lifecycle
-- [ ] official image 包含 NT/YAML/sops/age
-- [ ] official image 以非 root 运行
-- [ ] Docker management 命令无需覆盖 entrypoint
-- [ ] testnet example 不再包含派生 Dockerfile
-- [ ] release workflow 发布 `v0.3.0`/`latest`
-- [ ] Non-Custodial 四红线专项检查通过
-- [ ] 所有代码工件使用英文
-- [ ] authority docs 与代码一致
+- [x] `make verify-base-clean`（内部执行 `uv sync --extra dev` + `make verify`）
+- [x] dev-only base gate 不安装 setuptools/pandas/NautilusTrader，NT-only import test 正确 skip
+- [x] `make install-nt` 后 NT-only pandas_ta import test 实际运行（非 skip）
+- [x] `make verify-nt`
+- [x] `make test-docker`
+- [x] `make verify-runtime`
+- [x] `arx-runner deployment validate` 对合法/非法 spec 行为正确
+- [x] `arx-runner nats bootstrap` fresh/idempotent/update 三种路径通过
+- [x] subscribe 首次失败不会终止 reconciler
+- [x] readiness 只在 subscription 成功后出现
+- [x] `DeploymentMessage` producer/consumer round-trip
+- [x] factory 能收到完整 `strategy_config`
+- [x] live 判断使用 `trading_mode`，不再使用 lifecycle
+- [x] official image 包含 NT/YAML/sops/age
+- [x] official image 以非 root 运行
+- [x] Docker management 命令无需覆盖 entrypoint
+- [x] testnet example 不再包含派生 Dockerfile
+- [x] release workflow 发布 `v0.3.0`/`latest`
+- [x] Non-Custodial 四红线专项检查通过
+- [x] 所有代码工件使用英文
+- [x] authority docs 与代码一致
 
 ## 进度追踪 (Progress)
 
@@ -848,7 +849,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T8 hermetic standalone acceptance | ✅ | 2026-07-12 | Real NATS/vault/readiness wire; running→stopped; official-image Compose |
 | T9 0.3.0 docs/version | ✅ | 2026-07-12 | 0.3.0 version/docs/downstream gate; base 484 passed, NT 548 passed, runtime 13+1 passed |
 | T10 stopped lifecycle reactivation | ✅ | 2026-07-12 | Unit red→green; running→stopped→running official-image wire; 549 project tests + runtime 13+1 passed |
-| T11 close-out | 🔲 | — | — |
+| T11 close-out | ✅ | 2026-07-12 | Final base/NT/runtime gates, self-reflection, red-line audit, index/report sync |
 
 ## 偏离与改进日志 (Deviations & Improvements)
 
@@ -869,4 +870,71 @@ git commit -m "docs(custos): mark plan 14 as completed"
 ---
 
 *Drafter: Codex @ 2026-07-11*
-*Scope: custos-only; PS remains blocked until this plan closes and v0.3.0 is verified.*
+*Scope: custos-only; PS remains blocked until a v0.3.0 artifact containing the minimum SHA below is published.*
+
+## 完成报告 (Close-out Report)
+
+- **完成日期**: 2026-07-12
+- **总 Task 数**: 11
+- **偏离/改进数**: 11（2 个决策 + 9 个改进；无未解决偏离）
+- **验证结果**: 全部自动化 gate 通过；外部 Binance testnet/live session 单独 defer
+- **实施 commit 范围**: `a7e256a` through `281cb3b`（foundation base
+  `6a74efb`；审计 diff `6a74efb..281cb3b`）
+- **变更规模**: 63 个非 forge 文件，3344 additions / 587 deletions
+- **契约影响**: `docs/design/{nats_client,reconcile,nautilus_host,credential_vault}.md`、
+  `docs/domain.md`、gateway-contract v1、ops/README/CHANGELOG 全部同步
+- **最低下游门**: PS Plan 49 requires `custos >= 281cb3b` and release tag/image
+  `v0.3.0` containing that commit or later；在该 artifact 发布前保持 blocked
+- **最终 arm64 image**: `1,070,493,603` bytes；`USER 1000:1000`，
+  `ENTRYPOINT ["arx-runner"]`，`CMD ["start"]`，health = `arx-runner health`
+
+### 最终验证矩阵
+
+| layer | result | evidence |
+|---|---|---|
+| dev-only base | 485 passed / 18 skipped / 1 xfailed | `make verify-base-clean`; NT extra removed and NT-only imports skip |
+| Nautilus capability | 549 passed / 4 skipped / 1 xfailed | `make install-nt && make verify-nt`; NT imports and host suites execute |
+| Docker runtime wire | 13 passed | CLI matrix, NT/YAML, sops/age, entrypoint/CMD/health, non-root, size |
+| standalone NATS wire | 1 passed | real NATS + bootstrap + vault + readiness + `running→stopped→running` |
+| Compose shape | passed | official image only; init bootstrap, health dependency, public publisher |
+
+### 能力覆盖与 defer 边界
+
+- **Code-level coverage**: strict `DeploymentSpec`, `DeploymentMessage` round-trip,
+  generation/lifecycle, strategy config handoff, retry/readiness, topology ownership/drift,
+  stopped reactivation, Vault JSON decrypt, and release shape all have executable tests.
+- **Docker runtime wire**: the locally built official image actually imports NT/YAML, runs
+  sops/age, exposes every management command without entrypoint override, and runs non-root.
+- **Standalone NATS wire**: the hermetic acceptance uses a fresh NATS container, owned stream
+  bootstrap, real sops+age encrypted dummy credential, health polling, JetStream publication,
+  and three desired-state generations.
+- **NT capability**: full Nautilus host/config/venue/G6 suites execute with the extra installed;
+  the official image contains the same NT runtime.
+- **External Binance testnet/live**: no real exchange credential or external market session was
+  used in this plan. That remains explicit operator acceptance before live enablement, not a
+  substitute for the automated G6/runtime gates above.
+
+### 红线 gate 满足度
+
+| red_line | code_coverage | runtime_wire | defer_status | follow_up |
+|---|---|---|---|---|
+| Key/KEK 不出进程 | vault lifecycle/CLI/decrypt tests + hermetic acceptance | sops+age in official image; dummy key remains in mounted local volume | none | none |
+| G6 不绕过 | G6 capability, host×mode, reactivation re-deploy tests | official NT runtime; reactivation re-runs Vault/G6 before deploy | external live session separate | operator acceptance before live |
+| 失联不停止 | retry/readiness + disconnect chaos + local guard tests | reconnecting reconciler continues watchdog/breaker ticks | none | none |
+| Decimal money | telemetry money and reconciliation contract suites | existing Decimal-as-string NATS/status wire unchanged | none; grep matches only unchanged vendored OHLCV warmup adapters | none |
+
+### 失败模式覆盖
+
+- `test_generation_starts_at_one` / strict unknown-field and mode-conditional validation
+- `test_message_tenant_mismatch_is_rejected` / canonical subject and UUIDv7 envelope checks
+- `test_bootstrap_is_idempotent` / `test_bootstrap_updates_owned_stream_drift` / ownership collision
+- `test_initial_subscribe_failure_retries` / local guards during outage / stop-interruptible backoff
+- `test_stopped_deployment_reactivation_redeploys`
+- `test_standalone_runtime_reconciles_running_stopped_running`
+
+### 自省
+
+- **Round 1**: 审视 63 个非 forge 文件、3309 additions / 586 deletions；发现 stopped 后
+  reactivation 误走 `reconfigure()`，经用户批准扩为 T10 并在 `281cb3b` 修复。
+- **Round 2**: 复核 consumer validation、Vault/G6 重入、retry/readiness、bootstrap
+  ownership、release/runtime matrix；无新增阻断问题，提前结束。
