@@ -1,7 +1,8 @@
 # 16 - Harden local v0.3.0 consumer readiness
 
-> **Status**: ⏳ In Progress
+> **Status**: ✅ Completed
 > **Created**: 2026-07-12
+> **Completed**: 2026-07-12
 > **Project**: custos
 > **For Claude**: Use `/forge:execute` to implement this plan.
 > **Depends on**: Plan 14 ✅, Plan 15 ✅
@@ -436,24 +437,24 @@ git commit -m "docs(custos): mark plan 16 as completed"
 
 ## 验证清单 (Verification)
 
-- [ ] `make verify-base-clean`
-- [ ] `make install-nt && make verify-nt`
-- [ ] `make verify-local-v030`
-- [ ] unsafe `spec_id` / `credential_id` 全部拒绝
-- [ ] live spec 可通过 `deployment validate --strategy-dir`
-- [ ] local image version 为 0.3.0
-- [ ] local image 带当前 source revision
-- [ ] generic `custos-runner:test` build 同样带 source revision
-- [ ] local consumer build 拒绝 dirty worktree
-- [ ] local runtime revision 精确等于当前 HEAD
-- [ ] Docker runtime 13 项通过
-- [ ] standalone NATS wire 通过
-- [ ] docs/examples 不再假定 GHCR v0.3.0 已发布
-- [ ] workflow DAG 不再读取未声明的 `needs` output
-- [ ] 不创建 Git tag
-- [ ] 不 push GitHub/GHCR/PyPI
-- [ ] Non-Custodial 四红线无新增命中
-- [ ] worktree clean
+- [x] `make verify-base-clean`
+- [x] `make install-nt && make verify-nt`
+- [x] `make verify-local-v030`
+- [x] unsafe `spec_id` / `credential_id` 全部拒绝
+- [x] live spec 可通过 `deployment validate --strategy-dir`
+- [x] local image version 为 0.3.0
+- [x] local image 带当前 source revision
+- [x] generic `custos-runner:test` build 同样带 source revision
+- [x] local consumer build 拒绝 dirty worktree
+- [x] local runtime revision 精确等于当前 HEAD
+- [x] Docker runtime 15 项通过
+- [x] standalone NATS wire 通过
+- [x] docs/examples 不再假定 GHCR v0.3.0 已发布
+- [x] workflow DAG 不再读取未声明的 `needs` output
+- [x] 不创建 Git tag
+- [x] 不 push GitHub/GHCR/PyPI
+- [x] Non-Custodial 四红线无新增命中
+- [x] worktree clean
 
 ## 进度追踪 (Progress)
 
@@ -464,7 +465,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 | T3 local v0.3.0 image gate | ✅ | 2026-07-12 | dirty tree rejected; consumer runtime revision checked exactly against HEAD |
 | T4 release workflow DAG | ✅ | 2026-07-12 | declared `build-wheel` output dependency; no publication |
 | T5 local artifact truth docs | ✅ | 2026-07-12 | local tag + pull_policy never; remote release identity decisions deferred |
-| T6 close-out | 🔲 | | |
+| T6 close-out | ✅ | 2026-07-12 | final image identity, verification matrix, red-line boundaries, and downstream gate recorded |
 
 ## 偏离与改进日志 (Deviations & Improvements)
 
@@ -477,6 +478,67 @@ git commit -m "docs(custos): mark plan 16 as completed"
 | IMPROVEMENT | Public CLI | validate 与 publish 共享 strategy hash seam | ✅ Plan 16 T2 |
 | IMPROVEMENT | Local provenance | `docker-build` 与 v0.3.0 target 统一注入 source revision | ✅ 用户 2026-07-12 |
 | IMPROVEMENT | Exact provenance | local consumer gate 拒绝 dirty tree 并精确校验 revision=HEAD | ✅ 用户 2026-07-12 |
+
+## 完成报告 (Close-out Report)
+
+- **完成日期**: 2026-07-12
+- **Task**: 6/6 完成
+- **实施提交**: 7 个 atomic commits，`61d2d43` through `89b31a1`
+- **变更规模**: 22 个 non-forge files，407 additions / 89 deletions
+- **偏离与改进**: 7 项（1 decision + 2 deferred + 4 improvements），无未处理偏离
+- **远端发布**: 仍然 deferred；本计划未创建 Git tag，未 push GitHub/GHCR/PyPI，未执行 cosign publication
+
+### 最终本地镜像身份
+
+| 字段 | 值 |
+|---|---|
+| Image | `custos-runner:v0.3.0` |
+| Image ID | `sha256:b47ff765ed1c49cc982b5b93650e40fa84953e5d37b80dee1bbccdb2f89111bf` |
+| OCI source revision | `89b31a163df83fd3959f4c8ccfa2c956e294a7ef` |
+| Revision contract | build 拒绝 dirty worktree，runtime 精确校验 label = source HEAD |
+
+### 最终验证矩阵
+
+| Gate | 结果 |
+|---|---|
+| Dev-only base (`make verify-base-clean`) | 506 passed / 34 skipped / 1 xfailed |
+| Nautilus (`make install-nt && make verify-nt`) | 570 passed / 20 skipped / 1 xfailed |
+| Docker runtime contracts | 15 passed |
+| Standalone NATS acceptance | 1 passed; `running → stopped → running` |
+| Docs / local image / workflow focused contracts | 43 passed |
+| Compose rendering | passed |
+
+Base/NT 跳过数包含当前执行环境不可见的 Docker 用例；同一源码 revision
+已在可访问 Docker socket 的本地会话中通过独立 15 + 1 runtime gates。
+
+### Non-Custodial 红线边界
+
+| Red line | Code coverage | Runtime wire | Deferred status | Follow-up |
+|---|---|---|---|---|
+| Key/KEK 不出进程 | vault 边界与 safe credential ID 覆盖 | official local image 通过 vault toolchain/runtime contract | 无 | 无 |
+| G6 不可绕过 | 既有 host/gate suites 保持通过 | local image 中 Nautilus runtime 通过 | external live session 不在本计划 | 由 operator live acceptance 承接 |
+| 失联即停止 | 既有 reconciler/chaos/retry suites 保持通过 | standalone NATS `running → stopped → running` 通过 | 无 | 无 |
+| Money math 不用 float | 既有 telemetry/money contracts 保持通过 | 本计划未新增 money wire | 无 | 无 |
+
+红线扫描无新增命中。仅有 5 处未改动的 vendored OHLCV warmup float，不属于
+money-wire contract。
+
+### 失败模式与自省
+
+已覆盖 unsafe deployment IDs、缺失 strategy directory、unknown live-spec field、未声明
+workflow dependency、本地/远端文档漂移、generic image 缺失 revision，以及 dirty
+worktree 误标旧 HEAD 的 provenance 风险。
+
+- Self-reflect round 1 审查 22 个 non-forge files，发现 dirty worktree 可能生成错误
+  provenance；已由 `89b31a1` 修复并增加回归契约。
+- Self-reflect round 2 未发现新问题，`git diff --check` 通过。
+
+### 下游最低门槛
+
+Philosophers-Stone 本地开发必须使用本 Plan 16 close-out commit 或之后的 custos
+checkout，并消费 source revision 为 `89b31a163df83fd3959f4c8ccfa2c956e294a7ef`
+的已验证本地 image。正式 GitHub/GHCR/PyPI/cosign 发布与 namespace identity
+决策仍属后续 release plan。
 
 ---
 
