@@ -3,7 +3,7 @@
 # 独立开源仓库自足构建入口. 标准化验证入口, 避免裸 shell 触发权限碎片污染
 # .claude/settings.local.json (workspace lesson: 优先 Makefile target 而非裸 uv run).
 
-.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing clean toolkit-sync-check dist sign docker-build docker-sign verify-release release
+.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check dist sign docker-build docker-build-local-v030 docker-sign verify-release release
 
 # 默认 target: help
 .DEFAULT_GOAL := help
@@ -66,6 +66,9 @@ clean:  ## 清理 pycache / pytest cache / ruff cache
 # `verify-release` is the post-publish smoke gate the CI job invokes after
 # uploading to PyPI + GHCR.
 
+LOCAL_IMAGE ?= custos-runner:v0.3.0
+SOURCE_REVISION := $(shell git rev-parse HEAD)
+
 dist:  ## Build a reproducible wheel + sdist to dist/ (respects SOURCE_DATE_EPOCH)
 	uv build
 
@@ -74,6 +77,12 @@ sign:  ## Sign every wheel under dist/ with sigstore keyless (requires OIDC; run
 
 docker-build: dist  ## Build custos-runner:test image from the local dist/*.whl wheel
 	docker build -t custos-runner:test .
+
+docker-build-local-v030: dist  ## Build the local v0.3.0 consumer image with source provenance
+	docker build \
+		--label org.opencontainers.image.revision=$(SOURCE_REVISION) \
+		--tag $(LOCAL_IMAGE) \
+		.
 
 docker-sign:  ## Sign the built docker image with cosign keyless (requires OIDC; runs in CI)
 	@echo "docker-sign is exercised by the CI release workflow (needs GHCR + OIDC)." >&2
@@ -89,6 +98,11 @@ verify-runtime-existing: test-docker-existing  ## Gate an existing image and sta
 
 verify-runtime: test-docker  ## Gate the complete image and standalone deployment wire
 	uv run pytest tests/integration/test_standalone_runtime.py -v
+
+verify-local-v030: docker-build-local-v030  ## Build and gate the local downstream image
+	CUSTOS_TEST_IMAGE=$(LOCAL_IMAGE) $(MAKE) verify-runtime-existing
+	docker image inspect $(LOCAL_IMAGE) \
+		--format '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 
 verify-release:  ## Post-publish smoke: pull wheel + verify sig, pull image + verify sig + smoke run
 	@bash .github/workflows/scripts/verify-release.sh $(VERSION)

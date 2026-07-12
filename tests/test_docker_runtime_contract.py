@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 
@@ -98,6 +99,42 @@ def test_official_image_contains_nautilus_and_yaml() -> None:
         f"official image must import NautilusTrader and PyYAML; "
         f"stdout={proc.stdout!r}\nstderr={proc.stderr!r}"
     )
+
+
+@pytest.mark.docker
+def test_official_image_contains_v030_distribution() -> None:
+    _require_image()
+
+    proc = _run_image(
+        "-c",
+        "from importlib.metadata import version; print(version('custos-runner'))",
+        entrypoint="python",
+    )
+
+    assert proc.returncode == 0, (
+        "official image must contain the custos-runner distribution; "
+        f"stdout={proc.stdout!r}; stderr={proc.stderr!r}"
+    )
+    assert proc.stdout.strip() == "0.3.0"
+
+
+@pytest.mark.docker
+def test_official_image_has_source_revision_label() -> None:
+    _require_image()
+    inspect = subprocess.run(
+        [
+            "docker",
+            "inspect",
+            "--format",
+            '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+            IMAGE,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert re.fullmatch(r"[0-9a-f]{40}", inspect.stdout.strip())
 
 
 @pytest.mark.docker

@@ -448,7 +448,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 |---|---|---|---|
 | T1 Deployment boundary IDs | ✅ | 2026-07-12 | safe ID enforced in model/schema/docs |
 | T2 validate-time public hash | ✅ | 2026-07-12 | validate and publish share `_load_spec` hash seam |
-| T3 local v0.3.0 image gate | 🔲 | | |
+| T3 local v0.3.0 image gate | ✅ | 2026-07-12 | image `2e36e486…aed5a`; revision `777bab7…eff4`; Docker 15 + standalone 1 passed |
 | T4 release workflow DAG | 🔲 | | no publication |
 | T5 local artifact truth docs | 🔲 | | remote release deferred |
 | T6 close-out | 🔲 | | |
