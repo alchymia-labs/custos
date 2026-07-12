@@ -1,11 +1,12 @@
-"""Plan 12 T2 / FM11: Docker image size ceiling.
+"""Complete official runtime Docker image size ceiling.
 
 Multi-stage builds are a common regression surface: forgetting to copy from
 the `builder` stage instead of installing again in `runtime` can silently
-double the image size. This test caps the image at 800 MB (Plan 12 M5 fix
-— relaxed from the original 500 MB after review to avoid flaky failures on
-routine pandas/numpy minor bumps). The goal is to catch a builder-stage
-leak, not to police normal dependency growth.
+double the image size. The complete Nautilus runtime measured 1,070,492,907
+bytes on Linux arm64 during Plan 14 T5. The 1.25 GiB ceiling leaves headroom
+for architecture and routine dependency differences while remaining below
+the plan's hard 1.5 GiB maximum. The goal is to catch a builder-stage leak,
+not to police normal dependency growth.
 
 Gated behind ``@pytest.mark.docker``.
 """
@@ -18,11 +19,11 @@ import subprocess
 import pytest
 
 IMAGE = "custos-runner:test"
-CEILING_BYTES = 800 * 1024 * 1024  # 800 MB — Plan 12 FM11 (M5 fix)
+CEILING_BYTES = 1280 * 1024 * 1024
 
 
 @pytest.mark.docker
-def test_docker_image_size_under_800mb():
+def test_docker_image_size_under_1280mib():
     if shutil.which("docker") is None:
         pytest.skip("docker CLI not on PATH")
     inspect = subprocess.run(

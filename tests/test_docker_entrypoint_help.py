@@ -1,7 +1,7 @@
-"""Plan 12 T2 contract: Docker ENTRYPOINT smoke (FM2 Layer 3, BLK-4 fix).
+"""Docker root-command ENTRYPOINT smoke.
 
 Runs ``docker run --rm <image> --help`` and asserts exit 0. This proves the
-image's ENTRYPOINT chain (``arx-runner start`` + Python site-packages copied
+image's ENTRYPOINT chain (``arx-runner`` + Python site-packages copied
 from the builder stage) actually resolves at runtime — not just the
 declarative table in ``docker inspect``.
 
@@ -45,9 +45,8 @@ def test_docker_entrypoint_help_exits_zero():
         f"expected `docker run --rm {IMAGE} --help` exit 0; "
         f"got rc={proc.returncode}\nstdout={proc.stdout!r}\nstderr={proc.stderr!r}"
     )
-    # The help output should mention the `start` subcommand (Plan 11 T2 CLI
-    # dispatcher exposes `enroll` / `vault` / `start`); assert at least one so
-    # a truly empty stdout regression is caught.
+    # Root help must mention the default `start` subcommand; this distinguishes
+    # the clean command dispatcher from the old baked-in `arx-runner start`.
     assert "start" in proc.stdout.lower() or "start" in proc.stderr.lower(), (
         f"help output missing `start` subcommand mention; stdout={proc.stdout!r}"
     )

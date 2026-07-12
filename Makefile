@@ -75,8 +75,8 @@ docker-sign:  ## Sign the built docker image with cosign keyless (requires OIDC;
 	@echo "docker-sign is exercised by the CI release workflow (needs GHCR + OIDC)." >&2
 	@echo "Run cosign manually only for out-of-band re-signing." >&2
 
-test-docker: docker-build  ## Run the docker-marker gates locally (image size / non-root / entrypoint help)
-	uv run pytest -m docker tests/test_docker_non_root.py tests/test_docker_entrypoint_help.py tests/test_docker_image_size.py -v
+test-docker: docker-build  ## Run complete official-image runtime contract gates
+	uv run pytest -m docker tests/test_docker_non_root.py tests/test_docker_entrypoint_help.py tests/test_docker_image_size.py tests/test_docker_runtime_contract.py -v
 
 verify-release:  ## Post-publish smoke: pull wheel + verify sig, pull image + verify sig + smoke run
 	@bash .github/workflows/scripts/verify-release.sh $(VERSION)

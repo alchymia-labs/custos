@@ -1,6 +1,6 @@
-# custos-runner Docker image (Plan 12 T2).
+# custos-runner complete official runtime image.
 #
-# Multi-stage: `builder` installs the wheel + LTS extras against Python 3.12
+# Multi-stage: `builder` installs the wheel + Nautilus extra against Python 3.12
 # (nautilus_trader ≥ 1.227 only publishes wheels for 3.12+, see tech-stack.md).
 # `runtime` copies site-packages + the `arx-runner` console script over into
 # a slim base and switches to the non-privileged `custos` user (UID/GID 1000).
@@ -21,9 +21,37 @@ FROM python:3.12-slim AS builder
 # non-custodial provenance boundary, and `uv.lock` locks their versions at
 # release time.
 COPY dist/custos_runner-*.whl /tmp/
-RUN pip install --root-user-action=ignore /tmp/custos_runner-*.whl
+RUN set -eux; \
+    wheel="$(find /tmp -name 'custos_runner-*.whl' -print -quit)"; \
+    test -n "$wheel"; \
+    pip install --root-user-action=ignore "${wheel}[nautilus]"
 
 FROM python:3.12-slim AS runtime
+
+# The vault runtime shells out to age and sops. Keep curl and CA roots in the
+# final image for operator diagnostics and explicit standalone bootstrap use.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends age ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# sops is not packaged in Debian stable. Pin its upstream binary, map Docker's
+# architecture names explicitly, and verify the release SHA-256 before install.
+# Checksums: https://github.com/getsops/sops/releases/tag/v3.13.2
+ARG TARGETARCH
+ARG SOPS_VERSION=3.13.2
+ARG SOPS_SHA256_AMD64=154dfe4cd70554bdd82b98e4cd4acf191d43d01ead6f00a73477aa44c4ac42ef
+ARG SOPS_SHA256_ARM64=78abf2e15c86250a1553ae6f53aba96be6b2a8126f160b1534959add3467ad76
+RUN set -eux; \
+    architecture="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$architecture" in \
+        amd64) checksum="$SOPS_SHA256_AMD64" ;; \
+        arm64) checksum="$SOPS_SHA256_ARM64" ;; \
+        *) echo "unsupported sops architecture: $architecture" >&2; exit 1 ;; \
+    esac; \
+    url="https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.${architecture}"; \
+    curl --fail --location --silent --show-error "$url" --output /usr/local/bin/sops; \
+    echo "$checksum  /usr/local/bin/sops" | sha256sum --check --strict -; \
+    chmod 0755 /usr/local/bin/sops
 
 # Non-root user (UID/GID 1000). We create a real HOME so that `PerKeyVault`,
 # the reconcile loop's state file, and any structured logs can land under
@@ -54,12 +82,13 @@ RUN mkdir -p /home/custos/.arx /home/custos/.arx/vault /home/custos/.arx/state \
 USER 1000:1000
 WORKDIR /opt/custos
 
-# Plan 11 clean-break locks `arx-runner` as the single entry point; the
-# legacy `python -m custos` path is removed. The container's primary purpose
-# is the reconcile daemon, so `start` is baked into ENTRYPOINT. One-shot
-# management commands (`enroll` / `vault put`) still work via
-# `docker run --rm --entrypoint arx-runner <image> enroll <token>`.
-ENTRYPOINT ["arx-runner", "start"]
+# Keep the executable and default action separate so management commands work
+# without overriding the entrypoint while the no-argument path remains the
+# reconcile daemon.
+ENTRYPOINT ["arx-runner"]
+CMD ["start"]
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["arx-runner", "health"]
 
 # OCI provenance labels (Plan 12 DP6): let auditors trace a running image
 # back to source. The concrete `revision` / `created` values are injected by
