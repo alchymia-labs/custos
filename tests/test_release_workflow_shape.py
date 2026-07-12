@@ -88,3 +88,14 @@ def test_build_docker_needs_signed_wheel():
     assert "needs:" in window
     assert "build-wheel" in window
     assert "sign-wheel" in window
+
+
+def test_release_verifies_clean_base_before_nautilus_runtime() -> None:
+    """A preinstalled NT runtime must not mask the dev-only base gate."""
+    text = _read()
+
+    base_gate = text.index("make verify-base-clean")
+    install_nt = text.index("make install-nt")
+    verify_nt = text.index("make verify-nt")
+
+    assert base_gate < install_nt < verify_nt

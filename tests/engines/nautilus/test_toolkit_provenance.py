@@ -164,20 +164,26 @@ def test_vendored_toolkit_no_new_float_money_math() -> None:
         )
 
 
-def test_toolkit_import_bootstrap_resolves_shared_and_pandas_ta() -> None:
-    """The toolkit's __init__ must put the vendored trees on sys.path so
-    strategy code can ``from shared.nautilus import ...`` and
-    ``import pandas_ta as ta`` without patching those imports."""
+def test_toolkit_import_bootstrap_resolves_shared() -> None:
+    """The base install must expose the vendored shared toolkit imports."""
     # Fresh import via a per-test module name so we don't rely on prior state.
     import importlib
 
     importlib.import_module("custos.engines.nautilus.toolkit")
 
-    # If bootstrap worked, both bare imports resolve into the vendored trees.
     shared_nautilus = importlib.import_module("shared.nautilus")
     assert Path(shared_nautilus.__file__).is_relative_to(_TOOLKIT_ROOT / "shared" / "nautilus"), (
         "bare `shared.nautilus` import must resolve into the vendored toolkit tree"
     )
+
+
+def test_toolkit_import_bootstrap_resolves_pandas_ta_with_nautilus_extra() -> None:
+    """The Nautilus install must expose the vendored pandas_ta import."""
+    import importlib
+
+    pytest.importorskip("nautilus_trader")
+    importlib.import_module("custos.engines.nautilus.toolkit")
+
     pandas_ta = importlib.import_module("pandas_ta")
     assert Path(pandas_ta.__file__).is_relative_to(_TOOLKIT_ROOT / "vendor" / "pandas_ta"), (
         "bare `pandas_ta` import must resolve into the vendored toolkit tree"

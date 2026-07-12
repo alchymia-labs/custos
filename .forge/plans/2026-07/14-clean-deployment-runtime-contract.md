@@ -826,7 +826,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T3 standalone JetStream bootstrap | ✅ | 2026-07-12 | Idempotent owned topology, drift repair, collision safety, timeout + CLI |
 | T4 retry/readiness/engine clean break | ✅ | 2026-07-12 | Bounded retry, guard ticks, atomic health state, clean engine enum |
 | T5 complete official Docker runtime | ✅ | 2026-07-12 | NT/YAML + sops/age, clean CLI entrypoint, arm64 1,070,492,907 bytes |
-| T6 dev-only base verification contract | 🔲 | — | `make install` 后 `make verify` 必须独立全绿 |
+| T6 dev-only base verification contract | ✅ | 2026-07-12 | Base: 468 passed/18 skipped; NT: 532 passed/4 skipped; CI order locked |
 | T7 release runtime gate | 🔲 | — | — |
 | T8 hermetic standalone acceptance | 🔲 | — | — |
 | T9 0.3.0 docs/version | 🔲 | — | — |

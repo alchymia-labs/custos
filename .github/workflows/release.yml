@@ -51,6 +51,12 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
+      - name: Verify clean base then Nautilus runtime contracts
+        run: |
+          make verify-base-clean
+          make install-nt
+          make verify-nt
+
       - name: Build reproducible wheel + sdist
         env:
           # Plan 12 T8: pin epoch to the tagger date's midnight UTC so
