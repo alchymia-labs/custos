@@ -40,6 +40,20 @@ uv run pytest tests/test_g6_gate.py -v      # G6 gate 单独
 uv run pytest -k "reconcile" -v             # 关键词过滤
 ```
 
+### Release artifact identity
+
+公开稳定镜像 tag 只能指向通过完整 Docker + standalone runtime gate 的 **same verified
+digest**：
+
+1. 下载并固定 release wheel artifact。
+2. 构建只带 SHA-scoped candidate tag 的 image，记录 registry digest。
+3. 用 `<image>@<digest>` 运行 runtime gate。
+4. gate 通过后把同一 digest 提升为 `v<version>` / `latest` 并签名。
+
+Runtime gate 与稳定 tag promotion 之间 **must not rebuild**。仅检查 workflow 中
+`verify-runtime` 文本出现在 `push: true` 前不足以证明 artifact identity；shape test 必须
+同时锁定 signed input、candidate digest、gate target 与 promotion source。
+
 ### Non-Custodial 4 红线专项检查
 
 红线不是自动化门, 但可通过以下 grep 定位漏点 (见 `mandatory-rules.md` §0):

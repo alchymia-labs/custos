@@ -24,6 +24,9 @@ from pathlib import Path
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "release.yml"
 VERIFY_RELEASE = WORKFLOW.parent / "scripts" / "verify-release.sh"
 MAKEFILE = WORKFLOW.parents[2] / "Makefile"
+DOCKERFILE = WORKFLOW.parents[2] / "Dockerfile"
+VERIFICATION_RULE = WORKFLOW.parents[2] / ".claude" / "rules" / "verification.md"
+HISTORICAL_LESSONS = WORKFLOW.parents[2] / ".claude" / "rules" / "historical-lessons.md"
 
 EXPECTED_JOBS = (
     "build-wheel",
@@ -182,3 +185,20 @@ def test_post_publish_verifies_complete_runtime_contract() -> None:
     )
     for fragment in required_fragments:
         assert fragment in text, f"post-publish runtime gate missing: {fragment}"
+
+
+def test_dockerfile_states_lock_boundary_truthfully() -> None:
+    text = DOCKERFILE.read_text()
+
+    assert "`uv.lock` locks" not in text
+    assert "does not consume `uv.lock`" in text
+
+
+def test_release_identity_prevention_is_documented() -> None:
+    verification = " ".join(VERIFICATION_RULE.read_text().split())
+    lessons = " ".join(HISTORICAL_LESSONS.read_text().split())
+
+    assert "same verified digest" in verification
+    assert "must not rebuild" in verification
+    assert "C3" in lessons
+    assert "artifact identity gate" in lessons

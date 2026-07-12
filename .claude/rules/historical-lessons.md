@@ -6,6 +6,22 @@
 
 > **custos 内部 lesson 用 `C1` `C2` … 前缀区分生态数字编号** (见文末"记录新 lesson")。
 
+## C3 pre-publish shape gate 不等于 artifact identity gate (2026-07)
+
+- **事件**: Plan 14 release workflow 在下载 signed wheel 之前运行 `verify-runtime`，随后以
+  signed wheel 重新 build/push。文本测试只证明 gate 位于 `push: true` 前，没有证明 gate
+  消费的镜像与公开稳定 tag 是同一 digest；post-publish verify 失败时稳定 tag 已暴露。
+- **根因**: 测试锁定了步骤相对顺序，却没有锁定 artifact identity。`before publish` 被错误
+  等同为 `same artifact`，忽略 build 是产生新身份的边界。
+- **预防**: release workflow 必须先构建 SHA-scoped candidate，按 registry digest 运行完整
+  runtime gate，再把同一 digest promotion 到稳定 tags。shape test 同时断言 signed input、
+  candidate build、digest-targeted gate、stable promotion source，且 gate 后没有 rebuild。
+- **Binding**: `.claude/rules/verification.md` §Release artifact identity +
+  `tests/test_release_workflow_shape.py`。所有 future release review 必须提供 artifact identity
+  gate 证据，不能只提供步骤名或字符串顺序。
+
+---
+
 ## C2 输出污染可贯穿 review 与 self-review — self-review 不豁免 (lesson #13 复现在 review 阶段) (2026-07)
 
 - **事件**: Plan 03 execute-team close-out 阶段, safety-validator (opus-4-6[1m]) 8-checklist

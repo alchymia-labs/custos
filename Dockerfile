@@ -16,10 +16,11 @@ FROM python:3.12-slim AS builder
 
 # Copy the pre-built wheel (see Makefile `docker-build` target) and install
 # by explicit file path so pip never falls back to the last-published
-# `custos-runner` on PyPI. Transitive deps (nats-py, pydantic, structlog,
-# uuid6) still resolve from PyPI — they're upstream and unrelated to the
-# non-custodial provenance boundary, and `uv.lock` locks their versions at
-# release time.
+# `custos-runner` on PyPI. Transitive Python dependencies still resolve from
+# PyPI during this pip step, which does not consume `uv.lock`; bit-for-bit image
+# reproducibility remains a separate workstream. The release trust anchor is
+# the candidate image digest: CI tests that digest, promotes the same digest to
+# stable tags, and signs it with cosign.
 COPY dist/custos_runner-*.whl /tmp/
 RUN set -eux; \
     wheel="$(find /tmp -name 'custos_runner-*.whl' -print -quit)"; \
