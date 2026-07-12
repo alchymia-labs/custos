@@ -823,7 +823,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 |---|---|---|---|
 | T1 DeploymentSpec consumer contract | ✅ | 2026-07-11 | Strict model, generated conditional schema, reconciler validation |
 | T2 DeploymentMessage/publication CLI | ✅ | 2026-07-12 | Wrapper round-trip, public hash seam, validate/publish CLI + JetStream ack |
-| T3 standalone JetStream bootstrap | 🔲 | — | — |
+| T3 standalone JetStream bootstrap | ✅ | 2026-07-12 | Idempotent owned topology, drift repair, collision safety, timeout + CLI |
 | T4 retry/readiness/engine clean break | 🔲 | — | — |
 | T5 complete official Docker runtime | 🔲 | — | — |
 | T6 dev-only base verification contract | 🔲 | — | `make install` 后 `make verify` 必须独立全绿 |

@@ -57,6 +57,29 @@ wrapper 让 consumer 只拿 envelope bytes 也能恢复并校验 canonical subje
 WAL 缓冲（`stash` / `drain` / `forget` / `depth`）：telemetry 在断线时暂存 sqlite WAL，
 重连后补发；**heartbeat 不 WAL 缓冲**（at-most-once，过期心跳无补发价值）。
 
+## Standalone JetStream topology
+
+Standalone deployments explicitly run:
+
+```bash
+arx-runner nats bootstrap --profile standalone \
+  --nats-url nats://nats:4222 --tenant-id acme
+```
+
+`arx-runner start` never creates streams implicitly. The bootstrap waits for NATS, then
+idempotently reconciles two FILE-backed streams whose names use the first 12 uppercase hex
+characters of SHA-256 over the validated tenant id:
+
+| Stream suffix | Subjects | Managed limits |
+|---|---|---|
+| `DEPLOYMENT` | `arx.<tenant>.deployment_spec.>` | `max_msgs_per_subject=1` |
+| `OBSERVED` | `deployment_status`, `heartbeat`, `telemetry`, `snapshot`, `pre_trade_reject`, and `enrollment` tenant subjects | default retention limits |
+
+Both streams carry `owner=custos`, `profile=standalone`, and `tenant_hash` metadata. Missing
+streams are created and owned-stream drift is updated. Bootstrap does not enumerate or delete
+unknown streams, and it refuses to take over a deterministic-name collision without matching
+ownership metadata.
+
 ## 红线契约
 
 - **tenant 隔离（subject 命名空间）**：所有 subject 以 `arx.{tenant}.…` 开头；空
