@@ -9,7 +9,7 @@
       "additionalProperties": false,
       "properties": {
         "credential_id": {
-          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_-]{1,64}$",
           "title": "Credential Id",
           "type": "string"
         }
@@ -82,7 +82,7 @@
   "description": "Validated desired state accepted by the Custos runtime.",
   "properties": {
     "spec_id": {
-      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9_-]{1,64}$",
       "title": "Spec Id",
       "type": "string"
     },

@@ -63,6 +63,46 @@ def test_generation_starts_at_one() -> None:
         DeploymentSpec.model_validate(raw)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("spec_id", "../status"),
+        ("spec_id", "spec.with.dot"),
+        ("spec_id", "x" * 65),
+        ("credential_id", "../../age"),
+        ("credential_id", "key.with.dot"),
+        ("credential_id", "\u51ed\u8bc1"),
+    ],
+)
+def test_deployment_boundary_ids_reject_unsafe_values(field: str, value: str) -> None:
+    raw = _sandbox_spec()
+    if field == "credential_id":
+        raw["provenance_ref"]["credential_id"] = value
+    else:
+        raw[field] = value
+
+    with pytest.raises(ValidationError):
+        DeploymentSpec.model_validate(raw)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("spec_id", "supertrend-sandbox"),
+        ("spec_id", "runner_01"),
+        ("credential_id", "BTCUSDT"),
+    ],
+)
+def test_deployment_boundary_ids_accept_safe_values(field: str, value: str) -> None:
+    raw = _sandbox_spec()
+    if field == "credential_id":
+        raw["provenance_ref"]["credential_id"] = value
+    else:
+        raw[field] = value
+
+    assert DeploymentSpec.model_validate(raw)
+
+
 @pytest.mark.parametrize("value", ["paper", "live", "degraded", "RUNNING"])
 def test_lifecycle_vocab_is_closed(value: str) -> None:
     raw = _sandbox_spec()

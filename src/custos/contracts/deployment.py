@@ -26,7 +26,7 @@ DEPLOYMENT_SPEC_SCHEMA_ID = (
     "https://custos.the-alephain-guild/gateway-contract/v1/deployment_spec.schema.json"
 )
 Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
-SubjectId = Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9_-]{1,64}$")]
+SafeId = Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9_-]{1,64}$")]
 Rfc3339Nanos = Annotated[
     str,
     StringConstraints(
@@ -51,7 +51,7 @@ class LifecycleState(StrEnum):
 class ProvenanceRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    credential_id: str = Field(min_length=1)
+    credential_id: SafeId
 
 
 class SandboxConfig(BaseModel):
@@ -110,7 +110,7 @@ class DeploymentSpec(BaseModel):
         },
     )
 
-    spec_id: str = Field(min_length=1)
+    spec_id: SafeId
     generation: StrictInt = Field(ge=1)
     trading_mode: TradingMode
     lifecycle_state: LifecycleState
@@ -140,7 +140,7 @@ class DeploymentSpec(BaseModel):
 class _DeploymentPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    strategy_id: SubjectId
+    strategy_id: SafeId
     spec: DeploymentSpec
 
 
@@ -149,7 +149,7 @@ class _DeploymentWireEnvelope(BaseModel):
 
     envelope_version: Annotated[StrictInt, Field(ge=1, le=1)]
     event_id: UUID
-    tenant_id: SubjectId
+    tenant_id: SafeId
     occurred_at: Rfc3339Nanos
     payload_schema_version: Annotated[StrictInt, Field(ge=1, le=1)]
     payload: _DeploymentPayload

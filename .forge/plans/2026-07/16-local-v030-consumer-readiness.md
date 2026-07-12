@@ -1,6 +1,6 @@
 # 16 - Harden local v0.3.0 consumer readiness
 
-> **Status**: 🔲 Not started
+> **Status**: ⏳ In Progress
 > **Created**: 2026-07-12
 > **Project**: custos
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -446,7 +446,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 
 | Task | Status | Completed | Notes |
 |---|---|---|---|
-| T1 Deployment boundary IDs | 🔲 | | |
+| T1 Deployment boundary IDs | ✅ | 2026-07-12 | safe ID enforced in model/schema/docs |
 | T2 validate-time public hash | 🔲 | | |
 | T3 local v0.3.0 image gate | 🔲 | | |
 | T4 release workflow DAG | 🔲 | | no publication |
@@ -460,7 +460,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 | DECISION | Distribution | 本轮只构建本机 `custos-runner:v0.3.0` | ✅ 用户 2026-07-12 |
 | DEFERRED | Remote release | Git tag、GHCR、PyPI、cosign publication 后续单独处理 | ✅ 用户 2026-07-12 |
 | DEFERRED | Namespace | 不在本计划决定最终 GitHub/GHCR owner | ✅ 用户 2026-07-12 |
-| IMPROVEMENT | Contract validation | spec/vault/NATS 边界统一 safe ID | 待执行 |
+| IMPROVEMENT | Contract validation | spec/vault/NATS 边界统一 safe ID | ✅ Plan 16 T1 |
 | IMPROVEMENT | Public CLI | validate 与 publish 共享 strategy hash seam | 待执行 |
 
 ---
