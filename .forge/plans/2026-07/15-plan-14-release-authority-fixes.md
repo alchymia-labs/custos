@@ -1,7 +1,8 @@
 # 15 — Plan 14 release artifact and authority contract fixes
 
-> **Status**: ⏳ In Progress
+> **Status**: ✅ Completed
 > **Created**: 2026-07-12
+> **Completed**: 2026-07-12
 > **Project**: custos
 > **Source**: 2026-07-12 inline Plan 14 audit in the originating conversation
 > **For Claude**: Use `/forge:execute` to implement these fixes.
@@ -186,16 +187,16 @@ git commit -m "docs(custos): document release artifact identity truthfully"
 
 ## 验证清单 (Verification)
 
-- [ ] signed wheel 下载发生在 candidate image build 之前
-- [ ] runtime tests 使用 candidate digest
-- [ ] `v0.3.0`/`latest` 只由已验证 digest promotion 产生
-- [ ] gate 与 promotion 之间无 rebuild
-- [ ] authority docs 不含旧 peer、subject、namespace
-- [ ] `make verify-base-clean`
-- [ ] `make install-nt && make verify-nt`
-- [ ] `make verify-runtime`
-- [ ] Non-Custodial 四红线检查通过
-- [ ] worktree clean
+- [x] signed wheel 下载发生在 candidate image build 之前
+- [x] runtime tests 使用 candidate digest
+- [x] `v0.3.0`/`latest` 只由已验证 digest promotion 产生
+- [x] gate 与 promotion 之间无 rebuild
+- [x] authority docs 不含旧 peer、subject、namespace
+- [x] `make verify-base-clean`
+- [x] `make install-nt && make verify-nt`
+- [x] `make verify-runtime`
+- [x] Non-Custodial 四红线检查通过
+- [x] worktree clean
 
 ## 进度追踪 (Progress)
 
@@ -204,7 +205,7 @@ git commit -m "docs(custos): document release artifact identity truthfully"
 | F1 exact candidate digest promotion | P1 | ✅ | 2026-07-12 | Signed wheel → candidate digest → 13+1 runtime gates → same-digest stable promotion |
 | F2 domain authority alignment | P1 | ✅ | 2026-07-12 | 11 drift contracts; 34 focused passed; base 499 passed |
 | F3 reproducibility truth + prevention | P3 | ✅ | 2026-07-12 | Docker lock boundary corrected; verification rule + lesson C3; base 501 passed |
-| F4 close-out | P1 | 🔲 | — | — |
+| F4 close-out | P1 | ✅ | 2026-07-12 | Final base/NT/runtime gates, two-round self-reflect, index/report sync |
 
 ## 偏离与改进日志 (Deviations & Improvements)
 
@@ -216,3 +217,35 @@ git commit -m "docs(custos): document release artifact identity truthfully"
 ---
 
 *Drafter: Codex @ 2026-07-12*
+
+## 完成报告 (Close-out Report)
+
+- **完成日期**: 2026-07-12
+- **总 Fix 数**: 4
+- **实施 commit 范围**: `7c5bef4` through `3b16093`（plan commit `f5d4093`）
+- **根因闭环**:
+  - release gate 从步骤顺序检查升级为 signed input → candidate digest → exact-digest gate →
+    same-digest stable promotion
+  - `docs/domain.md` 从 foundation-era Crucible 直连描述收敛到当前 arx coordination contract
+  - Docker dependency lock 边界诚实化，并沉淀 verification rule + historical lesson C3
+- **自省**: Round 1 补充 gate 后禁止 image rebuild 的独立断言；Round 2 无新增发现
+- **偏离**: 无；candidate registry promotion 保留原 provenance/SBOM/cosign DAG
+
+### 最终验证矩阵
+
+| Layer | Result | Evidence |
+|---|---|---|
+| dev-only base | 502 passed / 18 skipped / 1 xfailed | `make verify-base-clean` |
+| Nautilus capability | 566 passed / 4 skipped / 1 xfailed | `make install-nt && make verify-nt` |
+| Docker runtime | 13 passed | `make verify-runtime` command/runtime/non-root/size matrix |
+| standalone wire | 1 passed | fresh NATS + Vault + running→stopped→running acceptance |
+| release identity shape | 16 passed | signed input, candidate digest target, stable promotion, no rebuild |
+| authority alignment | 11 passed | rejects legacy peer/subjects/namespace; pins current contract |
+| Non-Custodial red lines | 0 unexpected matches | key/log, venue bypass, disconnect stop, money float scans |
+
+### 外部执行边界
+
+本地验证覆盖 Makefile existing-image path、完整 Docker runtime 与 workflow executable shape。
+真实 GHCR candidate push、digest promotion、cosign OIDC 和 tag publication 只能在首次 stable tag
+workflow 中执行；该外部 CI run 是发布操作验收，不是未实现代码项。若 candidate gate 失败，
+workflow 不会创建或移动 `v<version>` / `latest`。
