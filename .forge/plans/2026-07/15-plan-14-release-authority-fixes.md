@@ -202,7 +202,7 @@ git commit -m "docs(custos): document release artifact identity truthfully"
 | Fix | Priority | Status | Completed | Notes |
 |---|---|---|---|---|
 | F1 exact candidate digest promotion | P1 | ✅ | 2026-07-12 | Signed wheel → candidate digest → 13+1 runtime gates → same-digest stable promotion |
-| F2 domain authority alignment | P1 | 🔲 | — | — |
+| F2 domain authority alignment | P1 | ✅ | 2026-07-12 | 11 drift contracts; 34 focused passed; base 499 passed |
 | F3 reproducibility truth + prevention | P3 | 🔲 | — | — |
 | F4 close-out | P1 | 🔲 | — | — |
 

@@ -11,7 +11,8 @@
 
 ## Status
 
-**DRAFT v1** · Date: 2026-07-04 · Decider: wukai · Ecosystem Option B 分层 domain 治理 P1（custos 仓库尚未初始化，本文档为奠基 spec）
+**ACTIVE v0.3.0** · Updated: 2026-07-12 · Decider: wukai · Custos 独立仓库 runtime
+authority；代码与本文冲突时按 `.claude/rules/authority-docs.md` 处理。
 
 ---
 
@@ -174,7 +175,9 @@
 **红线**：
 - **上报事件不含 Key 明文**：任何 event payload 涉及敏感字段必脱敏（`api_key_sha8` / `credential_hint`）
 - **上报事件不含策略源码**：策略在 custos 本地（策略仓库通过其他通道分发），事件里只带 `code_hash` 引用
-- **NATS subject 按 tenant scope**：`arx.<tenant_id>.telemetry.<session_id>` / `arx.<tenant_id>.deployment.status.<spec_id>` / `arx.<tenant_id>.runner.heartbeat`
+- **NATS subject 按 tenant scope**：`arx.<tenant>.telemetry.<runner_id>.<session_id>` /
+  `arx.<tenant>.deployment_status.<runner_id>.<spec_id>` /
+  `arx.<tenant>.heartbeat.<runner_id>`
 
 ### 1.6 本地持久（Checkpoint / RestartRecovery）
 
@@ -206,7 +209,8 @@
 
 ### 2.2 Key 永不上云的技术锚点
 
-- **ExchangeCredential 密文在 custos Vault 本地文件系统**（`~/.custos/vault/<tenant>/…`）
+- **ExchangeCredential 密文在 custos Vault 本地文件系统**
+  （`~/.arx/vault/<key-id>.enc`）
 - **KEK / MasterKey 派生只在 custos 进程内存**——磁盘只有密文，进程重启后需重新派生
 - **NT 调用交易所 API 时通过 custos Vault 接口即时解密**——密文不复制，明文只在单次请求 lifetime
 - **上报事件 payload 强制脱敏**——`AlertEvent` / `AuditLog` 里的 credential 字段永远是 `sha8` 或 `hint`
@@ -235,24 +239,31 @@ custos **不能被 arx 替代**——任何"云端替代 custos 直接下单"的
 
 ## 3. 跨系统契约
 
-### 3.1 custos ↔ Crucible
+### 3.1 Custos ↔ arx coordination plane
 
 | 契约 | 方向 | 传输 | Schema |
 |------|------|------|--------|
-| **DeploymentSpec 拉取** | Crucible → custos | NATS JetStream · subject `arx.<tenant>.deployment.spec.<runner_id>` | OpenAPI versioned schema |
-| **DeploymentStatus 回报** | custos → Crucible | NATS JetStream · subject `arx.<tenant>.deployment.status.<spec_id>` | OpenAPI versioned schema |
-| **HeartbeatEvent** | custos → Crucible | NATS · subject `arx.<tenant>.runner.heartbeat` | JSON Schema |
-| **TelemetrySnapshot** | custos → Crucible | NATS · subject `arx.<tenant>.telemetry.<session_id>` | JSON Schema |
-| **FailureEvent** | custos → Crucible | NATS · subject `arx.<tenant>.failure.<severity>` | JSON Schema |
-| **EnrollmentToken 配对** | Crucible → custos | HTTP outbound · custos 主动拉 `POST /v1/enrollment/consume` | OpenAPI |
+| **DeploymentSpec desired state** | arx → Custos | NATS JetStream · `arx.<tenant>.deployment_spec.<strategy_id>` | `custos.contracts.DeploymentMessage` v1 |
+| **DeploymentStatus observed state** | Custos → arx | NATS JetStream · `arx.<tenant>.deployment_status.<runner_id>.<spec_id>` | versioned envelope |
+| **HeartbeatEvent** | Custos → arx | NATS · `arx.<tenant>.heartbeat.<runner_id>` | versioned envelope |
+| **TelemetrySnapshot** | Custos → arx | NATS JetStream · `arx.<tenant>.telemetry.<runner_id>.<session_id>` | versioned envelope |
+| **EnrollmentToken pairing** | Custos → arx backend | HTTP `POST /api/v1/enrollments`; runtime legacy enrollment publish remains NATS-scoped | versioned request/response |
 
-**契约版本化纪律**：所有 schema 用 `major.minor` 版本号；`major` 变更需要 custos ↔ Crucible 双方版本对齐窗口（∈ [3 月, 12 月]）——外部用户装的 custos 版本可能滞后 Crucible 半年。
+Custos directly communicates with the arx coordination plane over the declared NATS and HTTP
+contracts. Arx owns tenancy, authorization, and cloud-side routing; it may persist or forward
+observations to Crucible behind that boundary. **Crucible is not a direct Custos runtime peer**,
+and Custos never imports a Crucible SDK or opens a separate Crucible transport.
 
-### 3.2 custos ↔ arx（间接）
+**契约版本化纪律**：所有 schema 均需版本化；breaking change 必须为外部自托管 Custos
+保留明确升级窗口。subject、envelope 与 runtime validation 的代码真理源分别是
+`custos.core.nats_client`、`custos.contracts.DeploymentMessage` 与
+`custos.contracts.DeploymentSpec`。
 
-custos **不直接跟 arx 通信**——所有 arx 需要的数据都通过 Crucible 中转。arx 侧 UI 展示的 Runner 列表 / DeploymentStatus / 遥测都是 arx 从 Crucible DB 查询的观测副本，custos 不直连 arx。
+### 3.2 custos ↔ Crucible（经 arx 间接）
 
-**理由**：控制面收敛在 Crucible（自托管改造承担者），arx 作为协调器不重复承担运行时通信责任。这也降低 custos 需信任的云端组件数量（只需信任 Crucible schema，不需要额外信任 arx）。
+Crucible 可以消费 arx 持久化的 DeploymentStatus、telemetry 与 reconciliation 副本，或向
+arx 提供控制面决策；这些交互位于云端边界之后。Custos 只识别 arx 对端，不持有 Crucible
+地址、凭证或 SDK，也不绕过 arx gatekeeper 直接暴露本地 runner 状态。
 
 ### 3.3 custos ↔ Speculum（间接）
 
@@ -343,4 +354,7 @@ vision 支柱一"设计 for 3、实现 1"落到 custos 侧是三个 flavour：
 
 ---
 
-*Last updated: 2026-07-04（DRAFT v1 — custos 仓库未初始化，本文档为奠基纸面 spec。覆盖 6 BC 完整实体清单 + Non-Custodial 分层信任边界专章 + 与 arx / Crucible / Speculum 契约 + Apache-2.0 开源治理 + 演进要点。承重墙原则钉死：custos 不可被 arx 替代，Key/策略只在用户本地是唯一 non-custodial 兑现方式。抽出源头 arx `runner/` 六模块（enrollment / deployment_reconciler / credential_vault / nautilus_host / telemetry_actor / nats_client）映射到 6 BC。契约通过 versioned OpenAPI / JSON Schema 与 Crucible 对齐，允许 custos ↔ Crucible 版本滞后窗口。未来 flavour：custos-nt / custos-hummingbot / custos-freqtrade。）*
+*Last updated: 2026-07-12（ACTIVE v0.3.0 — Custos directly consumes and publishes the arx
+coordination contract. Current NATS subjects, `DeploymentMessage`, strict `DeploymentSpec`,
+`~/.arx` Vault namespace, and downstream official-image ownership are runtime-backed. Crucible
+remains an indirect cloud-side consumer behind arx, not a direct Custos peer.）*
