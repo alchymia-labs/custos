@@ -10,7 +10,7 @@ NautilusTrader client-config objects. Three execution modes:
 - live: same but environment LIVE against the real exchange; a live exec config
   cannot be built without separation-of-duties approval (>= 2 approvers).
 
-non-custodial 红线 0.1: this module only forwards the caller-supplied
+non-custodial red line 0.1: this module only forwards the caller-supplied
 credential fields into NT config objects and returns them. It never logs,
 prints, or publishes credential material — keep it that way.
 

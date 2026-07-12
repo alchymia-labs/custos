@@ -1,8 +1,8 @@
-"""EnrollmentClient — hash consistency + publish + persist + replay safety。
+"""EnrollmentClient — hash consistency + publish + persistence + replay safety.
 
-教训 #17 失败模式: enrollment 必须处理 publish 失败 + 持久化失败 + token
-重放 (上游云端 consume_token 原子保证, 这里测 runner 侧 enroll 不会做出
-误判)。
+Lesson #17 failure mode: enrollment must handle publish failure + persistence
+failure + token replay safely. Cloud consume-token is atomic, so this test
+covers that runner-side enroll does not misclassify valid replay attempts.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def test_hash_token_is_deterministic_sha256() -> None:
     token = "tok-secret-001"
     expected = hashlib.sha256(token.encode("utf-8")).hexdigest()
     assert hash_token(token) == expected
-    # 长度 = 64 hex chars
+    # digest length = 64 hex chars
     assert len(hash_token(token)) == 64
 
 
@@ -61,7 +61,7 @@ async def test_enroll_writes_local_record(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_enroll_publishes_hash_not_plaintext(tmp_path: Path) -> None:
-    """关键 安全契约: 只发 hash 给云端, 不发明文。"""
+    """Critical security invariant: send only hash to cloud, never plaintext."""
     nats = _FakeNats()
     client = EnrollmentClient(
         nats_client=nats,  # type: ignore[arg-type]
@@ -76,7 +76,7 @@ async def test_enroll_publishes_hash_not_plaintext(tmp_path: Path) -> None:
     assert len(nats.publish_payloads) == 1
     payload = nats.publish_payloads[0]
     assert "token_hash" in payload
-    # 明文不出现在 NATS payload (CLAUDE.md 红线)
+    # plaintext must never appear in NATS payload (CLAUDE.md red line)
     assert "plaintext-token" not in json.dumps(payload)
 
 
@@ -93,7 +93,7 @@ async def test_enroll_publish_failure_returns_false(tmp_path: Path) -> None:
 
     ok = await client.enroll("plaintext-token")
     assert ok is False
-    # 失败时本地不写
+    # do not write local state on publish failure
     assert not (tmp_path / "enrollment.json").exists()
 
 
@@ -122,9 +122,10 @@ def test_is_enrolled_returns_false_when_runner_id_mismatch(tmp_path: Path) -> No
 
 @pytest.mark.asyncio
 async def test_enrollment_replay_token_overwrites_local_record(tmp_path: Path) -> None:
-    """教训 #17 replay: 同 token 重新 enroll → 本地记录会被覆盖。云端 RBAC
-    consume_token 原子保证已消费 token 拒绝 (Plan 06 Task 6); runner 侧
-    本地 enroll 不验证 token 唯一性 — 防御靠云端。"""
+    """Lesson #17 replay: re-enroll with same token → local record is overwritten.
+    Cloud RBAC consume_token is atomic and rejects consumed tokens (Plan 06 Task
+    6); runner-side local enroll does not enforce token uniqueness — cloud-side
+    enforcement is authoritative."""
     nats = _FakeNats()
     path = tmp_path / "enrollment.json"
     client = EnrollmentClient(
@@ -136,6 +137,6 @@ async def test_enrollment_replay_token_overwrites_local_record(tmp_path: Path) -
     )
 
     await client.enroll("token-1")
-    await client.enroll("token-1")  # 重放
-    # NATS 上发了 2 次 → 云端可见重放, 由云端拒
+    await client.enroll("token-1")  # replay
+    # NATS sends twice; cloud sees the replay and is expected to reject duplicates.
     assert len(nats.publish_payloads) == 2

@@ -65,7 +65,7 @@ class _BaseVault:
 
         Plaintext credentials NEVER appear in audit logs — only the
         credential_id reference. Audit writer downstream consumes the
-        structured log event and chains it (Plan 07 audit三件套)。
+        structured log event and chains it (Plan 07 audit triad).
         """
         timestamp = datetime.now(UTC).isoformat()
         _log.info(
@@ -81,7 +81,7 @@ class _BaseVault:
 
     @staticmethod
     def _verify_permission_scope(cred: dict, credential_id: str) -> None:
-        """Reject creds that allow withdrawal (CLAUDE.md 红线 + security.md)。"""
+        """Reject creds that allow withdrawal (CLAUDE.md red line + security.md)."""
         scope = cred.get("permission_scope")
         if scope != "trade_no_withdraw":
             _log.error(

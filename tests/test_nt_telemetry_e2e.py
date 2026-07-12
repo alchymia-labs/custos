@@ -159,8 +159,8 @@ async def test_order_denied_flows_to_pre_trade_reject_subject() -> None:
 
 @pytest.mark.asyncio
 async def test_nats_publish_fail_does_not_crash_actor() -> None:
-    # 红线 0.3: a broker outage must not crash the actor or the NT thread — the
-    # failure is logged + counted, the flush loop stays alive.
+    # red line 0.3: a broker outage must not crash the actor or the NT thread;
+    # the failure is logged + counted, and the flush loop stays alive.
     client = _RecordingNatsClient(fail=True)
     bus = _DispatchingMsgBus()
     actor = await _wire(client, bus)

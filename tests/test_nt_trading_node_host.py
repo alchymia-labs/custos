@@ -5,7 +5,7 @@ control flow, plus a real self-contained NT strategy fixture for the load path.
 The real-NT end-to-end assembly is covered in
 test_nt_trading_node_host_integration.py.
 
-Failure-mode contract (plan §失败模式覆盖契约表):
+Failure-mode contract (plan §failure-mode coverage table):
 - NT extra missing -> RuntimeError with install hint (test_deploy_missing_nt_extra_fails_fast)
 - TradingNode.build() raises -> nt_startup_failure logged + re-raised
 - stop() unknown spec_id -> idempotent no-op
@@ -238,7 +238,7 @@ async def test_deploy_unknown_trading_mode_rejected(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_deploy_does_not_retain_credential(monkeypatch) -> None:
-    # non-custodial 红线 0.1: credential must not live in host state after deploy.
+    # non-custodial red line 0.1: credential must not live in host state after deploy.
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
     cred = _credential()
@@ -299,7 +299,7 @@ async def test_reconfigure_runtime_tunable_logs() -> None:
 
 @pytest.mark.asyncio
 async def test_exception_log_redacts_credential_material(monkeypatch) -> None:
-    # non-custodial 红线 0.1: an exception message that could carry credential
+    # non-custodial red line 0.1: an exception message that could carry credential
     # material must be redacted before it reaches the log.
     def _factory(config):
         node = _FakeTradingNode(config)
@@ -398,7 +398,7 @@ async def test_deploy_attaches_telemetry_and_risk_bridge(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_deploy_survives_telemetry_attach_failure(monkeypatch) -> None:
-    # 红线 0.3: observability is secondary to the trade path. If attach fails
+    # red line 0.3: observability is secondary to the trade path. If attach fails
     # (here: the MessageBus is unavailable), deploy logs telemetry_actor_attach_failed
     # and still completes — the node runs, telemetry is simply not attached.
     def _factory(config):

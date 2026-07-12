@@ -1,180 +1,180 @@
 # =============================================================================
-# The Alephain Guild - 基础策略配置
+# The Alephain Guild -
 # =============================================================================
-# 通用配置，适用于所有策略
-# 策略可在自身 config.yaml 中覆盖这些默认值
+#
+#  config.yaml
 # =============================================================================
 
 # =============================================================================
-# 交易配置
+#
 # =============================================================================
 trading:
   _section:
-    title: "交易配置"
+    title: "General"
   connector:
     value: "binance_perpetual"
     type: string
-    title: "交易所连接器"
+    title: "General"
     enum: ["binance", "binance_perpetual", "okx_perpetual", "kucoin"]
-    description: "交易所连接器名称"
+    description: "No description"
   leverage:
     value: 1
     type: integer
-    title: "杠杆倍数"
+    title: "General"
     minimum: 1
     maximum: 125
-    description: "合约杠杆倍数 (仅永续合约)"
+    description: "No description"
   pairs:
     value: ["BTC-USDT"]
     type: array
-    title: "交易对"
-    description: "交易对列表 (多币种支持)"
+    title: "General"
+    description: "No description"
   direction:
     value: "both"
     type: string
-    title: "交易方向"
+    title: "General"
     enum: ["long", "short", "both"]
-    description: "允许的交易方向"
+    description: "No description"
   order_type:
     value: "limit"
     type: string
-    title: "订单类型"
+    title: "General"
     enum: ["market", "limit"]
-    description: "开仓订单类型"
+    description: "No description"
   position_mode:
     value: "ONEWAY"
     type: string
-    title: "仓位模式"
+    title: "General"
     enum: ["ONEWAY", "HEDGE"]
-    description: "单向持仓或对冲模式"
+    description: "No description"
   fees:
     _section:
-      title: "手续费配置"
+      title: "General"
     maker:
       value: 0.0002
       type: number
-      title: "Maker 手续费"
-      description: "限价单成交手续费 (0.0002 = 0.02%)"
+      title: "Maker "
+      description: " (0.0002 = 0.02%)"
       minimum: 0
       maximum: 0.01
     taker:
       value: 0.0004
       type: number
-      title: "Taker 手续费"
-      description: "市价单成交手续费 (0.0004 = 0.04%)"
+      title: "Taker "
+      description: " (0.0004 = 0.04%)"
       minimum: 0
       maximum: 0.01
     funding_rate:
       value: 0.0
       type: number
-      title: "资金费率"
-      description: "永续合约资金费率 (仅用于成本估算, 实际由交易所计算)"
+      title: "General"
+      description: "No description"
       minimum: -0.01
       maximum: 0.01
 
-  # 嵌套子节: execution
+  # : execution
   execution:
     _section:
-      title: "订单执行配置"
+      title: "General"
     price_type:
       value: "mid"
       type: string
-      title: "下单价格类型"
+      title: "General"
       enum: ["mid", "bid", "ask"]
-      description: "中间价/买一/卖一"
+      description: "No description"
     limit_order_timeout:
       value: 60
       type: integer
-      title: "限价单超时"
+      title: "General"
       minimum: 0
       maximum: 300
-      description: "限价单超时时间 (秒)"
+      description: "No description"
     slippage_tolerance:
       value: 0.001
       type: number
-      title: "滑点容忍度"
+      title: "General"
       minimum: 0.0001
       maximum: 0.01
-      description: "最大滑点容忍度 (0.001 = 0.1%)"
+      description: " (0.001 = 0.1%)"
     retry_on_failure:
       value: true
       type: boolean
-      title: "失败重试"
-      description: "下单失败是否重试"
+      title: "General"
+      description: "No description"
     max_retries:
       value: 3
       type: integer
-      title: "最大重试次数"
+      title: "General"
       minimum: 1
       maximum: 10
     split_orders:
       _section:
-        title: "拆单配置"
+        title: "General"
       enabled:
         value: false
         type: boolean
-        title: "启用拆单"
-        description: "大单拆分执行减少冲击成本"
+        title: "General"
+        description: "No description"
       max_single_order_pct:
         value: 0.1
         type: number
-        title: "单笔最大比例"
+        title: "General"
         minimum: 0.05
         maximum: 0.5
-        description: "单笔订单占总仓位的最大比例"
+        description: "No description"
       interval_ms:
         value: 1000
         type: integer
-        title: "拆单间隔"
+        title: "General"
         minimum: 100
         maximum: 10000
-        description: "毫秒, 每笔子订单间隔时间"
+        description: "No description"
     price_improvement:
       _section:
-        title: "价格优化"
+        title: "General"
       enabled:
         value: false
         type: boolean
-        title: "启用价格优化"
+        title: "General"
       wait_for_pullback:
         value: false
         type: boolean
-        title: "等待回调入场"
-        description: "趋势信号后等待小幅回调再入场"
+        title: "General"
+        description: "No description"
       pullback_pct:
         value: 0.002
         type: number
-        title: "回调幅度"
+        title: "General"
         minimum: 0.001
         maximum: 0.01
-        description: "等待回调的百分比"
+        description: "No description"
       pullback_timeout:
         value: 300
         type: integer
-        title: "回调等待超时"
+        title: "General"
         minimum: 60
         maximum: 3600
-        description: "秒, 超时后按市价入场"
+        description: "No description"
 
 # =============================================================================
-# 仓位管理
+#
 # =============================================================================
 position:
   _section:
-    title: "仓位管理"
+    title: "General"
   size_type:
     value: "percentage"
     type: string
-    title: "仓位计算方式"
+    title: "General"
     enum: ["percentage", "fixed", "kelly", "fixed_risk"]
-    description: "仓位大小计算方法 (fixed_risk: 按止损距离反推, 用 fixed_risk.risk_pct, 需配置止损)"
+    description: " (fixed_risk: ,  fixed_risk.risk_pct, )"
   size_value:
     value: 0.1
     type: number
-    title: "仓位大小"
+    title: "General"
     minimum: 0.01
     maximum: 1.0
-    description: "仓位比例 (percentage 模式) 或固定金额 (fixed 模式)"
+    description: " (percentage )  (fixed )"
     optimization:
       enabled: true
       range: [0.05, 0.3]
@@ -182,84 +182,84 @@ position:
   capital_mode:
     value: "compound"
     type: string
-    title: "资金模式"
+    title: "General"
     enum: ["compound", "fixed_capital"]
-    description: "复利或固定本金模式"
+    description: "No description"
   initial_capital:
     value: 10000
     type: number
-    title: "初始本金"
+    title: "General"
     minimum: 100
-    description: "fixed_capital 模式使用的初始本金"
+    description: "fixed_capital "
   base_size_factor:
     value: 1.0
     type: number
-    title: "基础仓位系数"
+    title: "General"
     minimum: 0.1
     maximum: 1.0
-    description: "全局仓位乘数，用于统一缩减所有仓位大小 (1.0 = 不缩减)"
+    description: " (1.0 = )"
 
-  # 嵌套子节: kelly
+  # : kelly
   kelly:
     _section:
-      title: "凯利公式参数"
-      description: "size_type: kelly 时使用"
+      title: "General"
+      description: "size_type: kelly "
     fraction:
       value: 0.25
       type: number
-      title: "凯利系数"
+      title: "General"
       minimum: 0.1
       maximum: 1.0
-      description: "建议 0.25-0.5 (1/4 到 1/2 凯利)"
+      description: " 0.25-0.5 (1/4  1/2 )"
     win_rate:
       value: 0.55
       type: number
-      title: "历史胜率"
+      title: "General"
       minimum: 0.1
       maximum: 0.9
     payoff_ratio:
       value: 2.0
       type: number
-      title: "盈亏比"
+      title: "General"
       minimum: 0.5
       maximum: 10.0
-      description: "平均盈利/平均亏损"
+      description: "No description"
 
-  # 嵌套子节: fixed_risk (size_type: fixed_risk 时使用)
+  # : fixed_risk (size_type: fixed_risk )
   fixed_risk:
     _section:
-      title: "固定风险参数"
-      description: "size_type: fixed_risk 时使用; 用原生 FixedRiskSizer 按止损距离反推仓位"
+      title: "General"
+      description: "size_type: fixed_risk ;  FixedRiskSizer "
     risk_pct:
       value: 0.01
       type: number
-      title: "单笔风险比例"
+      title: "General"
       minimum: 0.001
       maximum: 0.1
-      description: "每笔交易愿承担的权益比例 (小数, 0.01 = 1%); 触发止损即亏该比例"
+      description: " (, 0.01 = 1%); "
 
-  # 嵌套子节: scaling
+  # : scaling
   scaling:
     _section:
-      title: "加仓配置"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用加仓"
-      description: "是否启用分批建仓"
+      title: "General"
+      description: "No description"
     method:
       value: "pyramid"
       type: string
-      title: "加仓方法"
+      title: "General"
       enum: ["pyramid", "fixed", "martingale"]
-      description: "金字塔/固定/马丁格尔"
+      description: "No description"
     max_entries:
       value: 3
       type: integer
-      title: "最大入场次数"
+      title: "General"
       minimum: 1
       maximum: 10
-      description: "包括初始仓位的最大入场次数"
+      description: "No description"
       optimization:
         enabled: true
         range: [1, 5]
@@ -267,10 +267,10 @@ position:
     entry_interval_pct:
       value: 0.02
       type: number
-      title: "加仓间隔"
+      title: "General"
       minimum: 0.005
       maximum: 0.1
-      description: "价格变动百分比触发加仓"
+      description: "No description"
       optimization:
         enabled: true
         range: [0.01, 0.05]
@@ -279,265 +279,265 @@ position:
       scale_factor:
         value: 0.5
         type: number
-        title: "金字塔递减比例"
+        title: "General"
         minimum: 0.1
         maximum: 1.0
-        description: "第2次=初始×0.5, 第3次=初始×0.25"
+        description: "2=×0.5, 3=×0.25"
     fixed:
       size_per_entry:
         value: 0.1
         type: number
-        title: "固定加仓比例"
+        title: "General"
         minimum: 0.01
         maximum: 0.5
-        description: "每次加仓的仓位比例"
+        description: "No description"
     martingale:
       multiplier:
         value: 2.0
         type: number
-        title: "马丁格尔倍数"
+        title: "General"
         minimum: 1.5
         maximum: 3.0
-        description: "加倍系数 (高风险)"
+        description: "No description"
 
-  # 嵌套子节: limits
+  # : limits
   limits:
     _section:
-      title: "仓位限制"
+      title: "General"
     max_positions_per_pair:
       value: 1
       type: integer
-      title: "每交易对最大持仓"
+      title: "General"
       minimum: 1
       maximum: 10
     min_order_size:
       value: 10
       type: number
-      title: "最小订单金额"
+      title: "General"
       minimum: 1
-      description: "报价货币计价"
+      description: "No description"
     max_position_pct:
       value: 0.5
       type: number
-      title: "最大仓位比例"
+      title: "General"
       minimum: 0.1
       maximum: 1.0
-      description: "单品种最大仓位占总资金比例"
+      description: "No description"
     max_total_positions:
       value: 5
       type: integer
-      title: "最大总持仓数"
+      title: "General"
       minimum: 1
       maximum: 20
-      description: "所有交易对的总持仓数量上限"
+      description: "No description"
     max_total_exposure:
       value: 0.8
       type: number
-      title: "最大总敞口"
+      title: "General"
       minimum: 0.1
       maximum: 1.0
-      description: "所有持仓占总资金的比例上限"
+      description: "No description"
     max_correlated_exposure:
       value: 0.5
       type: number
-      title: "相关资产最大敞口"
+      title: "General"
       minimum: 0.1
       maximum: 1.0
-      description: "同类资产 (如 BTC+ETH) 最大总敞口"
+      description: " ( BTC+ETH) "
     correlation_groups:
       value: []
       type: array
-      title: "相关性分组"
-      description: "例如 [['BTC-USDT', 'ETH-USDT'], ['SOL-USDT', 'AVAX-USDT']]"
+      title: "General"
+      description: " [['BTC-USDT', 'ETH-USDT'], ['SOL-USDT', 'AVAX-USDT']]"
     max_trade_size:
       value: null
       type: number
-      title: "最大单笔交易金额"
-      description: "交易所限制的最大订单金额 (null = 不限制)"
+      title: "General"
+      description: " (null = )"
 
-  # 嵌套子节: dynamic_sizing
+  # : dynamic_sizing
   dynamic_sizing:
     _section:
-      title: "动态仓位调整"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用动态仓位"
-      description: "根据市场状态和信号强度调整仓位"
+      title: "General"
+      description: "No description"
     volatility_adjustment:
       _section:
-        title: "波动率调整"
+        title: "General"
       enabled:
         value: false
         type: boolean
-        title: "波动率调整"
-        description: "高波动时减仓，低波动时加仓"
+        title: "General"
+        description: "No description"
       target_volatility:
         value: 0.02
         type: number
-        title: "目标波动率"
+        title: "General"
         minimum: 0.005
         maximum: 0.1
-        description: "日波动率目标 (2%)"
+        description: " (2%)"
       lookback:
         value: 20
         type: integer
-        title: "波动率回溯期"
+        title: "General"
         minimum: 5
         maximum: 60
       min_multiplier:
         value: 0.5
         type: number
-        title: "最小调整系数"
+        title: "General"
         minimum: 0.1
         maximum: 1.0
       max_multiplier:
         value: 1.5
         type: number
-        title: "最大调整系数"
+        title: "General"
         minimum: 1.0
         maximum: 3.0
     streak_adjustment:
       _section:
-        title: "连续盈亏调整"
+        title: "General"
       enabled:
         value: false
         type: boolean
-        title: "盈亏连续调整"
-        description: "连续亏损后减仓，连续盈利后适度加仓"
+        title: "General"
+        description: "No description"
       loss_reduction:
         value: 0.2
         type: number
-        title: "亏损减仓比例"
+        title: "General"
         minimum: 0.05
         maximum: 0.5
-        description: "每连续亏损一次减少 20%"
+        description: " 20%"
       win_increase:
         value: 0.1
         type: number
-        title: "盈利加仓比例"
+        title: "General"
         minimum: 0.05
         maximum: 0.3
-        description: "每连续盈利一次增加 10%"
+        description: " 10%"
       max_streak_adjustment:
         value: 3
         type: integer
-        title: "最大调整次数"
+        title: "General"
         minimum: 1
         maximum: 5
-        description: "最多计算连续 3 次"
+        description: " 3 "
 
 # =============================================================================
-# 风险管理
+#
 # =============================================================================
 risk:
   _section:
-    title: "风险管理"
+    title: "General"
 
-  # 全局风控
+  #
   global:
     _section:
-      title: "全局风控"
-      description: "账户/组合级别风控"
+      title: "General"
+      description: "No description"
     max_daily_loss:
       value: 0.05
       type: number
-      title: "每日最大亏损"
+      title: "General"
       minimum: 0.01
       maximum: 0.2
-      description: "触发暂停交易的每日亏损比例"
+      description: "No description"
     max_drawdown:
       value: 0.10
       type: number
-      title: "最大回撤"
+      title: "General"
       minimum: 0.05
       maximum: 0.5
-      description: "触发暂停的最大回撤比例"
+      description: "No description"
     consecutive_loss_pause:
       value: 3
       type: integer
-      title: "连续亏损暂停"
+      title: "General"
       minimum: 1
       maximum: 10
-      description: "连续亏损 N 次后暂停交易"
+      description: " N "
     max_daily_trades:
       value: 0
       type: integer
-      title: "每日最大交易次数"
+      title: "General"
       minimum: 0
-      description: "0 = 不限制"
+      description: "0 = "
     max_daily_profit:
       value: 0
       type: number
-      title: "每日最大盈利"
+      title: "General"
       minimum: 0
       maximum: 1.0
-      description: "达到目标盈利后暂停 (0 = 不限制)"
+      description: " (0 = )"
     reset_time:
       value: "00:00"
       type: string
-      title: "风控重置时间"
-      description: "UTC 时间, 每日风控计数器重置时间"
+      title: "General"
+      description: "UTC , "
     pause_duration:
       value: 0
       type: integer
-      title: "触发后暂停时长"
+      title: "General"
       minimum: 0
-      description: "秒, 0 = 暂停至下个交易日"
+      description: ", 0 = "
 
-  # 单次交易风控
+  #
   trade:
     _section:
-      title: "单次交易风控"
+      title: "General"
     sl_tp_mode:
       value: "hybrid"
       type: string
-      title: "SL/TP 执行模式"
+      title: "SL/TP "
       enum: ["exchange", "tick", "hybrid", "native_trailing"]
       description: |
-        exchange: SL/TP 都用交易所挂单
-        tick: SL/TP 都用 Tick 监控
-        hybrid: SL 交易所 + TP/移动止损用 Tick (推荐)
-        native_trailing: 交易所原生移动止损 (TrailingStopMarketOrder)
+        exchange: SL/TP
+        tick: SL/TP  Tick
+        hybrid: SL  + TP/ Tick ()
+        native_trailing:  (TrailingStopMarketOrder)
     max_loss_pct:
       value: 0.02
       type: number
-      title: "单次最大亏损"
+      title: "General"
       minimum: 0.005
       maximum: 0.1
-      description: "单次交易最大亏损百分比"
+      description: "No description"
     time_limit:
       value: 604800
       type: integer
-      title: "最大持仓时间"
+      title: "General"
       minimum: 3600
-      description: "秒, 604800 = 7天"
+      description: ", 604800 = 7"
     atr_period:
       value: 14
       type: integer
-      title: "ATR 周期"
+      title: "ATR "
       minimum: 5
       maximum: 50
-      description: "用于止损/止盈计算的 ATR 周期"
+      description: "/ ATR "
 
-    # 止盈配置
+    #
     take_profit:
       _section:
-        title: "止盈配置"
+        title: "General"
       method:
         value: "atr"
         type: string
-        title: "止盈方法"
+        title: "General"
         enum: ["atr", "fixed", "trailing", "scaled", "none"]
-        description: "止盈计算方式 (scaled: 分批止盈)"
+        description: " (scaled: )"
       atr:
         multiplier:
           value: 6.0
           type: number
-          title: "止盈 ATR 乘数"
+          title: " ATR "
           minimum: 1.0
           maximum: 20.0
-          description: "ATR 止盈乘数"
+          description: "ATR "
           optimization:
             enabled: true
             range: [3.0, 12.0]
@@ -546,96 +546,96 @@ risk:
         value:
           value: 0.04
           type: number
-          title: "固定止盈比例"
+          title: "General"
           minimum: 0.01
           maximum: 0.2
-          description: "固定止盈百分比"
+          description: "No description"
       trailing:
         activation_pct:
           value: 0.03
           type: number
-          title: "移动止盈激活点"
+          title: "General"
           minimum: 0.01
           maximum: 0.1
-          description: "盈利多少后激活"
+          description: "No description"
         callback_pct:
           value: 0.01
           type: number
-          title: "回调触发比例"
+          title: "General"
           minimum: 0.005
           maximum: 0.05
-          description: "回撤多少触发止盈"
+          description: "No description"
       scaled:
         _section:
-          title: "分批止盈"
-          description: "method: scaled 时使用"
+          title: "General"
+          description: "method: scaled "
         levels:
           value: 3
           type: integer
-          title: "止盈层级数"
+          title: "General"
           minimum: 2
           maximum: 5
         level_1:
           target_pct:
             value: 0.02
             type: number
-            title: "第一层目标"
+            title: "General"
             minimum: 0.005
             maximum: 0.1
-            description: "盈利 2% 触发"
+            description: " 2% "
           exit_pct:
             value: 0.33
             type: number
-            title: "平仓比例"
+            title: "General"
             minimum: 0.1
             maximum: 0.5
-            description: "平掉 33% 仓位"
+            description: " 33% "
         level_2:
           target_pct:
             value: 0.04
             type: number
-            title: "第二层目标"
+            title: "General"
             minimum: 0.01
             maximum: 0.15
           exit_pct:
             value: 0.33
             type: number
-            title: "平仓比例"
+            title: "General"
             minimum: 0.1
             maximum: 0.5
         level_3:
           target_pct:
             value: 0.06
             type: number
-            title: "第三层目标"
+            title: "General"
             minimum: 0.02
             maximum: 0.2
           exit_pct:
             value: 0.34
             type: number
-            title: "平仓比例"
+            title: "General"
             minimum: 0.1
             maximum: 1.0
-            description: "剩余全部平仓"
+            description: "No description"
 
-    # 止损配置
+    #
     stop_loss:
       _section:
-        title: "止损配置"
+        title: "General"
       method:
         value: "atr"
         type: string
-        title: "止损方法"
+        title: "General"
         enum: ["atr", "fixed", "trailing", "indicator", "none"]
-        description: "止损计算方式"
+        description: "No description"
       atr:
         multiplier:
           value: 2.0
           type: number
-          title: "止损 ATR 乘数"
+          title: " ATR "
           minimum: 0.5
           maximum: 10.0
-          description: "ATR 止损乘数"
+          description: "ATR "
           optimization:
             enabled: true
             range: [1.0, 5.0]
@@ -644,107 +644,107 @@ risk:
         value:
           value: 0.02
           type: number
-          title: "固定止损比例"
+          title: "General"
           minimum: 0.005
           maximum: 0.1
-          description: "固定止损百分比"
+          description: "No description"
       trailing:
         _section:
-          title: "移动止损"
+          title: "General"
         enabled:
           value: false
           type: boolean
-          title: "启用移动止损"
-          description: "是否启用跟踪止损"
+          title: "General"
+          description: "No description"
         activation_pct:
           value: 0.02
           type: number
-          title: "激活点"
+          title: "General"
           minimum: 0.01
           maximum: 0.1
-          description: "盈利多少后激活"
+          description: "No description"
         trailing_pct:
           value: 0.015
           type: number
-          title: "跟踪距离"
+          title: "General"
           minimum: 0.005
           maximum: 0.05
-          description: "价格回撤多少触发止损"
+          description: "No description"
       indicator:
         type:
           value: "supertrend"
           type: string
-          title: "指标类型"
+          title: "General"
           enum: ["supertrend", "ma", "sar"]
-          description: "用于止损的指标"
+          description: "No description"
       break_even:
         _section:
-          title: "保本止损"
-          description: "达到目标盈利后将止损移至入场价"
+          title: "General"
+          description: "No description"
         enabled:
           value: false
           type: boolean
-          title: "启用保本止损"
+          title: "General"
         activation_pct:
           value: 0.015
           type: number
-          title: "激活点"
+          title: "General"
           minimum: 0.005
           maximum: 0.05
-          description: "盈利达到 1.5% 后激活"
+          description: " 1.5% "
         offset:
           value: 0.001
           type: number
-          title: "偏移量"
+          title: "General"
           minimum: 0
           maximum: 0.005
-          description: "止损设在入场价上方 0.1% (覆盖手续费)"
+          description: " 0.1% ()"
 
-  # Tick 级别监控
+  # Tick
   tick_monitoring:
     _section:
-      title: "Tick 级别监控"
-      description: "使用实时 tick 数据监控止损/止盈触发"
+      title: "Tick "
+      description: " tick /"
     enabled:
       value: true
       type: boolean
-      title: "启用 Tick 监控"
-      description: "启用后将订阅 tick 数据实时检查 SL/TP"
+      title: " Tick "
+      description: " tick  SL/TP"
     tick_type:
       value: "trade"
       type: string
-      title: "Tick 类型"
+      title: "Tick "
       enum: ["trade", "quote", "both"]
-      description: "trade: 成交数据; quote: 报价数据; both: 两者"
+      description: "trade: ; quote: ; both: "
 
 # =============================================================================
-# 信号过滤器
+#
 # =============================================================================
 filters:
   _section:
-    title: "信号过滤器"
+    title: "General"
 
   adx_filter:
     _section:
-      title: "ADX 趋势过滤"
+      title: "ADX "
     enabled:
       value: false
       type: boolean
-      title: "启用 ADX 过滤"
-      description: "使用 ADX 过滤弱趋势信号"
+      title: " ADX "
+      description: " ADX "
     period:
       value: 14
       type: integer
-      title: "ADX 周期"
+      title: "ADX "
       minimum: 7
       maximum: 30
     threshold:
       value: 25
       type: number
-      title: "ADX 阈值"
+      title: "ADX "
       minimum: 15
       maximum: 50
-      description: "ADX 高于此值才允许开仓"
+      description: "ADX "
       optimization:
         enabled: true
         range: [20, 40]
@@ -752,434 +752,434 @@ filters:
 
   volatility_filter:
     _section:
-      title: "波动率过滤"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用波动率过滤"
-      description: "过滤低/高波动率时段"
+      title: "General"
+      description: "No description"
     min_atr_pct:
       value: 0.003
       type: number
-      title: "最小 ATR 比例 (小数, 0.003=0.3%)"
+      title: " ATR  (, 0.003=0.3%)"
       minimum: 0.001
       maximum: 0.01
-      description: "ATR/价格 低于此小数比例不开仓"
+      description: "ATR/ "
     max_atr_pct:
       value: 0.05
       type: number
-      title: "最大 ATR 比例 (小数, 0.05=5%)"
+      title: " ATR  (, 0.05=5%)"
       minimum: 0.01
       maximum: 0.1
-      description: "ATR/价格 高于此小数比例不开仓 (避免极端波动)"
+      description: "ATR/  ()"
     atr_lookback:
       value: 14
       type: integer
-      title: "ATR 回溯周期"
+      title: "ATR "
       minimum: 5
       maximum: 50
-      description: "波动率计算周期 (默认使用策略 atr_period)"
+      description: " ( atr_period)"
 
   volume_filter:
     _section:
-      title: "成交量过滤"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用成交量过滤"
-      description: "过滤低成交量时段"
+      title: "General"
+      description: "No description"
     ma_period:
       value: 20
       type: integer
-      title: "MA 周期"
+      title: "MA "
       minimum: 5
       maximum: 50
     threshold:
       value: 1.2
       type: number
-      title: "成交量倍数"
+      title: "General"
       minimum: 1.0
       maximum: 3.0
-      description: "当前成交量需超过 MA 的倍数"
+      description: " MA "
 
   time_filter:
     _section:
-      title: "时间过滤"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用时间过滤"
-      description: "限制交易时段"
+      title: "General"
+      description: "No description"
     trading_hours:
       value: "00:00-23:59"
       type: string
-      title: "交易时段"
-      description: "UTC 时间, 格式 HH:MM-HH:MM"
+      title: "General"
+      description: "UTC ,  HH:MM-HH:MM"
     excluded_days:
       value: []
       type: array
-      title: "排除星期"
-      description: "0=周一, 6=周日"
+      title: "General"
+      description: "0=, 6="
     excluded_dates:
       value: []
       type: array
-      title: "排除日期"
-      description: "格式 YYYY-MM-DD"
+      title: "General"
+      description: " YYYY-MM-DD"
 
   cooldown:
     _section:
-      title: "冷却期配置"
+      title: "General"
     min_holding_time:
       value: 0
       type: integer
-      title: "最小持仓时间"
+      title: "General"
       minimum: 0
-      description: "秒, 避免频繁开平仓"
+      description: "No description"
     after_exit:
       value: 0
       type: integer
-      title: "平仓后冷却"
+      title: "General"
       minimum: 0
     after_stop_loss:
       value: 300
       type: integer
-      title: "止损后冷却"
+      title: "General"
       minimum: 0
-      description: "秒, 通常更长以避免情绪交易"
+      description: "No description"
     after_take_profit:
       value: 0
       type: integer
-      title: "止盈后冷却"
+      title: "General"
       minimum: 0
 
   mtf_filter:
     _section:
-      title: "多时间框架过滤"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用 MTF 过滤"
-      description: "使用更高时间框架确认趋势方向"
+      title: " MTF "
+      description: "No description"
     higher_timeframe:
       value: "4h"
       type: string
-      title: "确认时间框架"
+      title: "General"
       enum: ["1h", "4h", "1d"]
-      description: "用于趋势确认的更高时间框架"
+      description: "No description"
     alignment_mode:
       value: "same_direction"
       type: string
-      title: "对齐模式"
+      title: "General"
       enum: ["same_direction", "not_against"]
-      description: "same_direction: 必须同向; not_against: 不逆势即可"
+      description: "same_direction: ; not_against: "
 
   regime_filter:
     _section:
-      title: "市场状态过滤"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用市场状态过滤"
-      description: "识别趋势/震荡市场状态"
+      title: "General"
+      description: "No description"
     method:
       value: "efficiency_ratio"
       type: string
-      title: "检测方法"
+      title: "General"
       enum: ["adx_slope", "atr_percentile", "efficiency_ratio"]
-      description: "adx_slope: ADX斜率; atr_percentile: ATR百分位; efficiency_ratio: 效率比率"
+      description: "adx_slope: ADX; atr_percentile: ATR; efficiency_ratio: "
     lookback:
       value: 20
       type: integer
-      title: "回溯周期"
+      title: "General"
       minimum: 10
       maximum: 100
     trending_threshold:
       value: 0.5
       type: number
-      title: "趋势阈值 (efficiency_ratio)"
+      title: " (efficiency_ratio)"
       minimum: 0.3
       maximum: 0.8
-      description: "仅 efficiency_ratio 方法：效率比率高于此值判为趋势市 (0..1)"
+      description: " efficiency_ratio  (0..1)"
     range_pct_threshold:
       value: 0.03
       type: number
-      title: "区间阈值 (atr_percentile)"
+      title: " (atr_percentile)"
       minimum: 0.005
       maximum: 0.2
-      description: "仅 atr_percentile 方法：价格区间/均价 高于此值判为趋势市 (小数, 0.03=3%)"
+      description: " atr_percentile /  (, 0.03=3%)"
     adx_period:
       value: 14
       type: integer
-      title: "ADX 周期 (adx_slope)"
+      title: "ADX  (adx_slope)"
       minimum: 5
       maximum: 50
-      description: "仅 adx_slope 方法：计算 ADX 的周期"
+      description: " adx_slope  ADX "
 
   momentum_filter:
     _section:
-      title: "动量过滤"
+      title: "General"
     enabled:
       value: false
       type: boolean
-      title: "启用动量过滤"
-      description: "使用动量指标过滤弱势信号"
+      title: "General"
+      description: "No description"
     indicator:
       value: "rsi"
       type: string
-      title: "动量指标"
+      title: "General"
       enum: ["rsi", "roc", "macd"]
       description: "RSI/ROC/MACD"
     rsi:
       _section:
-        title: "RSI 配置"
+        title: "RSI "
       period:
         value: 14
         type: integer
-        title: "RSI 周期"
+        title: "RSI "
         minimum: 5
         maximum: 30
       long_min:
         value: 40
         type: number
-        title: "做多最低 RSI"
+        title: " RSI"
         minimum: 20
         maximum: 60
       long_max:
         value: 70
         type: number
-        title: "做多最高 RSI"
+        title: " RSI"
         minimum: 60
         maximum: 90
       short_min:
         value: 30
         type: number
-        title: "做空最低 RSI"
+        title: " RSI"
         minimum: 10
         maximum: 40
       short_max:
         value: 60
         type: number
-        title: "做空最高 RSI"
+        title: " RSI"
         minimum: 40
         maximum: 80
     roc:
       _section:
-        title: "ROC 配置"
+        title: "ROC "
       period:
         value: 10
         type: integer
-        title: "ROC 周期"
+        title: "ROC "
         minimum: 5
         maximum: 30
       long_threshold:
         value: 0
         type: number
-        title: "做多阈值"
-        description: "ROC 需大于此值才做多"
+        title: "General"
+        description: "ROC "
       short_threshold:
         value: 0
         type: number
-        title: "做空阈值"
-        description: "ROC 需小于此值才做空"
+        title: "General"
+        description: "ROC "
     macd:
       _section:
-        title: "MACD 配置"
+        title: "MACD "
       fast:
         value: 12
         type: integer
-        title: "快线周期"
+        title: "General"
       slow:
         value: 26
         type: integer
-        title: "慢线周期"
+        title: "General"
       signal:
         value: 9
         type: integer
-        title: "信号线周期"
+        title: "General"
       require_crossover:
         value: false
         type: boolean
-        title: "要求金叉/死叉"
-        description: "是否要求 MACD 交叉确认"
+        title: "General"
+        description: " MACD "
       histogram_positive:
         value: true
         type: boolean
-        title: "柱状图方向"
-        description: "做多要求柱状图为正，做空为负"
+        title: "General"
+        description: "No description"
 
   behavior:
     _section:
-      title: "过滤器行为配置"
+      title: "General"
     mode:
       value: "all"
       type: string
-      title: "过滤模式"
+      title: "General"
       enum: ["all", "any", "weighted"]
-      description: "all: 全部通过; any: 任一通过; weighted: 加权评分"
+      description: "all: ; any: ; weighted: "
     min_score:
       value: 0.6
       type: number
-      title: "最低评分"
+      title: "General"
       minimum: 0.1
       maximum: 1.0
-      description: "weighted 模式下的最低通过分数"
+      description: "weighted "
     weights:
       _section:
-        title: "过滤器权重"
-        description: "weighted 模式下各过滤器权重"
+        title: "General"
+        description: "weighted "
       adx_filter:
         value: 0.3
         type: number
-        title: "ADX 权重"
+        title: "ADX "
         minimum: 0
         maximum: 1.0
       volatility_filter:
         value: 0.25
         type: number
-        title: "波动率权重"
+        title: "General"
         minimum: 0
         maximum: 1.0
       volume_filter:
         value: 0.25
         type: number
-        title: "成交量权重"
+        title: "General"
         minimum: 0
         maximum: 1.0
       regime_filter:
         value: 0.2
         type: number
-        title: "市场状态权重"
+        title: "General"
         minimum: 0
         maximum: 1.0
     on_filter_fail:
       value: "skip"
       type: string
-      title: "过滤失败行为"
+      title: "General"
       enum: ["skip", "reduce_size", "delay"]
-      description: "skip: 跳过; reduce_size: 减小仓位; delay: 延迟入场"
+      description: "skip: ; reduce_size: ; delay: "
     reduce_size_factor:
       value: 0.5
       type: number
-      title: "减仓系数"
+      title: "General"
       minimum: 0.1
       maximum: 0.9
-      description: "reduce_size 模式下的仓位缩减比例"
+      description: "reduce_size "
 
 # =============================================================================
-# 指标预热配置
+#
 # =============================================================================
-# 预热是指在策略开始交易前，需要积累足够的历史数据来计算技术指标。
-# 支持三种模式：
-#   - none: 不预热，指标从实时数据开始计算
-#   - warmup: 请求历史数据计算指标 (推荐)
-#   - snapshot: 从快照加载指标状态，快速恢复
+#
+#
+#   - none:
+#   - warmup:  ()
+#   - snapshot:
 # =============================================================================
 warmup:
   _section:
-    title: "指标预热配置"
-    description: "配置策略指标的预热方式，确保信号有效性"
+    title: "General"
+    description: "No description"
 
   mode:
     value: "none"
     type: string
-    title: "预热模式"
+    title: "General"
     enum: ["none", "snapshot", "warmup"]
     description: |
-      none: 不预热，指标从零开始计算 (适合首次运行)
-      warmup: 请求历史 K 线数据计算指标 (推荐，适合大多数场景)
-      snapshot: 从快照恢复指标状态 (适合重启后快速恢复)
+      none:  ()
+      warmup:  K  ()
+      snapshot:  ()
 
-  # 历史数据配置 (mode="warmup" 时使用)
+  #  (mode="warmup" )
   history:
     _section:
-      title: "历史数据配置"
-      description: "warmup 模式下的历史数据请求参数"
+      title: "General"
+      description: "warmup "
     min_bars:
       value: 500
       type: integer
-      title: "最小 K 线数"
+      title: " K "
       minimum: 50
       maximum: 5000
-      description: "指标计算所需的最小历史 K 线数量"
+      description: " K "
     preferred_bars:
       value: 2000
       type: integer
-      title: "首选 K 线数"
+      title: " K "
       minimum: 100
       maximum: 10000
-      description: "理想情况下请求的历史 K 线数量，确保指标稳定"
+      description: " K "
     timeout_secs:
       value: 30
       type: integer
-      title: "数据请求超时"
+      title: "General"
       minimum: 5
       maximum: 300
-      description: "秒，历史数据请求超时时间"
+      description: "No description"
 
-  # 快照配置 (mode="snapshot" 时使用)
+  #  (mode="snapshot" )
   snapshot:
     _section:
-      title: "指标快照配置"
-      description: "snapshot 模式下的指标初始状态，支持从 TradingView 等外部源对齐"
+      title: "General"
+      description: "snapshot  TradingView "
 
     timestamp:
       value: null
       type: string
-      title: "快照时间戳"
-      description: "ISO 8601 格式，如 2024-01-01T00:00:00Z"
+      title: "General"
+      description: "ISO 8601  2024-01-01T00:00:00Z"
 
-    # 指标快照值 (由具体策略覆盖)
-    # 每个策略应定义其使用的指标的快照格式
-    # 示例：SuperTrend 指标快照
+    #  ()
+    #
+    # SuperTrend
     indicators:
       _section:
-        title: "指标快照值"
-        description: "各指标的状态快照，策略在 config.yaml 中覆盖此节"
+        title: "General"
+        description: " config.yaml "
 
-      # 示例：趋势指标 (SuperTrend)
+      #  (SuperTrend)
       # supertrend:
-      #   value: 45000.0       # SuperTrend 线价格
-      #   trend: 1             # 趋势方向: 1=看涨, -1=看跌, 0=未初始化
-      #   upper_band: 45500.0  # 上轨 (下跌趋势时的阻力位)
-      #   lower_band: 44500.0  # 下轨 (上涨趋势时的支撑位)
+      #   value: 45000.0       # SuperTrend
+      #   trend: 1             # : 1=, -1=, 0=
+      #   upper_band: 45500.0  #  ()
+      #   lower_band: 44500.0  #  ()
 
-      # 示例：动量指标 (RSI)
+      #  (RSI)
       # rsi:
-      #   value: 55.0          # RSI 值 (0-100)
-      #   avg_gain: 0.5        # 平均涨幅
-      #   avg_loss: 0.4        # 平均跌幅
+      #   value: 55.0          # RSI  (0-100)
+      #   avg_gain: 0.5        #
+      #   avg_loss: 0.4        #
 
-      # 示例：均线指标 (EMA)
+      #  (EMA)
       # ema_20:
-      #   value: 44800.0       # EMA 值
+      #   value: 44800.0       # EMA
 
-    # 检查点验证配置
+    #
     checkpoints:
       _section:
-        title: "检查点验证"
-        description: "快照恢复后的验证点，确保指标计算正确"
+        title: "General"
+        description: "No description"
 
       tolerance_pct:
         value: 0.1
         type: number
-        title: "容差百分比"
+        title: "General"
         minimum: 0.01
         maximum: 1.0
-        description: "指标值允许的偏差百分比 (0.1 = 0.1%)"
+        description: " (0.1 = 0.1%)"
 
       trend_strict:
         value: true
         type: boolean
-        title: "趋势严格匹配"
-        description: "趋势方向是否必须完全匹配"
+        title: "General"
+        description: "No description"
 
-      # 验证点列表
+      #
       points:
         value: []
         type: array
-        title: "验证点列表"
+        title: "General"
         description: |
-          格式示例:
+          :
           - offset_bars: 5
             bar_close_time: "2024-01-01T05:00:00Z"
             supertrend:
@@ -1187,139 +1187,139 @@ warmup:
               trend: 1
 
 # =============================================================================
-# 回测配置 (仅用于 Speculum 回测)
+#  ( Speculum )
 # =============================================================================
 backtesting:
   _section:
-    title: "回测配置"
-    description: "Speculum 回测专用设置，不影响实盘交易"
+    title: "General"
+    description: "Speculum "
 
   log_indicators:
     value: true
     type: boolean
-    title: "记录指标数据"
-    description: "启用后策略需实现 get_indicator_history() 方法"
+    title: "General"
+    description: " get_indicator_history() "
 
   ui_config_schema:
     _section:
-      title: "UI 配置架构"
-      description: "指定 Speculum UI 显示哪些配置节"
+      title: "UI "
+      description: " Speculum UI "
     sections:
       value: ["parameters", "trading", "position", "risk", "filters", "warmup"]
       type: array
-      title: "显示的配置节"
-      description: "UI 中显示的配置节列表"
+      title: "General"
+      description: "UI "
 
   data_source:
     _section:
-      title: "数据源配置"
+      title: "General"
     provider:
       value: "databento"
       type: string
-      title: "数据提供商"
+      title: "General"
       enum: ["databento", "binance", "local"]
-      description: "回测数据来源"
+      description: "No description"
     warmup_bars:
       value: 100
       type: integer
-      title: "预热K线数"
+      title: "K"
       minimum: 0
       maximum: 1000
-      description: "指标计算所需的预热K线数量"
+      description: "K"
 
   execution_model:
     _section:
-      title: "执行模型"
+      title: "General"
     fill_model:
       value: "realistic"
       type: string
-      title: "成交模型"
+      title: "General"
       enum: ["immediate", "realistic", "conservative"]
-      description: "immediate: 即时成交; realistic: 模拟滑点; conservative: 保守估计"
+      description: "immediate: ; realistic: ; conservative: "
     slippage_model:
       value: "fixed"
       type: string
-      title: "滑点模型"
+      title: "General"
       enum: ["fixed", "volume_based", "volatility_based"]
     simulated_latency_ms:
       value: 0
       type: integer
-      title: "模拟延迟"
+      title: "General"
       minimum: 0
       maximum: 1000
-      description: "毫秒, 模拟网络延迟"
+      description: "No description"
 
 # =============================================================================
 # Logging Configuration
 # =============================================================================
 logging:
   _section:
-    title: "日志配置"
-    description: "日志输出设置"
+    title: "General"
+    description: "No description"
 
   level:
     value: "INFO"
     type: string
-    title: "日志级别"
+    title: "General"
     description: "DEBUG, INFO, WARNING, ERROR"
 
 # =============================================================================
-# 信号配置（OKX 信号策略兼容）
+# OKX
 # =============================================================================
 signal:
   _section:
-    title: "信号配置"
-    description: "外部信号处理和 OKX 信号机器人兼容配置"
+    title: "General"
+    description: " OKX "
 
-  # OKX 特有配置
+  # OKX
   okx:
     _section:
-      title: "OKX 信号机器人"
+      title: "OKX "
     signal_token:
       value: ""
       type: string
-      title: "信号令牌"
-      description: "OKX 信号创建时生成的 signalToken"
+      title: "General"
+      description: "OKX  signalToken"
     instrument_format:
       value: "okx"
       type: string
-      title: "工具格式"
+      title: "General"
       enum: ["okx", "tradingview"]
       description: "okx: BTC-USDT-SWAP; tradingview: BTCUSDT.P"
     max_lag:
       value: 60
       type: integer
-      title: "最大延迟"
+      title: "General"
       minimum: 1
       maximum: 3600
-      description: "信号有效期(秒)"
+      description: "No description"
 
-  # 默认值（当信号未指定时使用）
+  #
   defaults:
     _section:
-      title: "信号默认值"
+      title: "General"
     order_type:
       value: "market"
       type: string
-      title: "默认订单类型"
+      title: "General"
       enum: ["market", "limit"]
-      description: "信号未指定时使用的订单类型"
+      description: "No description"
     order_price_offset:
       value: 0.1
       type: number
-      title: "限价单偏移量"
+      title: "General"
       minimum: 0
       maximum: 100
-      description: "百分比，仅限价单有效"
+      description: "No description"
     investment_type:
       value: "percentage_investment"
       type: string
-      title: "默认投资类型"
+      title: "General"
       enum: ["margin", "contract", "percentage_balance", "percentage_investment", "percentage_position"]
-      description: "开仓信号默认使用的投资类型"
+      description: "No description"
 
 # =============================================================================
-# 平台配置 (保持简单格式，非优化项)
+#  ()
 # =============================================================================
 platforms:
   hummingbot:
@@ -1330,121 +1330,121 @@ platforms:
     venue:
       value: "BINANCE"
       type: string
-      title: "交易所代码"
+      title: "General"
     bar_type:
       value: "1-HOUR"
       type: string
-      title: "K线类型"
+      title: "K"
     trading_node:
       _section:
-        title: "交易节点配置"
-        description: "NautilusTrader TradingNode 设置"
+        title: "General"
+        description: "NautilusTrader TradingNode "
       timeout_connection:
         value: 60.0
         type: number
-        title: "连接超时(秒)"
+        title: "General"
       timeout_reconciliation:
         value: 10.0
         type: number
-        title: "对账超时(秒)"
+        title: "General"
       timeout_portfolio:
         value: 10.0
         type: number
-        title: "组合超时(秒)"
+        title: "General"
       timeout_disconnection:
         value: 10.0
         type: number
-        title: "断开超时(秒)"
+        title: "General"
       reconciliation_lookback_mins:
         value: 1440
         type: integer
-        title: "对账回溯(分钟)"
+        title: "General"
       database:
         _section:
-          title: "Redis 数据库配置"
-          description: "缓存和消息总线的 Redis 持久化配置"
+          title: "Redis "
+          description: " Redis "
         enabled:
           value: false
           type: boolean
-          title: "启用 Redis"
-          description: "启用 Redis 持久化（需要 Redis 服务）"
+          title: " Redis"
+          description: " Redis  Redis "
         type:
           value: "redis"
           type: string
-          title: "数据库类型"
+          title: "General"
         host:
           value: "redis"
           type: string
-          title: "主机地址"
-          description: "Docker Compose 服务名或 IP 地址"
+          title: "General"
+          description: "Docker Compose  IP "
         port:
           value: 6380
           type: integer
-          title: "端口"
+          title: "General"
         username:
           value: null
           type: string
-          title: "用户名"
-          description: "可选，本地 Redis 通常不需要"
+          title: "General"
+          description: " Redis "
         password:
           value: null
           type: string
-          title: "密码"
-          description: "可选，本地 Redis 通常不需要"
+          title: "General"
+          description: " Redis "
       cache:
         _section:
-          title: "缓存配置"
-          description: "NautilusTrader 缓存设置"
+          title: "General"
+          description: "NautilusTrader "
         tick_capacity:
           value: 10000
           type: integer
-          title: "Tick 容量"
-          description: "内部 tick 队列最大长度"
+          title: "Tick "
+          description: " tick "
         bar_capacity:
           value: 10000
           type: integer
-          title: "Bar 容量"
-          description: "内部 bar 队列最大长度"
+          title: "Bar "
+          description: " bar "
         buffer_interval_ms:
           value: 100
           type: integer
-          title: "缓冲间隔(毫秒)"
-          description: "批量写入间隔，推荐 10-1000ms"
+          title: "General"
+          description: " 10-1000ms"
         flush_on_start:
           value: false
           type: boolean
-          title: "启动时清空"
-          description: "启动时是否清空数据库"
+          title: "General"
+          description: "No description"
       message_bus:
         _section:
-          title: "消息总线配置"
-          description: "NautilusTrader 消息总线设置"
+          title: "General"
+          description: "NautilusTrader "
         autotrim_mins:
           value: 1440
           type: integer
-          title: "自动裁剪(分钟)"
-          description: "保留消息的时间窗口（24小时=1440）"
+          title: "General"
+          description: "24=1440"
         buffer_interval_ms:
           value: 100
           type: integer
-          title: "缓冲间隔(毫秒)"
-          description: "批量写入间隔"
+          title: "General"
+          description: "No description"
         heartbeat_interval_secs:
           value: 10
           type: integer
-          title: "心跳间隔(秒)"
-          description: "交易节点健康检查心跳间隔"
+          title: "General"
+          description: "No description"
     sandbox:
       _section:
-        title: "Sandbox 模式配置"
-        description: "本地模拟执行的配置"
+        title: "Sandbox "
+        description: "No description"
       use_testnet_data:
         value: false
         type: boolean
-        title: "使用测试网数据"
-        description: "是否从交易所测试网获取市场数据"
+        title: "General"
+        description: "No description"
       starting_balances:
         value: ["10_000 USDT", "1 BTC", "10 ETH"]
         type: array
-        title: "起始余额"
-        description: "模拟账户的初始余额"
+        title: "General"
+        description: "No description"

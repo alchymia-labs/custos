@@ -1,5 +1,5 @@
 """Credential lifecycle invariant — the decrypted key never surfaces through a
-plain object walk of the NT config the host builds (non-custodial 红线 0.1).
+plain object walk of the NT config the host builds (non-custodial red line 0.1).
 
 Three defence-in-depth invariants guard the in-process credential; this file
 covers invariant #2. The other two are already covered elsewhere and are cross

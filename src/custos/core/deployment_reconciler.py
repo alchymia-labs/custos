@@ -1,15 +1,17 @@
 """Declarative deployment reconcile loop.
 
-云端 NATS-发 DeploymentSpec → runner 本地比对 generation → 调
-execution engine 起停策略 → NATS-发 DeploymentStatus 回报。
+Cloud sends DeploymentSpec over NATS → runner compares generation locally →
+starts/stops execution engine → publishes DeploymentStatus over NATS.
 
-声明式 + level-triggered (plan-index §6):
-- generation 比对幂等：同 generation 多次到达不重复执行。
-- 失联≠停止 (domain-model L229)：NATS 断连时 reconcile loop 继续运行，
-  本地 NT 不停。重连后补报最新 status。
-- 主动观测：silent path 必接 structlog (lesson #21)。
+Declarative + level-triggered (plan-index §6):
+- generation comparison is idempotent: repeated snapshots with same generation do not
+  trigger duplicate execution.
+- disconnect-tolerant: when NATS is disconnected, the reconcile loop keeps running;
+  local NT still runs and latest status is re-published after reconnect.
+- active observability: silent paths should still emit structlog events (lesson #21).
 
-新文件，不扩展 reconcile.py (后者是对账上传 ReconcileUploader, 职责不同)。
+New module, does not extend reconcile.py (that one handles state snapshot
+reconciliation upload via ReconcileUploader with a different responsibility).
 """
 
 from __future__ import annotations
@@ -52,9 +54,12 @@ class ReadinessProtocol(Protocol):
 
 @dataclass
 class _ReconcileState:
-    """Per-spec_id reconcile bookkeeping。observed_generation 是本地观测到
-    runner 真正 reconcile 完成 的 generation; drift_strikes 累计连续观测
-    spec.generation > observed_generation 的次数, 超阈值标 drift。"""
+    """Per-spec-id reconcile bookkeeping.
+
+    observed_generation is the runner-observed generation that has fully completed
+    reconcile; drift_strikes counts consecutive samples where
+    spec.generation > observed_generation, and crossing threshold triggers drift.
+    """
 
     observed_generation: int = 0
     container_id: str | None = None
@@ -64,7 +69,7 @@ class _ReconcileState:
 
 @dataclass
 class DeploymentReconciler:
-    """声明式 reconcile loop。"""
+    """Declarative reconcile loop."""
 
     nats_client: ArxNatsClient
     tenant_id: str
@@ -94,9 +99,10 @@ class DeploymentReconciler:
     ) -> None:
         """Main loop: subscribe deployment_spec → process → report status.
 
-        失联安全 (CLAUDE.md 红线 '失联≠停止'):
-        - subscribe/connect 异常时记 log + 退避重试; 本地 NT 不停。
-        - publish_deployment_status 失败时记 log + 跳过; 下一次 reconcile 重报。
+        Disconnect-safe operation (CLAUDE.md red line: reconnection does not stop):
+        - on subscribe/connect errors: log + retry with backoff; local NT keeps running.
+        - publish_deployment_status failures are logged and skipped; next reconcile
+          cycle re-sends status.
         """
         _log.info(
             "deployment_reconciler_started",
@@ -205,7 +211,7 @@ class DeploymentReconciler:
                 await self._tick_local_guards()
 
     async def handle_spec(self, spec: dict) -> None:
-        """Process one DeploymentSpec snapshot. Generation 幂等 + drift 检测。"""
+        """Process one DeploymentSpec snapshot with generation idempotency + drift detection."""
         try:
             validated = DeploymentSpec.model_validate(spec)
         except ValidationError as exc:
@@ -242,7 +248,7 @@ class DeploymentReconciler:
         self._refresh_risk_config(spec)
 
         if generation == state.observed_generation:
-            # No-op — 同 generation 再来一次不重复 (幂等)。
+            # No-op: repeated snapshots with same generation are ignored (idempotent).
             _log.debug(
                 "deployment_spec_noop",
                 spec_id=spec_id,
@@ -259,7 +265,7 @@ class DeploymentReconciler:
             )
             return
 
-        # 需要 reconcile: generation > observed_generation。
+        # Need reconcile when generation > observed_generation.
         try:
             container_id = await self._apply_spec(spec, state)
             state.container_id = container_id
@@ -305,7 +311,8 @@ class DeploymentReconciler:
         if lifecycle in ("stopped", "archived"):
             await self.execution_engine.stop(spec_id)
             return ""
-        # 新部署: 解密 credential → 过完整 G6 gate (含 scope 兜底层) → deploy。
+        # New deployment: decrypt credential → run full G6 gate (including scope fallback)
+        # → deploy.
         # A successful stop stores an empty container id. Any later active
         # generation must create a fresh engine instance, not reconfigure the
         # instance that stop() already removed.
@@ -313,8 +320,9 @@ class DeploymentReconciler:
             cred = self.credential_vault.decrypt(self._credential_ref(spec, spec_id))
             check_g6_gate(self.execution_engine, spec, cred)
             return await self.execution_engine.deploy(spec, cred)
-        # 已有部署: reconfigure。gate 复验 host/venue/code_hash; 层 4 scope 已在
-        # deploy 时验过, 此处不重新解密 credential。
+        # Existing deployment: reconfigure. Re-run G6 gate check for host/venue/code_hash;
+        # layer-4 scope was already validated at deploy time, so do not re-decrypt
+        # credential here.
         check_g6_gate(self.execution_engine, spec, credential=None)
         await self.execution_engine.reconfigure(spec)
         return state.container_id or ""
@@ -479,7 +487,7 @@ class DeploymentReconciler:
         health: str,
         reason: str | None = None,
     ) -> None:
-        """Publish DeploymentStatus back to cloud。失败必接 log (lesson #21)。"""
+        """Publish DeploymentStatus back to cloud. Publish failure is always logged (lesson #21)."""
         payload = {
             "status_id": str(uuid.uuid4()),
             "spec_id": spec_id,

@@ -1,4 +1,4 @@
-"""Phase 0 冒烟：确认包可导入。"""
+"""Phase 0 smoke: verify package is importable."""
 
 import custos
 

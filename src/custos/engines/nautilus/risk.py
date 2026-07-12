@@ -8,7 +8,7 @@ Two responsibilities at the runner edge:
    ``arx.{tenant}.pre_trade_reject.{runner_id}`` so the cloud control plane
    records every rejection (audit chain + deduplicated alert). Rejections ride
    the at-least-once JetStream path — a denied order must never be silently
-   lost (对账不静默 红线).
+   lost (reconcile-lost must not be silent red line).
 
 NautilusTrader is an *optional* import: in dev / paper-without-NT the engine is
 absent, so this module degrades to validating its config + wire shape (the
@@ -223,7 +223,7 @@ class NtRiskEngineBridge:
         self._loop: asyncio.AbstractEventLoop | None = None
         # Strong refs to in-flight publish futures — without them the loop only
         # weakly references a scheduled task and could GC it mid-publish,
-        # silently dropping a rejection (对账不静默 红线).
+        # silently dropping a rejection would violate the reconcile no-loss red line.
         self._pending: set = set()
 
     def subject(self) -> str:
@@ -286,7 +286,7 @@ class NtRiskEngineBridge:
             return False
 
     def _on_publish_done(self, fut: Any) -> None:
-        # A denied-order publish that dies must never be silent (对账不静默 红线).
+        # A denied-order publish that fails must never be silent (reconcile no-loss red line).
         self._pending.discard(fut)
         try:
             exc = fut.exception()

@@ -1,12 +1,14 @@
-"""EnrollmentToken 配对：runner 经一次性/可吊销令牌注册到 tenant
-(绑 scope + paper_only)。
+"""EnrollmentToken pairing: runner registers to tenant with a one-time/revocable
+token.
+(binds scope + paper_only).
 
-云端 issue token (sha256 hash 落库) → 用户拷贝明文给 runner →
-runner.enroll(plaintext_token) → 计算 hash + NATS pub enrollment subject →
-等云端确认 → 持久化 runner_id 到本地 enrollment.json。
+Cloud issues a token (SHA-256 hash stored server-side) → user pastes plaintext
+token into the runner → runner.enroll(plaintext_token) computes the hash and
+publishes to the enrollment subject → wait for cloud confirmation → persist
+runner_id to local enrollment.json.
 
-paper_only=True 默认 — 实盘 (live mode) 需用户在云端单独签发 paper_only=False
-的 token (升级路径)。
+paper_only=True by default — live mode requires a separate cloud-issued
+paper_only=False token (upgrade path).
 """
 
 from __future__ import annotations
@@ -71,7 +73,8 @@ class EnrollmentClient:
             )
             return False
 
-        # v1: 简化为立即持久化 + 短等待 (云端 reply pattern Phase 2 加 RBAC 后落地)
+        # v1: simplify to immediate persistence + short wait; cloud reply pattern
+        # Phase 2 + RBAC will land in a later iteration.
         await asyncio.sleep(min(1.0, self.confirm_timeout_secs))
 
         try:
@@ -92,7 +95,7 @@ class EnrollmentClient:
         return True
 
     def is_enrolled(self) -> bool:
-        """检查本地 enrollment.json 是否已存在且未过期 (v1 无过期)。"""
+        """Check whether local enrollment.json exists and is not expired (v1: no expiry)."""
         if not self.enrollment_path.exists():
             return False
         try:
@@ -117,9 +120,9 @@ class EnrollmentClient:
             "enrolled_at_ns": time.time_ns(),
         }
         self.enrollment_path.parent.mkdir(parents=True, exist_ok=True)
-        # 写文件用 0600 (KEK 不出主机 + token_hash 是敏感凭证).
+        # Persist files with 0600 mode (KEK never leaves host; token_hash is sensitive).
         self.enrollment_path.write_text(json.dumps(record, separators=(",", ":")))
         try:
             self.enrollment_path.chmod(0o600)
-        except OSError:  # pragma: no cover — windows/CI 兼容
+        except OSError:  # pragma: no cover — windows/CI compatibility
             pass

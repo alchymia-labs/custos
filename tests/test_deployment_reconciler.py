@@ -1,13 +1,13 @@
-"""DeploymentReconciler — generation 幂等 + drift + 失联安全。
+"""DeploymentReconciler — generation idempotency + drift + disconnect safety.
 
-测试覆盖 plan-index §6 + Plan 06 reconcile 契约:
-- generation diff → 触发 reconcile (deploy 调用)
-- 同 generation → no-op (幂等)
-- 旧 generation → stale 拒绝, 不重复调 host
-- drift_strikes 计数 (NautilusHost 持续失败 → DriftDetected)
-- 状态报告: publish_deployment_status 包含正确 observed_generation
-- 失联安全 (CLAUDE.md 红线): NATS 断连 publish 失败时 reconcile loop
-  本地状态依然推进, host 调用不停。
+Test coverage follows plan-index §6 + Plan 06 reconcile contract:
+- generation diff → trigger reconcile (deploy call)
+- same generation → no-op (idempotent)
+- older generation → stale reject, no host redeploy
+- drift_strikes increments (NautilusHost continuous failures → DriftDetected)
+- status report: publish_deployment_status includes correct observed_generation
+- disconnect safety (CLAUDE.md red line): when NATS publish fails, reconcile
+  loop still advances local state and host calls continue.
 """
 
 from __future__ import annotations
@@ -209,17 +209,18 @@ async def test_drift_strikes_accumulate_on_failure() -> None:
 
 @pytest.mark.asyncio
 async def test_publish_status_failure_does_not_abort_loop() -> None:
-    """失联安全: NATS publish 失败时 reconciler 状态依然推进,
-    本地 host 调用持续进行 (lesson #21 + CLAUDE.md '失联≠停止')。"""
+    """Disconnect safety: when NATS publish fails, reconciler state keeps
+    advancing and local host calls continue (lesson #21 + CLAUDE.md
+    'disconnect != stop')."""
     host = _FakeHost()
     nats = _FakeNats(publish_raises=True)
     reconciler = _make_reconciler(host=host, nats=nats)
 
-    # publish 会 raise 但 handle_spec 不传播
+    # publish raises, but handle_spec must not propagate the error
     await reconciler.handle_spec(_spec("s-1", generation=2))
     await reconciler.handle_spec(_spec("s-1", generation=3))
 
-    # host 调用照常发生
+    # host calls still occur
     assert len(host.deploy_calls) == 1
     assert len(host.reconfigure_calls) == 1
 
@@ -231,7 +232,7 @@ async def test_invalid_generation_logged_not_raised() -> None:
 
     await reconciler.handle_spec({"spec_id": "s-1", "generation": "not-a-number"})
 
-    # 不调 host
+    # no host call on invalid generation
     assert len(host.deploy_calls) == 0
 
 

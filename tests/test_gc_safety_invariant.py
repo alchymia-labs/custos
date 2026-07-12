@@ -3,8 +3,8 @@
 ``asyncio.create_task`` / ``ensure_future`` return a task the event loop only
 weakly holds; drop the reference and the loop may GC it mid-run, silently losing
 whatever it was doing. Three runner sites schedule such tasks and each must keep
-a strong reference until the task finishes (对账不静默 红线 — a dropped publish /
-drain / actor-teardown is a silent loss):
+a strong reference until the task finishes (reconcile no-loss red line — a
+dropped publish / drain / actor-teardown is silent loss):
 
 * ``NtRiskEngineBridge._pending`` — in-flight pre-trade-reject publishes
 * ``NtTradingNodeHost._cleanup_tasks`` — self-terminated node actor teardowns

@@ -28,7 +28,7 @@ import re
 import subprocess
 import sys
 
-CJK_PATTERN = re.compile(r"[一-鿿㐀-䶿豈-﫿　-〿＀-￯]")
+CJK_PATTERN = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3000-\u303f\uff00-\uffef]")
 NOQA_PATTERN = re.compile(r"noqa:\s*(language|lang|zh)\b", re.IGNORECASE)
 
 TARGET_SUFFIXES = (".py", ".rs", ".ts", ".tsx")

@@ -1,7 +1,9 @@
-"""Arx 自托管执行宿主（Runner / ExecutionHost）。
+"""Arx self-hosted execution host (Runner / ExecutionHost).
 
-承载 architecture §1 信任边界那条线：Key 与策略逻辑只在本地，出网只有遥测 + 状态回报。
-控制 = 声明式 reconciliation（拉期望态本地对齐），非命令式直控容器。
+This maps architecture §1 trust-boundary policy:
+- Key material and strategy logic stay local.
+- Network egress is limited to telemetry and status reporting.
+- control = declarative reconciliation to align local state with desired state.
 """
 
 __version__ = "0.0.0"

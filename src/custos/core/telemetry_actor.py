@@ -413,7 +413,7 @@ class TelemetryActor:
 # ``"<decimal> <CCY>"``. Enums come back via ``*_to_str`` ("BUY"), never the
 # raw ``str(OrderSide.BUY) == "1"``. The normalizers pick only string / int
 # keys and split Money into a pure-decimal value + currency so the wire stays
-# ``str(Decimal)`` with no float and no currency suffix (红线 0.4).
+# ``str(Decimal)`` with no float and no currency suffix (red line 0.4).
 # ----------------------------------------------------------------------
 
 
@@ -479,7 +479,7 @@ class NtTelemetryBridge:
     engine.
 
     Handler exceptions are logged, never propagated: a telemetry hiccup must
-    not crash the NT trading thread (non-custodial 红线 0.3). OrderDenied is
+    not crash the NT trading thread (non-custodial red line 0.3). OrderDenied is
     intentionally not forwarded here — it rides the pre_trade_reject subject
     via ``NtRiskEngineBridge``.
     """
@@ -490,7 +490,7 @@ class NtTelemetryBridge:
         """Subscribe the bridge to the NT MessageBus. A missing bus is a
         fail-fast error surfaced loudly; the deploy-level attach guard catches
         it and degrades to observability loss rather than crashing the deploy
-        (红线 0.3)."""
+        (red line 0.3)."""
         if message_bus is None:
             _log.error("nt_messagebus_disconnected", runner_id=self.actor.runner_id)
             raise RuntimeError("NT MessageBus unavailable — cannot bootstrap telemetry bridge")
@@ -523,7 +523,7 @@ class NtTelemetryBridge:
             return
         try:
             self.actor.on_event(event_type, payload)
-        except Exception as exc:  # noqa: BLE001 — 红线 0.3: never crash the NT engine thread
+        except Exception as exc:  # noqa: BLE001 — red line 0.3: never crash the NT engine thread
             _log.error("telemetry_forward_failed", event_type=event_type, error=str(exc))
 
 

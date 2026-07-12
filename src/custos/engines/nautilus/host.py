@@ -1,4 +1,5 @@
-"""NT 进程监管 + ExecutionEngineAdapter 的 CEX/NT 实现（设计 for 3、实现 1）。
+"""NT process orchestration + ExecutionEngineAdapter CEX/NT implementation
+(target: design for three, implement one).
 
 Two hosts satisfy NautilusHostProtocol (deployment_reconciler.py):
 - NoopHost: stub for paper / dev / sim — the G6 gate rejects it on live.
@@ -69,9 +70,9 @@ _STOP_TIMEOUT_SECS = 30.0
 # module's wired connectors by a drift-guard test (test_nt_binance_venue.py).
 _SUPPORTED_VENUES = frozenset({"binance", "binance_perpetual"})
 
-# Substrings that flag an exception message as possibly carrying credential
-# material (NT config repr, adapter auth errors) — such messages are redacted
-# before logging so a raw key can never reach the log (non-custodial 红线 0.1).
+    # Substrings that flag an exception message as potentially carrying credential
+    # material (NT config repr, adapter auth errors) — such messages are redacted
+    # before logging so a raw key can never reach the log (non-custodial red line 0.1).
 _CREDENTIAL_HINTS = ("api_key", "api_secret", "secret", "authorization")
 
 
@@ -91,15 +92,17 @@ def _sanitize_exception(exc: Exception) -> dict:
 
 
 class NoopHost:
-    """Stub NautilusHost — 不真起 NT 进程，只记结构化日志后返回占位。
+    """Stub NautilusHost for non-execution path.
 
-    仅供 paper / dev / sim mode 让 reconcile 流程跑通；live mode 由 G6 gate
-    （deployment_reconciler._check_g6_gate）拒绝，因为 stub 会静默接受 live
-    execution spec 却不实际执行。真实 NT host（NtTradingNodeHost）由后续
-    adapter 落地后替换本 stub。
+    It only logs structured events and returns placeholders so reconcile can run in
+    paper / dev / sim mode. Live mode is rejected by the G6 gate
+    (deployment_reconciler._check_g6_gate), because this stub would silently
+    accept a live spec but never execute. A real NT host (NtTradingNodeHost) replaces
+    this stub once the adapter is fully wired.
 
-    方法签名与 NautilusHostProtocol（deployment_reconciler.py）逐字一致，
-    使 reconciler 可 ducktype 依赖，G6 gate 查 supports_live 立即拒绝。
+    The method signatures exactly match NautilusHostProtocol (deployment_reconciler.py)
+    so reconciler can ducktype this dependency and G6 gate can immediately reject
+    supports_live.
     """
 
     async def deploy(self, spec: dict, credential: dict) -> str:
@@ -167,7 +170,7 @@ class NtTradingNodeHost:
     loop is never blocked. stop tears the node down gracefully with a bounded
     timeout.
 
-    non-custodial 红线 0.1: the decrypted credential is used only to build the
+    non-custodial red line 0.1: the decrypted credential is used only to build the
     NT data-client config and is never stored on the host, logged, or published.
 
     Observability (telemetry + pre-trade reject bridges) is opt-in: pass a NATS
@@ -338,7 +341,7 @@ class NtTradingNodeHost:
 
         Best-effort: an attach failure degrades to observability loss (logged as
         ``telemetry_actor_attach_failed``), never aborts the deploy — the trade
-        path is primary and losing the uplink must not stop trading (红线 0.3).
+        path is primary and losing the uplink must not stop trading (red line 0.3).
         No-op when the host was constructed without a telemetry client (G6
         capability probes / unit tests).
         """
@@ -361,7 +364,7 @@ class NtTradingNodeHost:
                 tenant_id=self._tenant_id or "",
                 runner_id=self._runner_id or "",
             ).bootstrap(msgbus)
-        except Exception as exc:  # noqa: BLE001 — 红线 0.3: observability loss must not abort deploy
+        except Exception as exc:  # noqa: BLE001 — red line 0.3: observability loss must not abort deploy
             _log.error("telemetry_actor_attach_failed", spec_id=spec_id, **_sanitize_exception(exc))
             await self._safe_stop_actor(actor)
             return

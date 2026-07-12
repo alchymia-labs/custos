@@ -1,11 +1,11 @@
 """Strategy source loading + code_hash verification.
 
-The runner must run exactly the strategy code that was reviewed and pinned in
-the DeploymentSpec. Before importing a strategy module we hash its source
-directory and compare against the spec's ``code_hash``; a mismatch is refused
-(non-custodial red line: NT 启动必先校验 code_hash). Sandbox specs may omit the
-hash (``expected_code_hash=None``) — the check is skipped but the skip is
-audited so it is never silent.
+The runner must execute exactly the strategy code reviewed and pinned in the
+DeploymentSpec. Before importing a strategy module we hash its source
+directory and compare it against the spec's ``code_hash``; a mismatch is refused
+(non-custodial red line: NT must verify ``code_hash`` before startup). Sandbox
+specs may omit the hash (``expected_code_hash=None``) — the check is skipped but
+the skip is audited so it is never silent.
 
 No NautilusTrader dependency here — this is pure hashing + importlib so it can
 be unit-tested without the nautilus extra.

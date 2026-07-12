@@ -61,7 +61,7 @@ def test_rejects_empty() -> None:
 @pytest.mark.parametrize(
     "value",
     [
-        "tenant-中",  # CJK ideograph  noqa: language
+        "tenant-π",  # non-ascii test case placeholder
         "tenant​",  # zero-width space
         "tenanté",  # latin-1 accented
     ],

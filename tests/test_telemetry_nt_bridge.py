@@ -4,7 +4,7 @@ The bridge subscribes to the NautilusTrader MessageBus order / position event
 topics and forwards a money-safe summary of each whitelisted event into the
 ``TelemetryActor.on_event`` fast path. Normalizers turn a real NT event into a
 wire-safe ``dict`` (every money field arrives as ``str``, never ``float`` —
-ADR-008 / non-custodial 红线 0.4).
+ADR-008 / non-custodial red line 0.4).
 
 The normalizer tests build *real* NT events (skipped on a base install without
 the nautilus extra) so they lock the actual NT 1.230 wire contract, not a
@@ -104,7 +104,7 @@ def _real_position_opened(*, pnl: str = "1.50 USDT"):
 
 def _assert_money_fields_are_str(payload: dict[str, Any]) -> None:
     """Every money-typed field in the payload must be ``str`` (never
-    ``float``) — the wire money contract (红线 0.4)."""
+    ``float``) — the wire money contract (red line 0.4)."""
     for key, value in payload.items():
         if key in MONEY_FIELD_NAMES:
             assert isinstance(value, str), f"money field {key!r} must be str, got {type(value)}"
@@ -300,7 +300,7 @@ def test_shape_mismatch_skipped() -> None:
 
 
 def test_bridge_forward_never_crashes_on_actor_error() -> None:
-    # 红线 0.3: a telemetry failure must never propagate into the NT engine
+    # red line 0.3: a telemetry failure must never propagate into the NT engine
     # thread. An actor that raises is logged, not re-raised.
     class _ExplodingActor(_RecordingActor):
         def on_event(self, event_type: str, payload: dict[str, Any]) -> None:
@@ -314,8 +314,9 @@ def test_bridge_forward_never_crashes_on_actor_error() -> None:
 
 
 def test_nt_messagebus_disconnected_logs_and_degrades() -> None:
-    # NT MessageBus 断连 / unavailable at bootstrap → fail-fast with a loud log
-    # (the deploy-level attach catch degrades it to observability loss, 红线 0.3).
+    # NT MessageBus disconnected / unavailable at bootstrap → fail-fast with a
+    # loud log (the deploy-level attach catch degrades it to observability loss,
+    # red line 0.3).
     bridge = NtTelemetryBridge(actor=_RecordingActor())
     with structlog.testing.capture_logs() as logs:
         with pytest.raises(RuntimeError, match="MessageBus unavailable"):

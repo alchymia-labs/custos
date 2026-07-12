@@ -313,8 +313,9 @@ class ArxNatsClient:
         # progress is visible even if drain doesn't reach the tail.
         import asyncio
 
-        # Hold a strong ref so the loop can't GC the drain task mid-flight — a
-        # dropped WAL replay silently loses buffered telemetry (对账不静默 红线).
+        # Hold a strong reference so the loop can't GC the drain task mid-flight —
+        # dropped WAL replay silently losing buffered telemetry violates the
+        # reconciliation-visibility red line.
         self._wal_drain_task = asyncio.create_task(self._drain_wal(), name="arx-wal-drain")
 
     async def close(self) -> None:
@@ -393,7 +394,7 @@ class ArxNatsClient:
         Returns the underlying nats subscription so the caller can iterate
         ``async for msg in sub.messages``. Spec stream is level-triggered by
         generation — each message is a full DeploymentSpec snapshot, not a
-        delta (plan-index §6: "不含 ordering，level-triggered by generation").
+        delta (plan-index §6: "no ordering, level-triggered by generation").
         """
         if self._js is None:
             raise RuntimeError("subscribe_deployment_spec called before connect()")
