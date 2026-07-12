@@ -66,32 +66,36 @@ never clear the live G6 gate.
 | `testnet` | Real Binance exec against the testnet endpoint (test funds) | ✅ | See [examples/supertrend-testnet](examples/supertrend-testnet/). |
 | `live` | Real Binance exec against the live exchange | ⚠️ | Must clear the 4-layer G6 gate (host capability, venue, `code_hash`, credential scope) **and** carry cloud-side dual approval (`>= 2` distinct `approved_by`). Per-order telemetry is not uplinked to arx until the telemetry bridge lands (see Not Included Yet). |
 
-The official 0.3.0 image contains NautilusTrader, PyYAML, sops, and age. It is
-the supported runtime for sandbox, testnet, and live; downstream projects do
-not need to extend it just to obtain runtime dependencies.
+The verified local 0.3.0 image contains NautilusTrader, PyYAML, sops, and age.
+It is the current downstream-development runtime for sandbox, testnet, and
+live; downstream projects do not need to extend it just to obtain runtime
+dependencies.
 
 ## Quick Start
 
-Pull the complete signed runtime and confirm the clean entrypoint:
+Build and gate the complete local runtime, then confirm the clean entrypoint:
 
 ```bash
-docker pull ghcr.io/the-alephain-guild/custos:v0.3.0
-docker run --rm ghcr.io/the-alephain-guild/custos:v0.3.0 --help
+make verify-local-v030
+docker run --rm custos-runner:v0.3.0 --help
 ```
+
+**Remote release: deferred.** No 0.3.0 Git tag, GitHub Release, PyPI artifact,
+or GHCR image is asserted as published by this repository state.
 
 For a standalone NATS deployment, bootstrap topology explicitly before the
 runner starts:
 
 ```bash
 docker run --rm --network host \
-  ghcr.io/the-alephain-guild/custos:v0.3.0 \
+  custos-runner:v0.3.0 \
   nats bootstrap --profile standalone --nats-url nats://127.0.0.1:4222 \
   --tenant-id acme
 
 docker run --rm --network host \
   -v "$HOME/.arx:/home/custos/.arx" \
   -e SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key \
-  ghcr.io/the-alephain-guild/custos:v0.3.0 \
+  custos-runner:v0.3.0 \
   start --nats-url nats://127.0.0.1:4222 \
   --reconcile-strategy-id supertrend-btcusdt --engine nautilus
 ```
@@ -117,7 +121,7 @@ The downstream migration gate is explicit:
 
 ```text
 PS Plan 49 must not execute against custos < 0.3.0.
-PS must consume the official image directly.
+PS must consume the verified local image directly.
 PS must not maintain a derived custos Dockerfile.
 PS owns strategy_config assembly only.
 ```
@@ -184,6 +188,10 @@ public-repo façade lives in [`CONTRIBUTING.md`](CONTRIBUTING.md) +
 
 The remaining follow-ups tracked here:
 
+- **Remote 0.3.0 publication** — deferred until a dedicated release plan
+  decides the GitHub repository and GHCR namespace, the cosign identity and
+  tag ownership, and the PyPI trusted publisher identity, then promotes one
+  digest-tested artifact without rebuilding it.
 - **Telemetry uplink bridge** — the NT `MessageBus` → arx telemetry actor is
   not wired yet, so per-order execution events (fills / `OrderDenied`) are
   observable only in the runner's local logs, not uplinked to the cloud.

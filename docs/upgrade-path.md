@@ -8,10 +8,11 @@ the current recommended path.
 
 0.3.0 replaces the boolean engine switch with `--engine nautilus|noop`, makes
 Nautilus the default, validates every desired-state message through the strict
-`DeploymentSpec`, and ships the complete runtime in the official image.
+`DeploymentSpec`, and provides the complete runtime as a verified local image.
 
-1. Pull `ghcr.io/the-alephain-guild/custos:v0.3.0`; remove any derived Custos
-   Dockerfile used only to add NautilusTrader, PyYAML, sops, or age.
+1. From the Custos checkout, run `make verify-local-v030` to build and gate
+   `custos-runner:v0.3.0`; remove any derived Custos Dockerfile used only to
+   add NautilusTrader, PyYAML, sops, or age.
 2. Replace the removed boolean engine flag with `--engine nautilus`. Use
    `--engine noop` only for non-live contract tests.
 3. Add `generation >= 1`, `lifecycle_state`, and `strategy_config` to every
@@ -22,8 +23,9 @@ Nautilus the default, validates every desired-state message through the strict
    `arx-runner health`.
 
 PS Plan 49 remains blocked until this upgrade is complete. PS consumes the
-official image directly, maintains no derived Custos Dockerfile, and owns only
-strategy code plus `strategy_config` assembly.
+verified local image directly, maintains no derived Custos Dockerfile, and
+owns only strategy code plus `strategy_config` assembly. Remote release is
+deferred and is not a prerequisite for local PS integration.
 
 ## 0.1.x → 0.2.0 (Plan 11 + 12 breaking release)
 

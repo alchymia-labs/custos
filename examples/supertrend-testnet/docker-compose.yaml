@@ -1,4 +1,4 @@
-# Custos 0.3.0 SuperTrend testnet example using the complete official image.
+# Custos 0.3.0 SuperTrend testnet example using the verified local image.
 services:
   nats:
     image: nats:2.10-alpine
@@ -7,7 +7,8 @@ services:
       - "4222:4222"
 
   nats-bootstrap:
-    image: ghcr.io/the-alephain-guild/custos:v0.3.0
+    image: custos-runner:v0.3.0
+    pull_policy: never
     depends_on:
       nats:
         condition: service_started
@@ -22,7 +23,8 @@ services:
       - ${ARX_TENANT_ID:-acme}
 
   runner:
-    image: ghcr.io/the-alephain-guild/custos:v0.3.0
+    image: custos-runner:v0.3.0
+    pull_policy: never
     depends_on:
       nats-bootstrap:
         condition: service_completed_successfully
@@ -48,7 +50,8 @@ services:
       retries: 15
 
   spec-publisher:
-    image: ghcr.io/the-alephain-guild/custos:v0.3.0
+    image: custos-runner:v0.3.0
+    pull_policy: never
     depends_on:
       runner:
         condition: service_healthy

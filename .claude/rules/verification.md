@@ -15,6 +15,7 @@
 | `make check` | fmt-check + lint | 组合 target |
 | `make test` | 跑测试 | `uv run pytest` |
 | `make verify` | check + test (发布级) | 组合 target |
+| `make verify-local-v030` | 构建并验证本机下游镜像 | Docker runtime + standalone NATS gate |
 
 ## 详细验证策略
 
@@ -53,6 +54,19 @@ digest**：
 Runtime gate 与稳定 tag promotion 之间 **must not rebuild**。仅检查 workflow 中
 `verify-runtime` 文本出现在 `push: true` 前不足以证明 artifact identity；shape test 必须
 同时锁定 signed input、candidate digest、gate target 与 promotion source。
+
+### Local consumer artifact gate
+
+远端发布递延期间，下游开发只消费同一本机 Docker daemon 中的验证后镜像：
+
+```bash
+make verify-local-v030
+```
+
+该 target 构建 `custos-runner:v0.3.0`，写入当前 Git SHA 的
+`org.opencontainers.image.revision` label，执行完整 Docker runtime contract 与 standalone
+NATS acceptance，并输出 image ID + revision。PS 不得 pull 未发布的 GHCR tag，也不得维护
+派生 Custos Dockerfile。
 
 ### Non-Custodial 4 红线专项检查
 

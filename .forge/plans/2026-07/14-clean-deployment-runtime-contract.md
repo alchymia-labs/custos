@@ -938,3 +938,15 @@ git commit -m "docs(custos): mark plan 14 as completed"
   reactivation 误走 `reconfigure()`，经用户批准扩为 T10 并在 `281cb3b` 修复。
 - **Round 2**: 复核 consumer validation、Vault/G6 重入、retry/readiness、bootstrap
   ownership、release/runtime matrix；无新增阻断问题，提前结束。
+
+## Plan 16 local artifact amendment (2026-07-12)
+
+Plan 14 proved the complete runtime contract but its close-out assumed a future published 0.3.0
+artifact. The **Plan 16 verified local image** `custos-runner:v0.3.0` now satisfies the
+**PS local-development gate** when it is built and accepted by `make verify-local-v030` from a
+Custos revision containing Plan 16 or later.
+
+This amendment does not assert a Git tag, GitHub Release, PyPI upload, GHCR image, or cosign
+publication. Those remain deferred to a dedicated release plan. PS may begin local development
+against the verified image in the same Docker daemon, must use `pull_policy: never`, and must not
+maintain a derived Custos Dockerfile.

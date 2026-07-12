@@ -31,6 +31,10 @@ ACTIVE_RUNTIME_DOCS = (
     SANDBOX_DIR / "README.md",
     TESTNET_DIR / "README.md",
 )
+LOCAL_IMAGE = "custos-runner:v0.3.0"
+REMOTE_IMAGE = "ghcr.io/the-alephain-guild/custos:v0.3.0"
+PLAN_14 = REPO_ROOT / ".forge" / "plans" / "2026-07" / "14-clean-deployment-runtime-contract.md"
+VERIFICATION_RULE = REPO_ROOT / ".claude" / "rules" / "verification.md"
 
 
 def test_project_and_lock_are_versioned_v030() -> None:
@@ -46,8 +50,12 @@ def test_project_and_lock_are_versioned_v030() -> None:
 
 def test_changelog_documents_v030_clean_break() -> None:
     text = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    v030 = text[text.index("## [0.3.0]") : text.index("## [0.2.0]")]
 
     assert "## [0.3.0] - 2026-07-12" in text
+    assert LOCAL_IMAGE in v030
+    assert "Remote release: deferred" in v030
+    assert REMOTE_IMAGE not in v030
     for contract in (
         "--engine",
         "--use-nt-host",
@@ -60,14 +68,30 @@ def test_changelog_documents_v030_clean_break() -> None:
         assert contract in text
 
 
-def test_readme_declares_official_image_and_downstream_gate() -> None:
+def test_readme_declares_local_image_and_downstream_gate() -> None:
     text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "ghcr.io/the-alephain-guild/custos:v0.3.0" in text
+    assert LOCAL_IMAGE in text
+    assert "make verify-local-v030" in text
+    assert "Remote release: deferred" in text
+    assert REMOTE_IMAGE not in text
     assert "PS Plan 49 must not execute against custos < 0.3.0." in text
-    assert "PS must consume the official image directly." in text
+    assert "PS must consume the verified local image directly." in text
     assert "PS must not maintain a derived custos Dockerfile." in text
     assert "PS owns strategy_config assembly only." in text
+
+
+def test_remote_release_follow_up_names_identity_decisions() -> None:
+    text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    for decision in (
+        "GitHub repository",
+        "GHCR namespace",
+        "cosign identity",
+        "tag ownership",
+        "PyPI trusted publisher identity",
+    ):
+        assert decision in text
 
 
 @pytest.mark.parametrize("path", TEXT_FILES, ids=lambda path: str(path.relative_to(REPO_ROOT)))
@@ -91,7 +115,9 @@ def test_testnet_compose_uses_v030_official_runtime_shape() -> None:
     publisher = compose["services"]["spec-publisher"]
 
     assert "build" not in runner
-    assert runner["image"] == "ghcr.io/the-alephain-guild/custos:v0.3.0"
+    for service in (runner, bootstrap, publisher):
+        assert service["image"] == LOCAL_IMAGE
+        assert service["pull_policy"] == "never"
     assert runner["command"][0] == "start"
     assert ["--engine", "nautilus"] == runner["command"][5:7]
     assert runner["depends_on"]["nats-bootstrap"]["condition"] == "service_completed_successfully"
@@ -101,6 +127,23 @@ def test_testnet_compose_uses_v030_official_runtime_shape() -> None:
     assert bootstrap["command"][0:2] == ["nats", "bootstrap"]
     assert publisher["command"][0:2] == ["deployment", "publish"]
     assert publisher["depends_on"]["runner"]["condition"] == "service_healthy"
+
+
+def test_testnet_readme_requires_local_image_gate() -> None:
+    text = (TESTNET_DIR / "README.md").read_text(encoding="utf-8")
+
+    assert "make verify-local-v030" in text
+    assert LOCAL_IMAGE in text
+    assert REMOTE_IMAGE not in text
+
+
+def test_local_consumer_gate_is_registered_and_amends_plan_14() -> None:
+    verification = VERIFICATION_RULE.read_text(encoding="utf-8")
+    plan_14 = PLAN_14.read_text(encoding="utf-8")
+
+    assert "make verify-local-v030" in verification
+    assert "Plan 16 verified local image" in plan_14
+    assert "PS local-development gate" in plan_14
 
 
 def test_testnet_example_has_no_derived_dockerfile() -> None:

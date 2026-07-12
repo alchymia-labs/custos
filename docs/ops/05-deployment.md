@@ -6,11 +6,15 @@ the age identity, and strategy code stay on the runner host.
 
 ## Supported runtime
 
-The production artifact is the complete, signed image:
+The current downstream-development artifact is the complete, verified local
+image:
 
 ```text
-ghcr.io/the-alephain-guild/custos:v0.3.0
+custos-runner:v0.3.0
 ```
+
+**Remote release: deferred.** The GitHub/PyPI/GHCR publication and signing
+identity are not established by the current repository state.
 
 It contains Python 3.12, NautilusTrader, PyYAML, sops, age, and the
 `arx-runner` CLI. The image runs as UID/GID 1000, declares
@@ -42,6 +46,7 @@ The runnable
 the golden path:
 
 ```bash
+make verify-local-v030
 cd examples/supertrend-testnet
 test -f .env || cp .env.example .env
 docker compose up
@@ -97,11 +102,11 @@ Plaintext secrets enter through stdin, never argv or the deployment spec.
 
 ## Docker runtime volume and command
 
-Pull and inspect the signed release:
+Build, gate, and inspect the local runtime:
 
 ```bash
-docker pull ghcr.io/the-alephain-guild/custos:v0.3.0
-docker run --rm ghcr.io/the-alephain-guild/custos:v0.3.0 --help
+make verify-local-v030
+docker run --rm custos-runner:v0.3.0 --help
 ```
 
 The runner reads identity and credentials from the bind-mounted `.arx`
@@ -114,7 +119,7 @@ docker run --rm --name custos \
   -v "$HOME/.arx:/home/custos/.arx" \
   -v "$PWD/strategy:/opt/custos/strategies/supertrend:ro" \
   -e SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key \
-  ghcr.io/the-alephain-guild/custos:v0.3.0 \
+  custos-runner:v0.3.0 \
   start \
   --nats-url nats://arx.internal:4222 \
   --reconcile-strategy-id supertrend-btcusdt \
@@ -129,11 +134,12 @@ be inspected with:
 ```bash
 docker inspect --format \
   '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
-  ghcr.io/the-alephain-guild/custos:v0.3.0
+  custos-runner:v0.3.0
 ```
 
-Release signature verification is implemented by
-[`verify-release.sh`](../../.github/workflows/scripts/verify-release.sh).
+Future remote release signature verification is implemented by
+[`verify-release.sh`](../../.github/workflows/scripts/verify-release.sh), but
+it is not evidence that a 0.3.0 registry artifact has already been published.
 
 ## Source and systemd path
 
@@ -171,20 +177,23 @@ WantedBy=multi-user.target
 
 ## DeploymentSpec publication
 
-Validate locally before publishing:
+Validate locally before publishing. Live specs pass the strategy directory to
+both commands so validation and publication compute the same canonical hash:
 
 ```bash
-arx-runner deployment validate --spec-file deployment.json
+arx-runner deployment validate \
+  --spec-file deployment.json \
+  --strategy-dir /opt/custos/strategies/supertrend
 arx-runner deployment publish \
   --spec-file deployment.json \
+  --strategy-dir /opt/custos/strategies/supertrend \
   --tenant-id acme \
   --strategy-id supertrend-btcusdt \
   --nats-url nats://arx.internal:4222
 ```
 
-For live mode, pass `--strategy-dir` to publication so Custos computes the
-canonical strategy directory hash through the public contract seam. Do not
-import an engine-private hash module.
+For non-live specs, `--strategy-dir` may be omitted. Do not import an
+engine-private hash module.
 
 The lifecycle sequence is generation-driven. Increment `generation` for every
 desired-state change. `stopped` and `archived` reconcile to
@@ -222,7 +231,7 @@ The downstream gate is mandatory:
 
 ```text
 PS Plan 49 must not execute against custos < 0.3.0.
-PS must consume the official image directly.
+PS must consume the verified local image directly.
 PS must not maintain a derived custos Dockerfile.
 PS owns strategy_config assembly only.
 ```

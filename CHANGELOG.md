@@ -14,11 +14,13 @@ lives in [`docs/lts-commitment.md`](docs/lts-commitment.md) and
 
 ## [0.3.0] - 2026-07-12
 
-Custos 0.3.0 closes the standalone deployment loop. The official image is now
-the complete NautilusTrader runtime, and the desired-state producer and
-consumer share one strict public contract. This is a clean break: downstream
-deployment work must start from 0.3.0 rather than carrying compatibility code
-for an older runner.
+Custos 0.3.0 closes the standalone deployment loop. The verified local image
+`custos-runner:v0.3.0` is the complete NautilusTrader runtime, and the
+desired-state producer and consumer share one strict public contract. This is
+a clean break: downstream development must start from 0.3.0 rather than
+carrying compatibility code for an older runner. **Remote release: deferred**;
+this entry records the code and local Docker contract, not a GitHub, PyPI, or
+GHCR publication event.
 
 ### Added
 
@@ -41,7 +43,7 @@ for an older runner.
 
 ### Changed
 
-- The official `ghcr.io/the-alephain-guild/custos:v0.3.0` image now includes
+- The verified local `custos-runner:v0.3.0` image includes
   NautilusTrader, PyYAML, sops, and age. `ENTRYPOINT ["arx-runner"]` plus an
   explicit `CMD ["start"]` gives both daemon-by-default and subcommand-safe
   Docker behavior.
@@ -52,16 +54,17 @@ for an older runner.
   reports `phase=stopped` rather than claiming the deployment is running.
 - Subscription failure uses bounded exponential retry while local guard ticks
   continue; deployment readiness reflects the real subscription state.
-- Release CI verifies the lightweight base install, the Nautilus extra, the
-  complete pre-push image contract, and the signed published artifact.
+- Release CI shape is prepared to verify the lightweight base install, the
+  Nautilus extra, the complete candidate image contract, and the signed
+  published artifact when remote publication is authorized.
 
 ### Removed
 
 - `--use-nt-host`; no compatibility alias is retained. Use
   `--engine nautilus` or `--engine noop` explicitly.
-- The testnet example's derived Custos Dockerfile. Downstream deployments
-  consume the official image directly and own only strategy material and
-  `strategy_config` assembly.
+- The testnet example's derived Custos Dockerfile. Downstream development
+  consumes the verified local image directly and owns only strategy material
+  and `strategy_config` assembly.
 
 ### Fixed
 
@@ -74,9 +77,10 @@ for an older runner.
 
 ### Security
 
-- The official runtime remains non-root and the release gate checks the CLI,
-  Nautilus/YAML imports, sops/age executables, readiness probe, and cosign
-  signature before a release is accepted.
+- The local runtime remains non-root and the local gate checks the CLI,
+  Nautilus/YAML imports, sops/age executables, readiness probe, package
+  version, and source-revision label. A future remote release additionally
+  requires cosign verification before acceptance.
 
 ## [0.2.0] - 2026-07-11
 

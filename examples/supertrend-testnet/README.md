@@ -1,9 +1,10 @@
 # SuperTrend on Binance testnet with custos 0.3.0
 
-This Compose example uses the complete official Custos image directly. It starts
-JetStream, creates the standalone stream topology once, waits for runner
-readiness, and publishes the included DeploymentSpec through the public CLI.
-No derived Custos Dockerfile is required.
+This Compose example uses the verified local `custos-runner:v0.3.0` image
+directly. It starts JetStream, creates the standalone stream topology once,
+waits for runner readiness, and publishes the included DeploymentSpec through
+the public CLI. No derived Custos Dockerfile is required, and Compose uses
+`pull_policy: never` so it cannot silently substitute a registry artifact.
 
 Exchange credentials, the age private key, and strategy code remain under this
 directory on the operator host. Testnet credentials must allow trading but not
@@ -17,6 +18,14 @@ withdrawal.
 - A reviewed strategy at `strategy/strategy.py`.
 - `age-keygen` for the one-time local key creation.
 - Binance Futures testnet credentials with withdrawal disabled.
+
+From the Custos repository root, build and verify the exact local image before
+entering this example:
+
+```bash
+make verify-local-v030
+cd examples/supertrend-testnet
+```
 
 Copy the non-secret defaults without overwriting an existing configuration:
 
@@ -38,13 +47,13 @@ age-keygen -o runtime/.arx/age.key
 chmod 600 runtime/.arx/age.key
 ```
 
-Use the official image's `arx-runner vault put` command to write the encrypted
+Use the verified local image's `arx-runner vault put` command to write the encrypted
 credential. Pass the secret through stdin:
 
 ```bash
 printf '%s\n' '<binance-testnet-api-secret>' | docker run --rm -i \
   -v "$PWD/runtime/.arx:/home/custos/.arx" \
-  ghcr.io/the-alephain-guild/custos:v0.3.0 vault put \
+  custos-runner:v0.3.0 vault put \
   --key-id binance-testnet \
   --tenant-id "$ARX_TENANT_ID" \
   --api-key '<binance-testnet-api-key>' \
@@ -107,5 +116,6 @@ To stop the deployment, set `generation` to `2` and `lifecycle_state` to
 docker compose run --rm spec-publisher
 ```
 
-The official image defaults to the real Nautilus engine. This example passes it
-explicitly so the runtime intent remains visible in Compose.
+The verified local image defaults to the real Nautilus engine. This example
+passes it explicitly so the runtime intent remains visible in Compose. Remote
+release remains deferred; this workflow consumes no GHCR artifact.

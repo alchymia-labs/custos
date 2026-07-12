@@ -1,11 +1,11 @@
 # Reproducible builds
 
-`custos-runner` publishes byte-for-byte reproducible wheels so an external
-auditor can rebuild from source, compare hashes against the published
-artifact, and prove the running binary is a deterministic function of the
-audited source tree. This is the technical foundation for the Non-Custodial
-red line "audit-able open source": the on-wire wheel is what the source
-audit covers.
+`custos-runner` supports byte-for-byte reproducible wheel builds so an external
+auditor can rebuild from source and compare hashes when a remote artifact is
+published. This is the technical foundation for the Non-Custodial red line
+"audit-able open source": the distributed wheel must be what the source audit
+covers. **Remote release: deferred** for 0.3.0; the current consumer gate is a
+locally built Docker image.
 
 ## The three knobs
 
@@ -27,22 +27,21 @@ audit covers.
 ## Manual reproduction (auditor workflow)
 
 ```bash
-# 1. clone the repo at the tag you want to verify
+# 1. clone the repo at the release tag you want to verify
 git clone https://github.com/the-alephain-guild/custos.git
 cd custos
-git checkout v0.3.0
+git checkout <release-tag>
 
 # 2. pin the epoch to the tagger date at midnight UTC (or copy the value
 #    the release workflow used, exposed as the tag's commit timestamp).
-export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct v0.3.0)"
+export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct <release-tag>)"
 
 # 3. build; the resulting wheel MUST hash-match the released wheel.
 uv build --out-dir /tmp/verify
 sha256sum /tmp/verify/*.whl
 ```
 
-Then compare against the SHA256SUMS attachment on the corresponding
-[GitHub Release](https://github.com/the-alephain-guild/custos/releases).
+When a remote release exists, compare against its SHA256SUMS attachment.
 A mismatch means either the epoch is wrong (check the release notes for
 the exact value the workflow used), or the source has been tampered
 with — in which case the sigstore attestation would also fail against
@@ -68,14 +67,15 @@ correctly differ, the xfail would fire, and we'd notice.
 
 Docker image reproducibility is a separate workstream (buildkit
 timestamp normalization is not stable across buildkit versions).
-For 0.3.0 the image side of "audit the binary" is served by:
+For current local 0.3.0 development, the image side of "audit the binary" is
+served by:
 
-- OCI labels — `org.opencontainers.image.revision = <commit sha>` and
-  `org.opencontainers.image.created = <tag timestamp>` are baked into
-  the image at CI time.
-- Cosign keyless signature — the pushed image digest is signed with the
-  workflow's cert-identity, so the digest itself is auditable.
-- `verify-release.sh` re-pulls the image and verifies the CLI command matrix,
+- `make verify-local-v030` builds `custos-runner:v0.3.0`, injects
+  `org.opencontainers.image.revision = <commit sha>`, and runs the Docker plus
+  standalone NATS gates.
+- The printed image ID and revision label provide local provenance evidence
+  for downstream development.
+- A future remote release uses cosign and `verify-release.sh` to re-pull the image and verify the CLI command matrix,
   Nautilus/PyYAML imports, sops/age executables, readiness probe, non-root
   identity, and cosign signature against the published digest.
 
