@@ -153,6 +153,17 @@ def test_runtime_gate_targets_candidate_digest() -> None:
     assert "${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}" in gate_block
 
 
+def test_runtime_gate_is_not_followed_by_an_image_rebuild() -> None:
+    text = _read()
+    build_docker = text.index("build-docker:")
+    runtime_gate = text.index("make verify-runtime-existing", build_docker)
+    build_job_end = text.index("# --- 4/8", runtime_gate)
+    after_gate = text[runtime_gate:build_job_end]
+
+    assert "uses: docker/build-push-action" not in after_gate
+    assert "docker build " not in after_gate
+
+
 def test_release_publishes_version_and_latest_image_tags() -> None:
     text = _read()
 

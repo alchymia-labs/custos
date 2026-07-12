@@ -211,6 +211,7 @@ git commit -m "docs(custos): document release artifact identity truthfully"
 | 类型 | 位置 | 描述 | 已批准 |
 |---|---|---|---|
 | IMPROVEMENT | Release promotion | 使用 registry candidate digest + stable tag promotion 保留 provenance/SBOM，同时保证公开 tag 指向已验证的精确镜像 | ✅ user `/forge:fix` 2026-07-12 |
+| IMPROVEMENT | Self-reflect R1 | 补充 gate 后到 build job 结束禁止第二次 image build 的显式回归断言 | ✅ 2026-07-12 |
 
 ---
 
