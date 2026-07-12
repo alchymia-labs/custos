@@ -15,7 +15,6 @@ execution engine 起停策略 → NATS-发 DeploymentStatus 回报。
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -23,13 +22,13 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
-from custos.contracts import DeploymentSpec, TradingMode
+from custos.contracts import DeploymentMessage, DeploymentSpec, TradingMode
 from custos.core.engine_protocol import ExecutionEngineProtocol
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.g6_gate import check_g6_gate
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.log import get_logger
-from custos.core.nats_client import ArxNatsClient
+from custos.core.nats_client import ArxNatsClient, build_subject
 from custos.core.zombie_watchdog import ZombieWatchdog
 
 _log = get_logger("custos.deployment_reconciler")
@@ -124,15 +123,25 @@ class DeploymentReconciler:
                 continue
 
             try:
-                envelope = json.loads(msg.data)
-            except (json.JSONDecodeError, AttributeError) as exc:
+                message = DeploymentMessage.parse(
+                    msg.data,
+                    expected_tenant_id=self.tenant_id,
+                )
+            except (ValidationError, ValueError, AttributeError) as exc:
                 _log.error(
                     "deployment_spec_decode_failed",
                     error=str(exc),
                 )
                 continue
-            spec = envelope.get("payload", {})
-            await self.handle_spec(spec)
+            expected_subject = build_subject(self.tenant_id, "deployment_spec", strategy_id)
+            if message.subject != expected_subject:
+                _log.error(
+                    "deployment_message_strategy_mismatch",
+                    expected_subject=expected_subject,
+                    message_subject=message.subject,
+                )
+                continue
+            await self.handle_spec(message.spec.model_dump(mode="json"))
 
         _log.info(
             "deployment_reconciler_stopped",

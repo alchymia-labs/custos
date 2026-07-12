@@ -51,7 +51,8 @@ plan-index §6 WR-NATS-2 demux），不混在 telemetry 流里，让 consumer di
   `str(Decimal)`，后端反序列化为 `rust_decimal::Decimal`，守 differential-test 不变量。
 - **幂等 + level-triggered**：同 `generation` 多次到达不重复执行，防重放导致重复起停。
 - **严格 consumer contract**：每个 payload 先经过
-  `custos.contracts.DeploymentSpec.model_validate()`；未知字段、generation 0、无效 lifecycle、
+  `custos.contracts.DeploymentMessage.parse()` 恢复 canonical subject 并校验 tenant，内部 spec
+  再经过 `DeploymentSpec.model_validate()`；未知字段、generation 0、无效 lifecycle、
   缺失 sandbox balances 或 live code hash 都在 Vault/G6/host 之前拒绝。host 只收到
   `model_dump(mode="json")` 的规范化 dict，`strategy_config` 保持原值。
 

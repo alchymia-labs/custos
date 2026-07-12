@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import uuid
 from copy import deepcopy
 from pathlib import Path
 from types import ModuleType
@@ -10,10 +11,17 @@ import pytest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
-from custos.contracts import DeploymentSpec, LifecycleState, TradingMode
+from custos.contracts import (
+    DeploymentMessage,
+    DeploymentSpec,
+    LifecycleState,
+    TradingMode,
+    compute_strategy_code_hash,
+)
 from custos.core.deployment_reconciler import DeploymentReconciler
 from custos.core.local_cap import LIVE_CAP_FLOOR_USD, LocalCapConfig, RunnerNotionalCap
 from custos.engines.nautilus.host import NtTradingNodeHost
+from custos.engines.nautilus.strategy_loader import compute_strategy_dir_hash
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "docs/gateway-contract/v1/deployment_spec.schema.json"
@@ -165,3 +173,67 @@ def test_model_validation_does_not_mutate_input() -> None:
     assert raw == before
     assert DeploymentSpec.model_validate(raw).trading_mode is TradingMode.SANDBOX
     assert DeploymentSpec.model_validate(raw).lifecycle_state is LifecycleState.RUNNING
+
+
+def _deployment_message() -> DeploymentMessage:
+    return DeploymentMessage.create(
+        tenant_id="acme",
+        strategy_id="supertrend-sandbox",
+        spec=DeploymentSpec.model_validate(_sandbox_spec()),
+    )
+
+
+def test_message_builds_canonical_subject() -> None:
+    assert _deployment_message().subject == "arx.acme.deployment_spec.supertrend-sandbox"
+
+
+def test_message_contains_full_envelope() -> None:
+    body = json.loads(_deployment_message().to_bytes())
+
+    assert body == {
+        "envelope_version": 1,
+        "event_id": body["event_id"],
+        "tenant_id": "acme",
+        "occurred_at": body["occurred_at"],
+        "payload_schema_version": 1,
+        "payload": {
+            "strategy_id": "supertrend-sandbox",
+            "spec": DeploymentSpec.model_validate(_sandbox_spec()).model_dump(mode="json"),
+        },
+    }
+
+
+def test_message_event_id_is_uuid7() -> None:
+    event_id = uuid.UUID(_deployment_message().envelope.event_id)
+
+    assert event_id.version == 7
+
+
+def test_message_tenant_mismatch_is_rejected() -> None:
+    with pytest.raises(ValueError, match="tenant"):
+        DeploymentMessage.parse(_deployment_message().to_bytes(), expected_tenant_id="other")
+
+
+def test_message_parse_validates_payload() -> None:
+    body = json.loads(_deployment_message().to_bytes())
+    body["payload"]["spec"]["generation"] = 0
+
+    with pytest.raises(ValidationError):
+        DeploymentMessage.parse(json.dumps(body).encode(), expected_tenant_id="acme")
+
+
+def test_message_round_trip_restores_subject_and_spec() -> None:
+    message = _deployment_message()
+
+    parsed = DeploymentMessage.parse(message.to_bytes(), expected_tenant_id="acme")
+
+    assert parsed.subject == message.subject
+    assert parsed.spec == message.spec
+
+
+def test_public_hash_matches_internal_loader(tmp_path: Path) -> None:
+    strategy_dir = tmp_path / "strategy"
+    strategy_dir.mkdir()
+    (strategy_dir / "strategy.py").write_text("class Strategy:\n    pass\n")
+
+    assert compute_strategy_code_hash(strategy_dir) == compute_strategy_dir_hash(strategy_dir)

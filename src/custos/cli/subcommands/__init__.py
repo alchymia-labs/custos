@@ -4,7 +4,7 @@ Registered as ``[project.scripts].arx-runner = "custos.cli.subcommands:main"``
 in ``pyproject.toml``. The legacy ``python -m custos`` entry returns exit
 2 with a pointer to this dispatcher; there is no compatibility bridge.
 
-Wires three top-level subcommands — ``enroll`` / ``start`` / ``vault`` —
+Wires top-level lifecycle and management subcommands
 each in its own handler module so parse and execution live together.
 ``vault`` further nests ``put`` / ``verify`` / ``list`` because they share
 key-id parsing and the ``~/.arx/vault/`` directory conventions.
@@ -16,7 +16,7 @@ import argparse
 import asyncio
 import sys
 
-from custos.cli.subcommands import enroll, start, vault
+from custos.cli.subcommands import deployment, enroll, start, vault
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,7 +46,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "the reconcile / telemetry / heartbeat loop."
         ),
     )
-    subparsers = parser.add_subparsers(dest="cmd", metavar="{enroll,start,vault}")
+    subparsers = parser.add_subparsers(
+        dest="cmd",
+        metavar="{deployment,enroll,start,vault}",
+    )
+    deployment.register(subparsers)
     enroll.register(subparsers)
     start.register(subparsers)
     vault.register(subparsers)
