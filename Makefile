@@ -34,8 +34,9 @@ check: fmt-check lint  ## Combined formatting check and lint
 check-commit-hook:  ## Run the repository pre-commit hook directly (dry, no commit created)
 	.git/hooks/pre-commit
 
-commit-hook-dry-run:  ## Run git commit dry-run to exercise commit-hook path (no real commit)
-	git commit --allow-empty --dry-run -m "chore: pre-commit hook dry run"
+commit-hook-dry-run:  ## Validate the pre-commit hook path in a dry way (no real commit, always zero exit on success)
+	@echo "Running pre-commit hook in dry mode..."
+	make check-commit-hook
 
 test:  ## Run full pytest (base profile; NT tests importorskip; includes known-failing wire_shapes)
 	uv run pytest tests/
