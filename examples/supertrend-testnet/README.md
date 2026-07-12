@@ -12,6 +12,8 @@ withdrawal.
 ## Prerequisites
 
 - Docker with Compose v2.
+- `uv` with this repository synced (`uv sync --extra dev`) for the sanctioned
+  local `runner.toml` helper.
 - A reviewed strategy at `strategy/strategy.py`.
 - `age-keygen` for the one-time local key creation.
 - Binance Futures testnet credentials with withdrawal disabled.

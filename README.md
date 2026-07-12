@@ -43,22 +43,22 @@ Custos is organized as six core modules, each documented under `docs/`:
 
 | Module | Responsibility | Design doc |
 |--------|----------------|------------|
-| **enrollment** | One-time EnrollmentToken pairing; `runner_id` persistence; `paper_only` default | [docs/enrollment.md](docs/enrollment.md) |
-| **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [docs/reconcile.md](docs/reconcile.md) |
-| **nautilus_host** | NautilusTrader process supervision + `ExecutionEngineAdapter` (CEX/NT) + G6 host gate | [docs/nautilus_host.md](docs/nautilus_host.md) |
-| **telemetry_actor** | NT MessageBus → whitelisted, buffered NATS uplink with schema versioning | [docs/telemetry_actor.md](docs/telemetry_actor.md) |
-| **credential_vault** | sops+age local key vault; KEK never leaves the box; `trade_no_withdraw` scope | [docs/credential_vault.md](docs/credential_vault.md) |
-| **nats_client** | NATS JetStream client + transport envelope schema + subject naming | [docs/nats_client.md](docs/nats_client.md) |
+| **enrollment** | One-time EnrollmentToken pairing; `runner_id` persistence; `paper_only` default | [docs/design/enrollment.md](docs/design/enrollment.md) |
+| **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [docs/design/reconcile.md](docs/design/reconcile.md) |
+| **nautilus_host** | NautilusTrader process supervision + `ExecutionEngineAdapter` (CEX/NT) + G6 host gate | [docs/design/nautilus_host.md](docs/design/nautilus_host.md) |
+| **telemetry_actor** | NT MessageBus → whitelisted, buffered NATS uplink with schema versioning | [docs/design/telemetry_actor.md](docs/design/telemetry_actor.md) |
+| **credential_vault** | sops+age local key vault; KEK never leaves the box; `trade_no_withdraw` scope | [docs/design/credential_vault.md](docs/design/credential_vault.md) |
+| **nats_client** | NATS JetStream client + transport envelope schema + subject naming | [docs/design/nats_client.md](docs/design/nats_client.md) |
 
 The domain vocabulary shared across these modules is described in
 [docs/domain.md](docs/domain.md).
 
 ## Supported Trading Modes
 
-`spec.trading_mode` selects the execution path. The G6 host gate guards the live
-transition; paper / dev runs use the `NoopHost` stub (default), while
-`--use-nt-host` selects the real NautilusTrader host needed for sandbox / testnet
-/ live.
+`spec.trading_mode` selects the venue path, while `--engine` selects the local
+execution host. The 0.3.0 default is `--engine nautilus`, which starts the real
+NautilusTrader host. `--engine noop` is an explicit contract-test stub and can
+never clear the live G6 gate.
 
 | Mode | Execution | Status | Notes |
 |------|-----------|--------|-------|
@@ -66,28 +66,60 @@ transition; paper / dev runs use the `NoopHost` stub (default), while
 | `testnet` | Real Binance exec against the testnet endpoint (test funds) | ✅ | See [examples/supertrend-testnet](examples/supertrend-testnet/). |
 | `live` | Real Binance exec against the live exchange | ⚠️ | Must clear the 4-layer G6 gate (host capability, venue, `code_hash`, credential scope) **and** carry cloud-side dual approval (`>= 2` distinct `approved_by`). Per-order telemetry is not uplinked to arx until the telemetry bridge lands (see Not Included Yet). |
 
-> All three real-execution modes require `--use-nt-host` to select the real
-> `NtTradingNodeHost`. Without it the runner uses the `NoopHost` stub (paper /
-> dev only); a `live` spec on the stub is refused by the G6 gate, and a
-> `sandbox` / `testnet` spec on the stub is a no-op (no real NT node starts).
+The official 0.3.0 image contains NautilusTrader, PyYAML, sops, and age. It is
+the supported runtime for sandbox, testnet, and live; downstream projects do
+not need to extend it just to obtain runtime dependencies.
 
 ## Quick Start
 
+Pull the complete signed runtime and confirm the clean entrypoint:
+
 ```bash
-uv sync --extra dev
+docker pull ghcr.io/the-alephain-guild/custos:v0.3.0
+docker run --rm ghcr.io/the-alephain-guild/custos:v0.3.0 --help
+```
 
-# 1. Pair the runner with the backend (writes ~/.arx/runner.toml at 0600).
-arx-runner enroll --token <ONE-SHOT-TOKEN> --backend http://team-server:8000 \
-    --tenant-id acme --runner-id runner-7
+For a standalone NATS deployment, bootstrap topology explicitly before the
+runner starts:
 
-# 2. Provision exchange credentials (one .enc per key-id, sops+age encrypted).
-export SOPS_AGE_RECIPIENT=age1...
-export MY_API_SECRET=...
-arx-runner vault put --key-id binance-paper --tenant-id acme \
-    --api-key <PUBLIC-KEY> --api-secret-env MY_API_SECRET
+```bash
+docker run --rm --network host \
+  ghcr.io/the-alephain-guild/custos:v0.3.0 \
+  nats bootstrap --profile standalone --nats-url nats://127.0.0.1:4222 \
+  --tenant-id acme
 
-# 3. Start the reconcile / telemetry / heartbeat loop.
-arx-runner start
+docker run --rm --network host \
+  -v "$HOME/.arx:/home/custos/.arx" \
+  -e SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key \
+  ghcr.io/the-alephain-guild/custos:v0.3.0 \
+  start --nats-url nats://127.0.0.1:4222 \
+  --reconcile-strategy-id supertrend-btcusdt --engine nautilus
+```
+
+Enrollment and per-key vault provisioning happen before `start`; see the
+[deployment runbook](docs/ops/05-deployment.md) and the runnable
+[testnet Compose example](examples/supertrend-testnet/).
+
+Source development uses `uv sync --extra dev --extra nautilus`. The dev-only
+base contract intentionally remains lightweight and is verified separately by
+`make verify-base-clean`.
+
+## 0.3.0 Clean Deployment Contract
+
+The runtime accepts only the strict `custos.contracts.DeploymentSpec` shape.
+Producers publish a `DeploymentMessage` through `arx-runner deployment publish`;
+standalone operators create streams through `arx-runner nats bootstrap`; probes
+use `arx-runner health`. Lifecycle and trading mode are separate: `generation`
+starts at 1 and `lifecycle_state` is `running`, `paused`, `stopped`, or
+`archived`.
+
+The downstream migration gate is explicit:
+
+```text
+PS Plan 49 must not execute against custos < 0.3.0.
+PS must consume the official image directly.
+PS must not maintain a derived custos Dockerfile.
+PS owns strategy_config assembly only.
 ```
 
 ## Upgrade from 0.1.x (Breaking Change — 0.2.0)

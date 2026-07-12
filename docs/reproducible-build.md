@@ -30,11 +30,11 @@ audit covers.
 # 1. clone the repo at the tag you want to verify
 git clone https://github.com/the-alephain-guild/custos.git
 cd custos
-git checkout v0.2.0
+git checkout v0.3.0
 
 # 2. pin the epoch to the tagger date at midnight UTC (or copy the value
 #    the release workflow used, exposed as the tag's commit timestamp).
-export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct v0.2.0)"
+export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct v0.3.0)"
 
 # 3. build; the resulting wheel MUST hash-match the released wheel.
 uv build --out-dir /tmp/verify
@@ -68,16 +68,16 @@ correctly differ, the xfail would fire, and we'd notice.
 
 Docker image reproducibility is a separate workstream (buildkit
 timestamp normalization is not stable across buildkit versions).
-For 0.2.0 the image side of "audit the binary" is served by:
+For 0.3.0 the image side of "audit the binary" is served by:
 
 - OCI labels — `org.opencontainers.image.revision = <commit sha>` and
   `org.opencontainers.image.created = <tag timestamp>` are baked into
   the image at CI time.
 - Cosign keyless signature — the pushed image digest is signed with the
   workflow's cert-identity, so the digest itself is auditable.
-- `verify-release.sh` re-pulls the image and runs `docker inspect` +
-  `docker run --help` to prove the digest and the runtime behaviour
-  match what CI saw.
+- `verify-release.sh` re-pulls the image and verifies the CLI command matrix,
+  Nautilus/PyYAML imports, sops/age executables, readiness probe, non-root
+  identity, and cosign signature against the published digest.
 
 A follow-up plan (tracked in
 [`upgrade-path.md`](upgrade-path.md#follow-up)) will pin the image

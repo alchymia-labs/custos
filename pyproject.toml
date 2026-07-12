@@ -1,6 +1,6 @@
 [project]
 name = "custos-runner"
-version = "0.2.0"
+version = "0.3.0"
 description = "Custos: non-custodial self-hosted runner for the Alephain Guild ecosystem (NautilusTrader-adjacent, declarative reconcile + telemetry actor + local key vault)"
 requires-python = ">=3.11"
 dependencies = [

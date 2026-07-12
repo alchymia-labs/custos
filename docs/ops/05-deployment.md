@@ -1,48 +1,150 @@
-# 05 — 部署
+# 05 — Custos 0.3.0 deployment
 
-> custos daemon 部署方式. 涵盖当前可用与未来路径.
+Custos is a self-hosted daemon. Arx publishes declarative desired state; it
+does not enter the operator's machine or start containers there. Venue keys,
+the age identity, and strategy code stay on the runner host.
 
-## 部署模型
+## Supported runtime
 
-**custos 是自托管 daemon**, 用户在自己基础设施上运行. 云端产品面 (arx) 不 `docker run`
-进用户机器 — 它只发 `DeploymentSpec`, custos 本地 pull + reconcile.
+The production artifact is the complete, signed image:
 
-## 当前可用部署方式
+```text
+ghcr.io/the-alephain-guild/custos:v0.3.0
+```
 
-### 1. 本地开发 / 手动运行
+It contains Python 3.12, NautilusTrader, PyYAML, sops, age, and the
+`arx-runner` CLI. The image runs as UID/GID 1000, declares
+`/home/custos/.arx` as its persistent volume, uses `arx-runner` as the
+entrypoint, defaults to `start`, and probes readiness with `arx-runner health`.
 
-自 0.2.0 起, custos 通过 `arx-runner` console script 分三步操作 (Plan 11 clean-break):
+Downstream deployment projects consume this image directly. They must not add
+a derived Custos Dockerfile merely to install runtime dependencies. Their
+owned input is strategy code plus the opaque `strategy_config`; Custos owns
+spec validation, Vault, NATS topology, transport, and engine wiring.
+
+## Prerequisites
+
+- Docker with Compose v2 for the recommended path.
+- A JetStream-enabled NATS endpoint reachable from the runner.
+- A runner identity in `~/.arx/runner.toml`: production uses
+  `arx-runner enroll`; standalone sandbox/testnet may use the sanctioned
+  manual record in the examples.
+- An age identity at `~/.arx/age.key`, mode `0600`.
+- One sops-encrypted file per credential under `~/.arx/vault/`, each limited
+  to `trade_no_withdraw`.
+- For live mode, a matching strategy-directory `code_hash`, a supported venue,
+  a live-capable host, and at least two distinct cloud approvers.
+
+## Recommended standalone Compose path
+
+The runnable
+[`examples/supertrend-testnet`](../../examples/supertrend-testnet/) stack is
+the golden path:
 
 ```bash
-uv sync --extra dev
+cd examples/supertrend-testnet
+test -f .env || cp .env.example .env
+docker compose up
+```
 
-# a. 一次性 enroll — 从 arx 拿 long-term credential, 落 ~/.arx/runner.toml (mode 0600)
+Its service order is explicit:
+
+1. Start NATS with JetStream.
+2. Run `arx-runner nats bootstrap --profile standalone` once. Bootstrap is
+   idempotent and owns only deterministic Custos streams.
+3. Start the runner with `--engine nautilus` and a persistent `.arx` mount.
+4. Wait for `arx-runner health` to confirm the deployment subscription.
+5. Publish a validated spec with `arx-runner deployment publish` and wait for
+   its JetStream acknowledgement.
+
+`arx-runner start` never creates streams implicitly. Managed installations
+have the coordination plane provision topology; standalone installations run
+the explicit bootstrap command.
+
+## Identity and Vault provisioning
+
+Production enrollment writes the long-term record at mode `0600`:
+
+```bash
 arx-runner enroll \
   --token <one-time-enrollment-token> \
   --backend https://arx.internal:8000 \
   --tenant-id acme \
   --runner-id runner-7
-
-# b. 每个交易所 credential 单独 sops+age 加密, 落 ~/.arx/vault/<key-id>.enc (mode 0600)
-export SOPS_AGE_RECIPIENT=age1...    # 用于 encrypt 的 age public key
-arx-runner vault put --key-id binance-paper \
-  --api-key-stdin --api-secret-stdin
-
-# c. 日常启动 (读 ~/.arx/runner.toml + ~/.arx/vault/*.enc)
-export SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key   # 用于 decrypt 的 age private key
-arx-runner start --nats-url nats://arx.internal:4222
 ```
 
-参数详见 [`../design/03-implementation.md`](../design/03-implementation.md) §运行方式.
+Generate one local age identity and add each venue credential independently:
 
-`~/.custos/` 命名空间在 0.2.0 已退休; 从 0.1.x 升级需按 [CHANGELOG.md 0.2.0
-Upgrade Notes](../../CHANGELOG.md) 手动迁移 `~/.custos/{enrollment.json,state}` →
-`~/.arx/`, 并按 `arx-runner vault put` 逐 credential 重新加密 (`SopsAgeVault`
-多 credential JSON 模型已删除).
+```bash
+mkdir -p "$HOME/.arx/vault" "$HOME/.arx/state"
+chmod 700 "$HOME/.arx" "$HOME/.arx/vault" "$HOME/.arx/state"
+age-keygen -o "$HOME/.arx/age.key"
+chmod 600 "$HOME/.arx/age.key"
 
-### 2. systemd unit (Linux 服务器长驻)
+export SOPS_AGE_RECIPIENT='<age1-public-key>'
+printf '%s\n' '<venue-api-secret>' | arx-runner vault put \
+  --key-id binance-testnet \
+  --tenant-id acme \
+  --api-key '<venue-api-key>' \
+  --api-secret-stdin \
+  --permission-scope trade_no_withdraw
 
-`/etc/systemd/system/custos.service`:
+export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
+arx-runner vault verify --key-id binance-testnet --tenant-id acme
+```
+
+Plaintext secrets enter through stdin, never argv or the deployment spec.
+
+## Docker runtime volume and command
+
+Pull and inspect the signed release:
+
+```bash
+docker pull ghcr.io/the-alephain-guild/custos:v0.3.0
+docker run --rm ghcr.io/the-alephain-guild/custos:v0.3.0 --help
+```
+
+The runner reads identity and credentials from the bind-mounted `.arx`
+directory. On Linux, mapping the process to the operator UID/GID keeps host
+files accessible while preserving the image's non-root execution model:
+
+```bash
+docker run --rm --name custos \
+  --user "$(id -u):$(id -g)" \
+  -v "$HOME/.arx:/home/custos/.arx" \
+  -v "$PWD/strategy:/opt/custos/strategies/supertrend:ro" \
+  -e SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key \
+  ghcr.io/the-alephain-guild/custos:v0.3.0 \
+  start \
+  --nats-url nats://arx.internal:4222 \
+  --reconcile-strategy-id supertrend-btcusdt \
+  --engine nautilus
+```
+
+Do not omit the persistent mount: an anonymous or ephemeral `.arx` loses the
+runner record and encrypted Vault at container replacement. The mount must be
+readable and writable by the selected non-root UID. OCI provenance labels can
+be inspected with:
+
+```bash
+docker inspect --format \
+  '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+  ghcr.io/the-alephain-guild/custos:v0.3.0
+```
+
+Release signature verification is implemented by
+[`verify-release.sh`](../../.github/workflows/scripts/verify-release.sh).
+
+## Source and systemd path
+
+Source development is separate from the release-image path:
+
+```bash
+make install-nt
+uv run arx-runner --help
+```
+
+The equivalent long-running unit is:
 
 ```ini
 [Unit]
@@ -56,8 +158,7 @@ User=custos
 Group=custos
 WorkingDirectory=/opt/custos
 Environment="SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key"
-ExecStart=/opt/custos/.venv/bin/arx-runner start \
-  --nats-url nats://arx.internal:4222
+ExecStart=/opt/custos/.venv/bin/arx-runner start --nats-url nats://arx.internal:4222 --reconcile-strategy-id supertrend-btcusdt --engine nautilus
 Restart=on-failure
 RestartSec=5s
 
@@ -65,132 +166,63 @@ RestartSec=5s
 WantedBy=multi-user.target
 ```
 
-`tenant_id` / `runner_id` / `long_term_credential` 在 `arx-runner enroll` 时已持久化到
-`~/.arx/runner.toml`, 无需 systemd unit 再显式传参. `SOPS_AGE_KEY_FILE` 是
-`PerKeyVault` 解密 `~/.arx/vault/*.enc` 时 sops 需要的 age private key (红线 0.1
-mode 0600), 保留为 env var 不落 CLI 明文.
+`tenant_id`, `runner_id`, and the long-term credential come from
+`runner.toml`; they are not start-command flags.
 
-启用:
+## DeploymentSpec publication
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now custos.service
-sudo journalctl -u custos -f  # 查日志
-```
-
-### 3. Docker (v0.2.0 起 official image)
-
-Plan 12 落地 multi-stage Dockerfile + 签名 image, GHCR 发布:
+Validate locally before publishing:
 
 ```bash
-docker pull ghcr.io/the-alephain-guild/custos:v0.2.0
+arx-runner deployment validate --spec-file deployment.json
+arx-runner deployment publish \
+  --spec-file deployment.json \
+  --tenant-id acme \
+  --strategy-id supertrend-btcusdt \
+  --nats-url nats://arx.internal:4222
 ```
 
-启动命令见下 §"Docker Runtime Volume Mount" (非 root user + `~/.arx` bind mount +
-OCI provenance labels + sigstore 签名验证).
+For live mode, pass `--strategy-dir` to publication so Custos computes the
+canonical strategy directory hash through the public contract seam. Do not
+import an engine-private hash module.
 
-## 未来部署路径 (README §Not Included Yet)
+The lifecycle sequence is generation-driven. Increment `generation` for every
+desired-state change. `stopped` and `archived` reconcile to
+`DeploymentStatus.phase=stopped`; `paused` preserves the deployment without
+misclassifying it as a trading mode.
 
-以下暂未落地, 已列为独立 follow-up plan:
-
-- **CI + 签名 release pipeline**: 签名 wheel (`pip install custos-runner==X.Y.Z`, 校验签名)
-  + 签名 docker image (`ghcr.io/the-alephain-guild/custos:X.Y.Z`, cosign 签名) +
-  可复现构建 (ADR-012 v4 stage-3)
-- **`custos-cli` 一键装脚本**: `curl https://get.custos.dev | sh` 装 binary + 生成
-  `.custos/vault/` skeleton + 引导 EnrollmentToken 配对流程
-
-## 部署前检查清单
-
-- [ ] Python 3.11+ 已装 (Docker image 内自带 3.12-slim)
-- [ ] `uv` 已装 (仅源码路径需要)
-- [ ] arx NATS endpoint 可达 (`telnet arx.internal 4222` 通)
-- [ ] EnrollmentToken 从 arx 已获取 (一次性, 出 arx 只显示一次)
-- [ ] `age-keygen` 已生成 age key 对, public key 用于 `arx-runner vault put` encrypt
-- [ ] `SOPS_AGE_KEY_FILE` 环境变量指向 age private key (权限 0600, `PerKeyVault` 解密用)
-- [ ] `~/.arx/` 目录已建 (权限 0700, `arx-runner enroll` 首次自动创建)
-- [ ] G6 gate 目标: paper mode (默认) / testnet / live (Plan 00c capability-based 放行流程 landed)
-
-## 首次启动流程
-
-1. 装 custos: `pip install custos-runner==0.2.0` (0.2.0 起签名 wheel + docker image;
-   本地开发 `uv sync --extra dev` from source)
-2. 生成 age key 对: `age-keygen -o ~/.arx/age.key && chmod 600 ~/.arx/age.key`;
-   记录输出的 public key (`age1...`), export 为 `SOPS_AGE_RECIPIENT`
-3. 从 arx 获取 EnrollmentToken (arx dashboard, 一次性)
-4. 从 arx 获取 tenant_id 与 runner_id (人工分配)
-5. `arx-runner enroll` 交换 long-term credential + 落 `~/.arx/runner.toml` (mode 0600):
-   ```bash
-   arx-runner enroll \
-     --token <one-time-enrollment-token> \
-     --backend https://arx.internal:8000 \
-     --tenant-id acme \
-     --runner-id runner-7
-   ```
-6. `arx-runner vault put` 逐 credential 加密到 `~/.arx/vault/<key-id>.enc` (mode 0600):
-   ```bash
-   arx-runner vault put --key-id binance-paper --api-key-stdin --api-secret-stdin
-   ```
-   可跑 `arx-runner vault verify --key-id binance-paper` 确认 decrypt 通过 +
-   `trade_no_withdraw` scope 校验通过.
-7. 后续启动 (读 `~/.arx/runner.toml` 恢复所有身份 + `~/.arx/vault/*.enc` per-key):
-   ```bash
-   export SOPS_AGE_KEY_FILE=~/.arx/age.key
-   arx-runner start --nats-url nats://arx.internal:4222
-   ```
-
-## 常见部署问题
-
-见 [`runbook.md`](runbook.md) §常见故障排查.
-
-## Docker Runtime Volume Mount
-
-Since 0.2.0 the runtime image
-(`ghcr.io/the-alephain-guild/custos:v0.2.0`) is a multi-stage build
-that runs as UID/GID 1000 with `HOME=/home/custos` and declares
-`VOLUME ["/home/custos/.arx"]` for persistent state. Operators bind
-the container's `~/.arx` to the host `~/.arx` so per-key `.enc`
-vault files and the `runner.toml` enrollment record survive
-container restarts.
-
-Recommended invocation:
+## Readiness and troubleshooting
 
 ```bash
-docker run --rm \
-    --name custos \
-    -v "$HOME/.arx:/home/custos/.arx" \
-    --user "$(id -u):$(id -g)" \
-    ghcr.io/the-alephain-guild/custos:v0.2.0 start \
-    --tenant-id acme \
-    --runner-id "$(cat ~/.arx/runner.toml.runner_id)"
+arx-runner health
 ```
 
-Notes:
+Exit 0 means the deployment subscription is established. A missing, stale, or
+invalid ready file exits non-zero. Subscription failures clear readiness and
+retry with bounded exponential backoff while local safety guards continue to
+tick.
 
-- `--user "$(id -u):$(id -g)"` aligns the container process with the
-  host user's UID/GID so bind-mounted files stay owned by the operator
-  outside the container. Without this override the container writes as
-  UID 1000, which on a host where the operator has a different UID
-  results in files that read as `1000:1000` at rest — safe (correct
-  ownership inside the container) but inconvenient (`chown -R`
-  needed on the host to edit them).
-- The image bakes `mkdir -p ~/.arx{,/vault,/state} && chown -R custos:custos ~/`
-  during build (Plan 12 R2-M2 fix). A bind mount of an existing
-  host `~/.arx` overrides those in-image directories, so the operator
-  is responsible for ensuring the host directory exists and is
-  readable by the mapped UID. Missing directory + missing volume =
-  the first `arx-runner enroll` inside the container fails with
-  `PermissionError: [Errno 13] Permission denied: '/home/custos/.arx/runner.toml'`
-  — the daemon's structured log surfaces this fail-loud rather than
-  silently degrading, so an operator sees the mount misconfiguration
-  in the first reconcile iteration.
-- OCI provenance labels
-  (`org.opencontainers.image.revision` / `.source` / `.version`) are
-  baked into the image at CI build time. Auditors can trace back to
-  the exact tag + commit via `docker inspect --format
-  '{{index .Config.Labels "org.opencontainers.image.revision"}}'
-  ghcr.io/the-alephain-guild/custos:v0.2.0`.
-- Signature verification lives in
-  [`../../.github/workflows/scripts/verify-release.sh`](../../.github/workflows/scripts/verify-release.sh) —
-  operators paranoid about supply-chain provenance can re-run it
-  locally after `docker pull`.
+For common failures, see [`runbook.md`](runbook.md). Useful first checks are:
 
+```bash
+arx-runner vault verify --key-id binance-testnet --tenant-id acme
+arx-runner deployment validate --spec-file deployment.json
+docker compose logs -f runner nats-bootstrap spec-publisher
+```
+
+## Upgrade notes
+
+0.3.0 is a clean break. Engine selection is `--engine nautilus|noop`; the
+former is the default and the latter is only a non-live contract-test stub.
+No compatibility alias exists. Operators upgrading from 0.1.x must first
+complete the 0.2.0 namespace and per-key Vault migration documented in
+[`CHANGELOG.md`](../../CHANGELOG.md).
+
+The downstream gate is mandatory:
+
+```text
+PS Plan 49 must not execute against custos < 0.3.0.
+PS must consume the official image directly.
+PS must not maintain a derived custos Dockerfile.
+PS owns strategy_config assembly only.
+```

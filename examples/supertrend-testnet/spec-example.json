@@ -8,6 +8,11 @@
   "connector": "binance_perpetual",
   "pairs": ["BTC-USDT"],
   "leverage": 2,
+  "strategy_config": {
+    "period": 10,
+    "risk_per_trade": "0.01"
+  },
+  "strategy_registry_name": "supertrend",
   "log_level": "INFO",
   "provenance_ref": {
     "credential_id": "binance-testnet"

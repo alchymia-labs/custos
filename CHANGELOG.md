@@ -12,6 +12,70 @@ lives in [`docs/lts-commitment.md`](docs/lts-commitment.md) and
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-12
+
+Custos 0.3.0 closes the standalone deployment loop. The official image is now
+the complete NautilusTrader runtime, and the desired-state producer and
+consumer share one strict public contract. This is a clean break: downstream
+deployment work must start from 0.3.0 rather than carrying compatibility code
+for an older runner.
+
+### Added
+
+- `custos.contracts.DeploymentSpec` and `DeploymentMessage` as the normative
+  consumer and transport interfaces. The contract requires `generation >= 1`,
+  separates `trading_mode` from `lifecycle_state`, rejects unknown fields, and
+  passes opaque `strategy_config` to the selected strategy factory unchanged.
+- `arx-runner deployment validate` and `arx-runner deployment publish`,
+  including canonical subject and JetStream acknowledgement handling;
+  producers no longer assemble envelopes or import engine-private hash helpers.
+- `arx-runner nats bootstrap --profile standalone`, which idempotently owns the
+  FILE-backed deployment and observed-state stream topology without letting
+  the production runner mutate infrastructure implicitly.
+- `arx-runner health` and atomic ready-state files for Compose, systemd, and
+  Kubernetes probes. Readiness is asserted only after the deployment
+  subscription succeeds and is cleared on shutdown or retry.
+- A hermetic standalone acceptance test covering real NATS bootstrap,
+  sops+age vault decrypt, running-to-stopped generation reconciliation, status
+  publication, and readiness through the official image.
+
+### Changed
+
+- The official `ghcr.io/the-alephain-guild/custos:v0.3.0` image now includes
+  NautilusTrader, PyYAML, sops, and age. `ENTRYPOINT ["arx-runner"]` plus an
+  explicit `CMD ["start"]` gives both daemon-by-default and subcommand-safe
+  Docker behavior.
+- Engine selection is the closed enum `--engine nautilus|noop`; `nautilus` is
+  the default and `noop` is an explicit non-live contract-test host.
+- Deployment payloads are validated at the runtime boundary before Vault, G6,
+  or host code runs. Successful `stopped` and `archived` desired state now
+  reports `phase=stopped` rather than claiming the deployment is running.
+- Subscription failure uses bounded exponential retry while local guard ticks
+  continue; deployment readiness reflects the real subscription state.
+- Release CI verifies the lightweight base install, the Nautilus extra, the
+  complete pre-push image contract, and the signed published artifact.
+
+### Removed
+
+- `--use-nt-host`; no compatibility alias is retained. Use
+  `--engine nautilus` or `--engine noop` explicitly.
+- The testnet example's derived Custos Dockerfile. Downstream deployments
+  consume the official image directly and own only strategy material and
+  `strategy_config` assembly.
+
+### Fixed
+
+- Per-key vault decryption now pins JSON input and output types so sops 3.13.x
+  does not infer the `.enc` payload as binary.
+- Live checks use `trading_mode == "live"` instead of conflating execution mode
+  with lifecycle state.
+
+### Security
+
+- The official runtime remains non-root and the release gate checks the CLI,
+  Nautilus/YAML imports, sops/age executables, readiness probe, and cosign
+  signature before a release is accepted.
+
 ## [0.2.0] - 2026-07-11
 
 The 0.2.0 release combines the Plan 11 clean-break CLI redesign with the
@@ -95,5 +159,6 @@ per-key `.enc` files under `~/.arx/vault/`.
   through GitHub Security Advisories (see `SECURITY.md`) with a 30-day
   best-effort patch SLA (see `docs/lts-commitment.md`).
 
-[Unreleased]: https://github.com/the-alephain-guild/custos/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/the-alephain-guild/custos/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/the-alephain-guild/custos/releases/tag/v0.3.0
 [0.2.0]: https://github.com/the-alephain-guild/custos/releases/tag/v0.2.0

@@ -1,4 +1,4 @@
-# SuperTrend sandbox with custos 0.2.0
+# SuperTrend sandbox with Custos 0.3.0
 
 This example runs a NautilusTrader strategy with live market data and locally
 simulated fills. Exchange credentials, the age key, and strategy code remain on
@@ -18,7 +18,7 @@ publishing it.
 ## 1. Provision one per-key vault entry
 
 Generate an age key once, then pass the secret through stdin. The only accepted
-permission boundary in custos 0.2.x is `trade_no_withdraw`.
+permission boundary in Custos 0.3.x is `trade_no_withdraw`.
 
 ```bash
 mkdir -p ~/.arx/vault
@@ -68,17 +68,32 @@ See the full security and mode constraints in
 
 ## 3. Start and publish the spec
 
-Start a local JetStream-enabled NATS server, then run:
+Start a local JetStream-enabled NATS server, bootstrap the standalone topology,
+then run the real Nautilus engine:
 
 ```bash
 export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
+uv run arx-runner nats bootstrap \
+  --profile standalone \
+  --nats-url nats://localhost:4222 \
+  --tenant-id acme
+
 uv run arx-runner start \
   --nats-url nats://localhost:4222 \
   --reconcile-strategy-id supertrend-btcusdt \
-  --use-nt-host \
+  --engine nautilus \
   --vault-dir "$HOME/.arx/vault"
 ```
 
-Publish `spec-example.json` as the DeploymentSpec payload for the configured
-strategy subject. A `null` `code_hash` is permitted for sandbox and audited as a
-skipped provenance check; live mode requires a matching hash and the G6 gate.
+In another terminal, publish the strict DeploymentSpec through the public seam:
+
+```bash
+uv run arx-runner deployment publish \
+  --spec-file examples/supertrend-sandbox/spec-example.json \
+  --tenant-id acme \
+  --strategy-id supertrend-btcusdt \
+  --nats-url nats://localhost:4222
+```
+
+A `null` `code_hash` is permitted for sandbox and audited as a skipped
+provenance check; live mode requires a matching hash and the G6 gate.

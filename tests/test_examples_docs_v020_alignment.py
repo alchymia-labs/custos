@@ -1,22 +1,73 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 
+from custos.contracts import DeploymentSpec
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
 SANDBOX_DIR = EXAMPLES_DIR / "supertrend-sandbox"
 TESTNET_DIR = EXAMPLES_DIR / "supertrend-testnet"
-LEGACY_TOKENS = ("--sops-file", "--age-key-file", "python -m custos")
+LEGACY_TOKENS = (
+    "--sops-file",
+    "--age-key-file",
+    "python -m custos",
+    "--use-nt-host",
+)
 TEXT_FILES = (
     SANDBOX_DIR / "README.md",
     TESTNET_DIR / "README.md",
     TESTNET_DIR / ".env.example",
     TESTNET_DIR / "docker-compose.yaml",
 )
+ACTIVE_RUNTIME_DOCS = (
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "docs" / "ops" / "05-deployment.md",
+    SANDBOX_DIR / "README.md",
+    TESTNET_DIR / "README.md",
+)
+
+
+def test_project_and_lock_are_versioned_v030() -> None:
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    locked_project = next(
+        package for package in lock["package"] if package["name"] == "custos-runner"
+    )
+
+    assert project["project"]["version"] == "0.3.0"
+    assert locked_project["version"] == "0.3.0"
+
+
+def test_changelog_documents_v030_clean_break() -> None:
+    text = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert "## [0.3.0] - 2026-07-12" in text
+    for contract in (
+        "--engine",
+        "--use-nt-host",
+        "generation",
+        "lifecycle_state",
+        "deployment publish",
+        "nats bootstrap",
+        "health",
+    ):
+        assert contract in text
+
+
+def test_readme_declares_official_image_and_downstream_gate() -> None:
+    text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "ghcr.io/the-alephain-guild/custos:v0.3.0" in text
+    assert "PS Plan 49 must not execute against custos < 0.3.0." in text
+    assert "PS must consume the official image directly." in text
+    assert "PS must not maintain a derived custos Dockerfile." in text
+    assert "PS owns strategy_config assembly only." in text
 
 
 @pytest.mark.parametrize("path", TEXT_FILES, ids=lambda path: str(path.relative_to(REPO_ROOT)))
@@ -24,6 +75,13 @@ def test_example_text_has_no_legacy_cli_tokens(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     for token in LEGACY_TOKENS:
         assert token not in text
+
+
+@pytest.mark.parametrize(
+    "path", ACTIVE_RUNTIME_DOCS, ids=lambda path: str(path.relative_to(REPO_ROOT))
+)
+def test_active_runtime_docs_do_not_use_removed_engine_flag(path: Path) -> None:
+    assert "--use-nt-host" not in path.read_text(encoding="utf-8")
 
 
 def test_testnet_compose_uses_v030_official_runtime_shape() -> None:
@@ -84,8 +142,28 @@ def test_examples_sandbox_spec_matches_gateway_sample() -> None:
     ).read_bytes()
 
 
+@pytest.mark.parametrize(
+    "path",
+    (SANDBOX_DIR / "spec-example.json", TESTNET_DIR / "spec-example.json"),
+)
+def test_example_specs_are_complete_runtime_contracts(path: Path) -> None:
+    spec = DeploymentSpec.model_validate_json(path.read_text(encoding="utf-8"))
+
+    assert spec.strategy_config
+    assert spec.strategy_registry_name == "supertrend"
+
+
+def test_gateway_docs_teach_public_deployment_seam() -> None:
+    text = (REPO_ROOT / "docs" / "gateway-contract" / "v1" / "README.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "DeploymentMessage" in text
+    assert "deployment publish" in text
+
+
 @pytest.mark.parametrize("path", (SANDBOX_DIR / "README.md", TESTNET_DIR / "README.md"))
-def test_example_readme_teaches_v020_three_step_flow(path: Path) -> None:
+def test_example_readme_teaches_v030_three_step_flow(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     assert "arx-runner vault put" in text
     assert "runner.toml" in text

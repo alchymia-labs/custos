@@ -132,9 +132,10 @@ testnet）由各自 host 通道自洽；live 两格是承重墙——落到 stub
 | live | NoopHost | G6 gate 层 1 拒（`g6_gate_live_capability_denied`）；`_apply_spec` `RuntimeError`，经 `handle_spec` 则 `phase=degraded` | `test_g6_gate.py::test_g6_gate_rejects_live_noophost` |
 | live | NtTradingNodeHost | G6 gate 4 层 + SoD ≥ 2 审批全通过则真跑 live，`phase=running` | `test_g6_gate.py::test_g6_gate_allows_live_nt_host` |
 
-成功部署走 reconcile 成功路径 `_report_status(phase="running", health="healthy")`
-（`deployment_reconciler.py:309-315`）——`phase` 是 `running`（非 `healthy`），`health` 才是
-`healthy`。
+成功的 active deployment 走 reconcile 成功路径
+`_report_status(phase="running", health="healthy")`；成功处理 `stopped` 或 `archived`
+lifecycle 则上报 `phase="stopped"`。`phase` 表示生命周期实际态，`health` 才表示健康度，
+两者不能互相替代。
 
 ## Toolkit sync discipline
 

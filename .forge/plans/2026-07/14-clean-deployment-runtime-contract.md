@@ -830,7 +830,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T6 dev-only base verification contract | ✅ | 2026-07-12 | Base: 468 passed/18 skipped; NT: 532 passed/4 skipped; CI order locked |
 | T7 release runtime gate | ✅ | 2026-07-12 | Pre-push verify-runtime; post-publish CLI/NT/vault/cosign contract |
 | T8 hermetic standalone acceptance | ✅ | 2026-07-12 | Real NATS/vault/readiness wire; running→stopped; official-image Compose |
-| T9 0.3.0 docs/version | 🔲 | — | — |
+| T9 0.3.0 docs/version | ✅ | 2026-07-12 | 0.3.0 version/docs/downstream gate; base 484 passed, NT 548 passed, runtime 13+1 passed |
 | T10 close-out | 🔲 | — | — |
 
 ## 偏离与改进日志 (Deviations & Improvements)
@@ -846,6 +846,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | IMPROVEMENT | Base verification | 拆分 shared bootstrap 与 nautilus-only pandas_ta import，并用 `verify-base-clean` 防预装 NT 掩盖 dev-only 失败 | ✅ 用户 2026-07-11 |
 | IMPROVEMENT | Terminal status truth | T8 acceptance 暴露成功 stop/archive 仍硬编码上报 running；补充 reconciler phase 映射与单元测试 | ✅ 用户 2026-07-12 |
 | IMPROVEMENT | sops JSON decrypt | 官方 sops 3.13.2 对 `.enc` 推断 binary，真实 vault decrypt 失败；显式锁定 JSON input/output type 并保留容器 canary | ✅ 用户 2026-07-12 |
+| IMPROVEMENT | Version fanout | clean-base 门暴露遗留 `test_project_version_is_0_2_0`；同步升级版本断言，并新增 pyproject/lock/CHANGELOG/docs alignment contract | ✅ T9 |
 
 ---
 

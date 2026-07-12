@@ -62,7 +62,7 @@ runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**K
 
 ## Permission scope
 
-`trade_no_withdraw` 是 custos v0.2.x 唯一合法的 credential permission scope。
+`trade_no_withdraw` 是 custos 0.2.0+（包括 0.3.x）唯一合法的 credential permission scope。
 `arx-runner vault put` 通过显式的
 `--permission-scope {trade_no_withdraw}` flag 接收该值，并在省略 flag 时使用相同默认值；
 写入的 encrypted payload 和 `CredentialEncrypted` audit event 都记录这一非敏感 metadata。

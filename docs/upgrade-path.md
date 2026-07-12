@@ -4,6 +4,27 @@ The authoritative upgrade guide. Every minor / major release adds a section
 here in reverse-chronological order; the top of the file always describes
 the current recommended path.
 
+## 0.2.x → 0.3.0 (complete runtime clean break)
+
+0.3.0 replaces the boolean engine switch with `--engine nautilus|noop`, makes
+Nautilus the default, validates every desired-state message through the strict
+`DeploymentSpec`, and ships the complete runtime in the official image.
+
+1. Pull `ghcr.io/the-alephain-guild/custos:v0.3.0`; remove any derived Custos
+   Dockerfile used only to add NautilusTrader, PyYAML, sops, or age.
+2. Replace the removed boolean engine flag with `--engine nautilus`. Use
+   `--engine noop` only for non-live contract tests.
+3. Add `generation >= 1`, `lifecycle_state`, and `strategy_config` to every
+   spec; validate with `arx-runner deployment validate --spec-file <path>`.
+4. For standalone NATS, run `arx-runner nats bootstrap --profile standalone`
+   before the runner. Do not expect `start` to create streams.
+5. Publish through `arx-runner deployment publish` and gate readiness with
+   `arx-runner health`.
+
+PS Plan 49 remains blocked until this upgrade is complete. PS consumes the
+official image directly, maintains no derived Custos Dockerfile, and owns only
+strategy code plus `strategy_config` assembly.
+
 ## 0.1.x → 0.2.0 (Plan 11 + 12 breaking release)
 
 0.2.0 is the first clean-break release since the 0.1.x extraction. The

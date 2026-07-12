@@ -21,6 +21,7 @@ copied to the `CHANGELOG.md` `### Deprecated` section (audit-non-silence).
 
 | Minor line | First release | EOL |
 | ---------- | ------------- | --- |
+| 0.3.x      | 2026-07-12    | 2027-07-12 (best-effort ≥ 12 months) |
 | 0.2.x      | 2026-07-11    | 2027-07-11 (best-effort ≥ 12 months) |
 
 Additional lines will be appended as they cut. Each row is a hard commitment
@@ -29,7 +30,7 @@ Additional lines will be appended as they cut. Each row is a hard commitment
 
 ## Security Patch SLA
 
-Security fixes ship as a patch release (`0.2.z+1`) within **30 days** of
+Security fixes ship as a patch release (`0.Y.z+1`) within **30 days** of
 public CVE disclosure (best-effort; a note in this doc's Deviations log
 covers any miss).
 
@@ -83,7 +84,7 @@ without breaking changes + gateway-contract v1 covered 100%).
 ## Follow-up
 
 - Automated LTS status page (0.x → 1.0 timeline) — separate follow-up
-  plan; not scoped into 0.2.0.
+  plan; not scoped into 0.3.0.
 - Machine-readable EOL feed (`docs/lts-commitment.json`) — same follow-up.
 
 ## Deviations log

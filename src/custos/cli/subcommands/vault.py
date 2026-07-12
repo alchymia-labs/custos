@@ -86,7 +86,7 @@ def _register_put(actions: argparse._SubParsersAction) -> None:
         "--permission-scope",
         choices=["trade_no_withdraw"],
         default="trade_no_withdraw",
-        help="Credential permission boundary (v0.2.x: trade_no_withdraw only).",
+        help="Credential permission boundary (0.2.0+: trade_no_withdraw only).",
     )
     p.add_argument("--vault-dir", type=Path, default=DEFAULT_VAULT_DIR)
     p.set_defaults(action_handler=_put)

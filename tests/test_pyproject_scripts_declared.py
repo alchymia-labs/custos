@@ -34,9 +34,9 @@ def test_project_scripts_single_entry_arx_runner():
     assert "custos" not in scripts, f"legacy `custos` script re-appeared: {scripts}"
 
 
-def test_project_version_is_0_2_0():
+def test_project_version_is_0_3_0():
     data = _load()
-    assert data["project"]["version"] == "0.2.0"
+    assert data["project"]["version"] == "0.3.0"
 
 
 def test_project_lts_extra_declares_sigstore_and_pytest_docker():

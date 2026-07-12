@@ -26,6 +26,23 @@ equal to `DeploymentSpec.model_json_schema()`. Unknown top-level properties are 
 sandbox mode requires starting balances, and live mode requires a lowercase 64-character
 SHA-256 `code_hash`.
 
+The transport seam is `custos.contracts.DeploymentMessage`, whose envelope
+payload is `{strategy_id, spec}`. Producers should use the same implementation
+through the public CLI rather than hand-writing a NATS subject or envelope:
+
+```bash
+arx-runner deployment validate --spec-file deployment.json
+arx-runner deployment publish --spec-file deployment.json \
+  --tenant-id acme --strategy-id supertrend-btcusdt \
+  --nats-url nats://nats:4222
+```
+
+The 0.3.0 downstream gate is intentionally clean: PS Plan 49 cannot execute
+against an older Custos; it consumes the official image directly, maintains no
+derived Custos Dockerfile, and owns only strategy code plus `strategy_config`
+assembly. Custos owns validation, message construction, topology, Vault, and
+engine wiring.
+
 ## Additive-only rule
 
 **Adding an optional field is a coordinated MINOR bump.** The producer and
@@ -54,7 +71,7 @@ When a breaking change is unavoidable, cut a new directory
 `docs/gateway-contract/v2/` with a fresh set of schemas + goldens. The
 v1 directory stays frozen for the duration of every LTS line that
 depends on it. The
-[`../lts-commitment.md`](../lts-commitment.md) EOL window pins the
+[`../../lts-commitment.md`](../../lts-commitment.md) EOL window pins the
 minimum period v1 stays queryable.
 
 ## Sourced from
