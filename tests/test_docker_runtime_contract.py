@@ -11,6 +11,7 @@ import subprocess
 import pytest
 
 IMAGE = os.environ.get("CUSTOS_TEST_IMAGE", "custos-runner:test")
+EXPECTED_REVISION = os.environ.get("CUSTOS_EXPECTED_REVISION")
 
 
 def _require_image() -> None:
@@ -134,7 +135,10 @@ def test_official_image_has_source_revision_label() -> None:
         text=True,
     )
 
-    assert re.fullmatch(r"[0-9a-f]{40}", inspect.stdout.strip())
+    revision = inspect.stdout.strip()
+    assert re.fullmatch(r"[0-9a-f]{40}", revision)
+    if EXPECTED_REVISION is not None:
+        assert revision == EXPECTED_REVISION
 
 
 @pytest.mark.docker

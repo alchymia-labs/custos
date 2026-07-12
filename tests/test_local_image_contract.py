@@ -23,3 +23,13 @@ def test_generic_docker_build_injects_source_revision() -> None:
     block = text[start:end]
 
     assert "--label org.opencontainers.image.revision=$(SOURCE_REVISION)" in block
+
+
+def test_local_consumer_build_requires_clean_provenance() -> None:
+    text = MAKEFILE.read_text()
+    start = text.index("docker-build-local-v030:")
+    end = text.index("docker-sign:", start)
+    block = text[start:end]
+
+    assert "git status --porcelain --untracked-files=normal" in block
+    assert "CUSTOS_EXPECTED_REVISION=$(SOURCE_REVISION)" in text

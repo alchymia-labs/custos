@@ -319,6 +319,11 @@ verify-local-v030: docker-build-local-v030
 `verify-runtime` builds `custos-runner:test` and immediately violates the shared Docker runtime
 contract that requires a 40-character source revision.
 
+**2026-07-12 self-reflection amendment**: the downstream local-image target must reject a dirty
+worktree before Docker build and pass `CUSTOS_EXPECTED_REVISION=$(SOURCE_REVISION)` into the
+runtime contract. This prevents uncommitted source from being attributed to an older HEAD and
+upgrades revision verification from shape-only to exact equality for the consumer gate.
+
 不创建 `custos-base`，不创建 Git tag，不 push registry。
 
 **Step 4 — 验证通过**:
@@ -439,6 +444,8 @@ git commit -m "docs(custos): mark plan 16 as completed"
 - [ ] local image version 为 0.3.0
 - [ ] local image 带当前 source revision
 - [ ] generic `custos-runner:test` build 同样带 source revision
+- [ ] local consumer build 拒绝 dirty worktree
+- [ ] local runtime revision 精确等于当前 HEAD
 - [ ] Docker runtime 13 项通过
 - [ ] standalone NATS wire 通过
 - [ ] docs/examples 不再假定 GHCR v0.3.0 已发布
@@ -454,7 +461,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 |---|---|---|---|
 | T1 Deployment boundary IDs | ✅ | 2026-07-12 | safe ID enforced in model/schema/docs |
 | T2 validate-time public hash | ✅ | 2026-07-12 | validate and publish share `_load_spec` hash seam |
-| T3 local v0.3.0 image gate | ✅ | 2026-07-12 | local image `2e36e486…aed5a`; generic image `b3bd90e8…d77c`; both revision-labelled; runtime gates passed |
+| T3 local v0.3.0 image gate | ✅ | 2026-07-12 | dirty tree rejected; consumer runtime revision checked exactly against HEAD |
 | T4 release workflow DAG | ✅ | 2026-07-12 | declared `build-wheel` output dependency; no publication |
 | T5 local artifact truth docs | ✅ | 2026-07-12 | local tag + pull_policy never; remote release identity decisions deferred |
 | T6 close-out | 🔲 | | |
@@ -469,6 +476,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 | IMPROVEMENT | Contract validation | spec/vault/NATS 边界统一 safe ID | ✅ Plan 16 T1 |
 | IMPROVEMENT | Public CLI | validate 与 publish 共享 strategy hash seam | ✅ Plan 16 T2 |
 | IMPROVEMENT | Local provenance | `docker-build` 与 v0.3.0 target 统一注入 source revision | ✅ 用户 2026-07-12 |
+| IMPROVEMENT | Exact provenance | local consumer gate 拒绝 dirty tree 并精确校验 revision=HEAD | ✅ 用户 2026-07-12 |
 
 ---
 

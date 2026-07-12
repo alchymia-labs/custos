@@ -82,6 +82,12 @@ docker-build: dist  ## Build custos-runner:test image from the local dist/*.whl 
 		.
 
 docker-build-local-v030: dist  ## Build the local v0.3.0 consumer image with source provenance
+	@dirty="$$(git status --porcelain --untracked-files=normal)"; \
+		if [ -n "$$dirty" ]; then \
+			echo "local consumer image requires a clean worktree:" >&2; \
+			echo "$$dirty" >&2; \
+			exit 1; \
+		fi
 	docker build \
 		--label org.opencontainers.image.revision=$(SOURCE_REVISION) \
 		--tag $(LOCAL_IMAGE) \
@@ -103,7 +109,9 @@ verify-runtime: test-docker  ## Gate the complete image and standalone deploymen
 	uv run pytest tests/integration/test_standalone_runtime.py -v
 
 verify-local-v030: docker-build-local-v030  ## Build and gate the local downstream image
-	CUSTOS_TEST_IMAGE=$(LOCAL_IMAGE) $(MAKE) verify-runtime-existing
+	CUSTOS_TEST_IMAGE=$(LOCAL_IMAGE) \
+		CUSTOS_EXPECTED_REVISION=$(SOURCE_REVISION) \
+		$(MAKE) verify-runtime-existing
 	docker image inspect $(LOCAL_IMAGE) \
 		--format '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 
