@@ -455,7 +455,7 @@ git commit -m "docs(custos): mark plan 16 as completed"
 | T1 Deployment boundary IDs | ✅ | 2026-07-12 | safe ID enforced in model/schema/docs |
 | T2 validate-time public hash | ✅ | 2026-07-12 | validate and publish share `_load_spec` hash seam |
 | T3 local v0.3.0 image gate | ✅ | 2026-07-12 | local image `2e36e486…aed5a`; generic image `b3bd90e8…d77c`; both revision-labelled; runtime gates passed |
-| T4 release workflow DAG | ⏳ | | TDD red in progress; no publication |
+| T4 release workflow DAG | ✅ | 2026-07-12 | declared `build-wheel` output dependency; no publication |
 | T5 local artifact truth docs | 🔲 | | remote release deferred |
 | T6 close-out | 🔲 | | |
 

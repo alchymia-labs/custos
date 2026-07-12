@@ -171,6 +171,16 @@ def test_release_publishes_version_and_latest_image_tags() -> None:
     assert '--tag "${IMAGE_NAME}:latest"' in text
 
 
+def test_publish_ghcr_declares_every_needs_output_source() -> None:
+    text = _read()
+    start = text.index("  publish-ghcr:")
+    end = text.index("  verify-release:", start)
+    block = text[start:end]
+
+    assert "needs: [build-wheel, build-docker, sign-docker]" in block
+    assert "${{ needs.build-wheel.outputs.version }}" in block
+
+
 def test_verify_runtime_target_covers_docker_and_standalone_contracts() -> None:
     text = MAKEFILE.read_text()
 

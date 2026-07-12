@@ -229,7 +229,7 @@ jobs:
   # This job wires the release-notes rendering after publish steps complete.
   publish-ghcr:
     name: Confirm GHCR publish
-    needs: [build-docker, sign-docker]
+    needs: [build-wheel, build-docker, sign-docker]
     runs-on: ubuntu-24.04
     steps:
       - name: Assert image reference exists
