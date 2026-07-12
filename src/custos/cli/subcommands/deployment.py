@@ -28,6 +28,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 def _register_validate(actions: argparse._SubParsersAction) -> None:
     parser = actions.add_parser("validate", help="Validate a DeploymentSpec without connecting.")
     parser.add_argument("--spec-file", required=True, type=Path)
+    parser.add_argument("--strategy-dir", type=Path, default=None)
     parser.set_defaults(action_handler=_validate)
 
 
@@ -82,7 +83,7 @@ def _load_spec(spec_file: Path, strategy_dir: Path | None = None) -> DeploymentS
 
 
 def _validate(args: argparse.Namespace) -> int:
-    spec = _load_spec(args.spec_file)
+    spec = _load_spec(args.spec_file, args.strategy_dir)
     if spec is None:
         return 1
     print(f"valid DeploymentSpec: {spec.spec_id} generation {spec.generation}")

@@ -53,6 +53,70 @@ def test_validate_rejects_invalid_spec(tmp_path: Path) -> None:
     assert main(["deployment", "validate", "--spec-file", str(spec_file)]) != 0
 
 
+def test_validate_live_spec_accepts_strategy_dir(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    strategy_dir = tmp_path / "strategy"
+    strategy_dir.mkdir()
+    (strategy_dir / "strategy.py").write_text("VALUE = 1\n")
+    spec_file = _spec_file(tmp_path, mode="live")
+    original = spec_file.read_text()
+
+    result = main(
+        [
+            "deployment",
+            "validate",
+            "--spec-file",
+            str(spec_file),
+            "--strategy-dir",
+            str(strategy_dir),
+        ]
+    )
+
+    assert result == 0
+    assert "valid DeploymentSpec" in capsys.readouterr().out
+    assert spec_file.read_text() == original
+
+
+def test_validate_live_spec_rejects_missing_strategy_dir(tmp_path: Path) -> None:
+    result = main(
+        [
+            "deployment",
+            "validate",
+            "--spec-file",
+            str(_spec_file(tmp_path, mode="live")),
+            "--strategy-dir",
+            str(tmp_path / "missing"),
+        ]
+    )
+
+    assert result == 1
+
+
+def test_validate_live_spec_rejects_unknown_field_after_hash(tmp_path: Path) -> None:
+    strategy_dir = tmp_path / "strategy"
+    strategy_dir.mkdir()
+    (strategy_dir / "strategy.py").write_text("VALUE = 1\n")
+    spec_file = _spec_file(tmp_path, mode="live")
+    raw = json.loads(spec_file.read_text())
+    raw["strategy_confg"] = {}
+    spec_file.write_text(json.dumps(raw))
+
+    result = main(
+        [
+            "deployment",
+            "validate",
+            "--spec-file",
+            str(spec_file),
+            "--strategy-dir",
+            str(strategy_dir),
+        ]
+    )
+
+    assert result == 1
+
+
 def test_publish_waits_for_jetstream_ack(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
