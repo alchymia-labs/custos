@@ -3,7 +3,7 @@
 # Standalone open-source repository entrypoint. Standardized validation targets
 # keep shell execution deterministic and avoid permission drift from ad-hoc commands.
 
-.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check dist sign docker-build docker-build-local-v030 docker-sign verify-release release
+.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
 
 # Default target: help
 .DEFAULT_GOAL := help
@@ -30,6 +30,12 @@ lint:  ## Lint check (ruff check)
 	uv run ruff check src/ tests/ scripts/
 
 check: fmt-check lint  ## Combined formatting check and lint
+
+check-commit-hook:  ## Run the repository pre-commit hook directly (dry, no commit created)
+	.git/hooks/pre-commit
+
+commit-hook-dry-run:  ## Run git commit dry-run to exercise commit-hook path (no real commit)
+	git commit --allow-empty --dry-run -m "chore: pre-commit hook dry run"
 
 test:  ## Run full pytest (base profile; NT tests importorskip; includes known-failing wire_shapes)
 	uv run pytest tests/
