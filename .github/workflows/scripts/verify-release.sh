@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# Plan 12 T4: post-publish release verification.
+# Post-publish release verification.
 #
 # Independent Layer-3 smoke on top of the CI job's own build. Downloads the
 # wheel from PyPI, downloads the image from GHCR, verifies both signatures
-# against the tag-driven cert identity, then invokes the image with `--help`
-# to prove the ENTRYPOINT actually starts (FM2 Layer 3, no dead branch),
-# and asserts the image runs as a non-root user.
+# against the tag-driven cert identity, then repeats the minimum complete
+# runtime contract against the published artifact.
 #
 # Usage: bash .github/workflows/scripts/verify-release.sh <version>
-#   e.g. bash .github/workflows/scripts/verify-release.sh 0.2.0
+#   e.g. bash .github/workflows/scripts/verify-release.sh 0.3.0
 
 set -euo pipefail
 
-VERSION="${1:?version required (e.g. 0.2.0)}"
+VERSION="${1:?version required (e.g. 0.3.0)}"
 
 # Allow the repository owner to be overridden via env (useful for
 # fork-based verification runs). Defaults to the canonical Alephain Guild
@@ -53,11 +52,21 @@ cosign verify "${IMAGE_NAME}:v${VERSION}" \
     --certificate-identity "${CERT_IDENTITY}" \
     --certificate-oidc-issuer "${CERT_OIDC_ISSUER}"
 
-echo "== Layer 3: docker run --help smoke (BLK-4 fix, FM2 Layer 3) =="
-# ENTRYPOINT is `["arx-runner", "start"]`, so `--help` becomes
-# `arx-runner start --help` and prints subcommand help; exit 0 proves the
-# entrypoint chain actually resolves and doesn't crash on module import.
+echo "== Layer 3: published image command matrix =="
 docker run --rm "${IMAGE_NAME}:v${VERSION}" --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" start --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" vault put --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" nats bootstrap --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" deployment publish --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" health --help >/dev/null
+
+echo "== Layer 3: published image Python runtime =="
+docker run --rm --entrypoint python "${IMAGE_NAME}:v${VERSION}" \
+    -c 'import nautilus_trader, yaml'
+
+echo "== Layer 3: published image vault toolchain =="
+docker run --rm --entrypoint sops "${IMAGE_NAME}:v${VERSION}" --version >/dev/null
+docker run --rm --entrypoint age "${IMAGE_NAME}:v${VERSION}" --version >/dev/null
 
 echo "== Layer 3: image runs as non-root =="
 user="$(docker inspect --format '{{.Config.User}}' "${IMAGE_NAME}:v${VERSION}")"

@@ -22,6 +22,8 @@ from __future__ import annotations
 from pathlib import Path
 
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "release.yml"
+VERIFY_RELEASE = WORKFLOW.parent / "scripts" / "verify-release.sh"
+MAKEFILE = WORKFLOW.parents[2] / "Makefile"
 
 EXPECTED_JOBS = (
     "build-wheel",
@@ -99,3 +101,46 @@ def test_release_verifies_clean_base_before_nautilus_runtime() -> None:
     verify_nt = text.index("make verify-nt")
 
     assert base_gate < install_nt < verify_nt
+
+
+def test_release_gates_complete_runtime_before_image_push() -> None:
+    text = _read()
+
+    runtime_gate = text.index("make verify-runtime")
+    image_push = text.index("push: true")
+
+    assert runtime_gate < image_push
+
+
+def test_release_publishes_version_and_latest_image_tags() -> None:
+    text = _read()
+
+    assert "${{ env.IMAGE_NAME }}:v${{ needs.build-wheel.outputs.version }}" in text
+    assert "${{ env.IMAGE_NAME }}:latest" in text
+
+
+def test_verify_runtime_target_covers_docker_and_standalone_contracts() -> None:
+    text = MAKEFILE.read_text()
+
+    assert "verify-runtime: test-docker" in text
+    assert "tests/integration/test_standalone_runtime.py" in text
+
+
+def test_post_publish_verifies_complete_runtime_contract() -> None:
+    text = VERIFY_RELEASE.read_text()
+
+    required_fragments = (
+        '"${IMAGE_NAME}:v${VERSION}" --help',
+        '"${IMAGE_NAME}:v${VERSION}" start --help',
+        '"${IMAGE_NAME}:v${VERSION}" vault put --help',
+        '"${IMAGE_NAME}:v${VERSION}" nats bootstrap --help',
+        '"${IMAGE_NAME}:v${VERSION}" deployment publish --help',
+        '"${IMAGE_NAME}:v${VERSION}" health --help',
+        "import nautilus_trader, yaml",
+        'sops "${IMAGE_NAME}:v${VERSION}" --version',
+        'age "${IMAGE_NAME}:v${VERSION}" --version',
+        'cosign verify "${IMAGE_NAME}:v${VERSION}"',
+        "{{.Config.User}}",
+    )
+    for fragment in required_fragments:
+        assert fragment in text, f"post-publish runtime gate missing: {fragment}"

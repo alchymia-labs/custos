@@ -827,7 +827,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T4 retry/readiness/engine clean break | ✅ | 2026-07-12 | Bounded retry, guard ticks, atomic health state, clean engine enum |
 | T5 complete official Docker runtime | ✅ | 2026-07-12 | NT/YAML + sops/age, clean CLI entrypoint, arm64 1,070,492,907 bytes |
 | T6 dev-only base verification contract | ✅ | 2026-07-12 | Base: 468 passed/18 skipped; NT: 532 passed/4 skipped; CI order locked |
-| T7 release runtime gate | 🔲 | — | — |
+| T7 release runtime gate | ✅ | 2026-07-12 | Pre-push verify-runtime; post-publish CLI/NT/vault/cosign contract |
 | T8 hermetic standalone acceptance | 🔲 | — | — |
 | T9 0.3.0 docs/version | 🔲 | — | — |
 | T10 close-out | 🔲 | — | — |

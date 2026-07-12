@@ -3,7 +3,7 @@
 # 独立开源仓库自足构建入口. 标准化验证入口, 避免裸 shell 触发权限碎片污染
 # .claude/settings.local.json (workspace lesson: 优先 Makefile target 而非裸 uv run).
 
-.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker verify verify-base-clean verify-nt clean toolkit-sync-check dist sign docker-build docker-sign verify-release release
+.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker verify verify-base-clean verify-nt verify-runtime clean toolkit-sync-check dist sign docker-build docker-sign verify-release release
 
 # 默认 target: help
 .DEFAULT_GOAL := help
@@ -81,6 +81,9 @@ docker-sign:  ## Sign the built docker image with cosign keyless (requires OIDC;
 
 test-docker: docker-build  ## Run complete official-image runtime contract gates
 	uv run pytest -m docker tests/test_docker_non_root.py tests/test_docker_entrypoint_help.py tests/test_docker_image_size.py tests/test_docker_runtime_contract.py -v
+
+verify-runtime: test-docker  ## Gate the complete image and standalone deployment wire
+	uv run pytest tests/integration/test_standalone_runtime.py -v
 
 verify-release:  ## Post-publish smoke: pull wheel + verify sig, pull image + verify sig + smoke run
 	@bash .github/workflows/scripts/verify-release.sh $(VERSION)

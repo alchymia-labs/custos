@@ -126,6 +126,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Gate complete Docker and standalone runtime
+        run: |
+          make install
+          make verify-runtime
+
       - uses: actions/download-artifact@v4
         with:
           # Consume the signed wheel — an unsigned image release is a
@@ -218,7 +229,7 @@ jobs:
 
   # --- 7/8 post-publish smoke: pull wheel + image, verify signatures ------------
   verify-release:
-    name: Post-publish verify (wheel + image signatures + docker run --help)
+    name: Post-publish verify (signatures + complete runtime contract)
     needs: [build-wheel, publish-pypi, publish-ghcr]
     runs-on: ubuntu-24.04
     steps:
