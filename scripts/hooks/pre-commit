@@ -8,9 +8,25 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-PYTHON_BIN="python3"
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-  PYTHON_BIN="python"
+pick_python() {
+  local candidate
+
+  for candidate in "$@"; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      if "$candidate" --version >/dev/null 2>&1; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    fi
+  done
+
+  return 1
+}
+
+PYTHON_BIN="$(pick_python python3 /usr/bin/python3 /usr/local/bin/python3 /usr/bin/python3)"
+if [[ -z "${PYTHON_BIN}" ]]; then
+  echo "pre-commit: failed to locate a working python3 interpreter" >&2
+  exit 1
 fi
 
 # 1. Enforce English-only comments / logs in source code (`.claude/rules/code-style.md` §6).
