@@ -40,7 +40,15 @@ class PerKeyVault(_BaseVault):
         env = dict(os.environ)
         try:
             result = subprocess.run(
-                ["sops", "--decrypt", str(enc_path)],
+                [
+                    "sops",
+                    "--decrypt",
+                    "--input-type",
+                    "json",
+                    "--output-type",
+                    "json",
+                    str(enc_path),
+                ],
                 env=env,
                 capture_output=True,
                 check=True,

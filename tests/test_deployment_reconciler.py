@@ -162,6 +162,21 @@ async def test_stopped_lifecycle_triggers_stop() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("lifecycle", ["stopped", "archived"])
+async def test_terminal_lifecycle_reports_stopped_phase(lifecycle: str) -> None:
+    host = _FakeHost()
+    nats = _FakeNats()
+    reconciler = _make_reconciler(host=host, nats=nats)
+
+    await reconciler.handle_spec(_spec("s-1", generation=1, lifecycle=lifecycle))
+
+    assert host.stop_calls == ["s-1"]
+    assert nats.status_calls[0][1]["observed_generation"] == 1
+    assert nats.status_calls[0][1]["phase"] == "stopped"
+    assert nats.status_calls[0][1]["health"] == "healthy"
+
+
+@pytest.mark.asyncio
 async def test_drift_strikes_accumulate_on_failure() -> None:
     host = _FakeHost(deploy_raises=True)
     nats = _FakeNats()

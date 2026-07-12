@@ -1,57 +1,57 @@
-# SuperTrend on Binance testnet with custos 0.2.0
+# SuperTrend on Binance testnet with custos 0.3.0
 
-This Compose example exercises the local reconcile → G6 gate →
-`NtTradingNodeHost` → Binance testnet path. It uses test funds only. Exchange
-credentials and the age private key stay under `runtime/.arx` on this host.
+This Compose example uses the complete official Custos image directly. It starts
+JetStream, creates the standalone stream topology once, waits for runner
+readiness, and publishes the included DeploymentSpec through the public CLI.
+No derived Custos Dockerfile is required.
 
-The example retains a dedicated Dockerfile because the official v0.2.0 image
-does not yet bundle NautilusTrader, sops, or age.
+Exchange credentials, the age private key, and strategy code remain under this
+directory on the operator host. Testnet credentials must allow trading but not
+withdrawal.
 
 ## Prerequisites
 
 - Docker with Compose v2.
-- A reviewed NautilusTrader strategy at `strategy/strategy.py`.
-- Binance Futures testnet API credentials restricted to trading with no
-  withdrawal permission.
-- `uv`, `sops`, and `age` on the provisioning host.
+- A reviewed strategy at `strategy/strategy.py`.
+- `age-keygen` for the one-time local key creation.
+- Binance Futures testnet credentials with withdrawal disabled.
 
-Copy the non-secret configuration and load it into the current shell:
+Copy the non-secret defaults without overwriting an existing configuration:
 
 ```bash
-cp .env.example .env
+test -f .env || cp .env.example .env
 set -a
 . ./.env
 set +a
 ```
 
-## 1. Provision one per-key vault entry
+## 1. Provision the local identity and per-key vault
 
-`arx-runner vault put` writes one encrypted file for `binance-testnet`. The
-fixture at `vault-fixture/credentials.example.json` documents the decrypted
-single-key shape but is not written to disk during provisioning.
+Create the runtime directories and age identity locally:
 
 ```bash
-mkdir -p runtime/.arx/vault
-chmod 700 runtime/.arx runtime/.arx/vault
+mkdir -p runtime/.arx/vault runtime/.arx/state
+chmod 700 runtime/.arx runtime/.arx/vault runtime/.arx/state
 age-keygen -o runtime/.arx/age.key
 chmod 600 runtime/.arx/age.key
+```
 
-printf '%s\n' '<binance-testnet-api-secret>' | uv run arx-runner vault put \
+Use the official image's `arx-runner vault put` command to write the encrypted
+credential. Pass the secret through stdin:
+
+```bash
+printf '%s\n' '<binance-testnet-api-secret>' | docker run --rm -i \
+  -v "$PWD/runtime/.arx:/home/custos/.arx" \
+  ghcr.io/the-alephain-guild/custos:v0.3.0 vault put \
   --key-id binance-testnet \
   --tenant-id "$ARX_TENANT_ID" \
   --api-key '<binance-testnet-api-key>' \
   --api-secret-stdin \
   --age-recipient '<age1-public-key>' \
-  --permission-scope trade_no_withdraw \
-  --vault-dir runtime/.arx/vault
+  --permission-scope trade_no_withdraw
 ```
 
-The CLI and decrypt path both reject any scope other than
-`trade_no_withdraw`.
-
-## 2. Create the sanctioned testnet runner.toml
-
-Without a real enrollment backend, build the documented non-live runner record:
+Create the sanctioned non-live `runner.toml` with the repository checkout:
 
 ```bash
 uv run python - <<'PY'
@@ -66,7 +66,7 @@ RunnerToml.write(
     RunnerToml(
         tenant_id=os.environ["ARX_TENANT_ID"],
         runner_id=os.environ["ARX_RUNNER_ID"],
-        backend_url="http://mock-testnet:8000",
+        backend_url="http://standalone.invalid",
         long_term_credential="testnet-local-only",
         enrolled_at_ns=time.time_ns(),
     ),
@@ -74,31 +74,36 @@ RunnerToml.write(
 PY
 ```
 
-This sanctioned path never grants live scope. Production runners must use
-`arx-runner enroll`.
+Production runners must use `arx-runner enroll`; this manual record is only the
+documented sandbox/testnet path.
 
-## 3. Start the stack
-
-```bash
-docker compose up --build
-```
-
-The image entrypoint is `arx-runner`; Compose supplies the `start` subcommand,
-NATS endpoint, strategy id, NautilusTrader host selection, and per-key vault
-directory. The bind mount maps `runtime/.arx` to `/root/.arx`, so both
-`runner.toml` and `vault/binance-testnet.enc` are available inside the runner.
-
-## Publish and observe
-
-Normally arx publishes [`spec-example.json`](spec-example.json). For a local
-smoke test, publish it as the payload on
-`arx.<tenant>.deployment_spec.<strategy_id>` and watch:
+## 2. Start, wait, and publish
 
 ```bash
-docker compose logs -f runner
+docker compose up
 ```
 
-Expect `nt_deploy_started` with `trading_mode=testnet`. Increase `generation`
-and set `lifecycle_state` to `stopped` to stop the deployment. Testnet permits
-`code_hash: null`; live mode requires a matching strategy-directory hash and
-must pass every G6 gate layer.
+The service order is explicit:
+
+1. `nats` starts JetStream.
+2. `nats-bootstrap` idempotently creates Custos-owned streams.
+3. `runner` starts with `--engine nautilus` and becomes healthy only after its
+   DeploymentSpec subscription is established.
+4. `spec-publisher` runs `arx-runner deployment publish` and exits after the
+   JetStream acknowledgement.
+
+Observe the reconcile result with:
+
+```bash
+docker compose logs -f runner spec-publisher
+```
+
+To stop the deployment, set `generation` to `2` and `lifecycle_state` to
+`stopped` in `spec-example.json`, then publish the new desired state:
+
+```bash
+docker compose run --rm spec-publisher
+```
+
+The official image defaults to the real Nautilus engine. This example passes it
+explicitly so the runtime intent remains visible in Compose.

@@ -3,7 +3,7 @@
   "generation": 1,
   "trading_mode": "testnet",
   "lifecycle_state": "running",
-  "strategy_path": "/app/strategy/strategy.py",
+  "strategy_path": "/opt/custos/strategies/supertrend/strategy.py",
   "code_hash": null,
   "connector": "binance_perpetual",
   "pairs": ["BTC-USDT"],

@@ -691,7 +691,8 @@ git commit -m "ci(custos): gate complete runtime image before publish"
 
 ### Task 8: Hermetic standalone runtime acceptance
 
-**Files**: Create integration test; Modify examples; Delete testnet 派生 Dockerfile。
+**Files**: Create integration test; Modify reconciler/status and per-key vault decrypt unit tests,
+runtime code, and examples; Delete testnet 派生 Dockerfile。
 
 **Step 1 — 集成验收路径**:
 
@@ -828,7 +829,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T5 complete official Docker runtime | ✅ | 2026-07-12 | NT/YAML + sops/age, clean CLI entrypoint, arm64 1,070,492,907 bytes |
 | T6 dev-only base verification contract | ✅ | 2026-07-12 | Base: 468 passed/18 skipped; NT: 532 passed/4 skipped; CI order locked |
 | T7 release runtime gate | ✅ | 2026-07-12 | Pre-push verify-runtime; post-publish CLI/NT/vault/cosign contract |
-| T8 hermetic standalone acceptance | 🔲 | — | — |
+| T8 hermetic standalone acceptance | ✅ | 2026-07-12 | Real NATS/vault/readiness wire; running→stopped; official-image Compose |
 | T9 0.3.0 docs/version | 🔲 | — | — |
 | T10 close-out | 🔲 | — | — |
 
@@ -843,6 +844,8 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | IMPROVEMENT | Runtime truth | schema validation 升级为真实 consumer runtime validation；model 与 JSON Schema 同时锁定 mode 条件 | ✅ T1 |
 | IMPROVEMENT | Reliability | subscribe 文档承诺与实际 retry 行为收敛 | ✅ T4 |
 | IMPROVEMENT | Base verification | 拆分 shared bootstrap 与 nautilus-only pandas_ta import，并用 `verify-base-clean` 防预装 NT 掩盖 dev-only 失败 | ✅ 用户 2026-07-11 |
+| IMPROVEMENT | Terminal status truth | T8 acceptance 暴露成功 stop/archive 仍硬编码上报 running；补充 reconciler phase 映射与单元测试 | ✅ 用户 2026-07-12 |
+| IMPROVEMENT | sops JSON decrypt | 官方 sops 3.13.2 对 `.enc` 推断 binary，真实 vault decrypt 失败；显式锁定 JSON input/output type 并保留容器 canary | ✅ 用户 2026-07-12 |
 
 ---
 

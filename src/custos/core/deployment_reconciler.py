@@ -265,11 +265,14 @@ class DeploymentReconciler:
             state.container_id = container_id
             state.observed_generation = generation
             state.drift_strikes = 0
+            phase = (
+                "stopped" if spec.get("lifecycle_state") in ("stopped", "archived") else "running"
+            )
             await self._report_status(
                 spec_id=spec_id,
                 spec=spec,
                 state=state,
-                phase="running",
+                phase=phase,
                 health="healthy",
             )
         except Exception as exc:  # noqa: BLE001

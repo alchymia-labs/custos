@@ -14,7 +14,6 @@ LEGACY_TOKENS = ("--sops-file", "--age-key-file", "python -m custos")
 TEXT_FILES = (
     SANDBOX_DIR / "README.md",
     TESTNET_DIR / "README.md",
-    TESTNET_DIR / "Dockerfile",
     TESTNET_DIR / ".env.example",
     TESTNET_DIR / "docker-compose.yaml",
 )
@@ -27,30 +26,27 @@ def test_example_text_has_no_legacy_cli_tokens(path: Path) -> None:
         assert token not in text
 
 
-def test_testnet_compose_uses_v020_start_shape_and_per_key_vault() -> None:
+def test_testnet_compose_uses_v030_official_runtime_shape() -> None:
     compose = yaml.safe_load((TESTNET_DIR / "docker-compose.yaml").read_text(encoding="utf-8"))
     runner = compose["services"]["runner"]
-    assert runner["build"]["dockerfile"] == "examples/supertrend-testnet/Dockerfile"
-    assert runner["command"] == [
-        "start",
-        "--nats-url",
-        "${ARX_NATS_URL}",
-        "--reconcile-strategy-id",
-        "${ARX_STRATEGY_ID}",
-        "--use-nt-host",
-        "--vault-dir",
-        "/root/.arx/vault",
-    ]
-    assert "./runtime/.arx:/root/.arx" in runner["volumes"]
+    bootstrap = compose["services"]["nats-bootstrap"]
+    publisher = compose["services"]["spec-publisher"]
+
+    assert "build" not in runner
+    assert runner["image"] == "ghcr.io/the-alephain-guild/custos:v0.3.0"
+    assert runner["command"][0] == "start"
+    assert ["--engine", "nautilus"] == runner["command"][5:7]
+    assert runner["depends_on"]["nats-bootstrap"]["condition"] == "service_completed_successfully"
+    assert runner["healthcheck"]["test"] == ["CMD", "arx-runner", "health"]
+    assert "./runtime/.arx:/home/custos/.arx" in runner["volumes"]
+
+    assert bootstrap["command"][0:2] == ["nats", "bootstrap"]
+    assert publisher["command"][0:2] == ["deployment", "publish"]
+    assert publisher["depends_on"]["runner"]["condition"] == "service_healthy"
 
 
-def test_testnet_dockerfile_uses_arx_runner_subcommand_entrypoint() -> None:
-    text = (TESTNET_DIR / "Dockerfile").read_text(encoding="utf-8")
-    assert 'ENTRYPOINT ["uv", "run", "arx-runner"]' in text
-    assert 'CMD ["start"]' in text
-    assert "uv sync --extra nautilus" in text
-    assert "sops" in text
-    assert "age" in text
+def test_testnet_example_has_no_derived_dockerfile() -> None:
+    assert not (TESTNET_DIR / "Dockerfile").exists()
 
 
 def test_testnet_env_contains_only_non_secret_runtime_keys() -> None:

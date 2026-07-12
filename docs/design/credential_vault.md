@@ -15,7 +15,9 @@ runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**K
 
 - **`PerKeyVault`（生产 runtime reader）** — `src/custos/core/per_key_vault.py`：
   每个凭证独立一个 `~/.arx/vault/<key-id>.enc` 文件（sops+age 加密），reconciler
-  runtime 通过 `sops --decrypt` shell out 读取，`SOPS_AGE_KEY_FILE` env 定位私钥。
+  runtime 通过 `sops --decrypt --input-type json --output-type json` shell out 读取，
+  `SOPS_AGE_KEY_FILE` env 定位私钥。显式 type 参数避免 sops 3.13+ 把 `.enc` 后缀误判为
+  binary store。
   继承 `_BaseVault` 保留 `_verify_permission_scope` + `_emit_decrypt_audit` 两条
   invariant，**永不日志 plaintext**。
 - **`arx-runner vault put`（写入 CLI）** — `src/custos/cli/subcommands/vault.py`：

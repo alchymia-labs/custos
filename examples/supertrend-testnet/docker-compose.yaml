@@ -1,37 +1,67 @@
-# custos supertrend-testnet example.
-#
-# One custos runner reconciling a single Binance testnet deployment, plus a
-# local NATS with JetStream. Runtime identity and per-key encrypted credentials
-# live together under ./runtime/.arx and are mounted into the runner.
-#
-# Copy .env.example to .env and adjust the non-secret runtime config. Exchange
-# credentials are provisioned with arx-runner vault put (see README).
+# Custos 0.3.0 SuperTrend testnet example using the complete official image.
 services:
   nats:
     image: nats:2.10-alpine
-    command: ["-js"] # JetStream: deployment_spec + telemetry streams
+    command: ["-js"]
     ports:
       - "4222:4222"
 
-  runner:
-    build:
-      context: ../..
-      dockerfile: examples/supertrend-testnet/Dockerfile
+  nats-bootstrap:
+    image: ghcr.io/the-alephain-guild/custos:v0.3.0
     depends_on:
+      nats:
+        condition: service_started
+    command:
       - nats
+      - bootstrap
+      - --profile
+      - standalone
+      - --nats-url
+      - ${ARX_NATS_URL:-nats://nats:4222}
+      - --tenant-id
+      - ${ARX_TENANT_ID:-acme}
+
+  runner:
+    image: ghcr.io/the-alephain-guild/custos:v0.3.0
+    depends_on:
+      nats-bootstrap:
+        condition: service_completed_successfully
     environment:
-      SOPS_AGE_KEY_FILE: /root/.arx/age.key
+      SOPS_AGE_KEY_FILE: /home/custos/.arx/age.key
     volumes:
-      - ./strategy:/app/strategy:ro
-      - ./runtime/.arx:/root/.arx
+      - ./strategy:/opt/custos/strategies/supertrend:ro
+      - ./runtime/.arx:/home/custos/.arx
     command:
       - start
       - --nats-url
-      - ${ARX_NATS_URL}
+      - ${ARX_NATS_URL:-nats://nats:4222}
       - --reconcile-strategy-id
-      - ${ARX_STRATEGY_ID}
-      # Select the real NautilusTrader host so testnet execution actually runs.
-      # The G6 gate still guards every live deploy regardless of this flag.
-      - --use-nt-host
+      - ${ARX_STRATEGY_ID:-supertrend-btcusdt}
+      - --engine
+      - nautilus
       - --vault-dir
-      - /root/.arx/vault
+      - /home/custos/.arx/vault
+    healthcheck:
+      test: ["CMD", "arx-runner", "health"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  spec-publisher:
+    image: ghcr.io/the-alephain-guild/custos:v0.3.0
+    depends_on:
+      runner:
+        condition: service_healthy
+    volumes:
+      - ./spec-example.json:/specs/deployment.json:ro
+    command:
+      - deployment
+      - publish
+      - --spec-file
+      - /specs/deployment.json
+      - --tenant-id
+      - ${ARX_TENANT_ID:-acme}
+      - --strategy-id
+      - ${ARX_STRATEGY_ID:-supertrend-btcusdt}
+      - --nats-url
+      - ${ARX_NATS_URL:-nats://nats:4222}

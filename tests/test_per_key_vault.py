@@ -117,6 +117,15 @@ def test_per_key_vault_happy_path_emits_audit(
     with caplog.at_level(logging.INFO, logger="custos.credential_vault"):
         cred = vault.decrypt("binance-paper")
     assert cred["permission_scope"] == "trade_no_withdraw"
+    assert run_mock.call_args.args[0] == [
+        "sops",
+        "--decrypt",
+        "--input-type",
+        "json",
+        "--output-type",
+        "json",
+        str(enc),
+    ]
     audit_records = [
         r
         for r in caplog.records
