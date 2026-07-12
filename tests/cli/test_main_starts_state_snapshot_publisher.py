@@ -135,8 +135,8 @@ async def test_main_starts_state_snapshot_publisher(monkeypatch, tmp_path) -> No
         enrollment_path=Path(str(tmp_path / "enrollment.json")),
         enrollment_token=None,
         vault_dir=Path(str(tmp_path / "vault")),
-        use_nt_host=False,
-        engine="nautilus",
+        engine="noop",
+        ready_file=tmp_path / "runner-ready.json",
         snapshot_interval_secs=10.0,
     )
 

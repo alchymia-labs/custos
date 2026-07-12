@@ -31,13 +31,14 @@ from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.nats_client import ArxNatsClient
 from custos.core.per_key_vault import PerKeyVault
+from custos.core.readiness import ReadinessFile
 from custos.core.state_snapshot import StateSnapshotPublisher
 from custos.core.zombie_watchdog import ZombieWatchdog
 from custos.engines.nautilus.risk import make_runner_cap_reject_publisher
 
 log = logging.getLogger("custos")
 
-_AVAILABLE_ENGINES = {"nautilus"}
+_AVAILABLE_ENGINES = {"nautilus", "noop"}
 
 
 def _build_vault(args: argparse.Namespace) -> PerKeyVault:
@@ -57,12 +58,11 @@ def _build_vault(args: argparse.Namespace) -> PerKeyVault:
 
 
 def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
-    """Pick the execution engine host based on ``--engine`` / ``--use-nt-host``.
+    """Pick the execution engine host from the clean-break ``--engine`` enum.
 
-    Default ``NoopHost`` (paper / dev); ``--use-nt-host`` or ``--engine
-    nautilus`` selects the real ``NtTradingNodeHost``. Unknown engine
-    names are rejected with a clear error rather than a crash. The G6
-    gate still guards every live deploy regardless of engine choice.
+    ``nautilus`` selects the real ``NtTradingNodeHost`` and ``noop`` selects
+    the explicit contract-test stub. The G6 gate still guards every live
+    deploy regardless of engine choice.
     """
     engine = getattr(args, "engine", "nautilus")
     if engine not in _AVAILABLE_ENGINES:
@@ -70,18 +70,19 @@ def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
             f"engine {engine!r} is not available "
             f"(available: {', '.join(sorted(_AVAILABLE_ENGINES))})"
         )
-    if args.use_nt_host or engine == "nautilus":
-        if args.use_nt_host:
-            from custos.engines.nautilus.host import NtTradingNodeHost
+    if engine == "nautilus":
+        from custos.engines.nautilus.host import NtTradingNodeHost
 
-            return NtTradingNodeHost(
-                telemetry_client=client,
-                tenant_id=args.tenant_id,
-                runner_id=args.runner_id,
-            )
-    from custos.engines.nautilus.host import NoopHost
+        return NtTradingNodeHost(
+            telemetry_client=client,
+            tenant_id=args.tenant_id,
+            runner_id=args.runner_id,
+        )
+    if engine == "noop":
+        from custos.engines.nautilus.host import NoopHost
 
-    return NoopHost()
+        return NoopHost()
+    raise SystemExit(f"unhandled engine {engine!r}")
 
 
 def _build_reconciler(
@@ -89,6 +90,7 @@ def _build_reconciler(
     client: ArxNatsClient,
     host: object,
     vault: PerKeyVault,
+    readiness: ReadinessFile | None = None,
 ) -> DeploymentReconciler:
     """Compose the reconciler with the three local guards wired in (non-custodial
     red line 0.3 runtime wire — cap + breaker + watchdog keep guarding when
@@ -111,6 +113,7 @@ def _build_reconciler(
         local_cap=runner_cap,
         fallback_breaker=fallback_breaker,
         zombie_watchdog=zombie_watchdog,
+        readiness=readiness,
     )
 
 
@@ -158,6 +161,12 @@ async def run_daemon(args: argparse.Namespace) -> int:
         runner_id=args.runner_id,
         wal_path=args.wal_path,
     )
+    readiness = ReadinessFile(
+        args.ready_file,
+        tenant_id=args.tenant_id,
+        runner_id=args.runner_id,
+    )
+    readiness.clear()
     await client.connect()
     log.info(
         "runner_started",
@@ -184,13 +193,13 @@ async def run_daemon(args: argparse.Namespace) -> int:
         # Deployment reconciler (opt-in via --reconcile-strategy-id).
         if args.reconcile_strategy_id:
             vault = _build_vault(args)
-            # Default NoopHost (paper / dev) declares supports_live()=False so
-            # the G6 gate refuses it on live; --use-nt-host selects the real
-            # NtTradingNodeHost. The real NT host wires the telemetry + pre-
+            # ``--engine noop`` declares supports_live()=False so the G6 gate
+            # refuses it on live; the default nautilus engine selects the real
+            # NtTradingNodeHost. The real host wires the telemetry + pre-
             # trade reject bridges to each deployment's MessageBus inside
             # deploy() — that is where the bus exists.
             host = _build_host(args, client)
-            reconciler = _build_reconciler(args, client, host, vault)
+            reconciler = _build_reconciler(args, client, host, vault, readiness)
             tasks.append(
                 asyncio.create_task(
                     reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
@@ -215,6 +224,12 @@ async def run_daemon(args: argparse.Namespace) -> int:
                     name="arx-state-snapshot-publisher",
                 )
             )
+        else:
+            readiness.mark_ready(
+                strategy_id=None,
+                nats_connected=True,
+                deployment_subscription=False,
+            )
 
         tasks.append(
             asyncio.create_task(
@@ -224,6 +239,7 @@ async def run_daemon(args: argparse.Namespace) -> int:
         )
         await asyncio.gather(*tasks, return_exceptions=True)
     finally:
+        readiness.clear()
         for t in tasks:
             if not t.done():
                 t.cancel()

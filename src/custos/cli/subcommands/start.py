@@ -18,6 +18,7 @@ DEFAULT_RUNNER_TOML = Path.home() / ".arx" / "runner.toml"
 DEFAULT_WAL_PATH = Path.home() / ".arx" / "state" / "telemetry-wal.db"
 DEFAULT_ENROLLMENT_PATH = Path.home() / ".arx" / "enrollment.json"
 DEFAULT_VAULT_DIR = Path.home() / ".arx" / "vault"
+DEFAULT_READY_FILE = Path.home() / ".arx" / "state" / "runner-ready.json"
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -51,8 +52,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Enable deployment reconciler bound to this strategy_id.",
     )
-    parser.add_argument("--use-nt-host", action="store_true")
-    parser.add_argument("--engine", default="nautilus")
+    parser.add_argument("--engine", choices=["nautilus", "noop"], default="nautilus")
+    parser.add_argument("--ready-file", type=Path, default=DEFAULT_READY_FILE)
     parser.add_argument(
         "--wal-path",
         type=Path,
@@ -93,8 +94,8 @@ def run(args: argparse.Namespace) -> int:
         enrollment_token=args.enrollment_token,
         vault_dir=args.vault_dir,
         reconcile_strategy_id=args.reconcile_strategy_id,
-        use_nt_host=args.use_nt_host,
         engine=args.engine,
+        ready_file=args.ready_file,
         wal_path=args.wal_path,
         snapshot_interval_secs=args.snapshot_interval_secs,
     )

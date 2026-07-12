@@ -12,15 +12,14 @@ import argparse
 import pytest
 
 from custos.cli._daemon import _build_host
-from custos.engines.nautilus.host import NoopHost
+from custos.engines.nautilus.host import NoopHost, NtTradingNodeHost
 
 
-def _ns(engine: str = "nautilus", use_nt_host: bool = False) -> argparse.Namespace:
+def _ns(engine: str = "nautilus") -> argparse.Namespace:
     return argparse.Namespace(
         tenant_id="t",
         runner_id="r",
         engine=engine,
-        use_nt_host=use_nt_host,
     )
 
 
@@ -28,7 +27,11 @@ def test_cli_engine_defaults_to_nautilus() -> None:
     args = _ns()
     assert args.engine == "nautilus"
     host = _build_host(args)
-    assert isinstance(host, NoopHost)
+    assert isinstance(host, NtTradingNodeHost)
+
+
+def test_cli_engine_noop_is_explicit() -> None:
+    assert isinstance(_build_host(_ns(engine="noop")), NoopHost)
 
 
 def test_cli_engine_unknown_rejected() -> None:

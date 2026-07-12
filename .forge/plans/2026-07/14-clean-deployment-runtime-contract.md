@@ -824,7 +824,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | T1 DeploymentSpec consumer contract | ✅ | 2026-07-11 | Strict model, generated conditional schema, reconciler validation |
 | T2 DeploymentMessage/publication CLI | ✅ | 2026-07-12 | Wrapper round-trip, public hash seam, validate/publish CLI + JetStream ack |
 | T3 standalone JetStream bootstrap | ✅ | 2026-07-12 | Idempotent owned topology, drift repair, collision safety, timeout + CLI |
-| T4 retry/readiness/engine clean break | 🔲 | — | — |
+| T4 retry/readiness/engine clean break | ✅ | 2026-07-12 | Bounded retry, guard ticks, atomic health state, clean engine enum |
 | T5 complete official Docker runtime | 🔲 | — | — |
 | T6 dev-only base verification contract | 🔲 | — | `make install` 后 `make verify` 必须独立全绿 |
 | T7 release runtime gate | 🔲 | — | — |
@@ -841,7 +841,7 @@ git commit -m "docs(custos): mark plan 14 as completed"
 | IMPROVEMENT | Public seam | 用 DeploymentMessage 深模块替代下游理解多个内部模块 | ✅ T2 |
 | IMPROVEMENT | DeploymentMessage wire | envelope payload 使用 `{strategy_id, spec}` wrapper，解决 parse 仅拿 bytes 无法恢复 subject 的信息缺口 | ✅ 用户 2026-07-12 |
 | IMPROVEMENT | Runtime truth | schema validation 升级为真实 consumer runtime validation；model 与 JSON Schema 同时锁定 mode 条件 | ✅ T1 |
-| IMPROVEMENT | Reliability | subscribe 文档承诺与实际 retry 行为收敛 | 待执行 |
+| IMPROVEMENT | Reliability | subscribe 文档承诺与实际 retry 行为收敛 | ✅ T4 |
 | IMPROVEMENT | Base verification | 拆分 shared bootstrap 与 nautilus-only pandas_ta import，并用 `verify-base-clean` 防预装 NT 掩盖 dev-only 失败 | ✅ 用户 2026-07-11 |
 
 ---

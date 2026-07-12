@@ -1,6 +1,6 @@
 """Host × trading_mode selection matrix — the four non-live cells.
 
-``--use-nt-host`` × ``spec.trading_mode`` is a 6-cell space (sandbox / testnet /
+``--engine`` × ``spec.trading_mode`` is a 6-cell space (sandbox / testnet /
 live × NoopHost / NtTradingNodeHost). The two live cells are covered elsewhere
 and cross referenced rather than duplicated:
 

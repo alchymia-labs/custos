@@ -108,18 +108,18 @@ pre-trade 拒绝走 `nt_risk_engine.on_order_denied()` → `PreTradeRejected` wi
 
 ## CLI 入口
 
-runner 入口（`python -m custos`）在 reconciler 构造时绑定单一 host：
+`arx-runner start` 在 reconciler 构造时绑定单一 host，0.3.0 clean break 只有一个选择面：
 
-- **默认 `NoopHost`**（paper / dev）：不带 flag 时行为不变（向后兼容）；live spec 被 G6 gate
-  层 1 拒，sandbox / testnet spec 落 stub 为 no-op（不真起 NT）。
-- **`--use-nt-host`**：显式选 `NtTradingNodeHost`，启用 sandbox / testnet / live 真执行。
-  这是**启用真执行通道**，**非绕过 G6 gate** —— gate 4 层对每个 live deploy 仍全程强制；
-  nautilus 未装时 `deploy` fail-fast（`_ensure_nt_available`）。无 opt-out env var 绕过
-  gate（红线 0.2）。
+- **`--engine nautilus`（默认）**：选择 `NtTradingNodeHost`，启用 sandbox / testnet / live
+  真执行。nautilus 未安装时 `deploy` fail-fast；G6 四层对 live 仍全程强制。
+- **`--engine noop`**：显式选择 `NoopHost`，仅用于 sandbox/dev contract tests；live spec
+  仍由 G6 layer 1 拒绝。
+
+`--use-nt-host` 已删除，不保留双重选择或 compatibility alias。
 
 ## Host mode × trading_mode matrix
 
-`--use-nt-host`（host 选择）× `spec.trading_mode` 是一个 6 格空间。非 live 三格（sandbox /
+`--engine`（host 选择）× `spec.trading_mode` 是一个 6 格空间。非 live 三格（sandbox /
 testnet）由各自 host 通道自洽；live 两格是承重墙——落到 stub 上即被 G6 gate 层 1 拒。
 每格的期望行为与覆盖测试:
 

@@ -38,6 +38,18 @@ class CredentialVaultProtocol(Protocol):
     def decrypt(self, credential_id: str) -> dict: ...
 
 
+class ReadinessProtocol(Protocol):
+    def mark_ready(
+        self,
+        *,
+        strategy_id: str | None,
+        nats_connected: bool,
+        deployment_subscription: bool,
+    ) -> None: ...
+
+    def clear(self) -> None: ...
+
+
 @dataclass
 class _ReconcileState:
     """Per-spec_id reconcile bookkeeping。observed_generation 是本地观测到
@@ -69,6 +81,9 @@ class DeploymentReconciler:
     local_cap: RunnerNotionalCap | None = None
     fallback_breaker: FallbackBreaker | None = None
     zombie_watchdog: ZombieWatchdog | None = None
+    readiness: ReadinessProtocol | None = None
+    subscribe_backoff_initial_secs: float = 0.25
+    subscribe_backoff_max_secs: float = 5.0
     session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     _state: dict[str, _ReconcileState] = field(default_factory=dict)
 
@@ -90,63 +105,104 @@ class DeploymentReconciler:
             session_id=self.session_id,
             strategy_id=strategy_id,
         )
+        if self.readiness is not None:
+            self.readiness.clear()
+        sub = None
+        backoff = self.subscribe_backoff_initial_secs
         try:
-            sub = await self.nats_client.subscribe_deployment_spec(strategy_id=strategy_id)
-        except Exception as exc:  # noqa: BLE001
-            _log.error(
-                "deployment_reconciler_subscribe_failed",
-                strategy_id=strategy_id,
-                error=str(exc),
+            while not stop.is_set():
+                # Autonomous local guards run whether subscribed, retrying, or idle.
+                await self._tick_local_guards()
+                if sub is None:
+                    try:
+                        sub = await self.nats_client.subscribe_deployment_spec(
+                            strategy_id=strategy_id
+                        )
+                    except Exception as exc:  # noqa: BLE001 - retry until stop
+                        _log.error(
+                            "deployment_reconciler_subscribe_failed",
+                            strategy_id=strategy_id,
+                            error=str(exc),
+                            retry_in_secs=backoff,
+                        )
+                        await self._wait_for_retry(stop, backoff)
+                        backoff = min(backoff * 2, self.subscribe_backoff_max_secs)
+                        continue
+                    backoff = self.subscribe_backoff_initial_secs
+                    _log.info(
+                        "deployment_reconciler_subscribed",
+                        strategy_id=strategy_id,
+                    )
+                    if self.readiness is not None:
+                        self.readiness.mark_ready(
+                            strategy_id=strategy_id,
+                            nats_connected=True,
+                            deployment_subscription=True,
+                        )
+
+                try:
+                    msg = await asyncio.wait_for(
+                        sub.next_msg(timeout=self.poll_interval_secs),
+                        timeout=self.poll_interval_secs * 2,
+                    )
+                except TimeoutError:
+                    continue
+                except Exception as exc:  # noqa: BLE001 - clear readiness and resubscribe
+                    _log.warning(
+                        "deployment_reconciler_subscription_lost",
+                        strategy_id=strategy_id,
+                        error=str(exc),
+                    )
+                    if self.readiness is not None:
+                        self.readiness.clear()
+                    sub = None
+                    await self._wait_for_retry(stop, backoff)
+                    backoff = min(backoff * 2, self.subscribe_backoff_max_secs)
+                    continue
+
+                try:
+                    message = DeploymentMessage.parse(
+                        msg.data,
+                        expected_tenant_id=self.tenant_id,
+                    )
+                except (ValidationError, ValueError, AttributeError) as exc:
+                    _log.error(
+                        "deployment_spec_decode_failed",
+                        error=str(exc),
+                    )
+                    continue
+                expected_subject = build_subject(self.tenant_id, "deployment_spec", strategy_id)
+                if message.subject != expected_subject:
+                    _log.error(
+                        "deployment_message_strategy_mismatch",
+                        expected_subject=expected_subject,
+                        message_subject=message.subject,
+                    )
+                    continue
+                await self.handle_spec(message.spec.model_dump(mode="json"))
+        finally:
+            if self.readiness is not None:
+                self.readiness.clear()
+            _log.info(
+                "deployment_reconciler_stopped",
+                session_id=self.session_id,
             )
-            return
 
+    async def _tick_local_guards(self) -> None:
+        await self._watchdog_tick()
+        await self._breaker_tick()
+
+    async def _wait_for_retry(self, stop: asyncio.Event, delay: float) -> None:
+        deadline = asyncio.get_running_loop().time() + delay
         while not stop.is_set():
-            # Autonomous local guards: run every poll regardless of inbound specs
-            # so a stuck / runaway engine is handled even while the cloud is
-            # silent (red line 0.3).
-            await self._watchdog_tick()
-            await self._breaker_tick()
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return
+            interval = min(max(self.poll_interval_secs, 0.001), remaining)
             try:
-                msg = await asyncio.wait_for(
-                    sub.next_msg(timeout=self.poll_interval_secs),
-                    timeout=self.poll_interval_secs * 2,
-                )
+                await asyncio.wait_for(stop.wait(), timeout=interval)
             except TimeoutError:
-                continue
-            except Exception as exc:  # noqa: BLE001 — NATS 抖动不停止 loop
-                _log.warning(
-                    "deployment_reconciler_recv_failed",
-                    strategy_id=strategy_id,
-                    error=str(exc),
-                )
-                await asyncio.sleep(self.poll_interval_secs)
-                continue
-
-            try:
-                message = DeploymentMessage.parse(
-                    msg.data,
-                    expected_tenant_id=self.tenant_id,
-                )
-            except (ValidationError, ValueError, AttributeError) as exc:
-                _log.error(
-                    "deployment_spec_decode_failed",
-                    error=str(exc),
-                )
-                continue
-            expected_subject = build_subject(self.tenant_id, "deployment_spec", strategy_id)
-            if message.subject != expected_subject:
-                _log.error(
-                    "deployment_message_strategy_mismatch",
-                    expected_subject=expected_subject,
-                    message_subject=message.subject,
-                )
-                continue
-            await self.handle_spec(message.spec.model_dump(mode="json"))
-
-        _log.info(
-            "deployment_reconciler_stopped",
-            session_id=self.session_id,
-        )
+                await self._tick_local_guards()
 
     async def handle_spec(self, spec: dict) -> None:
         """Process one DeploymentSpec snapshot. Generation 幂等 + drift 检测。"""

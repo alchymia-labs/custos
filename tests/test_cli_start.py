@@ -132,6 +132,47 @@ def test_start_preserves_engine_and_wal_flags(
     assert ns.vault_dir == vault_dir
 
 
+def test_engine_nautilus_selects_real_host() -> None:
+    from argparse import Namespace
+
+    from custos.cli._daemon import _build_host
+    from custos.engines.nautilus.host import NtTradingNodeHost
+
+    host = _build_host(Namespace(engine="nautilus", tenant_id="acme", runner_id="runner-1"))
+
+    assert isinstance(host, NtTradingNodeHost)
+
+
+def test_engine_noop_selects_noop_host() -> None:
+    from argparse import Namespace
+
+    from custos.cli._daemon import _build_host
+    from custos.engines.nautilus.host import NoopHost
+
+    host = _build_host(Namespace(engine="noop", tenant_id="acme", runner_id="runner-1"))
+
+    assert isinstance(host, NoopHost)
+
+
+def test_use_nt_host_flag_is_removed() -> None:
+    with pytest.raises(SystemExit):
+        main(["start", "--use-nt-host"])
+
+
+def test_start_preserves_ready_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner_toml = tmp_path / "arx" / "runner.toml"
+    _seed_runner_toml(runner_toml)
+    ready_file = tmp_path / "runner-ready.json"
+
+    exit_code, run_daemon = _run_start(
+        ["--runner-toml", str(runner_toml), "--ready-file", str(ready_file)],
+        monkeypatch=monkeypatch,
+    )
+
+    assert exit_code == 0
+    assert run_daemon.call_args.args[0].ready_file == ready_file
+
+
 def test_start_default_paths_target_arx_namespace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
