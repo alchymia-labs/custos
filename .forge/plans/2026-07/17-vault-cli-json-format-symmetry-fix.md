@@ -224,7 +224,7 @@ git commit -m "docs(custos): mark plan 17 as completed"
 | Fix | Priority | Status | Completed | Notes |
 |---|---|---|---|---|
 | F1 JSON decrypt symmetry | P0 | ✅ | 2026-07-13 | shared helper; 26 focused tests + `make verify` (525 passed) |
-| F2 public CLI integration | P0 | [ ] | — | — |
+| F2 public CLI integration | P0 | ✅ | 2026-07-13 | old-image binary-store red reproduced; new image Docker 15 + standalone 1 passed |
 | F3 authority/lesson/close-out | P1 | [ ] | — | — |
 
 ## 偏离与改进日志

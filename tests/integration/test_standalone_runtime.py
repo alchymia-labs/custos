@@ -286,23 +286,24 @@ async def test_standalone_runtime_reconciles_running_stopped_running(tmp_path: P
             recipient,
             input_text="acceptance-secret\n",
         )
-        _docker(
+        verify_result = _docker(
             "run",
             "--rm",
-            "--entrypoint",
-            "sops",
             "--volume",
             f"{volume}:/home/custos/.arx",
             "--env",
             "SOPS_AGE_KEY_FILE=/home/custos/.arx/age.key",
             IMAGE,
-            "--decrypt",
-            "--input-type",
-            "json",
-            "--output-type",
-            "json",
-            f"/home/custos/.arx/vault/{KEY_ID}.enc",
+            "vault",
+            "verify",
+            "--key-id",
+            KEY_ID,
+            "--tenant-id",
+            TENANT_ID,
+            "--vault-dir",
+            "/home/custos/.arx/vault",
         )
+        assert "OK" in verify_result.stdout
 
         _docker(
             "run",
