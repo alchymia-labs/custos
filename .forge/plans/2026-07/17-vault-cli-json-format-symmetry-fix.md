@@ -67,6 +67,13 @@ This is likely not an encrypted binary file?
 - `docs/ops/runbook.md`
 - `.claude/rules/historical-lessons.md`
 
+### 跨仓库修改（Philosophers-Stone）
+
+- `<workspace>/alchymia-labs/philosophers-stone/deploy/custos/spec-templates/sandbox.json`
+- `<workspace>/alchymia-labs/philosophers-stone/tests/test_deploy_custos_spec.py`
+
+跨仓库提交必须只 stage 上述具体文件，commit message 引用 Custos Plan 17。
+
 ## 修复任务 (Tasks)
 
 ### Fix 1: 统一 public verify 与 runtime JSON decrypt contract [P0]
@@ -181,11 +188,34 @@ make verify-local-v030
 
 然后在 Philosophers-Stone 重跑真实 Docker smoke。只有 downstream smoke 通过才能 close-out Plan 17。
 
-**Step 5**: 提交文档与最终 close-out：
+**Step 5**: 提交 authority 文档；最终 close-out 在 Fix 4 downstream smoke 通过后执行：
 
 ```bash
 git commit -m "docs(custos): document vault JSON format contract"
-git commit -m "docs(custos): mark plan 17 as completed"
+```
+
+### Fix 4: 修复 downstream sandbox balance contract drift [P0]
+
+**Root Cause**: Plan 17 修复后，Philosophers-Stone opt-in smoke 已通过 public
+`vault verify`，随后在 `deployment validate` 暴露独立的 producer drift：PS sandbox template
+仍输出旧 dict `{"USDT": 10000}`，Custos v0.3.0 normative consumer 要求 Nautilus
+`list[str]`（如 `["10_000 USDT"]`）。
+
+**Files**: PS `deploy/custos/spec-templates/sandbox.json`、`tests/test_deploy_custos_spec.py`。
+
+**Step 1**: 新增失败测试，断言 renderer 的 sandbox `starting_balances` 为
+`["10_000 USDT"]`，并确认旧模板红灯。
+
+**Step 2**: 最小修改 sandbox template，保持 renderer pure assembly boundary，不在 PS
+导入 Custos internals。
+
+**Step 3**: 运行 PS focused renderer tests 与 opt-in Docker smoke；确认 public
+put → verify → deployment validate → running → stopped 全链通过。
+
+**Step 4**: 仅 stage 两个 PS 文件并独立提交：
+
+```bash
+git commit -m "fix(ps): align sandbox balances with custos plan 17"
 ```
 
 ## 失败模式覆盖
@@ -215,6 +245,7 @@ git commit -m "docs(custos): mark plan 17 as completed"
 - [ ] `make verify-runtime-existing` 通过
 - [ ] `make verify-local-v030` 重建新 revision 的本地镜像
 - [ ] Philosophers-Stone opt-in Docker smoke 通过
+- [ ] PS sandbox producer 使用 Custos v0.3.0 `list[str]` balance contract
 - [ ] credential_vault authority 与 runbook 同步
 - [ ] historical lesson 已记录
 - [ ] 偏离标注完整
@@ -225,7 +256,9 @@ git commit -m "docs(custos): mark plan 17 as completed"
 |---|---|---|---|---|
 | F1 JSON decrypt symmetry | P0 | ✅ | 2026-07-13 | shared helper; 26 focused tests + `make verify` (525 passed) |
 | F2 public CLI integration | P0 | ✅ | 2026-07-13 | old-image binary-store red reproduced; new image Docker 15 + standalone 1 passed |
-| F3 authority/lesson/close-out | P1 | [ ] | — | — |
+| F3 authority/lesson | P1 | ✅ | 2026-07-13 | authority + runbook + C4 lesson; base 525 + NT 589 passed |
+| F4 downstream balance contract | P0 | ⏳ | — | authorized 2026-07-13; old dict rejected after vault verify passed |
+| Close-out | P1 | [ ] | — | waits on PS opt-in Docker smoke |
 
 ## 偏离与改进日志
 
@@ -237,3 +270,4 @@ git commit -m "docs(custos): mark plan 17 as completed"
 | DECISION | versioning | remote 0.3.0 未发布，本轮保持 local v0.3.0 tag 并更新 revision | planned |
 | NO-DEVIATION | red lines | 不改变 key/KEK、G6、fallback、money math contract | confirmed |
 | BASELINE-FIX | pre-existing Ruff gate | `host.py` 顶层注释误缩进导致 clean-HEAD `make verify` 在 fmt-check 停止；纯格式修复独立提交 `fdd8a42` | resolved |
+| DEVIATION | downstream PS producer | vault fix 通过后发现 PS sandbox template 仍用旧 dict balance contract；用户 2026-07-13 授权跨仓库 TDD 修复 | approved |
