@@ -22,6 +22,19 @@ _log = logging.getLogger("custos.credential_vault")
 _SOPS_TIMEOUT_SECS = 30
 
 
+def sops_json_decrypt_command(enc_path: Path) -> list[str]:
+    """Build the explicit JSON decrypt command for a per-key ``.enc`` file."""
+    return [
+        "sops",
+        "--decrypt",
+        "--input-type",
+        "json",
+        "--output-type",
+        "json",
+        str(enc_path),
+    ]
+
+
 class PerKeyVault(_BaseVault):
     """Reconciler-facing vault: one ``.enc`` file per credential_id."""
 
@@ -40,15 +53,7 @@ class PerKeyVault(_BaseVault):
         env = dict(os.environ)
         try:
             result = subprocess.run(
-                [
-                    "sops",
-                    "--decrypt",
-                    "--input-type",
-                    "json",
-                    "--output-type",
-                    "json",
-                    str(enc_path),
-                ],
+                sops_json_decrypt_command(enc_path),
                 env=env,
                 capture_output=True,
                 check=True,

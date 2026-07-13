@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from custos.cli.validators import validate_id
+from custos.core import per_key_vault
 from custos.core.credential_vault import AuditEvent
 
 DEFAULT_VAULT_DIR = Path.home() / ".arx" / "vault"
@@ -313,7 +314,7 @@ def _verify(args: argparse.Namespace) -> int:
         env["SOPS_AGE_KEY_FILE"] = str(args.age_key_file)
     try:
         result = subprocess.run(
-            ["sops", "--decrypt", str(enc_path)],
+            per_key_vault.sops_json_decrypt_command(enc_path),
             env=env,
             capture_output=True,
             check=True,

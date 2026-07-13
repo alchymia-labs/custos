@@ -1,6 +1,6 @@
 # 17 - Fix vault CLI JSON format symmetry
 
-> **Status**: 🔲 Todo
+> **Status**: ⏳ In Progress
 > **Created**: 2026-07-12
 > **Project**: custos
 > **Source**: downstream real Docker smoke failure on `arx-runner vault verify`
@@ -223,7 +223,7 @@ git commit -m "docs(custos): mark plan 17 as completed"
 
 | Fix | Priority | Status | Completed | Notes |
 |---|---|---|---|---|
-| F1 JSON decrypt symmetry | P0 | [ ] | — | — |
+| F1 JSON decrypt symmetry | P0 | ✅ | 2026-07-13 | shared helper; 26 focused tests + `make verify` (525 passed) |
 | F2 public CLI integration | P0 | [ ] | — | — |
 | F3 authority/lesson/close-out | P1 | [ ] | — | — |
 
@@ -236,3 +236,4 @@ git commit -m "docs(custos): mark plan 17 as completed"
 | IMPROVEMENT | integration | direct sops probe 改为 public CLI acceptance | planned |
 | DECISION | versioning | remote 0.3.0 未发布，本轮保持 local v0.3.0 tag 并更新 revision | planned |
 | NO-DEVIATION | red lines | 不改变 key/KEK、G6、fallback、money math contract | confirmed |
+| BASELINE-FIX | pre-existing Ruff gate | `host.py` 顶层注释误缩进导致 clean-HEAD `make verify` 在 fmt-check 停止；纯格式修复独立提交 `fdd8a42` | resolved |

@@ -135,6 +135,80 @@ def test_per_key_vault_happy_path_emits_audit(
     assert audit_records[0].credential_id == "binance-paper"
 
 
+def test_cli_verify_and_runtime_share_json_decrypt_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from custos.cli.subcommands import main
+    from custos.core.per_key_vault import PerKeyVault
+
+    vault_dir = tmp_path / "vault"
+    vault_dir.mkdir(mode=0o700)
+    enc_path = vault_dir / "binance-paper.enc"
+    enc_path.write_bytes(b"CIPHER")
+
+    import os
+
+    os.chmod(enc_path, 0o600)
+    payload = {
+        "binance-paper": {
+            "api_key": "pub",
+            "api_secret": "sec",
+            "permission_scope": "trade_no_withdraw",
+        }
+    }
+    expected_command = [
+        "sops",
+        "--decrypt",
+        "--input-type",
+        "json",
+        "--output-type",
+        "json",
+        str(enc_path),
+    ]
+    command_mock = mock.MagicMock(return_value=expected_command)
+    monkeypatch.setattr(
+        "custos.core.per_key_vault.sops_json_decrypt_command",
+        command_mock,
+        raising=False,
+    )
+    run_mock = mock.MagicMock(
+        return_value=subprocess.CompletedProcess(
+            args=expected_command,
+            returncode=0,
+            stdout=json.dumps(payload).encode("utf-8"),
+            stderr=b"",
+        )
+    )
+    monkeypatch.setattr("custos.core.per_key_vault.subprocess.run", run_mock)
+
+    cli_exit_code = main(
+        [
+            "vault",
+            "verify",
+            "--key-id",
+            "binance-paper",
+            "--tenant-id",
+            "acme",
+            "--vault-dir",
+            str(vault_dir),
+        ]
+    )
+    runtime_credential = PerKeyVault(
+        vault_dir=vault_dir,
+        tenant_id="acme",
+        initiator="runner-7",
+    ).decrypt("binance-paper")
+
+    assert cli_exit_code == 0
+    assert runtime_credential["permission_scope"] == "trade_no_withdraw"
+    assert command_mock.call_args_list == [mock.call(enc_path), mock.call(enc_path)]
+    assert [call.args[0] for call in run_mock.call_args_list] == [
+        expected_command,
+        expected_command,
+    ]
+
+
 def test_per_key_vault_missing_sops_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from custos.core.per_key_vault import PerKeyVault
 

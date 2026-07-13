@@ -306,6 +306,34 @@ def test_vault_verify_happy_path(
     assert "OK" in capsys.readouterr().out
 
 
+def test_vault_verify_uses_explicit_json_sops_types_for_enc_suffix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    vault_dir = tmp_path / "vault"
+    enc_path = _seed_enc(vault_dir)
+    payload = {
+        "binance-paper": {
+            "api_key": "pub",
+            "api_secret": "sec",
+            "permission_scope": "trade_no_withdraw",
+        }
+    }
+    run_mock = _fake_sops_decrypt(payload)
+    monkeypatch.setattr("custos.cli.subcommands.vault.subprocess.run", run_mock)
+
+    assert main(_verify_argv(vault_dir)) == 0
+    assert run_mock.call_args.args[0] == [
+        "sops",
+        "--decrypt",
+        "--input-type",
+        "json",
+        "--output-type",
+        "json",
+        str(enc_path),
+    ]
+
+
 def test_vault_verify_sops_fail_no_silent_return(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
