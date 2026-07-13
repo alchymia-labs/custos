@@ -28,7 +28,10 @@ ls -la $SOPS_AGE_KEY_FILE  # 权限应 -rw-------
 
 # 2. 手动 sops 解密某 key (0.2.0 起 per-key .enc 模型, 每 credential 一个文件)
 ls -la ~/.arx/vault/         # 权限应 drwx------ (0700), 每 .enc 应 -rw------- (0600)
-sops --decrypt ~/.arx/vault/binance-paper.enc | head -5
+sops --decrypt \
+  --input-type json \
+  --output-type json \
+  ~/.arx/vault/binance-paper.enc | head -5
 
 # 3. 检查该 .enc 的 age recipients (sops encrypt 时用的 public key)
 grep -A 3 'age:' ~/.arx/vault/binance-paper.enc | head -10
@@ -36,9 +39,12 @@ grep -A 3 'age:' ~/.arx/vault/binance-paper.enc | head -10
 # 4. 对比本地 age key 的 pubkey
 age-keygen -y $SOPS_AGE_KEY_FILE
 
-# 5. 一键复合校验 (arx-runner 内置, 复用 credential_vault._verify_permission_scope)
+# 5. 推荐的 operator acceptance (真实 decrypt + JSON + mode + permission scope)
 arx-runner vault verify --key-id binance-paper
 ```
+
+底层 `sops` 命令只用于诊断；发布与运维验收必须经过 public `arx-runner vault verify`，
+不得用底层工具成功替代 public CLI 成功。`.enc` 是文件命名，不是 SOPS binary format。
 
 **修复**: 见 [`../design/credential_vault.md`](../design/credential_vault.md) §KEK provisioning +
 `arx-runner vault put --key-id <key-id>` 重新加密该 credential.

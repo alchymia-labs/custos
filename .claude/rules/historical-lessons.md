@@ -6,6 +6,28 @@
 
 > **custos 内部 lesson 用 `C1` `C2` … 前缀区分生态数字编号** (见文末"记录新 lesson")。
 
+## C4 mock subprocess + 绕过 public surface 会形成双重假绿 (2026-07)
+
+- **事件**: Plan 17 前，`arx-runner vault verify` 的 unit test mock 了合法 JSON stdout，
+  但没有断言真实 subprocess argv；standalone integration 又直接调用带正确 JSON flags 的
+  底层 `sops`。两层测试同时全绿，却遗漏 public CLI 实际执行
+  `sops --decrypt <key-id>.enc`，SOPS 因 `.enc` 后缀误判 binary store，downstream 真实
+  Docker smoke 才暴露失败。
+- **根因**: mock 只替代结果，没有锁定发给外部进程的 command contract；integration 验证
+  了底层能力，却绕过用户实际调用的 public acceptance surface。两个缺口互相遮蔽，形成
+  双重假绿。
+- **预防**:
+  - subprocess mock 必须断言关键 argv、env 与 stdin；对格式、身份文件和 secret transport
+    等边界不得只伪造 stdout。
+  - integration 必须经过用户公开入口并断言公开结果；CLI 产品面不能用内部 helper 或底层
+    binary smoke 替代。
+  - 底层工具 smoke 只能作为补充诊断，不能替代 public surface acceptance。
+- **Binding**: `tests/test_cli_vault_put_verify.py::test_vault_verify_uses_explicit_json_sops_types_for_enc_suffix`、
+  `tests/test_per_key_vault.py::test_cli_verify_and_runtime_share_json_decrypt_command` 与
+  `tests/integration/test_standalone_runtime.py` 的 public put → verify → runtime lifecycle。
+
+---
+
 ## C3 pre-publish shape gate 不等于 artifact identity gate (2026-07)
 
 - **事件**: Plan 14 release workflow 在下载 signed wheel 之前运行 `verify-runtime`，随后以

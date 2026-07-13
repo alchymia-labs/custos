@@ -29,15 +29,30 @@ runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**K
   审计事件，**永不接入 runtime**（`_daemon._build_vault` unconditional
   `PerKeyVault`）。
 - **`SopsAgeVault`（旧多 credential JSON 类）已删除**：0.2.0 breaking change。
-  旧用户手工跑 `sops --decrypt <老文件>` 后逐条 `arx-runner vault put` 迁移。
+  旧用户手工跑 `sops --decrypt --input-type json --output-type json <老文件>` 后逐条
+  `arx-runner vault put` 迁移。
 - **未来**：Hashicorp Vault provider（team tier）——Vault token 也只在 runner。
+
+### JSON format contract
+
+`vault put`、public `vault verify` 与 runtime `PerKeyVault.decrypt()` 三条路径共享同一
+JSON format contract：encrypt/decrypt 一律显式传入 `--input-type json --output-type json`。
+decrypt argv 由 `per_key_vault.sops_json_decrypt_command()` 单点构造，CLI 与 runtime 不得
+各自复制 flags。`<key-id>.enc` 只是稳定的 storage naming contract，**不表示 SOPS binary
+format**，也不得作为格式自动推断的输入。
+
+`arx-runner vault verify` 是 operator acceptance surface：它同时验证真实 SOPS decrypt、
+JSON payload、文件 mode 与 `trade_no_withdraw` permission scope。手工调用底层 `sops` 只能
+作为诊断补充，不能替代 public CLI 的 put → verify roundtrip，也不能作为发布 gate 的唯一
+证据。
 
 ## Removed in 0.2.0
 
 - `SopsAgeVault(sops_file=..., age_key_file=...)` — 多 credential in one JSON 文件
   的旧模型。CEO clean-break directive (2026-07-10)：**无 fallback read path，无
-  自动迁移命令**。旧用户升级路径：手工 `sops --decrypt` 老 JSON → 逐个
-  `arx-runner vault put` 建 per-key `.enc`。理由：消除 lesson #35 dual-source
+  自动迁移命令**。旧用户升级路径：手工
+  `sops --decrypt --input-type json --output-type json` 老 JSON → 逐个 `arx-runner vault put`
+  建 per-key `.enc`。理由：消除 lesson #35 dual-source
   boundary constant + write-path race in the JSON multi-credential model。
 
 ## 关键接口
