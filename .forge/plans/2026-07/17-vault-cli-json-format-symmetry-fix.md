@@ -1,7 +1,8 @@
 # 17 - Fix vault CLI JSON format symmetry
 
-> **Status**: ⏳ In Progress
+> **Status**: ✅ Completed
 > **Created**: 2026-07-12
+> **Completed**: 2026-07-13
 > **Project**: custos
 > **Source**: downstream real Docker smoke failure on `arx-runner vault verify`
 > **For Claude**: Use `/forge:execute` to implement these fixes.
@@ -232,23 +233,23 @@ git commit -m "fix(ps): align sandbox balances with custos plan 17"
 
 ## 验证清单 (Verification)
 
-- [ ] Plan 17 first commit 严格早于所有实现 commit
-- [ ] CLI verify 与 runtime 使用同一 JSON decrypt command helper
-- [ ] `.enc` 不依赖 SOPS auto-detection
-- [ ] public put → verify roundtrip 通过
-- [ ] public put → runner runtime decrypt 通过
-- [ ] existing missing-file/mode/scope/SOPS failure tests 保持通过
-- [ ] secret 不进入日志、NATS、HTTP 或新增 argv
-- [ ] `make verify` 通过
-- [ ] `make verify-nt` 通过
-- [ ] `make test-docker-existing` 通过
-- [ ] `make verify-runtime-existing` 通过
-- [ ] `make verify-local-v030` 重建新 revision 的本地镜像
-- [ ] Philosophers-Stone opt-in Docker smoke 通过
-- [ ] PS sandbox producer 使用 Custos v0.3.0 `list[str]` balance contract
-- [ ] credential_vault authority 与 runbook 同步
-- [ ] historical lesson 已记录
-- [ ] 偏离标注完整
+- [x] Plan 17 first commit 严格早于所有实现 commit
+- [x] CLI verify 与 runtime 使用同一 JSON decrypt command helper
+- [x] `.enc` 不依赖 SOPS auto-detection
+- [x] public put → verify roundtrip 通过
+- [x] public put → runner runtime decrypt 通过
+- [x] existing missing-file/mode/scope/SOPS failure tests 保持通过
+- [x] secret 不进入日志、NATS、HTTP 或新增 argv
+- [x] `make verify` 通过
+- [x] `make verify-nt` 通过
+- [x] `make test-docker-existing` 通过
+- [x] `make verify-runtime-existing` 通过
+- [x] `make verify-local-v030` 重建新 revision 的本地镜像
+- [x] Philosophers-Stone opt-in Docker smoke 通过
+- [x] PS sandbox producer 使用 Custos v0.3.0 `list[str]` balance contract
+- [x] credential_vault authority 与 runbook 同步
+- [x] historical lesson 已记录
+- [x] 偏离标注完整
 
 ## 进度追踪 (Progress)
 
@@ -257,17 +258,58 @@ git commit -m "fix(ps): align sandbox balances with custos plan 17"
 | F1 JSON decrypt symmetry | P0 | ✅ | 2026-07-13 | shared helper; 26 focused tests + `make verify` (525 passed) |
 | F2 public CLI integration | P0 | ✅ | 2026-07-13 | old-image binary-store red reproduced; new image Docker 15 + standalone 1 passed |
 | F3 authority/lesson | P1 | ✅ | 2026-07-13 | authority + runbook + C4 lesson; base 525 + NT 589 passed |
-| F4 downstream balance contract | P0 | ⏳ | — | authorized 2026-07-13; old dict rejected after vault verify passed |
-| Close-out | P1 | [ ] | — | waits on PS opt-in Docker smoke |
+| F4 downstream balance contract | P0 | ✅ | 2026-07-13 | PS `9d3e59b`; focused 13 + opt-in Docker smoke 1 passed |
+| Close-out | P1 | ✅ | 2026-07-13 | final image + verification matrix + cross-repo trace recorded |
 
 ## 偏离与改进日志
 
 | 类型 | 位置 | 描述 | 状态 |
 |---|---|---|---|
-| BUG-FIX | vault verify | `.enc` naming 被错误当成 binary format signal | planned |
-| IMPROVEMENT | SOPS command | CLI/runtime 共用单一 JSON decrypt command helper | planned |
-| IMPROVEMENT | integration | direct sops probe 改为 public CLI acceptance | planned |
-| DECISION | versioning | remote 0.3.0 未发布，本轮保持 local v0.3.0 tag 并更新 revision | planned |
+| BUG-FIX | vault verify | `.enc` naming 被错误当成 binary format signal | resolved |
+| IMPROVEMENT | SOPS command | CLI/runtime 共用单一 JSON decrypt command helper | completed |
+| IMPROVEMENT | integration | direct sops probe 改为 public CLI acceptance | completed |
+| DECISION | versioning | remote 0.3.0 未发布，本轮保持 local v0.3.0 tag 并更新 revision | confirmed |
 | NO-DEVIATION | red lines | 不改变 key/KEK、G6、fallback、money math contract | confirmed |
 | BASELINE-FIX | pre-existing Ruff gate | `host.py` 顶层注释误缩进导致 clean-HEAD `make verify` 在 fmt-check 停止；纯格式修复独立提交 `fdd8a42` | resolved |
-| DEVIATION | downstream PS producer | vault fix 通过后发现 PS sandbox template 仍用旧 dict balance contract；用户 2026-07-13 授权跨仓库 TDD 修复 | approved |
+| DEVIATION | downstream PS producer | vault fix 通过后发现 PS sandbox template 仍用旧 dict balance contract；用户 2026-07-13 授权跨仓库 TDD 修复 | resolved in PS `9d3e59b` |
+
+## 完成报告 (Close-out Report)
+
+- **完成日期**: 2026-07-13
+- **总 Task 数**: 4/4 fixes 完成
+- **偏离数**: 2（pre-existing Ruff baseline + downstream PS producer；均已解决）
+- **验证结果**: 全部通过
+- **实施 commit 范围**: Custos `fdd8a42` through `cec0f8a`；PS `9d3e59b`
+- **契约影响**: 更新 `docs/design/credential_vault.md`、`docs/ops/runbook.md` 与 C4 historical lesson
+- **红线守护**: Non-Custodial 4 红线全数守住；无新增 key/KEK wire、G6 bypass、disconnect-stop 或 money-float 路径
+- **失败模式覆盖**: exact argv/env、shared helper、public CLI roundtrip、real Docker lifecycle、downstream producer shape
+- **遗留项**: remote GitHub/GHCR/PyPI/cosign publication 仍按既有决策 deferred；无 Plan 17 功能遗留
+
+### 最终本地镜像身份
+
+| 字段 | 值 |
+|---|---|
+| Image | `custos-runner:v0.3.0` |
+| Image ID | `sha256:95ce38a3ae05145cf39574e05bca472022be69011a80b07fd0d2ba3ff2a52a39` |
+| OCI source revision | `cec0f8a9ac71608906b12747fd2baf0f83494c63` |
+| Downstream PS commit | `9d3e59bdeedf715b5869e846794178cd4353238a` |
+
+### 最终验证矩阵
+
+| Gate | 结果 |
+|---|---|
+| `make verify` | 589 passed / 4 skipped / 1 xfailed |
+| `make verify-nt` | 589 passed / 4 skipped / 1 xfailed |
+| Docker runtime contracts | 15 passed |
+| Custos standalone public put → verify → runtime | 1 passed; `running → stopped → running` |
+| PS focused renderer/runtime | 13 passed |
+| PS opt-in Docker smoke | 1 passed; public verify → validate → `running → stopped` |
+
+### Non-Custodial 红线边界
+
+| Red line | Code coverage | Runtime wire | Deferred status | Follow-up |
+|---|---|---|---|---|
+| Key/KEK 不出进程 | exact argv/env + secret-log regression 保持通过 | public verify 与 runtime 仅本地 subprocess | 无 | 无 |
+| G6 不可绕过 | 既有 G6/NT suites 通过 | 本计划不改 venue path | 无 | 无 |
+| 失联不等于停止 | 既有 reconcile/chaos suites 通过 | standalone 与 PS lifecycle 通过 | 无 | 无 |
+| Money math 使用 Decimal | 既有 money contract suite 通过 | 本计划不改 money path | 无 | 无 |
