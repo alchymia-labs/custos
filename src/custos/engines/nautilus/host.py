@@ -70,9 +70,9 @@ _STOP_TIMEOUT_SECS = 30.0
 # module's wired connectors by a drift-guard test (test_nt_binance_venue.py).
 _SUPPORTED_VENUES = frozenset({"binance", "binance_perpetual"})
 
-    # Substrings that flag an exception message as potentially carrying credential
-    # material (NT config repr, adapter auth errors) — such messages are redacted
-    # before logging so a raw key can never reach the log (non-custodial red line 0.1).
+# Substrings that flag an exception message as potentially carrying credential
+# material (NT config repr, adapter auth errors) — such messages are redacted
+# before logging so a raw key can never reach the log (non-custodial red line 0.1).
 _CREDENTIAL_HINTS = ("api_key", "api_secret", "secret", "authorization")
 
 
