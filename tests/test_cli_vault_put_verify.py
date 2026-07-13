@@ -312,6 +312,7 @@ def test_vault_verify_uses_explicit_json_sops_types_for_enc_suffix(
 ) -> None:
     vault_dir = tmp_path / "vault"
     enc_path = _seed_enc(vault_dir)
+    age_key_file = tmp_path / "age.key"
     payload = {
         "binance-paper": {
             "api_key": "pub",
@@ -322,8 +323,9 @@ def test_vault_verify_uses_explicit_json_sops_types_for_enc_suffix(
     run_mock = _fake_sops_decrypt(payload)
     monkeypatch.setattr("custos.cli.subcommands.vault.subprocess.run", run_mock)
 
-    assert main(_verify_argv(vault_dir)) == 0
-    assert run_mock.call_args.args[0] == [
+    assert main([*_verify_argv(vault_dir), "--age-key-file", str(age_key_file)]) == 0
+    call = run_mock.call_args
+    assert call.args[0] == [
         "sops",
         "--decrypt",
         "--input-type",
@@ -332,6 +334,10 @@ def test_vault_verify_uses_explicit_json_sops_types_for_enc_suffix(
         "json",
         str(enc_path),
     ]
+    assert call.kwargs["env"]["SOPS_AGE_KEY_FILE"] == str(age_key_file)
+    assert call.kwargs["capture_output"] is True
+    assert call.kwargs["check"] is True
+    assert call.kwargs["timeout"] == 30
 
 
 def test_vault_verify_sops_fail_no_silent_return(

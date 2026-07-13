@@ -146,10 +146,12 @@ def test_cli_verify_and_runtime_share_json_decrypt_command(
     vault_dir.mkdir(mode=0o700)
     enc_path = vault_dir / "binance-paper.enc"
     enc_path.write_bytes(b"CIPHER")
+    age_key_file = tmp_path / "age.key"
 
     import os
 
     os.chmod(enc_path, 0o600)
+    monkeypatch.setenv("SOPS_AGE_KEY_FILE", str(age_key_file))
     payload = {
         "binance-paper": {
             "api_key": "pub",
@@ -206,6 +208,10 @@ def test_cli_verify_and_runtime_share_json_decrypt_command(
     assert [call.args[0] for call in run_mock.call_args_list] == [
         expected_command,
         expected_command,
+    ]
+    assert [call.kwargs["env"]["SOPS_AGE_KEY_FILE"] for call in run_mock.call_args_list] == [
+        str(age_key_file),
+        str(age_key_file),
     ]
 
 
