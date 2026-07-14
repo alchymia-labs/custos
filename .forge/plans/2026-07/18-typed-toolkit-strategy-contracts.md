@@ -12,6 +12,8 @@
 > **Soft depends on**: Custos Plan 19 integration receipt
 > **Original plan-first**: `b898ee1`; this live-plan revision supersedes its erroneous decisions
 > **Cross-repo dependency name**: external plans must depend on `Custos Plan 18 Task 2 schema receipt`, never on an internal `18a` slice alias
+> **Task 2 READY gates**: exact Crucible Plan 88 consumer requirements-review receipt plus exact PS Plan 54 producer requirements-review receipt for the same Custos producer commit and asset-index digest
+> **Downstream, not Task 2 READY gates**: PS Plan 54 immutable artifact/BOM production and Crucible Plan 88 StrategyRelease completion consume the READY Task 2 receipt; they cannot be prerequisites of that receipt
 
 ## 上下文 (Context)
 
@@ -344,9 +346,11 @@ git commit -m "docs(toolkit): freeze extraction inventory and authority"
 
 ### Task 2: Coordinate and freeze versioned contracts
 
-Hard gate：Crucible 和 PS 必须分别确认 producer/consumer requirements。
-Custos 是 execution ABI/artifact schema producer；本 Task 的 receipt 是 Crucible
-Plan 88 的输入，而不是反向依赖 Plan 88 完成。
+Hard gate：Crucible Plan 88 和 PS Plan 54 必须分别提交针对同一 Custos producer
+commit、asset-index digest 和 schema digest set 的 consumer/producer requirements-review
+receipt。Custos 是 execution ABI/artifact schema producer；本 Task 的 READY receipt 是
+PS Plan 54 artifact/BOM production 和 Crucible Plan 88 StrategyRelease completion 的输入，
+不得反向依赖 Plan 54 final BOM receipt 或 Plan 88 completion。
 
 1. 先写 runtime identity、unknown-field、legacy `deployment_id` 和 Python 3.11
    lightweight-import 失败测试。
@@ -502,9 +506,9 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | Task | Status | Completed | Notes |
 |---|---|---|---|
 | T0 Live-plan repair | [x] | 2026-07-14 | `aa843f0` superseded erroneous decisions in `b898ee1` |
-| T0R Execution-readiness correction | [~] | — | current plan-only revision; record commit before 18a starts |
-| T1 Inventory/authority | [ ] | — | only immediately executable implementation task |
-| T2 Coordinated contracts | [ ] | — | Custos producer; needs cross-repo requirements review |
+| T0R Execution-readiness correction | [x] | 2026-07-14 | `cccf8b2`, `ad49872`, and `bdd516c` corrected review topology, removed the Speculum gate, and reconciled the 241-input baseline |
+| T1 Inventory/authority | [~] | — | inventory, authority docs, generator and focused inventory tests landed in `877a52a`; target-namespace/dual-authority failure gates and the 18a handoff remain |
+| T2 Coordinated contracts | [~] | — | source model, schemas, asset index, lifecycle golden, tests and pending receipt landed in `877a52a`; exact requirements reviews, producer evidence, fresh verification and READY transition remain |
 | T3 Minimal distribution | [ ] | — | after T2 interface boundary |
 | T4 Zero-rewrite extraction | [ ] | — | batch commits required |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
@@ -527,6 +531,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | SECURITY | Config/trust | effective config deep-freeze；trust root 只来自 local signed release config | Accepted 2026-07-14 |
 | EXECUTION | Multi-session | 正式拆为 18a-d canonical slices，逐 slice handoff/stop gate | Accepted 2026-07-14 |
 | HISTORY | `b898ee1` | 保留为原 plan-first 历史，不再代表有效 schema approval | Recorded |
+| DEPENDENCY | Task 2 READY topology | 将 PS Plan 54 final producer receipt 和 Crucible Plan 88 completion 从 Task 2 READY 前置中移除；两者消费 READY schema receipt，Task 2 只要求各仓 exact requirements-review receipt | Accepted 2026-07-15 |
+| PROGRESS | 18a implementation baseline | `877a52a` 已落 T1/T2 static assets，但 failure gates、外部 reviews、fresh verification、READY receipt 和 handoff 尚未完成，因此 T1/T2 统一标记 partial | Recorded 2026-07-15 |
 
 ## Quantitative Summary
 

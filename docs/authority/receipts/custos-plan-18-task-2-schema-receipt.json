@@ -3,25 +3,52 @@
   "canonical_name": "Custos Plan 18 Task 2 schema receipt",
   "receipt_status": "PENDING_REQUIREMENTS_AND_VERIFICATION",
   "handoff_ready": false,
+  "contract_summary": {
+    "canonicalization": "sha256-canonical-json-v1",
+    "execution_abi": "alephain.strategy_runtime.v1",
+    "execution_abi_version": 1,
+    "contract_schema_version": 1,
+    "entry_point_group": "alephain.strategy_runtime.v1"
+  },
   "producer": {
     "repository": "tesseract-trading/custos",
     "source": "src/custos/contracts/strategy_execution.py",
+    "candidate_commit": "877a52a59c43ec20d1c9cda1bf309644726d5ee9",
+    "source_sha256": "6da97b9369cf92e42b9dfcf5b5771fe78491cab4c40459127d08ab4fd3740551",
     "commit": null,
     "worktree_clean": null
   },
   "contract_asset_index": {
     "path": "docs/authority/strategy-contract-assets-v1.json",
-    "sha256": null
+    "sha256": "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"
   },
   "requirements_reviews": {
     "crucible_rust_plan_88": {
-      "status": "PENDING_EXACT_CONSUMER_RECEIPT",
-      "receipt": null
+      "required_receipt_name": "Crucible Plan 88 Custos Plan 18 Task 2 consumer requirements review",
+      "status": "PENDING_EXACT_REQUIREMENTS_REVIEW",
+      "receipt": {
+        "source_repository": "tesseract-trading/crucible-rust",
+        "source_path": "docs/authority/receipts/crucible-plan-88-custos-task-2-consumer-review.json",
+        "source_commit": null,
+        "sha256": null,
+        "vendored_path": null
+      }
     },
     "philosophers_stone_plan_54": {
-      "status": "PENDING_EXACT_PRODUCER_RECEIPT",
-      "receipt": null
+      "required_receipt_name": "Philosophers-Stone Plan 54 Custos Plan 18 Task 2 producer requirements review",
+      "status": "PENDING_EXACT_REQUIREMENTS_REVIEW",
+      "receipt": {
+        "source_repository": "alchymia-labs/philosophers-stone",
+        "source_path": "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json",
+        "source_commit": null,
+        "sha256": null,
+        "vendored_path": null
+      }
     }
+  },
+  "downstream_after_task_2_ready": {
+    "philosophers_stone_plan_54": "produce the immutable strategy artifact and canonical release BOM",
+    "crucible_rust_plan_88": "complete StrategyRelease persistence and exact-artifact acceptance"
   },
   "verification": {
     "command": "make check-authority",

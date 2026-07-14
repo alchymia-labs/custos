@@ -80,6 +80,6 @@
     {"path": "docs/domain.md", "must_contain": ["DeploymentSpec", "DeploymentInstance", "RunnerFact"]},
     {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]},
     {"path": "docs/design/strategy-toolkit.md", "must_contain": ["deployment_instance_id", "StrategyReleaseBomV1", "custos-strategy-toolkit-nautilus", "independent compatibility lane"]},
-    {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "PENDING_REQUIREMENTS_AND_VERIFICATION", "philosophers-stone", "crucible-rust"]}
+    {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]}
   ]
 }
