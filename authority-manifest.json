@@ -105,10 +105,16 @@
     {
       "role": "plan_18_task_4b_typing_closure_receipt",
       "path": "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
-      "receipt_status": "VERIFIED_PENDING_COMMIT",
-      "handoff_ready": false,
+      "receipt_status": "READY_TYPING_CLOSURE",
+      "handoff_ready": true,
+      "handoff_scope": "Custos Plan 18 Task 4b typing closure only",
       "t4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
-      "typed_implementation_commit": null
+      "typed_implementation_commit": "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b",
+      "verified_at": "2026-07-14T19:48:14Z",
+      "open_blockers": [
+        "Custos Plan 18 Task 5 public pre-import artifact verifier and attestation contract",
+        "Custos Plan 18 Task 6 immutable release candidate"
+      ]
     },
     {
       "role": "plan_18_task_4_extraction_receipt",

@@ -14,6 +14,7 @@ CLOSURE_RECEIPT = (
     ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
 )
 T4_COMMIT = "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
+T4B_COMMIT = "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b"
 
 
 def _load(path: Path) -> dict[str, object]:
@@ -35,7 +36,8 @@ def test_t4b_manifest_extends_immutable_t4_evidence() -> None:
     }
 
     assert closure["t4_implementation_commit"] == T4_COMMIT
-    assert closure["typed_implementation_commit"] is None
+    assert closure["typed_implementation_commit"] == T4B_COMMIT
+    assert closure["verification_mode"] == "exact_commit_snapshot"
     assert closure["extraction_manifest_sha256"] == _sha256(EXTRACTION)
     assert closure["t4_receipt_sha256"] == _sha256(T4_RECEIPT)
     assert closure["typing_baseline_sha256"] == _sha256(BASELINE)
@@ -60,13 +62,19 @@ def test_t4b_candidate_is_strict_zero_without_vendor_rewrite() -> None:
     )
 
 
-def test_t4b_receipt_stays_pending_until_commit_binding() -> None:
+def test_t4b_receipt_is_ready_only_for_typing_closure_handoff() -> None:
     closure = _load(CLOSURE)
     receipt = _load(CLOSURE_RECEIPT)
 
-    assert receipt["receipt_status"] == "VERIFIED_PENDING_COMMIT"
-    assert receipt["handoff_ready"] is False
+    assert receipt["receipt_status"] == "READY_TYPING_CLOSURE"
+    assert receipt["handoff_ready"] is True
+    assert receipt["handoff_scope"] == "Custos Plan 18 Task 4b typing closure only"
     assert receipt["production_ready"] is False
-    assert receipt["typed_implementation_commit"] is None
+    assert receipt["typed_implementation_commit"] == T4B_COMMIT
+    assert receipt["verification_checkout"] == {"clean": True, "head": T4B_COMMIT}
+    assert receipt["open_blockers"] == [
+        "Custos Plan 18 Task 5 public pre-import artifact verifier and attestation contract",
+        "Custos Plan 18 Task 6 immutable release candidate",
+    ]
     assert receipt["manifest_sha256"] == _sha256(CLOSURE)
     assert receipt["typed_candidate_tree_sha256"] == closure["typed_candidate_tree_sha256"]

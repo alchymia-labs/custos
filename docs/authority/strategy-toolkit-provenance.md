@@ -9,7 +9,7 @@ The Custos strategy toolkit extraction is governed, in order, by:
 3. `scripts/check-toolkit-extraction.py`, the deterministic zero-rewrite verifier.
 4. The Task 4 receipt, which may become handoff-ready only after focused and repository gates pass at an exact commit.
 5. `strategy-toolkit-typing-closure-v1.json`, the versioned digest map from the exact Task 4 implementation to the typed Task 4b candidate.
-6. The Task 4b receipt, which remains `VERIFIED_PENDING_COMMIT` and not handoff-ready until a standalone implementation commit is bound and reverified.
+6. The Task 4b receipt, which binds exact implementation commit `5a19a816d4f6d90e7d3fbde80d39f562decd8c4b` and is `READY_TYPING_CLOSURE` for the Task 4b handoff scope only.
 
 The inventory remains historical evidence and is not regenerated after cutover. The extraction manifest binds every old path and target path to SHA-256 digests and to the exact source commit.
 
@@ -57,6 +57,10 @@ boundary support files, and requires whole-package strict mypy with zero errors.
 vendor bytes remain identical to Task 4 and stay outside mypy only because they are
 third-party source; their digests and fixed-input parity remain mandatory.
 
-Until `typed_implementation_commit` is populated by a standalone Task 4b commit, the
-receipt status is `VERIFIED_PENDING_COMMIT`, `handoff_ready` is false, and no 18b,
-runtime-ready, or production-ready claim is permitted.
+Exact implementation commit `5a19a816d4f6d90e7d3fbde80d39f562decd8c4b` passed a
+clean exact-HEAD `make verify`: 508 tests passed, 4 skipped, and 1 xfailed; all 241
+historical extraction mappings, authority/assets gates, and whole-package strict mypy
+profiles (40 base files and 59 Nautilus files) passed. The receipt is therefore
+`READY_TYPING_CLOSURE` with `handoff_ready=true` only for Task 4b. Task 5's public
+pre-import verifier/attestation contract and Task 6's immutable release candidate still
+block 18b, runtime-ready, and production-ready claims.

@@ -1,26 +1,27 @@
 {
   "canonical_name": "Custos Plan 18 Task 4b extracted-source typing closure receipt",
-  "commit_requirement": "bind the next standalone T4b implementation commit, then rerun all gates before READY",
-  "handoff_ready": false,
+  "commit_requirement": "satisfied by clean exact-HEAD verification of standalone T4b implementation commit 5a19a816d4f6d90e7d3fbde80d39f562decd8c4b",
+  "handoff_ready": true,
+  "handoff_scope": "Custos Plan 18 Task 4b typing closure only",
   "historical_error_counts": {
     "nautilus_adapter": 289,
     "platform_neutral": 75
   },
   "manifest_path": "docs/authority/strategy-toolkit-typing-closure-v1.json",
-  "manifest_sha256": "584d0b8f91cfee79fec91af6e8422938f99f7e6f975511d5ba3de01d18b97afe",
+  "manifest_sha256": "6e5b188936261d80a9dabde5f38113b7a5f7eedbbe4d3dc45157de129307391a",
   "open_blockers": [
-    "standalone T4b implementation commit binding",
-    "Custos Plan 18 Task 5 artifact verifier and attestation policy"
+    "Custos Plan 18 Task 5 public pre-import artifact verifier and attestation contract",
+    "Custos Plan 18 Task 6 immutable release candidate"
   ],
   "owned_public_explicit_any_count": 0,
   "private_vendor_changed_file_count": 0,
   "production_ready": false,
   "receipt_schema_version": 1,
-  "receipt_status": "VERIFIED_PENDING_COMMIT",
-  "scope_ceiling": "Typing closure candidate only. No Task 5 verifier, immutable RC, runtime activation, consumer cutover, or production-readiness claim.",
+  "receipt_status": "READY_TYPING_CLOSURE",
+  "scope_ceiling": "Task 4b typing-closure handoff only. Task 5 public pre-import verifier/attestation, Task 6 immutable RC, runtime activation, consumer cutover, and overall Plan 18 production readiness remain open.",
   "t4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
   "typed_candidate_tree_sha256": "c4d6c023b60e97ca2c82ebd1a218ce29f336e91b06af558e5129e569dd33f81d",
-  "typed_implementation_commit": null,
+  "typed_implementation_commit": "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b",
   "verification": {
     "base_whole_package_strict": "PASS_40_SOURCE_FILES",
     "english_hook": "PASS_6_TESTS_ZERO_EXEMPTIONS",
@@ -28,8 +29,13 @@
     "format_lint": "PASS_FULL_REPOSITORY_164_FILES",
     "full_repository_gate": "PASS_508_PASSED_4_SKIPPED_1_XFAILED",
     "nautilus_whole_package_strict": "PASS_59_SOURCE_FILES",
-    "t4_to_t4b_digest_chain": "PASS_PENDING_COMMIT_BINDING"
+    "t4_to_t4b_digest_chain": "PASS_EXACT_COMMIT_BINDING"
   },
+  "verification_checkout": {
+    "clean": true,
+    "head": "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b"
+  },
+  "verified_at": "2026-07-14T19:48:14Z",
   "verified_error_counts": {
     "nautilus_adapter": 0,
     "platform_neutral": 0

@@ -2074,9 +2074,9 @@
     "platform_neutral": 0
   },
   "typed_candidate_tree_sha256": "c4d6c023b60e97ca2c82ebd1a218ce29f336e91b06af558e5129e569dd33f81d",
-  "typed_implementation_commit": null,
+  "typed_implementation_commit": "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b",
   "typing_baseline_path": "docs/authority/strategy-toolkit-typing-baseline-v1.json",
   "typing_baseline_sha256": "c4d603ff083e3b3ecb5efe36426fc678cb4bd89ebb6158c02e60a3bf2e9b0592",
   "typing_closure_schema_version": 1,
-  "verification_mode": "worktree_pending_commit"
+  "verification_mode": "exact_commit_snapshot"
 }

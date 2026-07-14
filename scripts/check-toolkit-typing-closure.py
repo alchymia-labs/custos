@@ -128,6 +128,19 @@ def check() -> list[str]:
             errors.append("uncommitted T4b candidate must remain VERIFIED_PENDING_COMMIT")
         if receipt.get("handoff_ready") is not False:
             errors.append("uncommitted T4b candidate cannot be handoff-ready")
+    else:
+        if closure.get("verification_mode") != "exact_commit_snapshot":
+            errors.append("committed T4b closure must use exact_commit_snapshot verification")
+        if receipt.get("typed_implementation_commit") != typed_commit:
+            errors.append("T4b receipt does not bind the manifest implementation commit")
+        if receipt.get("receipt_status") != "READY_TYPING_CLOSURE":
+            errors.append("committed T4b closure must be READY_TYPING_CLOSURE")
+        if receipt.get("handoff_ready") is not True:
+            errors.append("committed T4b closure must be handoff-ready for its scoped artifact")
+        if receipt.get("handoff_scope") != "Custos Plan 18 Task 4b typing closure only":
+            errors.append("T4b handoff scope is missing or broader than typing closure")
+        if receipt.get("production_ready") is not False:
+            errors.append("T4b typing closure cannot claim Plan 18 production readiness")
 
     extraction_files = cast(list[dict[str, object]], extraction["files"])
     closure_files = cast(list[dict[str, object]], closure["files"])
@@ -282,7 +295,8 @@ def main() -> int:
         for error in errors:
             print(error, file=sys.stderr)
         return 1
-    print("strategy toolkit T4b typing closure: strict zero, VERIFIED_PENDING_COMMIT")
+    status = _json_object(CLOSURE_RECEIPT_PATH)["receipt_status"]
+    print(f"strategy toolkit T4b typing closure: strict zero, {status}")
     return 0
 
 
