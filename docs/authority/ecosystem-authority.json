@@ -81,14 +81,20 @@
     "task_2_receipt": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
     "legacy_python_lane": "independently supported, non-gating, and never a v1.team fallback",
     "task_4_extraction_receipt": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
-    "task_4_extraction_receipt_status": "VERIFIED_PENDING_COMMIT",
+    "task_4_extraction_receipt_status": "VERIFIED_EXTRACTION_ONLY",
     "task_4_handoff_ready": false,
     "extraction_manifest": "docs/authority/strategy-toolkit-extraction-v1.json",
     "parity_golden": "docs/authority/strategy-toolkit-parity-golden-v1.json",
     "typing_baseline": "docs/authority/strategy-toolkit-typing-baseline-v1.json",
     "whole_distribution_typing_status": "ACK_BASELINE_NOT_STRICT",
     "typing_closure_task": "Custos Plan 18 Task 4b",
-    "production_ready": false
+    "production_ready": false,
+    "task_4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
+    "task_4_verified_at": "2026-07-14T18:28:17Z",
+    "task_4_open_blockers": [
+      "Custos Plan 18 Task 4b",
+      "Custos Plan 18 Task 5"
+    ]
   },
   "migration_heads": {
     "arx": "0068",

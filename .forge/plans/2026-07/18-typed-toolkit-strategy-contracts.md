@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3 complete, T4 verified pending commit, T4b-T5 open; T6-T9 open
+> **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3-T4 complete, T4b-T5 open; T6-T9 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Task 4 extraction verification and typing-debt discovery
+> **Revised**: 2026-07-15 after Task 4 clean exact-HEAD extraction verification
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -522,7 +522,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [x] schema 由 source model 生成并经 Crucible/PS requirements review
 - [x] wheel 不提供顶层 `shared` 或 `pandas_ta`
 - [x] lightweight contracts import 不修改 `sys.path`
-- [ ] existing NT strategy business source zero-rewrite
+- [x] existing NT strategy business source zero-rewrite
 - [ ] PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime receipts 指向 exact BOM/member digests
 - [x] Speculum 不属于 START/STOP、candidate/final acceptance 或 close-out gate
 - [x] PS legacy `build-image.sh` -> Crucible Python image 链保留为独立 compatibility lane，且不作为 team fallback 或验收证据
@@ -539,8 +539,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T0R Execution-readiness correction | [x] | 2026-07-14 | `cccf8b2`, `ad49872`, and `bdd516c` corrected review topology, removed the Speculum gate, and reconciled the 241-input baseline |
 | T1 Inventory/authority | [x] | 2026-07-14 | inventory/authority baseline landed in `877a52a`; current reviewed candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` passed focused and full authority gates |
 | T2 Coordinated contracts | [x] | 2026-07-14 | READY receipt pins candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`, source `71990c6a...`, index `d87d6fc2...`, both exact requirements reviews, and clean verification checkout `f6406ea1...` |
-| T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4-T5 remain open, so 18b is not production-ready |
-| T4 Zero-rewrite extraction | [ ] | — | 241/241 deterministic extraction、independent parity 和 focused gates verified; receipt `VERIFIED_PENDING_COMMIT`, exact commit/clean checkout pending |
+| T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4b-T5 remain open, so 18b is not production-ready |
+| T4 Zero-rewrite extraction | [x] | 2026-07-15 | exact implementation `b5ff7ee9cea0e78f4462a478bafa42f8f6e18805`; clean exact-HEAD focused `91 passed, 1 skipped`; 241/241 extraction、parity、authority、English and lint gates PASS; receipt `VERIFIED_EXTRACTION_ONLY`, handoff false because T4b/T5 remain open |
 | T4b Extracted typing closure | [ ] | — | exact baseline: platform-neutral 75, Nautilus adapter 289; zero required before strict/production-ready claim |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
 | T6 Candidate | [ ] | — | immutable rc |

@@ -77,14 +77,16 @@ def test_task_2_asset_index_still_binds_the_immutable_inventory_bytes() -> None:
     assert record["size_bytes"] == len(inventory_bytes)
 
 
-def test_task_4_receipt_is_verified_but_cannot_handoff_before_commit() -> None:
+def test_task_4_receipt_is_extraction_only_with_open_blockers() -> None:
     receipt = _load(TASK_4_RECEIPT_PATH)
     extraction = _load(EXTRACTION_PATH)
 
-    assert receipt["receipt_status"] == "VERIFIED_PENDING_COMMIT"
+    assert receipt["receipt_status"] == "VERIFIED_EXTRACTION_ONLY"
     assert receipt["handoff_ready"] is False
-    assert receipt["implementation"]["implementation_commit"] is None
-    assert receipt["implementation"]["worktree_clean"] is False
+    assert receipt["implementation"]["implementation_commit"] == (
+        "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
+    )
+    assert receipt["implementation"]["worktree_clean"] is True
     assert receipt["extraction"]["status"] == "PASS_241_OF_241_ZERO_REWRITE"
     assert (
         receipt["extraction"]["sha256"] == hashlib.sha256(EXTRACTION_PATH.read_bytes()).hexdigest()
@@ -93,3 +95,7 @@ def test_task_4_receipt_is_verified_but_cannot_handoff_before_commit() -> None:
     assert receipt["typing"]["extracted_implementation"] == ("ACK_EXACT_BASELINE_NOT_STRICT")
     assert receipt["typing"]["production_ready"] is False
     assert receipt["typing"]["closure_task"] == "Custos Plan 18 Task 4b"
+    assert [blocker["task"] for blocker in receipt["blockers"]] == [
+        "Custos Plan 18 Task 4b",
+        "Custos Plan 18 Task 5",
+    ]
