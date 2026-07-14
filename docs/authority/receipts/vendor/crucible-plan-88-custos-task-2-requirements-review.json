@@ -17,14 +17,14 @@
   "producer_snapshot": {
     "repository": "tesseract-trading/custos",
     "plan_task": "Plan 18 Task 2",
-    "commit": "877a52a59c43ec20d1c9cda1bf309644726d5ee9",
+    "commit": "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
     "source": {
       "path": "src/custos/contracts/strategy_execution.py",
-      "sha256": "6da97b9369cf92e42b9dfcf5b5771fe78491cab4c40459127d08ab4fd3740551"
+      "sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3"
     },
     "contract_asset_index": {
       "path": "docs/authority/strategy-contract-assets-v1.json",
-      "sha256": "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"
+      "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
     },
     "producer_receipt": {
       "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
@@ -206,7 +206,7 @@
   ],
   "producer_handoff": {
     "requirements_review_ready_for_vendoring": true,
-    "requested_action": "Vendor this exact consumer review into the canonical Custos Plan 18 Task 2 receipt chain and bind its byte digest together with producer commit 877a52a59c43ec20d1c9cda1bf309644726d5ee9 and asset-index digest ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302.",
+    "requested_action": "Vendor this exact consumer review into the canonical Custos Plan 18 Task 2 receipt chain and bind its byte digest together with producer commit b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0 and asset-index digest d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07.",
     "self_commit_field_required": false,
     "does_not_mean": [
       "Custos Plan 18 Task 2 runtime verification is complete",

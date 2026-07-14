@@ -83,7 +83,7 @@
     {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]},
     {"path": "docs/design/strategy-toolkit.md", "must_contain": ["deployment_instance_id", "StrategyReleaseBomV1", "custos-strategy-toolkit-nautilus", "independent compatibility lane"]},
     {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]},
-    {"path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "877a52a59c43ec20d1c9cda1bf309644726d5ee9", "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"]},
-    {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "877a52a59c43ec20d1c9cda1bf309644726d5ee9", "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"]}
+    {"path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
+    {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]}
   ]
 }

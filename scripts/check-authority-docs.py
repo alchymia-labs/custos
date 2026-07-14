@@ -37,8 +37,8 @@ REVIEW_PROFILES: dict[str, dict[str, Any]] = {
         "source_path": (
             "docs/authority/receipts/crucible-plan-88-custos-task-2-consumer-review.json"
         ),
-        "source_commit": "91863e22202f21faa4038441d4c43d5d2c4a8317",
-        "sha256": "7e26b0f371324512f6f57830b235a34f5512d5acb4bdf1f27f5f737a25548370",
+        "source_commit": "9085d8deb8e78cc17a57c20ae244b48ede08799c",
+        "sha256": "09bff539edafa818d1f15b866ae3626600ced90f613da68dd4e14a9385935095",
         "vendored_path": (
             "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"
         ),
@@ -61,8 +61,8 @@ REVIEW_PROFILES: dict[str, dict[str, Any]] = {
         "source_path": (
             "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json"
         ),
-        "source_commit": "f0de58e895ffad90071be8033e9178010a9c46b0",
-        "sha256": "3a7fe62661f80bb525108dfb5c26dc2af800bb2e85d8e371109f3a36f48e48af",
+        "source_commit": "7f07c090ce6d6dd4f2e11986680009a61af0934b",
+        "sha256": "0a4d48c9bd1849b8a04b9a72ef6fb97942e0f66bc21b6d7916c2d5eb21650319",
         "vendored_path": (
             "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"
         ),
