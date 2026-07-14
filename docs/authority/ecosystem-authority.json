@@ -59,6 +59,25 @@
   "migration_heads": {
     "arx": "0068",
     "crucible_control": "0026",
-    "crucible_mode": "0114"
+    "crucible_mode": "0115"
+  },
+  "crucible_mode_migration_contract": {
+    "checked_in_expected_current_head": "0115",
+    "predecessor_authority_schema": "0114",
+    "normal_server_migrator_target": "0114",
+    "normal_server_migrator_rule": "stop successfully at 0114 and never attempt 0115",
+    "retirement_migration": "0115",
+    "retirement_execution_path": "dedicated crucible_cr87_retire_0115 runner only",
+    "retirement_required_gates": [
+      "immutable operator permit bundle",
+      "CR87-RETIRE-LEGACY-MODE-SCHEMAS-V1 capability",
+      "strict local database identity"
+    ],
+    "required_actual_receipts": {
+      "CR87-RETIREMENT-0115": "PENDING",
+      "DB-CUTOVER": "PENDING"
+    },
+    "legacy_schema_claim_rule": "legacy schemas must not be described as dropped while either required actual receipt is PENDING",
+    "cr89_migration": "0116"
   }
 }
