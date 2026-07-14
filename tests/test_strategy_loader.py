@@ -11,6 +11,10 @@ a strategy whose on-disk bytes don't match the spec's expected hash. Covers:
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -86,3 +90,49 @@ def test_explicit_strategy_class_attribute_wins(tmp_path: Path) -> None:
     strategy_file = _write_strategy(tmp_path, body=body)
     cls = load_strategy_class(strategy_file, expected_code_hash=None)
     assert cls.__name__ == "RealStrategy"
+
+
+def test_loader_bootstraps_vendored_toolkit_in_fresh_process(tmp_path: Path) -> None:
+    """The public loader must make vendored ``shared`` imports available itself.
+
+    Production calls the loader directly; callers must not need a hidden,
+    order-dependent ``import custos.engines.nautilus.toolkit`` first.  A fresh
+    interpreter keeps this regression test independent from pytest collection
+    order and any earlier test that happened to bootstrap the toolkit.
+    """
+    strategy_file = _write_strategy(
+        tmp_path,
+        body=textwrap.dedent(
+            """
+            from shared.config import ConfigWrapper
+
+
+            class ToolkitProbeStrategy:
+                config_type = ConfigWrapper
+            """
+        ),
+    )
+    probe = textwrap.dedent(
+        """
+        import sys
+        from pathlib import Path
+
+        from custos.engines.nautilus.strategy_loader import load_strategy_class
+
+        strategy_class = load_strategy_class(Path(sys.argv[1]), expected_code_hash=None)
+        assert strategy_class.__name__ == "ToolkitProbeStrategy"
+        """
+    )
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", probe, str(strategy_file)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"

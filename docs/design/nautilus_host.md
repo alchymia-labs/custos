@@ -199,10 +199,13 @@ substrate at `src/custos/engines/nautilus/toolkit/`. The load path is:
 1. `custos.engines.nautilus.strategy_loader.load_strategy_class` reads the
    strategy source file and passes it through the code_hash gate (dir-hash
    layer 3 in production, skipped in sandbox).
-2. `custos.engines.nautilus.toolkit.__init__` prepends `toolkit/` and
-   `toolkit/vendor/` to `sys.path` so the strategy module's
-   `from shared.<pkg>` and `import pandas_ta` imports resolve without
-   rewriting any vendored source.
+2. The public loader imports `custos.engines.nautilus.toolkit` immediately
+   after the code-hash gate and before it executes strategy code. The toolkit
+   bootstrap prepends `toolkit/` and `toolkit/vendor/` to `sys.path` so the
+   strategy module's `from shared.<pkg>` and `import pandas_ta` imports resolve
+   without rewriting any vendored source. Callers must not need a separate
+   bootstrap import; strategy loading is independent of incidental
+   module-import order.
 3. `load_strategy_class(..., expected_registry_name="supertrend")` invokes
    the loader's post-load registry binding check
    (`shared.nautilus.registry.get_strategy_info`) to assert the module the

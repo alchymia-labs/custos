@@ -14,6 +14,7 @@ be unit-tested without the nautilus extra.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import importlib.util
 import inspect
 import sys
@@ -102,6 +103,13 @@ def load_strategy_class(
                 f"(expected {expected_code_hash[:12]}…, got {actual[:12]}…)"
             )
 
+    # The supported strategy closure imports the vendored toolkit through its
+    # historical top-level names (``shared`` and ``pandas_ta``).  Bootstrap
+    # those names after the integrity gate but before executing strategy code;
+    # requiring each caller to import the toolkit first makes production
+    # behavior depend on incidental module-import order.
+    importlib.import_module("custos.engines.nautilus.toolkit")
+
     try:
         module = _import_module_from_path(strategy_path)
     except ModuleNotFoundError as exc:
@@ -131,10 +139,6 @@ def _verify_registry_binding(name: str, strategy_cls: type, strategy_path: Path)
     lazily keeps the loader usable when the toolkit isn't required (unit
     tests with a stub strategy).
     """
-    # Bootstrap the vendored toolkit's sys.path shim first; without this the
-    # bare ``shared.nautilus`` import on the following line has nowhere to
-    # resolve to. Ordering here is load-bearing.
-    import custos.engines.nautilus.toolkit  # noqa: F401, I001 — sys.path bootstrap must precede shared.*
     from shared.nautilus import registry as ps_registry
 
     if not ps_registry.is_registered(name):
