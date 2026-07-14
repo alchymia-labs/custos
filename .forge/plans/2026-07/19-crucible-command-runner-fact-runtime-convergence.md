@@ -513,6 +513,88 @@ signed RunnerFacts ──PubAck──> existing outbox deletion
 
 明确禁止新增第二个 `runner_fact_outbox` table 或独立 journal database。
 
+## Approved production roadmap and normative stop gates
+
+This section amends Tasks 2-10 and is part of the DoD for existing slices 19a-d.
+It does not create Plan 20, a second journal or a second outbox. Desired state,
+applied state, command outcomes, lifecycle enqueue, policy/reservations and the
+existing RunnerFact outbox remain one SQLite deep module and one transactional
+authority boundary.
+
+### Receipt DAG
+
+```text
+R-C18-T2-SCHEMA
+  -> R-C18-TOOLKIT-RC -> R-PS54-ARTIFACT-BOM -> R-CR88-STRATEGY-RELEASE
+  -> R-CR89-DEPLOYMENT-COMMAND
+       -> 19a -> 19b
+       -> Crucible Plan 99 migration 0116 -> R-CR99-RUNNER-POLICY
+  -> 19c -> R-C19-RUNNER-FACT-CANDIDATE -> R-CR90A-FACT-COMPAT
+  -> R-C19-RUNTIME-RC -> R-CR90B-RUNTIME-ROUNDTRIP
+  -> R-PS56-EXACT-IMAGE -> R-C19-SAME-DIGEST-PROMOTION
+```
+
+Crucible Plan 99 migration 0116 is the first Plan 99 runtime slice after the
+signed-command receipt. It must be applied and verified in each physical mode
+database before policy publication or Custos live-policy consumption. Its receipt
+ID is `R-CR99-M0116`; the completed signed policy receipt is
+`R-CR99-RUNNER-POLICY`.
+
+### Slice integration
+
+| Slice | Additional mandatory scope | Deliverable | Production stop gate |
+|---|---|---|---|
+| 19a command and provenance | Consume `R-CR89-DEPLOYMENT-COMMAND`; install a runner-local signed trust bundle for command keys with monotonic version, overlap rotation, revocation, expiry and rollback protection; acquire artifacts into a content-addressed cache; verify complete BOM/signature/attestation before making bytes eligible | Command/fingerprint vectors, durable rejection receipt, trust-bundle receipt, verified cache object receipt | Unknown/revoked/expired key, trust-version rollback, digest/BOM mismatch, non-content-addressed path or ACK before durable outcome stops apply and live execution |
+| 19b durable reconcile and lifecycle | Extend the existing SQLite deep module for desired/applied/outcome and artifact activation metadata; atomically activate verified cache content, persist prior generation for rollback, support offline restart and bounded GC; freeze risk-increasing execution and enter quarantine if lifecycle/RunnerFact enqueue is not durable; harden SQLite migration/version, WAL/checkpoint, permissions, disk-full, corruption, backup/restore and power-loss recovery | `commit_applied_and_enqueue_lifecycle()` receipt, atomic activation/rollback receipt, offline restart/GC receipt, crash/power-loss matrix and restored-state receipt | No second journal; disk-full/corrupt/schema mismatch/WAL failure means no ACK and no new apply; enqueue failure freezes and quarantines rather than logging and continuing |
+| 19c portfolio and local safety | Require `R-CR99-M0116` and `R-CR99-RUNNER-POLICY`; verify policy-key trust with the same rotation/revocation/rollback discipline; enforce runner-level cap on every risk-increasing order path; keep live fail closed when policy is absent, expired, revoked or mode-mismatched | Real marked portfolio receipt, signed-policy receipt, order-boundary allow/deny matrix, restart persistence receipt | DeploymentSpec mutable risk config cannot define runner aggregate cap; missing migration/policy or unenforced cap blocks live |
+| 19d facts, runtime RC and promotion | Exercise enqueue-freeze/quarantine and SQLite recovery with real RunnerFacts; pin Docker base image by digest and install dependencies from the committed lock without live transitive resolution; emit metrics for command lag/outcome, desired/applied drift, SQLite/WAL/disk, cache/activation, outbox age, fact PubAck, policy expiry and restart/quarantine; define SLOs, alerts and operator runbook; promote the exact tested and signed digest | RunnerFact candidate, runtime RC with complete BOM/SBOM/signatures/OCI provenance, metrics/SLO/alert evidence, recovery runbook, Phase B/PS56 receipts and same-digest promotion receipt | Unpinned base/dependency, missing observability/runbook, skipped recovery, changed digest, rebuild or stable-tag promotion before CR90B/PS56 stops release and close-out |
+
+### Artifact cache and activation invariants
+
+1. Cache keys are cryptographic content digests, never strategy names, mutable
+   tags, filesystem paths or DeploymentSpec IDs.
+2. Download/stage occurs outside the active slot. Signature, attestation, complete
+   BOM and every member digest are verified before atomic activation.
+3. Activation and applied-generation metadata commit through the existing SQLite
+   authority; a crash exposes either the old complete generation or the new
+   complete generation, never a mixed directory.
+4. Rollback selects a previously verified immutable generation and records a new
+   lifecycle fact. It never rewrites history or bypasses generation fencing.
+5. Offline restart may load only an already verified, non-revoked cache object
+   bound to durable desired/applied state and a valid local trust/policy snapshot.
+6. GC is bounded and cannot remove the active generation, rollback generation,
+   pending desired generation or any object referenced by an un-PubAcked fact.
+
+### SQLite and fact-durability invariants
+
+1. Migration version and schema fingerprint are checked before subscription
+   readiness. Unknown or partial migration is fail closed.
+2. WAL/checkpoint policy, fsync behavior, file/directory permissions and free-disk
+   thresholds are explicit and observable.
+3. Disk-full, I/O error, corrupt page, failed checkpoint or failed lifecycle/fact
+   enqueue prevents command ACK and new risk-increasing execution.
+4. Backup/restore proves desired/applied/outcome, activation, policy/reservation,
+   stream sequence, dedup and outbox consistency. Power-loss tests cover every
+   transaction boundary.
+5. The RunnerFact bridge may not catch, log and continue after a durability
+   failure. It freezes risk-increasing work, records readiness failure when
+   possible and moves the affected runner to quarantine for operator recovery.
+
+### Observability and release acceptance
+
+- Metrics and alerts cover oldest command age, outcome counts, desired/applied
+  generation drift, restart budget, quarantine age, policy expiry, SQLite/WAL/disk,
+  artifact cache/activation, RunnerFact outbox depth/age and PubAck latency.
+- SLOs state thresholds and paging conditions; the runbook identifies safe retry,
+  restore, rollback, re-enrollment and quarantine-release procedures.
+- Docker base image and every runtime dependency are locked. BuildKit provenance,
+  SBOM and signatures bind the complete runtime BOM.
+- Candidate, CR90B, PS56 and stable promotion all use the same image digest. Any
+  rebuild or digest change creates a new candidate and invalidates old receipts.
+- Speculum is not a runtime, release or close-out gate. The PS legacy
+  `build-image.sh` to Crucible Python image lane remains independent compatibility
+  only and cannot satisfy a Custos schema, runtime or acceptance receipt.
+
 ## Canonical Slices and Stop Gates
 
 Plan 19 是 `multi_session_scope: true`，只允许按以下四个 slice 顺序推进。每个 STOP gate
