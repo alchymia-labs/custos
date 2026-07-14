@@ -159,6 +159,20 @@
         "Custos Plan 18 Task 4b",
         "Custos Plan 18 Task 5"
       ]
+    },
+    {
+      "role": "plan_19_task_1_characterization_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-1-characterization-receipt.json",
+      "receipt_status": "READY_CHARACTERIZATION",
+      "implementation_commit": "c567f1dc7ee974acda31f042a48e3fb2833241ed",
+      "verification_head": "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
+      "handoff_ready": false,
+      "handoff_scope": "existing RunnerFact durability and EngineProtocol characterization only",
+      "open_blockers": [
+        "Custos Plan 19 T2 producer-contract consumption",
+        "Custos Plan 19 19b durable runtime state",
+        "Custos Plan 19 runtime RC and cross-repository acceptance"
+      ]
     }
   ],
   "external_optional_documents": [
@@ -326,6 +340,16 @@
         "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
         "custos-strategy-toolkit-nautilus",
         "nautilus-trader==1.230.0"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-19-task-1-characterization-receipt.json",
+      "must_contain": [
+        "READY_CHARACTERIZATION",
+        "c567f1dc7ee974acda31f042a48e3fb2833241ed",
+        "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
+        "\"runtime_activation_ready\": false",
+        "\"t2_ready\": false"
       ]
     }
   ]

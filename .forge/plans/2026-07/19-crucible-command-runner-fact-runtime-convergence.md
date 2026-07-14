@@ -47,6 +47,27 @@ Custos-only fixture 修改绕过 producer 缺口。
 
 Task 1 可立即执行。Task 2 以后受 cross-repo hard gates 约束。
 
+### 19a/T1 characterization checkpoint (2026-07-15)
+
+`R-C19-T1-CHARACTERIZATION` is **READY_CHARACTERIZATION** at
+`docs/authority/receipts/custos-plan-19-task-1-characterization-receipt.json`.
+The test-only implementation is commit
+`c567f1dc7ee974acda31f042a48e3fb2833241ed`; the exact full-repository
+verification head is `f3adde2870a53a4bb52cc2a260d2c7c1c852eee2`.
+
+- Direct RunnerFact outbox and EngineProtocol characterization: 7 passed.
+- Full `make verify`: 522 passed, 4 skipped, 1 xfailed; formatter, Ruff, assets,
+  extraction, typing, authority and mypy gates passed.
+- The checkpoint changes no production behavior. It freezes current per-stream sequence,
+  event deduplication, signed pending-batch reopen durability, failure retention, outbound
+  PubAck deletion, and the complete existing EngineProtocol method/async boundary.
+- This receipt is not a T2 producer-contract receipt, does not activate desired/applied runtime
+  state, and is not a runtime RC, image, promotion or production-readiness receipt.
+
+The receipt's historical `T1 characterization` label is a characterization sub-checkpoint of
+19a. It does not silently replace the numbered Task 1 verification-floor command set below;
+unrecorded commands remain open until separately evidenced.
+
 ## 目标 (Goal)
 
 把 current-main 收敛为可恢复、可监督、fail-closed 的 Custos runtime：
@@ -893,7 +914,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | Task | Status | Completed | Notes |
 |---|---|---|---|
 | T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `3ce4048` |
-| T1 Verification floor | [ ] | — | immediately executable |
+| T1 Verification floor | [~] | 2026-07-15 | characterization sub-checkpoint READY at `c567f1d`; full `make verify` green at `f3adde2`; remaining verification-floor commands require separate evidence |
 | T2 Crucible producer | [ ] | — | Plan 89 producer + Plan 90 pre-RC schema receipt |
 | T3 Fingerprint/ACK | [ ] | — | frozen algorithm + durable outcomes |
 | T4 Single durable store | [ ] | — | outcomes, generation fence, cap/reservation tables |
