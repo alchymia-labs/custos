@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
@@ -40,3 +40,22 @@ def test_inventory_has_one_explicit_disposition_per_file() -> None:
     assert set(inventory["category_counts"]) == allowed
     assert sum(inventory["category_counts"].values()) == inventory["file_count"]
     assert inventory["legacy_aliases_must_retire"] == ["shared", "pandas_ta"]
+
+
+def test_inventory_future_published_target_paths_are_unique() -> None:
+    inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    target_paths = [entry["target_path"] for entry in inventory["files"] if entry["target_path"]]
+
+    assert len(target_paths) == len(set(target_paths))
+
+
+def test_inventory_future_targets_forbid_legacy_top_level_aliases() -> None:
+    inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    target_paths = [entry["target_path"] for entry in inventory["files"] if entry["target_path"]]
+    target_top_levels = {PurePosixPath(path).parts[0] for path in target_paths}
+
+    # This is a target-inventory policy only. Runtime alias and sys.path
+    # retirement remain outside Plan 18 T1/T2.
+    assert target_top_levels.isdisjoint({"shared", "pandas_ta"})
+    assert inventory["legacy_aliases_must_retire"] == ["shared", "pandas_ta"]
+    assert "sys.path mutation" in inventory["forbidden_migration_mechanisms"]
