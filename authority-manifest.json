@@ -87,6 +87,6 @@
     {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]},
     {"path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
     {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
-    {"path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json", "must_contain": ["Custos Plan 18 Task 3 distribution and canonical-source receipt", "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py", "custos-strategy-toolkit-nautilus", "nautilus-trader==1.230.0"]}
+    {"path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json", "must_contain": ["Custos Plan 18 Task 3 distribution and canonical-source receipt", "\"receipt_status\": \"READY\"", "efc01da67b432e9b35beee3498415efc1bc46b98", "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py", "custos-strategy-toolkit-nautilus", "nautilus-trader==1.230.0"]}
   ]
 }

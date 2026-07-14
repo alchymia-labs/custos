@@ -18,6 +18,7 @@ REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
 )
+TASK_3_IMPLEMENTATION_COMMIT = "efc01da67b432e9b35beee3498415efc1bc46b98"
 EXPECTED_PRODUCER = {
     "repository": "tesseract-trading/custos",
     "source_path": "src/custos/contracts/strategy_execution.py",
@@ -417,13 +418,32 @@ def verify_plan_18_task_3_distribution_receipt(errors: list[str], *, root: Path 
     receipt = load_json(receipt_path)
     if receipt.get("receipt_schema_version") != 1:
         errors.append("Plan 18 Task 3 receipt schema version must be 1")
-    if receipt.get("receipt_status") != "VERIFIED_PENDING_COMMIT":
-        errors.append("Plan 18 Task 3 receipt must remain verified pending commit")
-    if receipt.get("handoff_ready") is not False:
-        errors.append("Plan 18 Task 3 receipt cannot be handoff-ready before its commit")
+    if receipt.get("receipt_status") != "READY":
+        errors.append("Plan 18 Task 3 receipt must be READY")
+    if receipt.get("handoff_ready") is not True:
+        errors.append("Plan 18 Task 3 READY receipt must be handoff-ready")
+    if receipt.get("implementation") != {
+        "repository": "tesseract-trading/custos",
+        "commit": TASK_3_IMPLEMENTATION_COMMIT,
+    }:
+        errors.append("Plan 18 Task 3 implementation commit binding differs")
     verification = receipt.get("verification")
     if not isinstance(verification, dict) or verification.get("status") != "PASS":
         errors.append("Plan 18 Task 3 receipt requires successful verification evidence")
+    elif not verification.get("executed_at") or verification.get("environment") != {
+        "checkout_head": TASK_3_IMPLEMENTATION_COMMIT,
+        "worktree_clean": True,
+    }:
+        errors.append("Plan 18 Task 3 receipt requires clean exact-HEAD verification evidence")
+    else:
+        expected_commands = [
+            "uv run pytest tests/test_toolkit_distribution.py tests/test_toolkit_contracts.py tests/test_plan18_task2_receipt.py -q",
+            "make check",
+            "make check-authority",
+            "make toolkit-typecheck",
+        ]
+        if verification.get("required_commands") != expected_commands:
+            errors.append("Plan 18 Task 3 verification command set differs")
     if receipt.get("canonical_move_active") is not True:
         errors.append("Plan 18 Task 3 canonical source move is not active")
 

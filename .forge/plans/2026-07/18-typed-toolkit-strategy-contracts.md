@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — Slice 18a / Tasks 1-2 completed; Task 2 receipt READY; Tasks 3-9 remain open
+> **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3 complete, T4-T5 open; T6-T9 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Task 2 READY handoff
+> **Revised**: 2026-07-15 after Task 3 READY handoff
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -490,8 +490,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [x] StrategyRelease/artifact selection/effective config 仍由 Crucible 拥有
 - [x] `strategy_key` 仅是 catalog alias
 - [x] Root/contracts 保持 Python >=3.11
-- [ ] 独立 Nautilus distribution 使用 Python >=3.12,<3.13 和 exact NT 1.230.0
-- [ ] Python 3.11 安装 Nautilus distribution fail closed，不静默跳过 NT
+- [x] 独立 Nautilus distribution 使用 Python >=3.12,<3.13 和 exact NT 1.230.0
+- [x] Python 3.11 安装 Nautilus distribution fail closed，不静默跳过 NT
 - [x] effective config 是 recursive typed/deep-frozen JSON 并匹配 signed digest
 - [ ] production 只接受 signed wheel
 - [x] source-path contract 仅允许 sandbox、non-promotable、non-live
@@ -499,7 +499,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [ ] trust roots/policy 只来自 runner-local signed release configuration
 - [ ] candidate/final receipts 绑定 release BOM 和全部 member digests
 - [x] schema 由 source model 生成并经 Crucible/PS requirements review
-- [ ] wheel 不提供顶层 `shared` 或 `pandas_ta`
+- [x] wheel 不提供顶层 `shared` 或 `pandas_ta`
 - [x] lightweight contracts import 不修改 `sys.path`
 - [ ] existing NT strategy business source zero-rewrite
 - [ ] PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime receipts 指向 exact BOM/member digests
@@ -518,7 +518,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T0R Execution-readiness correction | [x] | 2026-07-14 | `cccf8b2`, `ad49872`, and `bdd516c` corrected review topology, removed the Speculum gate, and reconciled the 241-input baseline |
 | T1 Inventory/authority | [x] | 2026-07-14 | inventory/authority baseline landed in `877a52a`; current reviewed candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` passed focused and full authority gates |
 | T2 Coordinated contracts | [x] | 2026-07-14 | READY receipt pins candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`, source `71990c6a...`, index `d87d6fc2...`, both exact requirements reviews, and clean verification checkout `f6406ea1...` |
-| T3 Minimal distribution | [ ] | — | implementation and focused verification PASS 2026-07-15; exact commit and slice handoff still pending, so T3/18b remain open |
+| T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4-T5 remain open, so 18b is not production-ready |
 | T4 Zero-rewrite extraction | [ ] | — | batch commits required |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
 | T6 Candidate | [ ] | — | immutable rc |

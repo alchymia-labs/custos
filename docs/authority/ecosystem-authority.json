@@ -51,6 +51,7 @@
     "entry_point_group": "alephain.strategy_runtime.v1",
     "canonical_contract_source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
     "task_3_distribution_receipt": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json",
+    "task_3_distribution_receipt_status": "READY",
     "base_contracts_python": ">=3.11",
     "nautilus_distribution_python": ">=3.12,<3.13",
     "nautilus_trader": "1.230.0",

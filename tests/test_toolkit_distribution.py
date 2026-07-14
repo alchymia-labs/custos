@@ -96,9 +96,17 @@ def test_task3_receipt_explicitly_succeeds_task2_canonical_source() -> None:
     assert hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest() == current["sha256"]
     assert historical["path"] == "src/custos/contracts/strategy_execution.py"
     assert historical["producer_commit"] == "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0"
-    assert receipt["receipt_status"] == "VERIFIED_PENDING_COMMIT"
-    assert receipt["handoff_ready"] is False
+    assert receipt["receipt_status"] == "READY"
+    assert receipt["handoff_ready"] is True
+    assert receipt["implementation"] == {
+        "repository": "tesseract-trading/custos",
+        "commit": "efc01da67b432e9b35beee3498415efc1bc46b98",
+    }
     assert receipt["verification"]["status"] == "PASS"
+    assert receipt["verification"]["environment"] == {
+        "checkout_head": "efc01da67b432e9b35beee3498415efc1bc46b98",
+        "worktree_clean": True,
+    }
     assert receipt["scope_ceiling"].startswith("T3 distribution boundary only")
 
 
