@@ -65,10 +65,24 @@
       "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
     },
     {
-      "role": "plan_18_task_2_receipt_v2_candidate",
+      "role": "plan_18_task_2_receipt_v2_requirements_reviewed",
       "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
-      "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
-      "handoff_ready": false
+      "receipt_status": "REQUIREMENTS_REVIEWS_ACCEPTED",
+      "handoff_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "crucible_plan_88_custos_task_2_v2_requirements_review",
+      "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-v2-requirements-review.json",
+      "source_commit": "3f41f32d15c05f209e5462d460b8ae08433376d2",
+      "sha256": "2102b363b5c4751a2b2e20302ff010446764d783e56c2e1e2b2c1a6b580fc8ad"
+    },
+    {
+      "role": "ps_plan_54_custos_task_2_v2_requirements_review",
+      "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-v2-requirements-review.json",
+      "source_commit": "267e23bd500f1b465bee81b0b9b7c2f8c054c2aa",
+      "sha256": "8ac5597094ad0916e9aa4c254735132a87afbe96592772edd5dce4e709699822"
     },
     {
       "role": "plan_18_task_3_distribution_receipt",

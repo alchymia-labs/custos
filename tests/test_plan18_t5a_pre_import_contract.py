@@ -22,6 +22,35 @@ V2_SCHEMA = (
     / "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json"
 )
 V2_RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
+V2_PRODUCER_COMMIT = "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2"
+V2_INDEX_SHA256 = "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc"
+V2_SCHEMA_SHA256 = "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463"
+V2_CANDIDATE_RECEIPT_SHA256 = "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
+V2_REVIEW_PINS = {
+    "crucible_rust_plan_88": {
+        "source_repository": "tesseract-trading/crucible-rust",
+        "source_path": (
+            "docs/authority/receipts/crucible-plan-88-custos-task-2-v2-requirements-review.json"
+        ),
+        "source_commit": "3f41f32d15c05f209e5462d460b8ae08433376d2",
+        "sha256": "2102b363b5c4751a2b2e20302ff010446764d783e56c2e1e2b2c1a6b580fc8ad",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/"
+            "crucible-plan-88-custos-task-2-v2-requirements-review.json"
+        ),
+    },
+    "philosophers_stone_plan_54": {
+        "source_repository": "alchymia-labs/philosophers-stone",
+        "source_path": (
+            "docs/authority/receipts/ps-plan-54-custos-task-2-v2-requirements-review.json"
+        ),
+        "source_commit": "267e23bd500f1b465bee81b0b9b7c2f8c054c2aa",
+        "sha256": "8ac5597094ad0916e9aa4c254735132a87afbe96592772edd5dce4e709699822",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-v2-requirements-review.json"
+        ),
+    },
+}
 
 IMMUTABLE_V1_SHA256 = {
     "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88",
@@ -97,14 +126,35 @@ def test_v2_index_binds_generated_assets_and_sidecars() -> None:
         assert sidecar.read_text(encoding="ascii") == f"{_sha256(fixture)}  {fixture.name}\n"
 
 
-def test_v2_receipt_is_pending_and_contains_no_future_evidence() -> None:
+def test_v2_receipt_accepts_reviews_without_claiming_runtime_handoff() -> None:
     receipt = _load(V2_RECEIPT)
-    assert receipt["receipt_status"] == "PENDING_REQUIREMENTS_REVIEWS"
+    assert receipt["receipt_status"] == "REQUIREMENTS_REVIEWS_ACCEPTED"
+    assert receipt["requirements_review_status"] == "ACCEPTED"
     assert receipt["handoff_ready"] is False
+    assert receipt["loaded"] is False
+    assert receipt["engine_ready"] is False
+    assert receipt["runtime_ready"] is False
     assert receipt["production_ready"] is False
-    assert receipt["producer"]["candidate_commit"] is None
-    assert receipt["producer"]["worktree_clean"] is None
-    assert all(review["receipt"] is None for review in receipt["requirements_reviews"].values())
+    assert receipt["immutable_toolkit_rc_ready"] is False
+    assert receipt["producer"]["candidate_commit"] == V2_PRODUCER_COMMIT
+    assert receipt["producer"]["worktree_clean"] is True
+    assert receipt["reviewed_candidate_receipt"] == {
+        "commit": V2_PRODUCER_COMMIT,
+        "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
+        "sha256": V2_CANDIDATE_RECEIPT_SHA256,
+        "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+        "handoff_ready": False,
+        "production_ready": False,
+    }
+    assert receipt["t5b_implementation_evidence"] == {
+        "commit": "560e9f5b80962df3307f855be7ceef70c3585bd7",
+        "focused_tests_passed": 49,
+        "production_pre_import_verifier_library_implemented": True,
+        "public_pre_import_receipt_library_emission_implemented": True,
+        "runtime_invocation_caller_wired": False,
+        "strategy_import_wired": False,
+        "current_head_full_make_verify_passed": False,
+    }
     assert receipt["predecessor"] == {
         "asset_index": {
             "path": "docs/authority/strategy-contract-assets-v1.json",
@@ -117,7 +167,32 @@ def test_v2_receipt_is_pending_and_contains_no_future_evidence() -> None:
             ],
         },
     }
-    assert receipt["contract_asset_index"]["sha256"] == _sha256(V2_INDEX)
+    assert _sha256(V2_INDEX) == V2_INDEX_SHA256
+    assert receipt["contract_asset_index"] == {
+        "path": "docs/authority/strategy-contract-assets-v2.json",
+        "sha256": V2_INDEX_SHA256,
+    }
+    assert _sha256(V2_SCHEMA) == V2_SCHEMA_SHA256
+    assert receipt["pre_import_receipt_schema"] == {
+        "path": (
+            "docs/gateway-contract/v2/"
+            "strategy_artifact_pre_import_verification_receipt_v1.schema.json"
+        ),
+        "sha256": V2_SCHEMA_SHA256,
+    }
+    for reviewer, pin in V2_REVIEW_PINS.items():
+        slot = receipt["requirements_reviews"][reviewer]
+        assert slot["status"] == "ACCEPTED_REQUIREMENTS_REVIEW"
+        assert slot["receipt"] == pin
+        assert _sha256(ROOT / pin["vendored_path"]) == pin["sha256"]
+    assert receipt["open_blockers"] == ["clean current-HEAD full make verify"]
+    assert receipt["next_scoped_handoff_status"] == "READY_PRE_IMPORT_VERIFIER"
+    assert receipt["deferred_to_plan_19"] == [
+        "runtime invocation caller",
+        "strategy import and loaded entry point",
+        "engine readiness and runtime lifecycle",
+    ]
+    assert receipt["downstream_open_work"] == ["Custos Plan 18 Task 6 immutable toolkit RC receipt"]
 
 
 def test_generator_check_is_clean() -> None:

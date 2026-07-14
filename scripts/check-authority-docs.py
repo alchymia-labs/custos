@@ -16,6 +16,9 @@ TASK_2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-rece
 TASK_2_V2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
 TASK_3_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
 TASK_2_V2_INDEX_PATH = "docs/authority/strategy-contract-assets-v2.json"
+TASK_2_V2_SCHEMA_PATH = (
+    "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json"
+)
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
@@ -29,6 +32,12 @@ EXPECTED_PRODUCER = {
     "asset_index_sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07",
 }
 EXPECTED_TASK_2_RECEIPT_SHA256 = "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
+EXPECTED_V2_PRODUCER_COMMIT = "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2"
+EXPECTED_V2_INDEX_SHA256 = "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc"
+EXPECTED_V2_SCHEMA_SHA256 = "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463"
+EXPECTED_V2_CANDIDATE_RECEIPT_SHA256 = (
+    "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
+)
 EXPECTED_CONTRACT_SUMMARY = {
     "canonicalization": "sha256-canonical-json-v1",
     "execution_abi": "alephain.strategy_runtime.v1",
@@ -82,6 +91,68 @@ REVIEW_PROFILES: dict[str, dict[str, Any]] = {
         "execution_abi_path": ("execution_abi_contract", "identifier"),
         "entry_point_group_path": ("execution_abi_contract", "entry_point_group"),
         "assets_path": ("contract_assets",),
+    },
+}
+V2_REVIEW_PROFILES: dict[str, dict[str, Any]] = {
+    "crucible_rust_plan_88": {
+        "canonical_name": (
+            "Crucible Plan 88 Custos Plan 18 T5a v2 pre-import requirements-only consumer review"
+        ),
+        "source_repository": "tesseract-trading/crucible-rust",
+        "source_path": (
+            "docs/authority/receipts/crucible-plan-88-custos-task-2-v2-requirements-review.json"
+        ),
+        "source_commit": "3f41f32d15c05f209e5462d460b8ae08433376d2",
+        "sha256": "2102b363b5c4751a2b2e20302ff010446764d783e56c2e1e2b2c1a6b580fc8ad",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/"
+            "crucible-plan-88-custos-task-2-v2-requirements-review.json"
+        ),
+        "decision_path": ("consumer_review_status",),
+        "review_schema_path": ("receipt_schema_version",),
+        "review_schema_value": 2,
+        "producer_path": ("producer_snapshot",),
+        "assets_path": ("reviewed_assets",),
+        "candidate_receipt_path": ("producer_snapshot", "producer_receipt"),
+        "candidate_status_field": "status_at_reviewed_commit",
+        "false_paths": (
+            ("handoff_ready",),
+            ("runtime_ready",),
+            ("semantic_boundary", "loaded_entry_point_property_present"),
+            ("semantic_boundary", "engine_ready_property_present"),
+        ),
+    },
+    "philosophers_stone_plan_54": {
+        "canonical_name": (
+            "Philosophers-Stone Plan 54 Custos Plan 18 T5a v2 pre-import requirements review"
+        ),
+        "source_repository": "alchymia-labs/philosophers-stone",
+        "source_path": (
+            "docs/authority/receipts/ps-plan-54-custos-task-2-v2-requirements-review.json"
+        ),
+        "source_commit": "267e23bd500f1b465bee81b0b9b7c2f8c054c2aa",
+        "sha256": "8ac5597094ad0916e9aa4c254735132a87afbe96592772edd5dce4e709699822",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-v2-requirements-review.json"
+        ),
+        "decision_path": ("review_status",),
+        "review_schema_path": ("schema_version",),
+        "review_schema_value": ("alephain.ps-plan-54-custos-task-2-v2-requirements-review.v1"),
+        "producer_path": ("custos_producer_pin",),
+        "assets_path": ("contract_assets",),
+        "candidate_receipt_path": (
+            "custos_producer_pin",
+            "task_2_v2_source_receipt",
+        ),
+        "candidate_status_field": "observed_status",
+        "false_paths": (
+            ("handoff_ready",),
+            ("production_ready",),
+            ("pre_import_contract", "loaded_entry_point_property_present"),
+            ("pre_import_contract", "engine_ready_property_present"),
+            ("plan_54_compatibility", "legacy_python_lane_changed"),
+            ("plan_54_compatibility", "slice_gate_promoted"),
+        ),
     },
 }
 
@@ -410,8 +481,108 @@ def verify_plan_18_task_2_receipt(
             errors.append("ready Plan 18 Task 2 receipt requires fresh verification metadata")
 
 
+def _validate_v2_requirement_review(
+    name: str,
+    slot: object,
+    *,
+    profile: dict[str, Any],
+    receipt: dict[str, Any],
+    asset_table: dict[str, tuple[str, int]],
+    root: Path,
+    errors: list[str],
+) -> None:
+    if not isinstance(slot, dict):
+        errors.append(f"{name} v2 requirements review must be a structured object")
+        return
+    if slot.get("status") != "ACCEPTED_REQUIREMENTS_REVIEW":
+        errors.append(f"{name} v2 requirements review decision is not accepted")
+    if slot.get("required_receipt_name") != profile["canonical_name"]:
+        errors.append(f"{name} v2 requirements review canonical name differs")
+    evidence = slot.get("receipt")
+    if not isinstance(evidence, dict):
+        errors.append(f"{name} v2 review evidence must be a structured receipt object")
+        return
+    for field in ("source_repository", "source_path", "source_commit", "sha256", "vendored_path"):
+        if evidence.get(field) != profile[field]:
+            errors.append(f"{name} v2 review evidence {field} differs")
+    vendored_path = _resolve_local_file(
+        evidence.get("vendored_path"),
+        label=f"{name} vendored v2 requirements review",
+        root=root,
+        errors=errors,
+        required_parent=REVIEW_VENDOR_ROOT,
+    )
+    if vendored_path is None:
+        return
+    if hashlib.sha256(vendored_path.read_bytes()).hexdigest() != evidence.get("sha256"):
+        errors.append(f"{name} vendored v2 requirements review byte digest differs")
+    review = _load_gate_json(vendored_path, label=f"{name} vendored v2 review", errors=errors)
+    if review is None:
+        return
+    if _nested(review, profile["decision_path"]) != "ACCEPTED_REQUIREMENTS_REVIEW":
+        errors.append(f"{name} vendored v2 review decision differs")
+    if _nested(review, profile["review_schema_path"]) != profile["review_schema_value"]:
+        errors.append(f"{name} vendored v2 review schema version differs")
+
+    producer = receipt.get("producer")
+    reviewed_producer = _nested(review, profile["producer_path"])
+    if not isinstance(producer, dict) or not isinstance(reviewed_producer, dict):
+        errors.append(f"{name} vendored v2 review lacks a producer snapshot")
+        return
+    if reviewed_producer.get("repository") != producer.get("repository"):
+        errors.append(f"{name} reviewed v2 producer repository differs")
+    if reviewed_producer.get("commit") != producer.get("candidate_commit"):
+        errors.append(f"{name} reviewed v2 producer commit differs")
+    reviewed_index = reviewed_producer.get("contract_asset_index")
+    index_ref = receipt.get("contract_asset_index")
+    if not isinstance(reviewed_index, dict) or not isinstance(index_ref, dict):
+        errors.append(f"{name} reviewed v2 asset index is missing")
+    elif any(reviewed_index.get(field) != index_ref.get(field) for field in ("path", "sha256")):
+        errors.append(f"{name} reviewed v2 asset index differs")
+    reviewed_schema = reviewed_producer.get("pre_import_receipt_schema")
+    schema_ref = receipt.get("pre_import_receipt_schema")
+    if not isinstance(reviewed_schema, dict) or not isinstance(schema_ref, dict):
+        errors.append(f"{name} reviewed pre-import schema is missing")
+    elif any(reviewed_schema.get(field) != schema_ref.get(field) for field in ("path", "sha256")):
+        errors.append(f"{name} reviewed pre-import schema differs")
+
+    candidate = _nested(review, profile["candidate_receipt_path"])
+    if not isinstance(candidate, dict):
+        errors.append(f"{name} reviewed candidate receipt snapshot is missing")
+    else:
+        if candidate.get("path") != TASK_2_V2_RECEIPT_PATH:
+            errors.append(f"{name} reviewed candidate receipt path differs")
+        if candidate.get("sha256") != EXPECTED_V2_CANDIDATE_RECEIPT_SHA256:
+            errors.append(f"{name} reviewed candidate receipt digest differs")
+        if candidate.get(profile["candidate_status_field"]) != "PENDING_REQUIREMENTS_REVIEWS":
+            errors.append(f"{name} reviewed candidate receipt status differs")
+    for false_path in profile["false_paths"]:
+        if _nested(review, false_path) is not False:
+            errors.append(f"{name} v2 review false boundary differs at {'.'.join(false_path)}")
+
+    v1_preservation = review.get("v1_byte_preservation")
+    if not isinstance(v1_preservation, dict):
+        errors.append(f"{name} v2 review lacks v1 byte-preservation evidence")
+    elif (
+        v1_preservation.get("canonical_v1_paths_changed") != []
+        or v1_preservation.get("v2_index_declares_v1_canonical_replaced") is not False
+        or v1_preservation.get("asset_index_sha256_before_and_after")
+        != EXPECTED_PRODUCER["asset_index_sha256"]
+        or v1_preservation.get("ready_receipt_sha256_before_and_after")
+        != EXPECTED_TASK_2_RECEIPT_SHA256
+    ):
+        errors.append(f"{name} v2 review v1 byte-preservation evidence differs")
+    reviewed_assets = _asset_table(
+        _nested(review, profile["assets_path"]),
+        label=f"{name} reviewed v2 assets",
+        errors=errors,
+    )
+    if reviewed_assets is not None and reviewed_assets != asset_table:
+        errors.append(f"{name} reviewed v2 asset digest set differs")
+
+
 def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) -> str | None:
-    """Validate the additive T5a candidate without mutating Task 2 v1 history."""
+    """Validate reviewed T5a intake without claiming T5b/runtime readiness."""
 
     initial_error_count = len(errors)
     receipt_path = resolve(TASK_2_V2_RECEIPT_PATH, root=root)
@@ -419,10 +590,20 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
         errors.append(f"missing Plan 18 Task 2 v2 candidate receipt: {receipt_path}")
         return None
     receipt = load_json(receipt_path)
-    if receipt.get("receipt_status") != "PENDING_REQUIREMENTS_REVIEWS":
-        errors.append("Plan 18 Task 2 v2 candidate must remain pending requirements reviews")
-    if receipt.get("handoff_ready") is not False or receipt.get("production_ready") is not False:
-        errors.append("Plan 18 Task 2 v2 candidate cannot be handoff or production ready")
+    if receipt.get("receipt_status") != "REQUIREMENTS_REVIEWS_ACCEPTED":
+        errors.append("Plan 18 Task 2 v2 requirements-review intake status differs")
+    if receipt.get("requirements_review_status") != "ACCEPTED":
+        errors.append("Plan 18 Task 2 v2 requirements-review decision differs")
+    for field in (
+        "handoff_ready",
+        "loaded",
+        "engine_ready",
+        "runtime_ready",
+        "production_ready",
+        "immutable_toolkit_rc_ready",
+    ):
+        if receipt.get(field) is not False:
+            errors.append(f"Plan 18 Task 2 v2 {field} must remain false")
 
     expected_predecessor = {
         "asset_index": {
@@ -449,11 +630,10 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
     if not isinstance(producer, dict):
         errors.append("Plan 18 Task 2 v2 producer must be an object")
     else:
-        if (
-            producer.get("candidate_commit") is not None
-            or producer.get("worktree_clean") is not None
-        ):
-            errors.append("Plan 18 Task 2 v2 candidate contains future commit evidence")
+        if producer.get("candidate_commit") != EXPECTED_V2_PRODUCER_COMMIT:
+            errors.append("Plan 18 Task 2 v2 candidate commit differs")
+        if producer.get("worktree_clean") is not True:
+            errors.append("Plan 18 Task 2 v2 candidate clean-worktree evidence differs")
         if producer.get("source") != CURRENT_STRATEGY_CONTRACT_SOURCE:
             errors.append("Plan 18 Task 2 v2 canonical source path differs")
         source_path = _resolve_local_file(
@@ -467,8 +647,35 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
             if source_digest != producer.get("source_sha256"):
                 errors.append("Plan 18 Task 2 v2 canonical source bytes differ")
 
+    reviewed_candidate = receipt.get("reviewed_candidate_receipt")
+    expected_candidate = {
+        "commit": EXPECTED_V2_PRODUCER_COMMIT,
+        "path": TASK_2_V2_RECEIPT_PATH,
+        "sha256": EXPECTED_V2_CANDIDATE_RECEIPT_SHA256,
+        "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+        "handoff_ready": False,
+        "production_ready": False,
+    }
+    if reviewed_candidate != expected_candidate:
+        errors.append("Plan 18 Task 2 v2 reviewed candidate receipt binding differs")
+    expected_t5b_evidence = {
+        "commit": "560e9f5b80962df3307f855be7ceef70c3585bd7",
+        "focused_tests_passed": 49,
+        "production_pre_import_verifier_library_implemented": True,
+        "public_pre_import_receipt_library_emission_implemented": True,
+        "runtime_invocation_caller_wired": False,
+        "strategy_import_wired": False,
+        "current_head_full_make_verify_passed": False,
+    }
+    if receipt.get("t5b_implementation_evidence") != expected_t5b_evidence:
+        errors.append("Plan 18 Task 2 v2 T5b partial implementation evidence differs")
+
+    index_asset_table: dict[str, tuple[str, int]] | None = None
     index_ref = receipt.get("contract_asset_index")
-    if not isinstance(index_ref, dict) or index_ref.get("path") != TASK_2_V2_INDEX_PATH:
+    if not isinstance(index_ref, dict) or index_ref != {
+        "path": TASK_2_V2_INDEX_PATH,
+        "sha256": EXPECTED_V2_INDEX_SHA256,
+    }:
         errors.append("Plan 18 Task 2 v2 asset index reference differs")
     else:
         index_path = _resolve_local_file(
@@ -478,8 +685,7 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
             errors=errors,
         )
         if index_path is not None:
-            index_digest = hashlib.sha256(index_path.read_bytes()).hexdigest()
-            if index_digest != index_ref.get("sha256"):
+            if hashlib.sha256(index_path.read_bytes()).hexdigest() != EXPECTED_V2_INDEX_SHA256:
                 errors.append("Plan 18 Task 2 v2 asset index digest differs")
             index = _load_gate_json(
                 index_path, label="Plan 18 Task 2 v2 asset index", errors=errors
@@ -496,9 +702,13 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
                     and index.get("producer_source_sha256") != source_digest
                 ):
                     errors.append("Plan 18 Task 2 v2 index source digest differs")
+                index_asset_table = _asset_table(
+                    index.get("assets"),
+                    label="Plan 18 Task 2 v2 asset index",
+                    errors=errors,
+                )
                 for entry in index.get("assets", []):
                     if not isinstance(entry, dict):
-                        errors.append("Plan 18 Task 2 v2 asset entry is not an object")
                         continue
                     asset_path = _resolve_local_file(
                         entry.get("path"),
@@ -513,18 +723,43 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
                     if asset_path.stat().st_size != entry.get("size_bytes"):
                         errors.append(f"Plan 18 Task 2 v2 asset size differs: {asset_path}")
 
-    reviews = receipt.get("requirements_reviews")
-    expected_reviews = {"crucible_rust_plan_88", "philosophers_stone_plan_54"}
-    if not isinstance(reviews, dict) or set(reviews) != expected_reviews:
-        errors.append("Plan 18 Task 2 v2 pending requirements review set differs")
-    else:
-        for name, review in reviews.items():
-            if not isinstance(review, dict) or review != {
-                "status": "PENDING_REQUIREMENTS_REVIEW",
-                "receipt": None,
-            }:
-                errors.append(f"Plan 18 Task 2 v2 {name} contains future review evidence")
+    schema_ref = receipt.get("pre_import_receipt_schema")
+    if not isinstance(schema_ref, dict) or schema_ref != {
+        "path": TASK_2_V2_SCHEMA_PATH,
+        "sha256": EXPECTED_V2_SCHEMA_SHA256,
+    }:
+        errors.append("Plan 18 Task 2 v2 pre-import schema reference differs")
 
+    reviews = receipt.get("requirements_reviews")
+    if not isinstance(reviews, dict) or set(reviews) != set(V2_REVIEW_PROFILES):
+        errors.append("Plan 18 Task 2 v2 accepted requirements review set differs")
+    elif index_asset_table is not None:
+        for name, profile in V2_REVIEW_PROFILES.items():
+            _validate_v2_requirement_review(
+                name,
+                reviews[name],
+                profile=profile,
+                receipt=receipt,
+                asset_table=index_asset_table,
+                root=root,
+                errors=errors,
+            )
+
+    expected_blockers = ["clean current-HEAD full make verify"]
+    if receipt.get("open_blockers") != expected_blockers:
+        errors.append("Plan 18 Task 2 v2 open blocker set differs")
+    if receipt.get("next_scoped_handoff_status") != "READY_PRE_IMPORT_VERIFIER":
+        errors.append("Plan 18 Task 2 v2 next scoped handoff status differs")
+    if receipt.get("deferred_to_plan_19") != [
+        "runtime invocation caller",
+        "strategy import and loaded entry point",
+        "engine readiness and runtime lifecycle",
+    ]:
+        errors.append("Plan 18 Task 2 v2 Plan 19 deferral differs")
+    if receipt.get("downstream_open_work") != [
+        "Custos Plan 18 Task 6 immutable toolkit RC receipt"
+    ]:
+        errors.append("Plan 18 Task 2 v2 downstream work boundary differs")
     if len(errors) != initial_error_count:
         return None
     return source_digest

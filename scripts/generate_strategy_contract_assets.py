@@ -54,6 +54,39 @@ V2_NEGATIVE_PATH = "docs/authority/strategy-artifact-pre-import-lifecycle-negati
 V2_INDEX_PATH = "docs/authority/strategy-contract-assets-v2.json"
 V2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
 V1_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+V2_PRODUCER_COMMIT = "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2"
+V2_CANDIDATE_RECEIPT_SHA256 = "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
+V2_REQUIREMENTS_REVIEWS = {
+    "crucible_rust_plan_88": {
+        "canonical_name": (
+            "Crucible Plan 88 Custos Plan 18 T5a v2 pre-import requirements-only consumer review"
+        ),
+        "source_repository": "tesseract-trading/crucible-rust",
+        "source_path": (
+            "docs/authority/receipts/crucible-plan-88-custos-task-2-v2-requirements-review.json"
+        ),
+        "source_commit": "3f41f32d15c05f209e5462d460b8ae08433376d2",
+        "sha256": "2102b363b5c4751a2b2e20302ff010446764d783e56c2e1e2b2c1a6b580fc8ad",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/"
+            "crucible-plan-88-custos-task-2-v2-requirements-review.json"
+        ),
+    },
+    "philosophers_stone_plan_54": {
+        "canonical_name": (
+            "Philosophers-Stone Plan 54 Custos Plan 18 T5a v2 pre-import requirements review"
+        ),
+        "source_repository": "alchymia-labs/philosophers-stone",
+        "source_path": (
+            "docs/authority/receipts/ps-plan-54-custos-task-2-v2-requirements-review.json"
+        ),
+        "source_commit": "267e23bd500f1b465bee81b0b9b7c2f8c054c2aa",
+        "sha256": "8ac5597094ad0916e9aa4c254735132a87afbe96592772edd5dce4e709699822",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-v2-requirements-review.json"
+        ),
+    },
+}
 
 V1_IMMUTABLE_SHA256 = {
     V1_RECEIPT_PATH: "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88",
@@ -395,38 +428,77 @@ def build_assets() -> dict[str, bytes]:
     receipt = {
         "receipt_schema_version": 2,
         "canonical_name": "Custos Plan 18 Task 2 schema receipt v2",
-        "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+        "receipt_status": "REQUIREMENTS_REVIEWS_ACCEPTED",
+        "requirements_review_status": "ACCEPTED",
         "handoff_ready": False,
-        "scope": "T5a public pre-import contract candidate only",
+        "scope": "T5a requirements intake only; T5b production handoff remains open",
         "predecessor": index["predecessor"],
         "producer": {
             "repository": "tesseract-trading/custos",
             "source": str(SOURCE_MODEL.relative_to(ROOT)),
             "source_sha256": sha256(SOURCE_MODEL.read_bytes()),
-            "candidate_commit": None,
-            "worktree_clean": None,
+            "candidate_commit": V2_PRODUCER_COMMIT,
+            "worktree_clean": True,
+        },
+        "reviewed_candidate_receipt": {
+            "commit": V2_PRODUCER_COMMIT,
+            "path": V2_RECEIPT_PATH,
+            "sha256": V2_CANDIDATE_RECEIPT_SHA256,
+            "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+            "handoff_ready": False,
+            "production_ready": False,
+        },
+        "t5b_implementation_evidence": {
+            "commit": "560e9f5b80962df3307f855be7ceef70c3585bd7",
+            "focused_tests_passed": 49,
+            "production_pre_import_verifier_library_implemented": True,
+            "public_pre_import_receipt_library_emission_implemented": True,
+            "runtime_invocation_caller_wired": False,
+            "strategy_import_wired": False,
+            "current_head_full_make_verify_passed": False,
         },
         "contract_asset_index": {
             "path": V2_INDEX_PATH,
             "sha256": sha256(index_bytes),
         },
+        "pre_import_receipt_schema": {
+            "path": V2_SCHEMA_PATH,
+            "sha256": next(
+                entry["sha256"] for entry in index_entries if entry["path"] == V2_SCHEMA_PATH
+            ),
+        },
         "requirements_reviews": {
-            "crucible_rust_plan_88": {
-                "status": "PENDING_REQUIREMENTS_REVIEW",
-                "receipt": None,
-            },
-            "philosophers_stone_plan_54": {
-                "status": "PENDING_REQUIREMENTS_REVIEW",
-                "receipt": None,
-            },
+            name: {
+                "required_receipt_name": profile["canonical_name"],
+                "status": "ACCEPTED_REQUIREMENTS_REVIEW",
+                "receipt": {
+                    field: profile[field]
+                    for field in (
+                        "source_repository",
+                        "source_path",
+                        "source_commit",
+                        "sha256",
+                        "vendored_path",
+                    )
+                },
+            }
+            for name, profile in V2_REQUIREMENTS_REVIEWS.items()
         },
         "open_blockers": [
-            "exact Crucible requirements review",
-            "exact Philosophers-Stone requirements review",
-            "standalone implementation commit and clean exact-HEAD verification",
-            "Custos Plan 18 T5b production verifier close-out",
+            "clean current-HEAD full make verify",
         ],
+        "next_scoped_handoff_status": "READY_PRE_IMPORT_VERIFIER",
+        "deferred_to_plan_19": [
+            "runtime invocation caller",
+            "strategy import and loaded entry point",
+            "engine readiness and runtime lifecycle",
+        ],
+        "downstream_open_work": ["Custos Plan 18 Task 6 immutable toolkit RC receipt"],
+        "loaded": False,
+        "engine_ready": False,
+        "runtime_ready": False,
         "production_ready": False,
+        "immutable_toolkit_rc_ready": False,
     }
     assets[V2_RECEIPT_PATH] = json_bytes(receipt)
     return assets
@@ -445,6 +517,16 @@ def main() -> int:
     if immutable_drift:
         for relative in immutable_drift:
             print(f"immutable Task 2 v1 authority byte drifted: {relative}")
+        return 1
+    review_drift = [
+        profile["vendored_path"]
+        for profile in V2_REQUIREMENTS_REVIEWS.values()
+        if not (ROOT / profile["vendored_path"]).is_file()
+        or sha256((ROOT / profile["vendored_path"]).read_bytes()) != profile["sha256"]
+    ]
+    if review_drift:
+        for relative in review_drift:
+            print(f"accepted Task 2 v2 requirements review byte drifted: {relative}")
         return 1
     assets = build_assets()
     drift: list[str] = []

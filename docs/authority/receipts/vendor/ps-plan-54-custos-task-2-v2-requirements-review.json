@@ -1,0 +1,117 @@
+{
+  "schema_version": "alephain.ps-plan-54-custos-task-2-v2-requirements-review.v1",
+  "review_status": "ACCEPTED_REQUIREMENTS_REVIEW",
+  "reviewed_on": "2026-07-15",
+  "handoff_ready": false,
+  "production_ready": false,
+  "review_scope": {
+    "consumer": "Philosophers-Stone Plan 54",
+    "producer": "Custos Plan 18 T5a additive Task 2 v2 contract candidate",
+    "decision": "The exact v2 pre-import receipt contract is compatible with Plan 54's canonical StrategyRelease BOM producer boundary.",
+    "accepted_capability": "requirements compatibility only",
+    "does_not_accept": [
+      "Custos v2 handoff readiness",
+      "Custos Plan 18 T5b production verifier completion",
+      "Philosophers-Stone Plan 54 artifact or BOM completion",
+      "Python entry-point loading",
+      "engine construction or engine readiness",
+      "Crucible StrategyRelease acceptance",
+      "runtime or production readiness"
+    ]
+  },
+  "custos_producer_pin": {
+    "repository": "tesseract-trading/custos",
+    "commit": "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
+    "contract_asset_index": {
+      "path": "docs/authority/strategy-contract-assets-v2.json",
+      "sha256": "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+      "exact_git_blob_bytes_verified": true
+    },
+    "pre_import_receipt_schema": {
+      "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "sha256": "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463",
+      "exact_git_blob_bytes_verified": true
+    },
+    "task_2_v2_source_receipt": {
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
+      "sha256": "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0",
+      "observed_status": "PENDING_REQUIREMENTS_REVIEWS",
+      "observed_handoff_ready": false,
+      "observed_production_ready": false,
+      "observed_candidate_commit": null,
+      "preserved_without_upgrade": true
+    }
+  },
+  "pre_import_contract": {
+    "verification_phase": "before Python import",
+    "verification_profile": "custos-artifact-pre-import-verification-v1",
+    "plan_54_bom_bindings": [
+      "release_bom_digest",
+      "release_bom_members",
+      "strategy_release_id",
+      "artifact_ref",
+      "artifact_ref_digest",
+      "contract_schema_sha256"
+    ],
+    "command_identity_bindings": [
+      "deployment_instance_id",
+      "deployment_spec_id",
+      "deployment_spec_digest",
+      "generation",
+      "effective_config_digest"
+    ],
+    "verified_entry_point_required": true,
+    "loaded_entry_point_property_present": false,
+    "engine_ready_property_present": false,
+    "additional_properties_allowed": false,
+    "semantic_conclusion": "The receipt proves exact pre-import verification only. It neither imports strategy code nor establishes loaded, engine-ready, runtime-ready, or production-ready state."
+  },
+  "contract_assets": [
+    {
+      "kind": "pre_import_lifecycle_golden",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json",
+      "sha256": "3d36fb0effdd512d83574795cd92a463caabe85f6c227a3735b198da484cee7d",
+      "size_bytes": 15661
+    },
+    {
+      "kind": "golden_sha256_sidecar",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json.sha256",
+      "sha256": "2b8585f903999c4a2a95f94a64ba49dade5327d4db93128142d4bca1b8df2145",
+      "size_bytes": 120
+    },
+    {
+      "kind": "pre_import_lifecycle_negative_matrix",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json",
+      "sha256": "d554a0f95da2e8cba6f72616b7337d95c1878f23462a2df971a384a9b4c3678e",
+      "size_bytes": 64169
+    },
+    {
+      "kind": "negative_sha256_sidecar",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json.sha256",
+      "sha256": "551f0614a4967aa47b223d3850cfd230390e8664ecc5eeb720727bfbac595c6c",
+      "size_bytes": 122
+    },
+    {
+      "kind": "json_schema",
+      "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "sha256": "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463",
+      "size_bytes": 14396
+    }
+  ],
+  "v1_byte_preservation": {
+    "candidate_parent_commit": "c567f1dc7ee974acda31f042a48e3fb2833241ed",
+    "candidate_commit": "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
+    "canonical_v1_paths_changed": [],
+    "asset_index_sha256_before_and_after": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07",
+    "ready_receipt_sha256_before_and_after": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88",
+    "v2_index_declares_v1_canonical_replaced": false,
+    "conclusion": "The additive v2 contract preserves the v1 execution ABI, schemas, index, READY receipt, and legacy Python lane byte-for-byte."
+  },
+  "plan_54_compatibility": {
+    "accepted": true,
+    "reason": "Plan 54 remains the canonical BOM producer. The Custos receipt consumes the exact BOM digest and members as verification inputs and does not become a second BOM producer or a StrategyRelease business authority.",
+    "legacy_python_lane_changed": false,
+    "slice_gate_promoted": false,
+    "promotion_rule": "This review satisfies only the producer's Philosophers-Stone requirements-review blocker; all Plan 54 build, attestation, immutable RC, downstream receipt, and exact-byte gates remain open."
+  }
+}

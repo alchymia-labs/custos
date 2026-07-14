@@ -4,13 +4,26 @@
     "path": "docs/authority/strategy-contract-assets-v2.json",
     "sha256": "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc"
   },
-  "handoff_ready": false,
-  "open_blockers": [
-    "exact Crucible requirements review",
-    "exact Philosophers-Stone requirements review",
-    "standalone implementation commit and clean exact-HEAD verification",
-    "Custos Plan 18 T5b production verifier close-out"
+  "deferred_to_plan_19": [
+    "runtime invocation caller",
+    "strategy import and loaded entry point",
+    "engine readiness and runtime lifecycle"
   ],
+  "downstream_open_work": [
+    "Custos Plan 18 Task 6 immutable toolkit RC receipt"
+  ],
+  "engine_ready": false,
+  "handoff_ready": false,
+  "immutable_toolkit_rc_ready": false,
+  "loaded": false,
+  "next_scoped_handoff_status": "READY_PRE_IMPORT_VERIFIER",
+  "open_blockers": [
+    "clean current-HEAD full make verify"
+  ],
+  "pre_import_receipt_schema": {
+    "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+    "sha256": "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463"
+  },
   "predecessor": {
     "asset_index": {
       "path": "docs/authority/strategy-contract-assets-v1.json",
@@ -22,24 +35,57 @@
     }
   },
   "producer": {
-    "candidate_commit": null,
+    "candidate_commit": "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
     "repository": "tesseract-trading/custos",
     "source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
     "source_sha256": "5aa38841921cb29c085992c5f2babcb969977668a341dfcb983af942d3db1925",
-    "worktree_clean": null
+    "worktree_clean": true
   },
   "production_ready": false,
   "receipt_schema_version": 2,
-  "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+  "receipt_status": "REQUIREMENTS_REVIEWS_ACCEPTED",
+  "requirements_review_status": "ACCEPTED",
   "requirements_reviews": {
     "crucible_rust_plan_88": {
-      "receipt": null,
-      "status": "PENDING_REQUIREMENTS_REVIEW"
+      "receipt": {
+        "sha256": "2102b363b5c4751a2b2e20302ff010446764d783e56c2e1e2b2c1a6b580fc8ad",
+        "source_commit": "3f41f32d15c05f209e5462d460b8ae08433376d2",
+        "source_path": "docs/authority/receipts/crucible-plan-88-custos-task-2-v2-requirements-review.json",
+        "source_repository": "tesseract-trading/crucible-rust",
+        "vendored_path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-v2-requirements-review.json"
+      },
+      "required_receipt_name": "Crucible Plan 88 Custos Plan 18 T5a v2 pre-import requirements-only consumer review",
+      "status": "ACCEPTED_REQUIREMENTS_REVIEW"
     },
     "philosophers_stone_plan_54": {
-      "receipt": null,
-      "status": "PENDING_REQUIREMENTS_REVIEW"
+      "receipt": {
+        "sha256": "8ac5597094ad0916e9aa4c254735132a87afbe96592772edd5dce4e709699822",
+        "source_commit": "267e23bd500f1b465bee81b0b9b7c2f8c054c2aa",
+        "source_path": "docs/authority/receipts/ps-plan-54-custos-task-2-v2-requirements-review.json",
+        "source_repository": "alchymia-labs/philosophers-stone",
+        "vendored_path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-v2-requirements-review.json"
+      },
+      "required_receipt_name": "Philosophers-Stone Plan 54 Custos Plan 18 T5a v2 pre-import requirements review",
+      "status": "ACCEPTED_REQUIREMENTS_REVIEW"
     }
   },
-  "scope": "T5a public pre-import contract candidate only"
+  "reviewed_candidate_receipt": {
+    "commit": "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
+    "handoff_ready": false,
+    "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
+    "production_ready": false,
+    "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+    "sha256": "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
+  },
+  "runtime_ready": false,
+  "scope": "T5a requirements intake only; T5b production handoff remains open",
+  "t5b_implementation_evidence": {
+    "commit": "560e9f5b80962df3307f855be7ceef70c3585bd7",
+    "current_head_full_make_verify_passed": false,
+    "focused_tests_passed": 49,
+    "production_pre_import_verifier_library_implemented": true,
+    "public_pre_import_receipt_library_emission_implemented": true,
+    "runtime_invocation_caller_wired": false,
+    "strategy_import_wired": false
+  }
 }
