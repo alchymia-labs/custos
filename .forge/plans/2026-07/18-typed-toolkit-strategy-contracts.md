@@ -534,6 +534,40 @@ RED -> GREEN evidence:
   `make check-authority`, Ruff format/lint and JSON schema gates PASS; immutable v1/v2
   strategy-contract indexes remain exactly `d87d6fc2...` / `6fd49708...`.
 
+#### T6b: Reproducible toolkit RC build candidate inputs
+
+T6b adds a dedicated candidate-only build seam and workflow. It archives the exact
+source commit into two independent staging roots, applies the same immutable
+`0.1.0rcN` metadata transform, fixes `SOURCE_DATE_EPOCH`, and invokes Hatchling through
+`uv build --offline`. Base and Nautilus are each built twice; exact wheel bytes and
+SHA-256 digests must match before any manifest input is emitted.
+
+The seam validates base Python `>=3.11`, Nautilus Python `>=3.12,<3.13`, exact
+`nautilus-trader==1.230.0`, the same-version base dependency, no editable/path
+dependencies, and no top-level `shared` or `pandas_ta`. Coordinates include the RC
+version, filename and exact digest. Outputs are immutable runner-local files; an
+existing output root fails closed. The dedicated read-only workflow uses a
+pre-provisioned offline builder and leaves wheels, per-member SBOM inputs and the build
+manifest input under `$RUNNER_TEMP` only.
+
+RED -> GREEN evidence:
+
+- RED: the public build seam import failed because `scripts/toolkit_rc_build.py` did
+  not exist.
+- RED: the first real offline build failed because `--no-build-isolation` exposed that
+  Hatchling was absent from the test environment. The correction retained `--offline`
+  while allowing uv to create an isolated backend from its local cache.
+- RED: the dedicated workflow contract failed because
+  `.github/workflows/toolkit-rc-reproducibility.yml` did not exist.
+- GREEN: four focused tests PASS in `1.69s`; they perform four real wheel builds and
+  prove byte/digest identity, metadata/dependency/top-level/SBOM policy, immutable
+  output behavior and workflow authority limits. Ruff format/lint, generated-contract
+  drift, `make check-authority`, extraction `241/241`, and T4b strict-zero gates PASS.
+
+T6b creates no committed wheel, registry access, upload, READY toolkit receipt,
+Sigstore bundle, final SBOM, strategy artifact, `StrategyReleaseBomV1`, runtime claim or
+production authority. Those remain in the open T6 release slices.
+
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
 2. 发布不可覆盖的 toolkit `0.1.0rcN` artifacts；失败时递增 rc，不覆盖旧制品。
@@ -632,6 +666,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T4b Extracted typing closure | [x] | 2026-07-15 | exact implementation `5a19a816d4f6d90e7d3fbde80d39f562decd8c4b`; clean exact-HEAD `make verify` 508 passed, 4 skipped, 1 xfailed; assets/extraction 241/241/authority/closure PASS; strict mypy 0/40 base and 0/59 adapter; receipt `READY_TYPING_CLOSURE`, handoff limited to T4b; T5/T6 still block 18b production readiness |
 | T5 Verifier/attestation | [x] | 2026-07-15 | Scoped `READY_PRE_IMPORT_VERIFIER`: producer `f3adde2...`, index `6fd49708...`, schema `d6e21b0a...`, Crucible review `3f41f32...`, PS review `267e23b...`, implementation `560e9f5...`, and exact verification HEAD `a856455...` (528 passed/4 skipped/1 xfailed; all authority/typing/extraction gates PASS); handoff covers schema + verifier library only, while loaded/engine/runtime/production remain false and runtime invocation stays Plan19 |
 | T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
+| T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
 | T6 Toolkit candidate | [ ] | — | START gate open; Custos-owned immutable base/Nautilus toolkit RC receipt only; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not START gates |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |

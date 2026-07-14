@@ -1,0 +1,41 @@
+name: Toolkit RC reproducibility candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_version:
+        description: Immutable version in the form 0.1.0rcN
+        required: true
+        default: 0.1.0rc1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-candidate:
+    # This lane is deliberately pre-provisioned with uv and the locked build backend.
+    # The build command itself is offline and leaves all candidate bytes runner-local.
+    runs-on: [self-hosted, linux, x64, custos-release]
+    env:
+      SOURCE_DATE_EPOCH: '1704067200'
+    steps:
+      - name: Check out the exact workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify pre-provisioned offline build tools
+        run: |
+          command -v uv
+          uv --version
+
+      - name: Build and compare isolated toolkit wheel sets
+        run: |
+          python scripts/toolkit_rc_build.py \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --source-commit "${{ github.sha }}" \
+            --source-date-epoch "$SOURCE_DATE_EPOCH" \
+            --candidate-version "${{ inputs.candidate_version }}" \
+            --output-root "$RUNNER_TEMP/toolkit-rc-${{ inputs.candidate_version }}"
