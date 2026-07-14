@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — plan repaired; implementation not started
+> **Status**: ⏳ In progress — Task 1-2 static assets implemented; receipts and verification pending
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-14 after v1.team authority and execution-readiness review
 > **Project**: Custos
@@ -19,8 +19,8 @@ Custos 当前仍把公共策略实现放在：
 
 ```text
 src/custos/engines/nautilus/toolkit/
-├── shared/             160 files
-└── vendor/pandas_ta/   299 files
+├── shared/              91 deterministic source inputs
+└── vendor/pandas_ta/   150 deterministic source inputs
 ```
 
 当前实现通过 `sys.path` 暴露顶层 `shared.*`，注册伪造的 `pkg_resources`
@@ -35,7 +35,7 @@ distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Cu
 3. 根 package Python 基线被错误提升到 3.12。
 4. source-path 与 production wheel 混成同一发布模型。
 5. attestation 缺少 issuer、workflow、bundle 和 trust-policy binding。
-6. 459 个 donor/vendor 文件、契约、发布、四仓切换被当作单次原子任务。
+6. 241 个当前 donor/vendor deterministic source inputs、契约、发布、四仓切换被当作单次原子任务。
 
 本修订直接替换错误决策。旧文本只由 Git history 保留，不作为兼容契约。
 
@@ -328,7 +328,7 @@ git commit -m "docs(custos): repair plan 18 authority and execution contracts"
 
 ### Task 1: Freeze read-only migration inventory and ownership
 
-1. 为 459 个 donor/vendor 文件生成 machine-readable inventory。
+1. 为当前 241 个 donor/vendor deterministic source inputs 生成 machine-readable inventory。
 2. 分类为 platform-neutral、Nautilus-specific、private vendor、PS-owned strategy、
    PS-owned Hummingbot 或 delete。
 3. 写失败测试，拒绝顶层 `shared`/`pandas_ta`、path mutation 和双 canonical source。
@@ -398,7 +398,7 @@ git commit -m "feat(toolkit): create typed strategy toolkit distribution"
 - 保持 strategy business source unchanged；
 - 禁止 `sys.path` mutation 和 fake distribution；
 - 记录 semantic diff 与 fixed-input behavior parity；
-- 独立提交，避免 459 文件一次性不可审查迁移。
+- 独立提交，避免 241 个 source inputs 一次性不可审查迁移。
 
 ### Task 5: Implement artifact verifier and attestation policy
 
@@ -521,7 +521,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | AUTHORITY | StrategyRelease | 撤回 Custos-owned selection/release implication，恢复 Crucible authority | Accepted 2026-07-14 |
 | BASELINE | Python | 撤回全 package >=3.12；contracts/core >=3.11，NT extra >=3.12 | Accepted 2026-07-14 |
 | SECURITY | Artifact mode | production signed wheel 与 sandbox source-path 分离 | Accepted 2026-07-14 |
-| SCOPE | Migration | 459-file migration 改为 inventory-backed reviewable batches | Accepted 2026-07-14 |
+| SCOPE | Migration | 241-input migration 改为 inventory-backed reviewable batches | Accepted 2026-07-14 |
 | LIFECYCLE | Release/spec | StrategyRelease 独立于 DeploymentSpec；command 才聚合 runtime provenance | Accepted 2026-07-14 |
 | PACKAGING | Python split | extra-specific Requires-Python 不可安全表达，改为两个 distributions | Accepted 2026-07-14 |
 | SECURITY | Config/trust | effective config deep-freeze；trust root 只来自 local signed release config | Accepted 2026-07-14 |
