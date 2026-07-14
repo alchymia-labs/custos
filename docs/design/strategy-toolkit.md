@@ -51,9 +51,10 @@ select, trust roots. Verification and safe extraction precede import.
 
 ## Python and inventory
 
-The base/contracts distribution supports Python >=3.11. The separate Nautilus
-distribution requires Python >=3.12,<3.13, exact matching base version, and
-`nautilus-trader==1.230.0`; Python 3.11 resolution must fail rather than omit NT.
+The `custos-strategy-toolkit` base/contracts distribution supports Python
+>=3.11. The separate `custos-strategy-toolkit-nautilus` distribution requires
+Python >=3.12,<3.13, exact matching base version, and `nautilus-trader==1.230.0`;
+Python 3.11 resolution must fail rather than omit NT.
 
 `docs/authority/strategy-toolkit-inventory-v1.json` classifies every current
 deterministic input below legacy `shared/` and `vendor/`. There are 241 inputs:
