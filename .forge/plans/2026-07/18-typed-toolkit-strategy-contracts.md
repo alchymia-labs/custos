@@ -8,8 +8,8 @@
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
 > **multi_session_scope**: `true`
 > **Depends on**: revised PS Plan 53 authority boundary
-> **Hard gates**: cross-repo requirements review before schema freeze; Crucible StrategyRelease receipt before final release
-> **Soft depends on**: PS Plan 54, Speculum Plan 01, Custos Plan 19 integration receipt
+> **Hard gates**: Crucible/PS requirements review before schema freeze; PS Plan 54 immutable artifact/BOM receipt; Crucible Plan 88 StrategyRelease acceptance before Custos verifier/runtime cutover
+> **Soft depends on**: Custos Plan 19 integration receipt
 > **Original plan-first**: `b898ee1`; this live-plan revision supersedes its erroneous decisions
 > **Cross-repo dependency name**: external plans must depend on `Custos Plan 18 Task 2 schema receipt`, never on an internal `18a` slice alias
 
@@ -25,7 +25,7 @@ src/custos/engines/nautilus/toolkit/
 
 当前实现通过 `sys.path` 暴露顶层 `shared.*`，注册伪造的 `pkg_resources`
 distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Custos
-存在公共实现权威漂移，Speculum 还通过 sibling PS checkout 动态加载策略。
+存在公共实现权威漂移。
 
 原 Plan 18 的方向正确，但审查确认以下设计不能执行：
 
@@ -50,7 +50,7 @@ distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Cu
 - Nautilus toolkit 的单一 canonical implementation；
 - 对现有 NT 策略业务源码的 zero-rewrite 迁移；
 - Crucible StrategyRelease authority 下的 exact artifact execution；
-- PS、Speculum、Crucible 和 Custos 的 producer/consumer receipts。
+- Custos、PS 和 Crucible v1.team artifact chain 的 staged producer/consumer receipts。
 
 本计划不拥有 StrategyRelease、artifact selection、最终 effective config、部署审批、
 组合风控、资本分配或结算。
@@ -65,10 +65,16 @@ distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Cu
 | StrategyRelease lifecycle | Crucible | 消费 Custos schema receipt，生产 released artifact binding |
 | Artifact selection and manifest digest | Crucible | 不根据 `strategy_key` 自行选择 artifact |
 | Final effective config | Crucible | ABI 仅接收已签名命令绑定的 config |
-| Backtest catalog and policy | Speculum | 提供只读 manifest/artifact consumer contract |
 | Advisory strategy sizing | Toolkit/strategy | 非授权建议，不可放宽 mandatory safety |
 | Mandatory local safety | Custos runtime | Plan 19 执行 signed policy |
 | Canonical portfolio/risk policy | Crucible | Plan 18 不实现 D2-D4 |
+
+### Independent legacy compatibility lane
+
+现有 PS `build-image.sh` -> Crucible Python image 发布/部署链继续保留为独立
+compatibility lane。它不消费或生产 Custos execution ABI、artifact schema 或 receipt，
+不属于 v1.team artifact chain，不得作为 team fallback、验收证据或 close-out gate；
+Plan 18 也不要求删除、迁移或阻断该链。
 
 `strategy_key` 只能是作者侧 catalog alias。它不是授权 ID、release ID、runtime
 address 或幂等 key。
@@ -137,7 +143,7 @@ alephain.strategy_runtime.v1
 
 本计划不在 plan 文本中提前冻结未经 producer/consumer requirements review 的完整
 `StrategyManifestV1` 或 `StrategyArtifactRefV1` 字段表。Task 2 由 Custos 生产
-versioned JSON Schema；Crucible、PS 和 Speculum 必须先确认 requirements。随后
+versioned JSON Schema；Crucible 和 PS 必须先确认 requirements。随后
 Crucible Plan 88 消费 exact schema bytes/hash，并拥有 StrategyRelease business binding。
 
 不可降级要求：
@@ -200,7 +206,7 @@ receipts 失效。禁止使用“一个 candidate digest”代表多制品 relea
 | `custos_toolkit` platform-neutral modules | Python `>=3.11` |
 | `custos-strategy-toolkit` base/contracts distribution | Python `>=3.11` |
 | `custos-strategy-toolkit-nautilus` distribution | Python `>=3.12,<3.13`, exact NT `==1.230.0` |
-| PS/Speculum Nautilus acceptance | Python 3.12, exact NT `1.230.0` |
+| PS Nautilus artifact acceptance | Python 3.12, exact NT `1.230.0` |
 
 Importing `custos_toolkit.contracts` on Python 3.11 must not load NautilusTrader,
 modify `sys.path` or execute strategy code.
@@ -249,10 +255,12 @@ packages/custos-strategy-toolkit-nautilus/
     └── _vendor/
         └── pandas_ta/   # private implementation detail
 
-PS build ───────────────> signed strategy artifact
-Crucible StrategyRelease ─> exact selected artifact/digests/effective config
-Custos verifier ─────────> verify then load fixed entry point
-Speculum ─────────────────> verified artifact backtest consumer
+Custos Task 2 schema/toolkit ─> PS Plan 54 immutable artifact/BOM
+PS Plan 54 artifact/BOM ─────> Crucible Plan 88 StrategyRelease acceptance
+Crucible StrategyRelease ────> Custos verifier/runtime exact-artifact execution
+
+PS build-image.sh ───────────> Crucible Python image publication/deployment
+                               (independent compatibility lane; non-gating)
 ```
 
 ## File Inventory
@@ -268,7 +276,7 @@ Speculum ─────────────────> verified artifact 
 | `tests/test_toolkit_distribution.py` | 新增 | namespace/import/wheel gates |
 | `tests/test_toolkit_contracts.py` | 新增 | schema/runtime identity gates |
 | `tests/test_toolkit_zero_rewrite.py` | 新增 | semantic/behavior parity |
-| `tests/test_toolkit_consumer_receipts.py` | 新增 | 四仓 exact receipts |
+| `tests/test_toolkit_consumer_receipts.py` | 新增 | v1.team artifact-chain exact receipts |
 | `.github/workflows/release-toolkit.yml` | 新增 | reproducible build/sign/release |
 | `pyproject.toml`, `uv.lock` | 修改 | workspace 与两个 distribution 的 disjoint Python baselines |
 | `CHANGELOG.md` | 修改 | candidate/final release notes |
@@ -287,7 +295,11 @@ Speculum ─────────────────> verified artifact 
 | 18a Contract authority | T1-T2 | inventory、authority docs、source-generated schemas、lossless lifecycle mapping、Task 2 receipt 和 `make check-authority` 全部 PASS | schema/receipt commit 与 handoff packet 未记录前不得开始 18b |
 | 18b Extraction and verification | T3-T5 | 两个 distributions 可独立构建；3.11 negative install、zero-rewrite、deep-frozen config、attestation-before-import gates PASS | 18a exact Task 2 receipt 未锁定，或任一 migration batch 未有 parity evidence 时停止 |
 | 18c Immutable RC | T6 | reproducible RC、完整 release BOM、签名、SBOM、local trust-policy binding PASS | RC BOM/成员 digests 未固定前不得请求 consumer receipt |
-| 18d Consumer cutover | T7-T9 | 四方 candidate/final receipts、final BOM、旧 authority 删除、close-out gates PASS | 任一 BOM 成员变化或 receipt 不匹配立即停止并发布新 RC |
+| 18d Consumer cutover | T7-T9 | PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime candidate/final receipts、final BOM、旧 authority 删除、close-out gates PASS | 仅 v1.team artifact-chain BOM/receipt 不匹配会停止并发布新 RC；不得等待 Speculum |
+
+18d START 只要求 18c immutable RC、PS Plan 54 immutable artifact/BOM receipt 和
+Crucible Plan 88 StrategyRelease acceptance。Speculum plan、receipt 或运行结果不是 START、
+STOP、candidate/final acceptance 或 Plan 18 close-out 输入。
 
 每个 session 只能推进一个 slice。每个 slice 结束必须提交 handoff packet，至少记录：
 
@@ -296,6 +308,8 @@ Speculum ─────────────────> verified artifact 
 3. schema、wheel、BOM、attestation、SBOM 和 source digests；
 4. deviations、剩余 blockers 和下一 slice 的 immutable inputs；
 5. authority drift 检查结果。
+6. 下一 slice 的 START/STOP evidence；只记录 canonical v1.team artifact-chain receipts，
+   不把 Speculum 或 legacy compatibility lane 写成 gate。
 
 Slice 可独立 close out，但不能把 slice PASS 冒充整个 Plan 18 Completed。
 
@@ -330,7 +344,7 @@ git commit -m "docs(toolkit): freeze extraction inventory and authority"
 
 ### Task 2: Coordinate and freeze versioned contracts
 
-Hard gate：Crucible、PS 和 Speculum 必须分别确认 producer/consumer requirements。
+Hard gate：Crucible 和 PS 必须分别确认 producer/consumer requirements。
 Custos 是 execution ABI/artifact schema producer；本 Task 的 receipt 是 Crucible
 Plan 88 的输入，而不是反向依赖 Plan 88 完成。
 
@@ -341,7 +355,7 @@ Plan 88 的输入，而不是反向依赖 Plan 88 完成。
 3. 生成 versioned JSON Schema；schema 与实现来自同一 source model。
 4. 生成 lossless mapping golden：ArtifactRef → StrategyRelease → DeploymentSpec →
    signed command → Custos verifier receipt；明确 release 独立于 spec。
-5. 记录 Custos producer SHA、schema digest 和三方 requirements-review receipts；该
+5. 记录 Custos producer SHA、schema digest 和 Crucible/PS requirements-review receipts；该
    artifact 的 canonical 名称是 `Custos Plan 18 Task 2 schema receipt`。
 6. 运行 `make check-authority` 并记录 PASS。
 7. 明确 schema 不授予 release/selection authority。
@@ -416,22 +430,25 @@ git commit -m "feat(toolkit): verify signed strategy artifacts"
 git commit -m "build(toolkit): publish strategy toolkit candidate"
 ```
 
-### Task 7: Collect four-party receipts
+### Task 7: Collect v1.team artifact-chain receipts
 
 必须全部指向 exact candidate release BOM digest 和完整 BOM member digests：
 
-- Crucible：StrategyRelease selection、manifest digest、DeploymentSpec provenance producer；
-- PS：existing strategy zero-rewrite build/consumer；
-- Speculum：verified discovery and backtest；
+- PS Plan 54：existing strategy zero-rewrite immutable artifact/BOM producer；
+- Crucible Plan 88：StrategyRelease acceptance、manifest digest 和 exact BOM binding；
+- Custos verifier/runtime：attestation-before-import 与 exact-artifact execution；
 - Custos Plan 19：signed command exact-artifact runner integration。
 
 任一 BOM member 或 canonical BOM bytes 变化使全部 receipt 失效。
+Speculum 不生产本 Task receipt，也不 gate candidate、final 或 close-out。PS legacy
+`build-image.sh` compatibility lane 不得替代上述任何 receipt。
 
 ### Task 8: Final release and consumer cutover
 
 1. 构建 final version 和全新 final release BOM，重新执行完整 receipts，不继承 RC PASS。
-2. Crucible/PS/Speculum/Custos 锁定 exact final BOM 和全部 member digests。
-3. 确认无 active consumer 后删除旧 vendored toolkit 和 compatibility adapter。
+2. PS、Crucible 和 Custos 锁定 exact final BOM 和全部 member digests。
+3. 确认无 active consumer 后删除 Custos 旧 vendored toolkit 和 in-repo compatibility adapter；
+   不以删除或迁移 PS legacy `build-image.sh` compatibility lane 为前提。
 4. 禁止重建或重指向历史 Custos image/tag。
 
 提交：
@@ -468,11 +485,13 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [ ] attestation 绑定 issuer/workflow/bundle/trust policy
 - [ ] trust roots/policy 只来自 runner-local signed release configuration
 - [ ] candidate/final receipts 绑定 release BOM 和全部 member digests
-- [ ] schema 由 source model 生成并经四方 review
+- [ ] schema 由 source model 生成并经 Crucible/PS requirements review
 - [ ] wheel 不提供顶层 `shared` 或 `pandas_ta`
 - [ ] import 不修改 `sys.path`
 - [ ] existing NT strategy business source zero-rewrite
-- [ ] Crucible、PS、Speculum、Custos receipts 指向 exact digest
+- [ ] PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime receipts 指向 exact BOM/member digests
+- [ ] Speculum 不属于 START/STOP、candidate/final acceptance 或 close-out gate
+- [ ] PS legacy `build-image.sh` -> Crucible Python image 链保留为独立 compatibility lane，且不作为 team fallback 或验收证据
 - [ ] toolkit advisory risk 不冒充 Custos/Crucible authority
 - [ ] final 重新锁定并重新验证
 - [ ] `make check-authority` 覆盖并通过 toolkit schema/BOM/ownership drift
@@ -514,7 +533,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - Production packages: 2 independent distributions with disjoint Python baselines
 - Runtime identities: 1 address + 3 provenance/ordering fields
 - Canonical execution slices: 4; migration batches inside 18b: at least 4
-- Required external receipts: Crucible, PS, Speculum, Custos
+- Required v1.team receipts: Custos Task 2 schema, PS Plan 54 artifact/BOM, Crucible Plan 88 StrategyRelease acceptance, Custos verifier/runtime; Speculum receipts: 0
 - Release integrity: canonical BOM digest plus every member digest; no single candidate digest
 - Release stages: immutable RC and independently reverified final
 - Out of scope: StrategyRelease, approvals, portfolio risk, capital, settlement
