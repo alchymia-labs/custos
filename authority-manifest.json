@@ -12,6 +12,7 @@
     {"role": "strategy_contract_asset_index", "path": "docs/authority/strategy-contract-assets-v1.json"},
     {"role": "strategy_artifact_lifecycle_golden", "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"},
     {"role": "plan_18_task_2_receipt", "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"},
+    {"role": "plan_18_task_3_distribution_receipt", "path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"},
     {"role": "plan_18_task_2_crucible_requirements_review", "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"},
     {"role": "plan_18_task_2_ps_requirements_review", "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"},
     {"role": "strategy_execution_context_schema", "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json"},
@@ -52,6 +53,7 @@
       "docs/gateway-contract/v1/README.md",
       "docs/gateway-contract/v1/deployment_spec.schema.json",
       "src/custos/contracts/deployment.py",
+      "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
       "src/custos/contracts/strategy_execution.py",
       "src/custos/core/nats_client.py",
       "src/custos/core/deployment_reconciler.py",
@@ -84,6 +86,7 @@
     {"path": "docs/design/strategy-toolkit.md", "must_contain": ["deployment_instance_id", "StrategyReleaseBomV1", "custos-strategy-toolkit-nautilus", "independent compatibility lane"]},
     {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]},
     {"path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
-    {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]}
+    {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
+    {"path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json", "must_contain": ["Custos Plan 18 Task 3 distribution and canonical-source receipt", "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py", "custos-strategy-toolkit-nautilus", "nautilus-trader==1.230.0"]}
   ]
 }

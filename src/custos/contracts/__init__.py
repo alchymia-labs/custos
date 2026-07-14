@@ -1,18 +1,6 @@
 """Stable public contracts for deployment producers and consumers."""
 
-from custos.contracts.deployment import (
-    DEPLOYMENT_SPEC_DIGEST_ALGORITHM,
-    CrucibleDomainEventVerifier,
-    DeploymentMessage,
-    DeploymentSpec,
-    LifecycleState,
-    ProvenanceRef,
-    SandboxConfig,
-    TradingMode,
-    canonical_deployment_spec_digest,
-    compute_strategy_code_hash,
-)
-from custos.contracts.strategy_execution import (
+from custos_toolkit.contracts.strategy_execution import (
     ArtifactMemberRole,
     ArtifactMemberV1,
     AttestationEvidenceV1,
@@ -28,6 +16,19 @@ from custos.contracts.strategy_execution import (
     deep_freeze_json,
     parse_and_freeze_json_object,
     verify_effective_config_digest,
+)
+
+from custos.contracts.deployment import (
+    DEPLOYMENT_SPEC_DIGEST_ALGORITHM,
+    CrucibleDomainEventVerifier,
+    DeploymentMessage,
+    DeploymentSpec,
+    LifecycleState,
+    ProvenanceRef,
+    SandboxConfig,
+    TradingMode,
+    canonical_deployment_spec_digest,
+    compute_strategy_code_hash,
 )
 
 __all__ = [

@@ -25,4 +25,11 @@ canonical release BOM; Crucible owns StrategyRelease and artifact selection.
 The `Custos Plan 18 Task 2 schema receipt` is usable only when READY with exact
 producer, review, asset-digest, and fresh authority-check evidence.
 
+Task 2 remains immutable historical review evidence. After Plan 18 T3, the
+current contract implementation is
+`packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.
+`docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json` binds that
+canonical path to the reviewed Task 2 source digest; the old module path is only
+a non-canonical re-export shim.
+
 Run make check-authority after changing ownership or protocols.

@@ -299,6 +299,15 @@ PS build-image.sh ───────────> Crucible Python image publi
 | 18c Immutable RC | T6 | reproducible RC、完整 release BOM、签名、SBOM、local trust-policy binding PASS | RC BOM/成员 digests 未固定前不得请求 consumer receipt |
 | 18d Consumer cutover | T7-T9 | PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime candidate/final receipts、final BOM、旧 authority 删除、close-out gates PASS | 仅 v1.team artifact-chain BOM/receipt 不匹配会停止并发布新 RC；不得等待 Speculum |
 
+18b 的 production-ready 声明只在 T3-T5 整体 DoD 全部满足后成立。T3 单独完成只建立
+distribution 和 typing boundary，不得标记 18b production-ready，也不得冒充 artifact verifier
+或 runtime cutover 已完成。
+
+T4 必须把 canonical implementation **move** 到两个新 distributions。旧
+`src/custos/engines/nautilus/toolkit/` 在迁移期间最多保留不含 implementation 的临时 shim；
+不得留下第二份 writable canonical source。该 shim 不是 v1.team fallback，并必须在 T8
+consumer cutover 后删除。
+
 18d START 只要求 18c immutable RC、PS Plan 54 immutable artifact/BOM receipt 和
 Crucible Plan 88 StrategyRelease acceptance。Speculum plan、receipt 或运行结果不是 START、
 STOP、candidate/final acceptance 或 Plan 18 close-out 输入。
@@ -509,7 +518,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T0R Execution-readiness correction | [x] | 2026-07-14 | `cccf8b2`, `ad49872`, and `bdd516c` corrected review topology, removed the Speculum gate, and reconciled the 241-input baseline |
 | T1 Inventory/authority | [x] | 2026-07-14 | inventory/authority baseline landed in `877a52a`; current reviewed candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` passed focused and full authority gates |
 | T2 Coordinated contracts | [x] | 2026-07-14 | READY receipt pins candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`, source `71990c6a...`, index `d87d6fc2...`, both exact requirements reviews, and clean verification checkout `f6406ea1...` |
-| T3 Minimal distribution | [ ] | — | after T2 interface boundary |
+| T3 Minimal distribution | [ ] | — | implementation and focused verification PASS 2026-07-15; exact commit and slice handoff still pending, so T3/18b remain open |
 | T4 Zero-rewrite extraction | [ ] | — | batch commits required |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
 | T6 Candidate | [ ] | — | immutable rc |
@@ -535,6 +544,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | PROGRESS | 18a implementation baseline | `877a52a` 已落 T1/T2 static assets，但 failure gates、外部 reviews、fresh verification、READY receipt 和 handoff 尚未完成，因此 T1/T2 统一标记 partial | Recorded 2026-07-15 |
 | PROVENANCE | Task 2 candidate refresh | 格式化后的 source/index 以 `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` 重新冻结，并由 Crucible `9085d8d...` 与 PS `7f07c09...` exact-byte requirements reviews 重新接受 | Closed 2026-07-15 |
 | SCOPE | Task 2 READY ceiling | READY 仅证明 execution ABI/schema/inventory/golden handoff；不证明 toolkit wheel、BOM、OIDC/signing、runtime verifier、Plan 88 completion 或 production readiness | Recorded 2026-07-15 |
+| EXECUTION | 18b production-ready boundary | 明确 T3 单独只建立 distribution boundary；只有 T3-T5 整体 DoD PASS 才可声明 18b production-ready | Accepted 2026-07-15 |
+| AUTHORITY | T4 canonical move | 241 个 canonical implementations 必须 move 到新 distributions；旧树只能临时保留无实现 shim，并在 T8 删除 | Accepted 2026-07-15 |
 
 ## Slice 18a handoff and Task 2 READY provenance
 

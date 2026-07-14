@@ -5,6 +5,7 @@ description = "Custos: non-custodial runner with signed Crucible commands, local
 requires-python = ">=3.11"
 dependencies = [
     "cryptography>=42",
+    "custos-strategy-toolkit==0.1.0",
     "nats-py>=2.9",
     "pydantic>=2.5",
     "structlog>=24",
@@ -14,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "jsonschema>=4.20",
+    "mypy>=1.15",
     "pyyaml>=6",
     "pytest>=8",
     "pytest-asyncio>=0.24",
@@ -27,14 +29,7 @@ dev = [
 # `uv sync --extra nautilus` (needs a 3.12+ interpreter) or
 # `pip install custos-runner[nautilus]`.
 nautilus = [
-    "nautilus-trader>=1.227; python_version >= '3.12'",
-    "pyyaml>=6",
-    # Transitive pins for the vendored pandas_ta indicator library
-    # (toolkit/vendor/pandas_ta). It imports `from pkg_resources import ...`
-    # (removed from setuptools 70+) and `from packaging import ...`; without
-    # these pins the vendored library fails to import at runtime.
-    "setuptools>=50,<70",
-    "packaging",
+    "custos-strategy-toolkit-nautilus==0.1.0",
 ]
 # Reserved slots for future engine backends (custos/engines/<name>/, see
 # docs/engines/<name>.md onboarding stubs). Each fills in when its engine
@@ -92,6 +87,16 @@ package = true
 # (uv only installs what a given `--extra` selects), but the resolver still
 # walks every optional-dependencies group when building the lock.
 prerelease = "allow"
+
+[tool.uv.workspace]
+members = [
+    "packages/custos-strategy-toolkit",
+    "packages/custos-strategy-toolkit-nautilus",
+]
+
+[tool.uv.sources]
+custos-strategy-toolkit = { workspace = true }
+custos-strategy-toolkit-nautilus = { workspace = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

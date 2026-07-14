@@ -1,0 +1,25 @@
+[project]
+name = "custos-strategy-toolkit"
+version = "0.1.0"
+description = "Custos-owned strategy execution contracts and platform-neutral toolkit"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/custos_toolkit"]
+
+[tool.mypy]
+strict = true
+# The Task 2 reviewed source bytes contain one narrowing cast which mypy 2.x
+# now reports as redundant. Preserve the exact reviewed SHA during the T3 move;
+# remove this narrow exception when a versioned contract-source change is reviewed.
+disable_error_code = ["redundant-cast"]
+python_version = "3.11"
+mypy_path = "src"
+files = ["src/custos_toolkit"]

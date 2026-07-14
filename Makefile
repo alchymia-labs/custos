@@ -3,7 +3,7 @@
 # Standalone open-source repository entrypoint. Standardized validation targets
 # keep shell execution deterministic and avoid permission drift from ad-hoc commands.
 
-.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check strategy-contract-assets check-strategy-contract-assets dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
+.PHONY: help install install-nt install-lts fmt fmt-check lint check toolkit-typecheck test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check strategy-contract-assets check-strategy-contract-assets dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
 
 # Default target: help
 .DEFAULT_GOAL := help
@@ -12,22 +12,26 @@ help:  ## List all targets and descriptions
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install:  ## Install dependencies (dev extra) — uv sync --extra dev
-	uv sync --extra dev
+	uv sync --package custos-runner --extra dev
 
 install-nt:  ## Install dependencies + NT runtime (requires Python 3.12+) — uv sync --extra dev --extra nautilus
-	uv sync --extra dev --extra nautilus
+	uv sync --python 3.12 --package custos-runner --extra dev --extra nautilus
 
 install-lts:  ## Install release-engineering LTS toolchain (sigstore + pytest-docker)
 	uv sync --extra dev --extra lts
 
 fmt:  ## Format source files (ruff format writes changes)
-	uv run ruff format src/ tests/ scripts/
+	uv run --package custos-runner ruff format src/ tests/ scripts/ packages/
 
 fmt-check:  ## Check formatting (ruff format --check, no file changes)
-	uv run ruff format --check src/ tests/ scripts/
+	uv run --package custos-runner ruff format --check src/ tests/ scripts/ packages/
 
 lint:  ## Lint check (ruff check)
-	uv run ruff check src/ tests/ scripts/
+	uv run --package custos-runner ruff check src/ tests/ scripts/ packages/
+
+toolkit-typecheck:  ## Strict mypy for the two Plan 18 distributions
+	uv run --package custos-runner mypy --config-file packages/custos-strategy-toolkit/pyproject.toml packages/custos-strategy-toolkit/src/custos_toolkit
+	uv run --package custos-runner mypy --config-file packages/custos-strategy-toolkit-nautilus/pyproject.toml packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus
 
 check: fmt-check lint  ## Combined formatting check and lint
 
@@ -56,7 +60,7 @@ verify: check test-baseline  ## Base release gate: check + green test-baseline
 	@echo "✅ make verify passed"
 
 verify-base-clean:  ## Clean dev-only sync followed by the base release gate
-	uv sync --extra dev
+	uv sync --package custos-runner --extra dev
 	$(MAKE) verify
 
 verify-nt: check test-nt  ## NT release gate (requires py3.12+): check + green test-nt
@@ -188,3 +192,5 @@ check-authority: check-strategy-contract-assets
 	@/usr/bin/python3 scripts/check-authority-docs.py
 
 verify: check-authority
+
+verify: toolkit-typecheck

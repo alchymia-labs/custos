@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from custos.contracts.strategy_execution import (
+from custos_toolkit.contracts.strategy_execution import (
     ArtifactMemberRole,
     ArtifactMemberV1,
     AttestationEvidenceV1,
@@ -27,7 +27,10 @@ from custos.contracts.strategy_execution import (
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_TOOLKIT_ROOT = ROOT / "src/custos/engines/nautilus/toolkit"
-SOURCE_MODEL = ROOT / "src/custos/contracts/strategy_execution.py"
+SOURCE_MODEL = (
+    ROOT / "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
+)
+TASK_2_HISTORICAL_PRODUCER_SOURCE = "src/custos/contracts/strategy_execution.py"
 
 MODEL_ASSETS = {
     "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json": StrategyExecutionContextV1,
@@ -314,7 +317,9 @@ def build_assets() -> dict[str, bytes]:
     index = {
         "asset_index_schema_version": 1,
         "canonical_name": "Custos Plan 18 Task 2 schema assets",
-        "producer_source": SOURCE_MODEL.relative_to(ROOT).as_posix(),
+        # Task 2 assets are immutable reviewed evidence. T3 moves the exact
+        # source bytes without rewriting this historical producer identity.
+        "producer_source": TASK_2_HISTORICAL_PRODUCER_SOURCE,
         "producer_source_sha256": sha256(SOURCE_MODEL.read_bytes()),
         "assets": index_entries,
         "strategy_release_bom_ownership": "not owned by Custos; only member requirements are consumed",

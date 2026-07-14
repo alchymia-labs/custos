@@ -66,6 +66,13 @@ authority until receipt-backed cutover. Extraction may not retain top-level
 `shared`/`pandas_ta`, mutate `sys.path`, fake a distribution, or leave two
 writable canonical copies.
 
+Plan 18 T3 moves the exact reviewed execution-contract source bytes to
+`packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.
+The Task 2 receipt keeps its historical source path, commit and digest unchanged;
+the separate Task 3 distribution receipt declares the current canonical path and
+proves byte continuity. `src/custos/contracts/strategy_execution.py` is only a
+temporary implementation-free re-export shim.
+
 Run `make strategy-contract-assets` to generate schema, inventory, golden, and
 digest-index assets. `make check-strategy-contract-assets` detects drift.
 

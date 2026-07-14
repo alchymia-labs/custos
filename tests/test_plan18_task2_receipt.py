@@ -11,6 +11,9 @@ from types import ModuleType
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+CURRENT_CANONICAL_SOURCE = Path(
+    "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
+)
 RECEIPT_PATH = Path("docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json")
 VENDORED_PATHS = {
     "crucible_rust_plan_88": Path(
@@ -62,7 +65,9 @@ def _ready_tree(
         "executed_at": "2026-07-15T12:00:00Z",
         "environment": "clean test checkout",
     }
-    _copy(tmp_path, Path(receipt["producer"]["source"]))
+    historical_source = tmp_path / Path(receipt["producer"]["source"])
+    historical_source.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(ROOT / CURRENT_CANONICAL_SOURCE, historical_source)
     _copy(tmp_path, Path(receipt["contract_asset_index"]["path"]))
     profiles = deepcopy(CHECKER.REVIEW_PROFILES)
     for index, (reviewer, path) in enumerate(VENDORED_PATHS.items()):

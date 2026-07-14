@@ -13,7 +13,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "authority-manifest.json"
 TASK_2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+TASK_3_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
+CURRENT_STRATEGY_CONTRACT_SOURCE = (
+    "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
+)
 EXPECTED_PRODUCER = {
     "repository": "tesseract-trading/custos",
     "source_path": "src/custos/contracts/strategy_execution.py",
@@ -294,6 +298,7 @@ def verify_plan_18_task_2_receipt(
     root: Path = ROOT,
     expected_producer: dict[str, Any] = EXPECTED_PRODUCER,
     review_profiles: dict[str, dict[str, Any]] = REVIEW_PROFILES,
+    verify_historical_path_bytes: bool = True,
 ) -> None:
     receipt_path = resolve(TASK_2_RECEIPT_PATH, root=root)
     if not receipt_path.is_file():
@@ -329,16 +334,17 @@ def verify_plan_18_task_2_receipt(
         errors.append("Plan 18 Task 2 producer source path differs")
     if producer.get("source_sha256") != expected_producer["source_sha256"]:
         errors.append("Plan 18 Task 2 producer source digest differs")
-    source_path = _resolve_local_file(
-        producer.get("source"),
-        label="Plan 18 Task 2 producer source",
-        root=root,
-        errors=errors,
-    )
-    if source_path is not None:
-        source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
-        if source_digest != producer.get("source_sha256"):
-            errors.append("Plan 18 Task 2 producer source bytes differ")
+    if verify_historical_path_bytes:
+        source_path = _resolve_local_file(
+            producer.get("source"),
+            label="Plan 18 Task 2 producer source",
+            root=root,
+            errors=errors,
+        )
+        if source_path is not None:
+            source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+            if source_digest != producer.get("source_sha256"):
+                errors.append("Plan 18 Task 2 producer source bytes differ")
 
     asset_ref = receipt.get("contract_asset_index", {})
     if not isinstance(asset_ref, dict):
@@ -400,6 +406,88 @@ def verify_plan_18_task_2_receipt(
             errors.append("ready Plan 18 Task 2 receipt requires fresh verification metadata")
 
 
+def verify_plan_18_task_3_distribution_receipt(errors: list[str], *, root: Path = ROOT) -> bool:
+    """Validate the explicit T3 successor path without rewriting Task 2 history."""
+
+    initial_error_count = len(errors)
+    receipt_path = resolve(TASK_3_RECEIPT_PATH, root=root)
+    if not receipt_path.is_file():
+        errors.append(f"missing Plan 18 Task 3 distribution receipt: {receipt_path}")
+        return False
+    receipt = load_json(receipt_path)
+    if receipt.get("receipt_schema_version") != 1:
+        errors.append("Plan 18 Task 3 receipt schema version must be 1")
+    if receipt.get("receipt_status") != "VERIFIED_PENDING_COMMIT":
+        errors.append("Plan 18 Task 3 receipt must remain verified pending commit")
+    if receipt.get("handoff_ready") is not False:
+        errors.append("Plan 18 Task 3 receipt cannot be handoff-ready before its commit")
+    verification = receipt.get("verification")
+    if not isinstance(verification, dict) or verification.get("status") != "PASS":
+        errors.append("Plan 18 Task 3 receipt requires successful verification evidence")
+    if receipt.get("canonical_move_active") is not True:
+        errors.append("Plan 18 Task 3 canonical source move is not active")
+
+    historical = receipt.get("historical_task_2_source")
+    if historical != {
+        "path": EXPECTED_PRODUCER["source_path"],
+        "producer_commit": "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
+        "sha256": EXPECTED_PRODUCER["source_sha256"],
+    }:
+        errors.append("Plan 18 Task 3 historical Task 2 source binding differs")
+
+    current = receipt.get("current_canonical_source")
+    if not isinstance(current, dict) or current.get("path") != CURRENT_STRATEGY_CONTRACT_SOURCE:
+        errors.append("Plan 18 Task 3 current canonical source path differs")
+    else:
+        canonical_path = _resolve_local_file(
+            current.get("path"),
+            label="Plan 18 Task 3 canonical contract source",
+            root=root,
+            errors=errors,
+        )
+        if current.get("sha256") != EXPECTED_PRODUCER["source_sha256"]:
+            errors.append("Plan 18 Task 3 canonical source digest binding differs")
+        elif canonical_path is not None:
+            digest = hashlib.sha256(canonical_path.read_bytes()).hexdigest()
+            if digest != current.get("sha256"):
+                errors.append("Plan 18 Task 3 canonical source bytes differ")
+
+    shim = receipt.get("legacy_shim")
+    if not isinstance(shim, dict) or shim.get("contains_implementation") is not False:
+        errors.append("Plan 18 Task 3 legacy source is not declared as a pure shim")
+    else:
+        shim_path = _resolve_local_file(
+            shim.get("path"),
+            label="Plan 18 Task 3 legacy contract shim",
+            root=root,
+            errors=errors,
+        )
+        if shim_path is not None:
+            shim_bytes = shim_path.read_bytes()
+            if hashlib.sha256(shim_bytes).hexdigest() == EXPECTED_PRODUCER["source_sha256"]:
+                errors.append("Plan 18 Task 3 legacy shim still contains canonical source bytes")
+            if b"custos_toolkit.contracts.strategy_execution" not in shim_bytes:
+                errors.append("Plan 18 Task 3 legacy shim does not re-export canonical contracts")
+
+    expected_distributions = {
+        "base": {
+            "name": "custos-strategy-toolkit",
+            "version": "0.1.0",
+            "requires_python": ">=3.11",
+        },
+        "nautilus": {
+            "name": "custos-strategy-toolkit-nautilus",
+            "version": "0.1.0",
+            "requires_python": ">=3.12,<3.13",
+            "base_requirement": "custos-strategy-toolkit==0.1.0",
+            "engine_requirement": "nautilus-trader==1.230.0",
+        },
+    }
+    if receipt.get("distributions") != expected_distributions:
+        errors.append("Plan 18 Task 3 distribution metadata differs")
+    return len(errors) == initial_error_count
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -440,7 +528,11 @@ def main() -> int:
                             f"runner command golden differs from optional sibling: {sibling_path}"
                         )
     verify_strategy_contract_assets(errors)
-    verify_plan_18_task_2_receipt(errors)
+    task_3_move_verified = verify_plan_18_task_3_distribution_receipt(errors)
+    verify_plan_18_task_2_receipt(
+        errors,
+        verify_historical_path_bytes=not task_3_move_verified,
+    )
     for entry in manifest.get("external_optional_documents", []):
         path = resolve(entry["path"])
         if not path.is_file():

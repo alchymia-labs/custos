@@ -1,0 +1,216 @@
+from __future__ import annotations
+
+import email
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tomllib
+import zipfile
+from email.message import Message
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+BASE_PROJECT = ROOT / "packages/custos-strategy-toolkit/pyproject.toml"
+NAUTILUS_PROJECT = ROOT / "packages/custos-strategy-toolkit-nautilus/pyproject.toml"
+BASE_SOURCE = (
+    ROOT / "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
+)
+LEGACY_SOURCE = ROOT / "src/custos/contracts/strategy_execution.py"
+
+
+def _toml(path: Path) -> dict[str, object]:
+    return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def _build_wheel(package: str, output: Path) -> Path:
+    output.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        ["uv", "build", "--package", package, "--wheel", "--out-dir", str(output)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    wheels = sorted(output.glob("*.whl"))
+    assert len(wheels) == 1
+    return wheels[0]
+
+
+def _metadata(wheel: Path) -> Message:
+    with zipfile.ZipFile(wheel) as archive:
+        metadata_names = [
+            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+        ]
+        assert len(metadata_names) == 1
+        return email.message_from_bytes(archive.read(metadata_names[0]))
+
+
+def test_uv_workspace_declares_both_toolkit_distributions() -> None:
+    root = _toml(ROOT / "pyproject.toml")
+    members = set(root["tool"]["uv"]["workspace"]["members"])
+    assert members == {
+        "packages/custos-strategy-toolkit",
+        "packages/custos-strategy-toolkit-nautilus",
+    }
+
+
+def test_distribution_metadata_has_disjoint_python_baselines_and_exact_runtime() -> None:
+    base = _toml(BASE_PROJECT)
+    nautilus = _toml(NAUTILUS_PROJECT)
+
+    assert base["project"]["name"] == "custos-strategy-toolkit"
+    assert base["project"]["version"] == "0.1.0"
+    assert base["project"]["requires-python"] == ">=3.11"
+    assert base["tool"]["mypy"]["strict"] is True
+
+    assert nautilus["project"]["name"] == "custos-strategy-toolkit-nautilus"
+    assert nautilus["project"]["version"] == "0.1.0"
+    assert nautilus["project"]["requires-python"] == ">=3.12,<3.13"
+    assert nautilus["tool"]["mypy"]["strict"] is True
+    dependencies = nautilus["project"]["dependencies"]
+    assert "custos-strategy-toolkit==0.1.0" in dependencies
+    assert "nautilus-trader==1.230.0" in dependencies
+    assert all("python_version" not in dependency for dependency in dependencies)
+
+
+def test_contract_implementation_has_one_canonical_source_and_legacy_shim() -> None:
+    canonical = BASE_SOURCE.read_text(encoding="utf-8")
+    shim = LEGACY_SOURCE.read_text(encoding="utf-8")
+
+    assert "class StrategyExecutionContextV1" in canonical
+    assert "class StrategyExecutionContextV1" not in shim
+    assert "from custos_toolkit.contracts.strategy_execution import *" in shim
+
+
+def test_task3_receipt_explicitly_succeeds_task2_canonical_source() -> None:
+    receipt_path = ROOT / "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    current = receipt["current_canonical_source"]
+    historical = receipt["historical_task_2_source"]
+
+    assert current["path"] == BASE_SOURCE.relative_to(ROOT).as_posix()
+    assert current["sha256"] == historical["sha256"]
+    assert hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest() == current["sha256"]
+    assert historical["path"] == "src/custos/contracts/strategy_execution.py"
+    assert historical["producer_commit"] == "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0"
+    assert receipt["receipt_status"] == "VERIFIED_PENDING_COMMIT"
+    assert receipt["handoff_ready"] is False
+    assert receipt["verification"]["status"] == "PASS"
+    assert receipt["scope_ceiling"].startswith("T3 distribution boundary only")
+
+
+def test_lightweight_base_import_does_not_load_nautilus_or_mutate_sys_path() -> None:
+    probe = (
+        "import sys; before=tuple(sys.path); "
+        "import custos_toolkit.contracts.strategy_execution; "
+        "assert tuple(sys.path)==before; assert 'nautilus_trader' not in sys.modules"
+    )
+    subprocess.run([sys.executable, "-c", probe], cwd=ROOT, check=True)
+
+
+def test_built_wheels_are_namespace_isolated_and_have_exact_metadata(tmp_path: Path) -> None:
+    base_wheel = _build_wheel("custos-strategy-toolkit", tmp_path / "base")
+    nautilus_wheel = _build_wheel("custos-strategy-toolkit-nautilus", tmp_path / "nautilus")
+
+    with zipfile.ZipFile(base_wheel) as archive:
+        base_names = archive.namelist()
+    with zipfile.ZipFile(nautilus_wheel) as archive:
+        nautilus_names = archive.namelist()
+
+    assert any(name == "custos_toolkit/py.typed" for name in base_names)
+    assert any(name == "custos_toolkit_nautilus/py.typed" for name in nautilus_names)
+    for names in (base_names, nautilus_names):
+        top_levels = {name.split("/", 1)[0] for name in names}
+        assert "shared" not in top_levels
+        assert "pandas_ta" not in top_levels
+
+    base_metadata = _metadata(base_wheel)
+    nautilus_metadata = _metadata(nautilus_wheel)
+    assert base_metadata["Requires-Python"] == ">=3.11"
+    assert nautilus_metadata["Requires-Python"] == "<3.13,>=3.12"
+    requires_dist = nautilus_metadata.get_all("Requires-Dist") or []
+    assert "custos-strategy-toolkit==0.1.0" in requires_dist
+    assert "nautilus-trader==1.230.0" in requires_dist
+    assert all("python_version" not in dependency for dependency in requires_dist)
+
+
+def test_base_wheel_imports_on_python311_without_nautilus_or_path_mutation(
+    tmp_path: Path,
+) -> None:
+    wheel = _build_wheel("custos-strategy-toolkit", tmp_path / "wheel")
+    find = subprocess.run(
+        ["uv", "--no-python-downloads", "python", "find", "3.11"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert find.returncode == 0, find.stderr
+    python311 = find.stdout.strip()
+    target = tmp_path / "python311-base"
+    install = subprocess.run(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            python311,
+            "--target",
+            str(target),
+            str(wheel),
+        ],
+        cwd=ROOT,
+        env={**os.environ, "UV_NO_PYTHON_DOWNLOADS": "1"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode == 0, f"stdout:\n{install.stdout}\nstderr:\n{install.stderr}"
+    probe = (
+        "import sys; before=tuple(sys.path); "
+        "import custos_toolkit.contracts.strategy_execution; "
+        "assert tuple(sys.path)==before; assert 'nautilus_trader' not in sys.modules"
+    )
+    subprocess.run(
+        [python311, "-c", probe],
+        cwd=ROOT,
+        env={**os.environ, "PYTHONPATH": str(target)},
+        check=True,
+    )
+
+
+def test_nautilus_wheel_install_fails_on_python311(tmp_path: Path) -> None:
+    wheel = _build_wheel("custos-strategy-toolkit-nautilus", tmp_path / "wheel")
+    find = subprocess.run(
+        ["uv", "--no-python-downloads", "python", "find", "3.11"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert find.returncode == 0, find.stderr
+    python311 = find.stdout.strip()
+    target = tmp_path / "python311-target"
+    install = subprocess.run(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            python311,
+            "--target",
+            str(target),
+            "--no-deps",
+            str(wheel),
+        ],
+        cwd=ROOT,
+        env={**os.environ, "UV_NO_PYTHON_DOWNLOADS": "1"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode != 0
+    assert "requires-python" in install.stderr.lower() or "python" in install.stderr.lower()

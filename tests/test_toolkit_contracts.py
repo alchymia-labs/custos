@@ -9,9 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-
-from custos.contracts.strategy_execution import (
+from custos_toolkit.contracts.strategy_execution import (
     DevelopmentSourceRefV1,
     StrategyArtifactRefV1,
     StrategyArtifactVerificationReceiptV1,
@@ -24,6 +22,7 @@ from custos.contracts.strategy_execution import (
     parse_and_freeze_json_object,
     verify_effective_config_digest,
 )
+from pydantic import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_MODELS = {
@@ -256,14 +255,13 @@ def test_lightweight_import_does_not_load_nautilus_or_mutate_path() -> None:
     subprocess.run([sys.executable, "-c", script], check=True)
 
 
-def test_root_python311_and_nautilus_extra_keep_separate_interpreter_rules() -> None:
+def test_root_python311_consumes_separate_toolkit_distributions() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     project = pyproject["project"]
     nautilus_requirements = project["optional-dependencies"]["nautilus"]
 
     assert project["requires-python"] == ">=3.11"
-    assert all("nautilus-trader" not in requirement for requirement in project["dependencies"])
-    assert any(
-        requirement.startswith("nautilus-trader") and "python_version >= '3.12'" in requirement
-        for requirement in nautilus_requirements
-    )
+    assert "custos-strategy-toolkit==0.1.0" in project["dependencies"]
+    assert "custos-strategy-toolkit-nautilus==0.1.0" in nautilus_requirements
+    assert all("nautilus-trader" not in requirement for requirement in nautilus_requirements)
+    assert all("python_version" not in requirement for requirement in nautilus_requirements)
