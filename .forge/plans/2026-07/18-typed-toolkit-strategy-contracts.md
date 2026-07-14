@@ -445,6 +445,38 @@ T4b 可与 T5 实现并行，但属于 18b close-out hard gate。
 
 ### Task 5: Implement artifact verifier and attestation policy
 
+Task 5 is a two-stage handoff and remains open until both stages close:
+
+#### T5a: Public pre-import contract candidate
+
+1. Add `StrategyArtifactPreImportVerificationReceiptV1` as an additive canonical
+   contract. It may contain only pre-import evidence: verified entry point, exact
+   command/artifact/BOM/member bindings, local policy/root, Sigstore/transparency,
+   and archive evidence. `loaded_entry_point`, engine-ready, and runtime activation
+   evidence remain exclusive to the existing Plan 19 post-import
+   `StrategyArtifactVerificationReceiptV1`.
+2. Preserve the Task 2 v1 receipt, v1 asset index, all eight indexed assets, and both
+   accepted requirements reviews byte-for-byte. A fixed SHA-256 regression gate must
+   fail before generation if any predecessor byte drifts.
+3. Generate an independent v2 candidate asset index, pre-import schema, lifecycle
+   golden/negative fixtures and SHA-256 sidecars from the canonical Python model.
+   Publish `custos-plan-18-task-2-schema-receipt-v2.json` as
+   `PENDING_REQUIREMENTS_REVIEWS`, `handoff_ready=false`, with null future commit and
+   review evidence and an exact v1 predecessor pin.
+4. Map the existing verifier kernel result into the public receipt without exposing
+   quarantine paths or claiming import/engine readiness. Register every v2 artifact in
+   the authority manifest as an additive candidate; v1 remains canonical.
+
+#### T5b: Coordinated public-contract handoff and production verifier close-out
+
+1. Obtain exact Crucible and Philosophers-Stone requirements-only reviews of the v2
+   candidate bytes. Bind a standalone implementation commit and rerun clean exact-HEAD
+   focused, generator, authority, and repository gates before changing the v2 receipt
+   to READY/handoff true.
+2. Complete the production Sigstore capability, public pre-import receipt emission,
+   and all failure modes below. T5 remains open until this stage closes; T5a candidate
+   generation alone cannot unblock T6 or establish 18b production readiness.
+
 1. 写失败测试覆盖 forged issuer、wrong workflow、wrong trust policy、digest mismatch、
    unsafe archive、entry-point escape 和 source-path live execution。
 2. 从 runner-local signed release configuration 加载 trust roots/policy，先验签该配置，
@@ -551,7 +583,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4b-T5 remain open, so 18b is not production-ready |
 | T4 Zero-rewrite extraction | [x] | 2026-07-15 | exact implementation `b5ff7ee9cea0e78f4462a478bafa42f8f6e18805`; clean exact-HEAD focused `91 passed, 1 skipped`; 241/241 extraction、parity、authority、English and lint gates PASS; receipt `VERIFIED_EXTRACTION_ONLY`, handoff false because T4b/T5 remain open |
 | T4b Extracted typing closure | [x] | 2026-07-15 | exact implementation `5a19a816d4f6d90e7d3fbde80d39f562decd8c4b`; clean exact-HEAD `make verify` 508 passed, 4 skipped, 1 xfailed; assets/extraction 241/241/authority/closure PASS; strict mypy 0/40 base and 0/59 adapter; receipt `READY_TYPING_CLOSURE`, handoff limited to T4b; T5/T6 still block 18b production readiness |
-| T5 Verifier/attestation | [ ] | — | production wheel only |
+| T5 Verifier/attestation | [ ] | — | T5a public pre-import contract candidate is additive and pending requirements reviews; T5b production verifier/handoff remains open, so T6 stays blocked |
 | T6 Candidate | [ ] | — | immutable rc |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |

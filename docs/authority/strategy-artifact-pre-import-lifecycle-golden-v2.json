@@ -1,0 +1,363 @@
+{
+  "command_binding": {
+    "artifact_ref": {
+      "artifact_coordinate": "ghcr.io/alephain/strategy/supertrend@sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "artifact_kind": "wheel",
+      "artifact_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "artifact_size_bytes": 4096,
+      "attestation": {
+        "base_contracts_version": "1.0.0rc1",
+        "build_inputs": [
+          {
+            "name": "uv.lock",
+            "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+          }
+        ],
+        "bundle_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+        "engine": "nautilus",
+        "engine_toolkit_version": "1.0.0rc1",
+        "engine_version": "1.230.0",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "normalized_source_tree_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "python_version": "3.12.4",
+        "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_repository": "https://github.com/alchymia-labs/philosophers-stone",
+        "trust_policy_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+        "trust_policy_id": "custos-strategy-release",
+        "trust_policy_version": 1,
+        "workflow_identity": "alchymia-labs/philosophers-stone/.github/workflows/release-strategy.yml@refs/heads/main"
+      },
+      "contract_schema_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "manifest_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "manifest_size_bytes": 1024,
+      "required_runtime_artifacts": [
+        {
+          "media_type": "application/schema+json",
+          "name": "resources/config.schema.json",
+          "role": "runtime_artifact",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "size_bytes": 512
+        }
+      ],
+      "sbom_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "schema_version": 1
+    },
+    "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
+    "deployment_spec_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+    "effective_config_digest": "0cf57e805853021176fa51b3c63cd2fe8a4169012deb8a2fb59b7e979c5e9e07",
+    "generation": 1,
+    "release_bom_digest": "3fc38db2cae8ce66870fc63632418019932359e6d82bfccf01c5409e1a8111e5",
+    "release_bom_members": [
+      {
+        "media_type": "application/zip",
+        "name": "custos_strategy_toolkit-1.0.0rc1.whl",
+        "role": "base_contracts_wheel",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size_bytes": 1000
+      },
+      {
+        "media_type": "application/zip",
+        "name": "custos_strategy_toolkit_nautilus-1.0.0rc1.whl",
+        "role": "nautilus_wheel",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "size_bytes": 2000
+      },
+      {
+        "media_type": "application/zip",
+        "name": "supertrend-1.0.0rc1.whl",
+        "role": "strategy_wheel",
+        "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "size_bytes": 4096
+      },
+      {
+        "media_type": "application/json",
+        "name": "strategy-manifest-v1.json",
+        "role": "strategy_manifest",
+        "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "size_bytes": 1024
+      },
+      {
+        "media_type": "application/schema+json",
+        "name": "resources/config.schema.json",
+        "role": "runtime_artifact",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "size_bytes": 512
+      },
+      {
+        "media_type": "application/vnd.dev.sigstore.bundle+json",
+        "name": "attestation.sigstore.json",
+        "role": "attestation_bundle",
+        "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+        "size_bytes": 2048
+      },
+      {
+        "media_type": "application/spdx+json",
+        "name": "sbom.spdx.json",
+        "role": "sbom",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "size_bytes": 3072
+      },
+      {
+        "media_type": "application/json",
+        "name": "strategy-contract-assets-v1.json",
+        "role": "contract_schema",
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "size_bytes": 1536
+      },
+      {
+        "media_type": "application/vnd.alephain.source-tree",
+        "name": "source-tree.normalized",
+        "role": "source_tree",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "size_bytes": 8192
+      }
+    ],
+    "schema_version": 1,
+    "strategy_release_id": "50000000-0000-4000-8000-000000000005"
+  },
+  "contract_owner": "custos",
+  "fixture_schema_version": 2,
+  "phase": "pre_import",
+  "phase_boundary_assertions": [
+    "receipt proves verification before Python import",
+    "verified_entry_point is inspected but not loaded",
+    "quarantine paths and engine readiness are not public contract fields",
+    "StrategyArtifactVerificationReceiptV1 remains the Plan 19 post-import contract"
+  ],
+  "pre_import_verification_receipt": {
+    "archive": {
+      "archive_format": "wheel",
+      "entry_point_ast_verified": true,
+      "entry_point_metadata_verified": true,
+      "member_count": 18,
+      "total_uncompressed_bytes": 32768
+    },
+    "artifact_ref_digest": "ab336c098052092692ff8c86a93adcfbf08b3849301d4ea6ca9ce276c385cac2",
+    "command_binding": {
+      "artifact_ref": {
+        "artifact_coordinate": "ghcr.io/alephain/strategy/supertrend@sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "artifact_kind": "wheel",
+        "artifact_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "artifact_size_bytes": 4096,
+        "attestation": {
+          "base_contracts_version": "1.0.0rc1",
+          "build_inputs": [
+            {
+              "name": "uv.lock",
+              "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+            }
+          ],
+          "bundle_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+          "engine": "nautilus",
+          "engine_toolkit_version": "1.0.0rc1",
+          "engine_version": "1.230.0",
+          "issuer": "https://token.actions.githubusercontent.com",
+          "normalized_source_tree_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "python_version": "3.12.4",
+          "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_repository": "https://github.com/alchymia-labs/philosophers-stone",
+          "trust_policy_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "trust_policy_id": "custos-strategy-release",
+          "trust_policy_version": 1,
+          "workflow_identity": "alchymia-labs/philosophers-stone/.github/workflows/release-strategy.yml@refs/heads/main"
+        },
+        "contract_schema_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "manifest_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "manifest_size_bytes": 1024,
+        "required_runtime_artifacts": [
+          {
+            "media_type": "application/schema+json",
+            "name": "resources/config.schema.json",
+            "role": "runtime_artifact",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "size_bytes": 512
+          }
+        ],
+        "sbom_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "schema_version": 1
+      },
+      "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
+      "deployment_spec_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+      "effective_config_digest": "0cf57e805853021176fa51b3c63cd2fe8a4169012deb8a2fb59b7e979c5e9e07",
+      "generation": 1,
+      "release_bom_digest": "3fc38db2cae8ce66870fc63632418019932359e6d82bfccf01c5409e1a8111e5",
+      "release_bom_members": [
+        {
+          "media_type": "application/zip",
+          "name": "custos_strategy_toolkit-1.0.0rc1.whl",
+          "role": "base_contracts_wheel",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "size_bytes": 1000
+        },
+        {
+          "media_type": "application/zip",
+          "name": "custos_strategy_toolkit_nautilus-1.0.0rc1.whl",
+          "role": "nautilus_wheel",
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "size_bytes": 2000
+        },
+        {
+          "media_type": "application/zip",
+          "name": "supertrend-1.0.0rc1.whl",
+          "role": "strategy_wheel",
+          "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+          "size_bytes": 4096
+        },
+        {
+          "media_type": "application/json",
+          "name": "strategy-manifest-v1.json",
+          "role": "strategy_manifest",
+          "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+          "size_bytes": 1024
+        },
+        {
+          "media_type": "application/schema+json",
+          "name": "resources/config.schema.json",
+          "role": "runtime_artifact",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "size_bytes": 512
+        },
+        {
+          "media_type": "application/vnd.dev.sigstore.bundle+json",
+          "name": "attestation.sigstore.json",
+          "role": "attestation_bundle",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+          "size_bytes": 2048
+        },
+        {
+          "media_type": "application/spdx+json",
+          "name": "sbom.spdx.json",
+          "role": "sbom",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "size_bytes": 3072
+        },
+        {
+          "media_type": "application/json",
+          "name": "strategy-contract-assets-v1.json",
+          "role": "contract_schema",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "size_bytes": 1536
+        },
+        {
+          "media_type": "application/vnd.alephain.source-tree",
+          "name": "source-tree.normalized",
+          "role": "source_tree",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "size_bytes": 8192
+        }
+      ],
+      "schema_version": 1,
+      "strategy_release_id": "50000000-0000-4000-8000-000000000005"
+    },
+    "command_binding_digest": "791268a296bbc13099313a365f6fc60153ce9d017f68df14c4e1f2ac28bfa8b5",
+    "local_trust_policy_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+    "local_trust_policy_id": "custos-strategy-release",
+    "local_trust_policy_version": 1,
+    "release_bom_digest": "3fc38db2cae8ce66870fc63632418019932359e6d82bfccf01c5409e1a8111e5",
+    "schema_version": 1,
+    "sigstore": {
+      "bundle_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "source_repository": "https://github.com/alchymia-labs/philosophers-stone",
+      "transparency_log_verified": true,
+      "trusted_root_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "verified_subjects": [
+        {
+          "name": "strategy_release_bom",
+          "sha256": "3fc38db2cae8ce66870fc63632418019932359e6d82bfccf01c5409e1a8111e5"
+        },
+        {
+          "name": "supertrend-1.0.0rc1.whl",
+          "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+        },
+        {
+          "name": "strategy-manifest-v1.json",
+          "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+        }
+      ],
+      "verifier_capability_id": "sigstore-python-verified-bundle-v1",
+      "workflow_identity": "alchymia-labs/philosophers-stone/.github/workflows/release-strategy.yml@refs/heads/main"
+    },
+    "trusted_root_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "verification_profile": "custos-artifact-pre-import-verification-v1",
+    "verified_at": "2026-07-15T00:00:00Z",
+    "verified_entry_point": "strategies.supertrend:RuntimeAdapter",
+    "verified_members": [
+      {
+        "media_type": "application/zip",
+        "name": "custos_strategy_toolkit-1.0.0rc1.whl",
+        "role": "base_contracts_wheel",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size_bytes": 1000
+      },
+      {
+        "media_type": "application/zip",
+        "name": "custos_strategy_toolkit_nautilus-1.0.0rc1.whl",
+        "role": "nautilus_wheel",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "size_bytes": 2000
+      },
+      {
+        "media_type": "application/zip",
+        "name": "supertrend-1.0.0rc1.whl",
+        "role": "strategy_wheel",
+        "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "size_bytes": 4096
+      },
+      {
+        "media_type": "application/json",
+        "name": "strategy-manifest-v1.json",
+        "role": "strategy_manifest",
+        "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "size_bytes": 1024
+      },
+      {
+        "media_type": "application/schema+json",
+        "name": "resources/config.schema.json",
+        "role": "runtime_artifact",
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "size_bytes": 512
+      },
+      {
+        "media_type": "application/vnd.dev.sigstore.bundle+json",
+        "name": "attestation.sigstore.json",
+        "role": "attestation_bundle",
+        "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+        "size_bytes": 2048
+      },
+      {
+        "media_type": "application/spdx+json",
+        "name": "sbom.spdx.json",
+        "role": "sbom",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "size_bytes": 3072
+      },
+      {
+        "media_type": "application/json",
+        "name": "strategy-contract-assets-v1.json",
+        "role": "contract_schema",
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "size_bytes": 1536
+      },
+      {
+        "media_type": "application/vnd.alephain.source-tree",
+        "name": "source-tree.normalized",
+        "role": "source_tree",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "size_bytes": 8192
+      }
+    ]
+  },
+  "predecessor": {
+    "asset_index": {
+      "path": "docs/authority/strategy-contract-assets-v1.json",
+      "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
+    },
+    "task_2_receipt": {
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+      "sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
+    }
+  }
+}

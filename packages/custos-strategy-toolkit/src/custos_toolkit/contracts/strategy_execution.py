@@ -24,6 +24,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StrictInt,
     StringConstraints,
     field_validator,
@@ -273,6 +274,138 @@ class StrategyExecutionCommandBindingV1(_StrictFrozenModel):
         return self
 
 
+class SigstoreVerificationEvidenceV1(_StrictFrozenModel):
+    """Public cryptographic evidence emitted before artifact import."""
+
+    verifier_capability_id: NonEmptyString
+    bundle_sha256: Sha256Hex
+    trusted_root_sha256: Sha256Hex
+    issuer: NonEmptyString
+    workflow_identity: NonEmptyString
+    source_repository: NonEmptyString
+    verified_subjects: tuple[DigestBindingV1, ...] = Field(min_length=1)
+    transparency_log_verified: StrictBool
+
+    @model_validator(mode="after")
+    def validate_unique_subjects(self) -> Self:
+        _require_unique_names(self.verified_subjects, label="Sigstore verified subject")
+        return self
+
+
+class ArchiveVerificationEvidenceV1(_StrictFrozenModel):
+    """Fail-closed wheel inspection evidence without a local quarantine path."""
+
+    archive_format: Literal["wheel"]
+    member_count: StrictInt = Field(ge=1)
+    total_uncompressed_bytes: StrictInt = Field(ge=1)
+    entry_point_metadata_verified: Literal[True]
+    entry_point_ast_verified: Literal[True]
+
+
+class StrategyArtifactPreImportVerificationReceiptV1(_StrictFrozenModel):
+    """Public proof of exact command-bound verification before Python import."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        title="StrategyArtifactPreImportVerificationReceiptV1",
+        json_schema_extra={
+            "$id": "https://custos.the-alephain-guild/contracts/strategy-artifact-pre-import-verification-receipt-v1.schema.json"
+        },
+    )
+
+    schema_version: Literal[1] = 1
+    verification_profile: Literal["custos-artifact-pre-import-verification-v1"]
+    verified_at: datetime
+    command_binding: StrategyExecutionCommandBindingV1
+    command_binding_digest: Sha256Hex
+    artifact_ref_digest: Sha256Hex
+    release_bom_digest: Sha256Hex
+    verified_members: tuple[ArtifactMemberV1, ...] = Field(min_length=1)
+    local_trust_policy_id: NonEmptyString
+    local_trust_policy_version: StrictInt = Field(ge=1)
+    local_trust_policy_digest: Sha256Hex
+    trusted_root_digest: Sha256Hex
+    sigstore: SigstoreVerificationEvidenceV1
+    archive: ArchiveVerificationEvidenceV1
+    verified_entry_point: NonEmptyString
+
+    @field_validator("verified_entry_point")
+    @classmethod
+    def validate_verified_entry_point(cls, value: str) -> str:
+        module, separator, attribute = value.partition(":")
+        valid_module = re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", module)
+        if not separator or not attribute or not valid_module:
+            raise ValueError("verified_entry_point must be a module path and attribute")
+        return value
+
+    @model_validator(mode="after")
+    def validate_pre_import_evidence(self) -> Self:
+        command = self.command_binding
+        if self.command_binding_digest != canonical_model_digest(command):
+            raise ValueError("command_binding_digest does not match command_binding")
+        if self.artifact_ref_digest != canonical_model_digest(command.artifact_ref):
+            raise ValueError("artifact_ref_digest does not match command artifact_ref")
+        if self.release_bom_digest != command.release_bom_digest:
+            raise ValueError("release_bom_digest does not match command binding")
+        if self.verified_members != command.release_bom_members:
+            raise ValueError("verified_members must losslessly echo the command BOM")
+
+        attestation = command.artifact_ref.attestation
+        expected_policy = (
+            attestation.trust_policy_id,
+            attestation.trust_policy_version,
+            attestation.trust_policy_digest,
+        )
+        local_policy = (
+            self.local_trust_policy_id,
+            self.local_trust_policy_version,
+            self.local_trust_policy_digest,
+        )
+        if local_policy != expected_policy:
+            raise ValueError("local policy does not match command attestation")
+        if self.trusted_root_digest != self.sigstore.trusted_root_sha256:
+            raise ValueError("trusted root digest does not match Sigstore evidence")
+        if self.sigstore.bundle_sha256 != attestation.bundle_sha256:
+            raise ValueError("Sigstore bundle digest does not match command attestation")
+        expected_identity = (
+            attestation.issuer,
+            attestation.workflow_identity,
+            attestation.source_repository,
+        )
+        actual_identity = (
+            self.sigstore.issuer,
+            self.sigstore.workflow_identity,
+            self.sigstore.source_repository,
+        )
+        if actual_identity != expected_identity:
+            raise ValueError("Sigstore identity does not match command attestation")
+
+        wheel = [
+            member
+            for member in command.release_bom_members
+            if member.role is ArtifactMemberRole.STRATEGY_WHEEL
+        ]
+        manifest = [
+            member
+            for member in command.release_bom_members
+            if member.role is ArtifactMemberRole.STRATEGY_MANIFEST
+        ]
+        if len(wheel) != 1 or len(manifest) != 1:
+            raise ValueError("command BOM must contain one strategy wheel and manifest")
+        expected_subjects = {
+            ("strategy_release_bom", command.release_bom_digest),
+            (wheel[0].name, wheel[0].sha256),
+            (manifest[0].name, manifest[0].sha256),
+        }
+        actual_subjects = {
+            (subject.name, subject.sha256) for subject in self.sigstore.verified_subjects
+        }
+        if actual_subjects != expected_subjects:
+            raise ValueError("Sigstore subjects do not match command-bound BOM evidence")
+        return self
+
+
 class StrategyArtifactVerificationReceiptV1(_StrictFrozenModel):
     """Custos proof that exact command-bound bytes passed local verification."""
 
@@ -500,6 +633,7 @@ def _encode_canonical_json(value: object) -> str:
 __all__ = [
     "ArtifactMemberRole",
     "ArtifactMemberV1",
+    "ArchiveVerificationEvidenceV1",
     "AttestationEvidenceV1",
     "DevelopmentSourceRefV1",
     "DigestBindingV1",
@@ -510,11 +644,13 @@ __all__ = [
     "STRATEGY_CONTRACT_SCHEMA_VERSION",
     "STRATEGY_EXECUTION_ABI_V1",
     "StrategyArtifactRefV1",
+    "StrategyArtifactPreImportVerificationReceiptV1",
     "StrategyArtifactVerificationReceiptV1",
     "StrategyExecutionCommandBindingV1",
     "StrategyExecutionContextV1",
     "StrategyManifestV1",
     "StrategyRuntimeAdapterV1",
+    "SigstoreVerificationEvidenceV1",
     "canonical_json_bytes",
     "canonical_json_digest",
     "canonical_model_digest",

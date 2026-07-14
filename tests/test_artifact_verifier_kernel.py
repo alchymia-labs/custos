@@ -6,7 +6,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from custos_toolkit.contracts.strategy_execution import canonical_json_bytes
+from custos_toolkit.contracts.strategy_execution import (
+    StrategyArtifactPreImportVerificationReceiptV1,
+    canonical_json_bytes,
+)
 
 from custos.artifacts.errors import ArtifactVerificationCode, ArtifactVerificationError
 from custos.artifacts.policy import (
@@ -116,6 +119,17 @@ def test_kernel_verifies_before_unpack_and_returns_internal_pre_import_result(tm
     assert not hasattr(result, "loaded_entry_point")
     assert not hasattr(result, "engine_ready")
     assert result.sigstore.verifier_capability_id.startswith("tests-only-")
+    receipt = result.receipt
+    assert isinstance(receipt, StrategyArtifactPreImportVerificationReceiptV1)
+    assert receipt.verified_entry_point == result.verified_entry_point
+    assert receipt.command_binding == fixture.command
+    assert receipt.release_bom_digest == fixture.command.release_bom_digest
+    assert receipt.verified_members == fixture.command.release_bom_members
+    assert receipt.sigstore.transparency_log_verified is True
+    assert receipt.archive.entry_point_metadata_verified is True
+    assert receipt.archive.entry_point_ast_verified is True
+    assert "loaded_entry_point" not in StrategyArtifactPreImportVerificationReceiptV1.model_fields
+    assert "engine_ready" not in StrategyArtifactPreImportVerificationReceiptV1.model_fields
 
 
 def test_missing_sigstore_capability_fails_closed_without_unpacking(tmp_path) -> None:

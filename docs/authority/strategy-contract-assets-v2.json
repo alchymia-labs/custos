@@ -1,0 +1,45 @@
+{
+  "asset_index_schema_version": 2,
+  "assets": [
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json",
+      "sha256": "3d36fb0effdd512d83574795cd92a463caabe85f6c227a3735b198da484cee7d",
+      "size_bytes": 15661
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json.sha256",
+      "sha256": "2b8585f903999c4a2a95f94a64ba49dade5327d4db93128142d4bca1b8df2145",
+      "size_bytes": 120
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json",
+      "sha256": "d554a0f95da2e8cba6f72616b7337d95c1878f23462a2df971a384a9b4c3678e",
+      "size_bytes": 64169
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json.sha256",
+      "sha256": "551f0614a4967aa47b223d3850cfd230390e8664ecc5eeb720727bfbac595c6c",
+      "size_bytes": 122
+    },
+    {
+      "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "sha256": "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463",
+      "size_bytes": 14396
+    }
+  ],
+  "candidate_status": "PENDING_REQUIREMENTS_REVIEWS",
+  "canonical_name": "Custos Plan 18 T5a public pre-import contract candidate assets",
+  "predecessor": {
+    "asset_index": {
+      "path": "docs/authority/strategy-contract-assets-v1.json",
+      "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
+    },
+    "task_2_receipt": {
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+      "sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
+    }
+  },
+  "producer_source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+  "producer_source_sha256": "5aa38841921cb29c085992c5f2babcb969977668a341dfcb983af942d3db1925",
+  "v1_canonical_replaced": false
+}

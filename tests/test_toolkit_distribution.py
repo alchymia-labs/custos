@@ -93,7 +93,16 @@ def test_task3_receipt_explicitly_succeeds_task2_canonical_source() -> None:
 
     assert current["path"] == BASE_SOURCE.relative_to(ROOT).as_posix()
     assert current["sha256"] == historical["sha256"]
-    assert hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest() == current["sha256"]
+    successor_path = ROOT / "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
+    successor = json.loads(successor_path.read_text(encoding="utf-8"))
+    assert (
+        hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest()
+        == successor["producer"]["source_sha256"]
+    )
+    assert successor["predecessor"]["task_2_receipt"] == {
+        "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+        "sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88",
+    }
     assert historical["path"] == "src/custos/contracts/strategy_execution.py"
     assert historical["producer_commit"] == "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0"
     assert receipt["receipt_status"] == "READY"

@@ -9,7 +9,12 @@ from typing import Protocol
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from custos_toolkit.contracts.strategy_execution import (
+    ArchiveVerificationEvidenceV1,
     ArtifactMemberRole,
+    ArtifactMemberV1,
+    DigestBindingV1,
+    SigstoreVerificationEvidenceV1,
+    StrategyArtifactPreImportVerificationReceiptV1,
     StrategyExecutionCommandBindingV1,
     StrategyManifestV1,
     canonical_model_digest,
@@ -88,6 +93,7 @@ class PreImportVerificationResult:
     sigstore: SigstoreVerificationEvidence
     verified_entry_point: str
     quarantine_root: Path
+    receipt: StrategyArtifactPreImportVerificationReceiptV1
 
 
 def _only_member(
@@ -245,6 +251,51 @@ class ArtifactVerifierKernel:
             limits=verified_policy.policy.archive_limits,
             quarantine_parent=request.quarantine_parent,
         )
+        public_members = tuple(
+            ArtifactMemberV1(
+                role=member.role,
+                name=member.name,
+                media_type=member.media_type,
+                size_bytes=member.size_bytes,
+                sha256=member.sha256,
+            )
+            for member in verified_bom.members
+        )
+        public_sigstore = SigstoreVerificationEvidenceV1(
+            verifier_capability_id=sigstore_evidence.verifier_capability_id,
+            bundle_sha256=sigstore_evidence.bundle_sha256,
+            trusted_root_sha256=sigstore_evidence.trusted_root_sha256,
+            issuer=sigstore_evidence.issuer,
+            workflow_identity=sigstore_evidence.workflow_identity,
+            source_repository=sigstore_evidence.source_repository,
+            verified_subjects=tuple(
+                DigestBindingV1(name=subject.name, sha256=subject.sha256)
+                for subject in sigstore_evidence.verified_subjects
+            ),
+            transparency_log_verified=sigstore_evidence.transparency_log_verified,
+        )
+        public_receipt = StrategyArtifactPreImportVerificationReceiptV1(
+            verification_profile="custos-artifact-pre-import-verification-v1",
+            verified_at=request.verified_at,
+            command_binding=request.command_binding,
+            command_binding_digest=canonical_model_digest(request.command_binding),
+            artifact_ref_digest=canonical_model_digest(request.command_binding.artifact_ref),
+            release_bom_digest=verified_bom.release_bom_digest,
+            verified_members=public_members,
+            local_trust_policy_id=verified_policy.policy.policy_id,
+            local_trust_policy_version=verified_policy.policy.version,
+            local_trust_policy_digest=verified_policy.policy_digest,
+            trusted_root_digest=hashlib.sha256(request.sigstore_trusted_root_bytes).hexdigest(),
+            sigstore=public_sigstore,
+            archive=ArchiveVerificationEvidenceV1(
+                archive_format="wheel",
+                member_count=quarantined.archive_member_count,
+                total_uncompressed_bytes=quarantined.total_uncompressed_bytes,
+                entry_point_metadata_verified=True,
+                entry_point_ast_verified=True,
+            ),
+            verified_entry_point=quarantined.verified_entry_point,
+        )
         return PreImportVerificationResult(
             verification_profile="custos-artifact-pre-import-internal-v1",
             verified_at=request.verified_at,
@@ -259,4 +310,5 @@ class ArtifactVerifierKernel:
             sigstore=sigstore_evidence,
             verified_entry_point=quarantined.verified_entry_point,
             quarantine_root=quarantined.root,
+            receipt=public_receipt,
         )

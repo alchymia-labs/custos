@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import shutil
+import subprocess
 from copy import deepcopy
 from pathlib import Path
 from types import ModuleType
@@ -54,6 +55,7 @@ def _ready_tree(
     tmp_path: Path,
 ) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
     receipt = json.loads((ROOT / RECEIPT_PATH).read_text(encoding="utf-8"))
+    historical_commit = receipt["producer"]["candidate_commit"]
     receipt["receipt_status"] = "READY"
     receipt["handoff_ready"] = True
     receipt["producer"]["candidate_commit"] = "f" * 40
@@ -67,7 +69,16 @@ def _ready_tree(
     }
     historical_source = tmp_path / Path(receipt["producer"]["source"])
     historical_source.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(ROOT / CURRENT_CANONICAL_SOURCE, historical_source)
+    historical_source.write_bytes(
+        subprocess.check_output(
+            [
+                "git",
+                "show",
+                f"{historical_commit}:{receipt['producer']['source']}",
+            ],
+            cwd=ROOT,
+        )
+    )
     _copy(tmp_path, Path(receipt["contract_asset_index"]["path"]))
     profiles = deepcopy(CHECKER.REVIEW_PROFILES)
     for index, (reviewer, path) in enumerate(VENDORED_PATHS.items()):

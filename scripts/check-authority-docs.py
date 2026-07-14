@@ -13,7 +13,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "authority-manifest.json"
 TASK_2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+TASK_2_V2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
 TASK_3_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
+TASK_2_V2_INDEX_PATH = "docs/authority/strategy-contract-assets-v2.json"
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
@@ -26,6 +28,7 @@ EXPECTED_PRODUCER = {
     "asset_index_path": "docs/authority/strategy-contract-assets-v1.json",
     "asset_index_sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07",
 }
+EXPECTED_TASK_2_RECEIPT_SHA256 = "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
 EXPECTED_CONTRACT_SUMMARY = {
     "canonicalization": "sha256-canonical-json-v1",
     "execution_abi": "alephain.strategy_runtime.v1",
@@ -407,7 +410,132 @@ def verify_plan_18_task_2_receipt(
             errors.append("ready Plan 18 Task 2 receipt requires fresh verification metadata")
 
 
-def verify_plan_18_task_3_distribution_receipt(errors: list[str], *, root: Path = ROOT) -> bool:
+def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) -> str | None:
+    """Validate the additive T5a candidate without mutating Task 2 v1 history."""
+
+    initial_error_count = len(errors)
+    receipt_path = resolve(TASK_2_V2_RECEIPT_PATH, root=root)
+    if not receipt_path.is_file():
+        errors.append(f"missing Plan 18 Task 2 v2 candidate receipt: {receipt_path}")
+        return None
+    receipt = load_json(receipt_path)
+    if receipt.get("receipt_status") != "PENDING_REQUIREMENTS_REVIEWS":
+        errors.append("Plan 18 Task 2 v2 candidate must remain pending requirements reviews")
+    if receipt.get("handoff_ready") is not False or receipt.get("production_ready") is not False:
+        errors.append("Plan 18 Task 2 v2 candidate cannot be handoff or production ready")
+
+    expected_predecessor = {
+        "asset_index": {
+            "path": EXPECTED_PRODUCER["asset_index_path"],
+            "sha256": EXPECTED_PRODUCER["asset_index_sha256"],
+        },
+        "task_2_receipt": {
+            "path": TASK_2_RECEIPT_PATH,
+            "sha256": EXPECTED_TASK_2_RECEIPT_SHA256,
+        },
+    }
+    if receipt.get("predecessor") != expected_predecessor:
+        errors.append("Plan 18 Task 2 v2 predecessor binding differs")
+    for predecessor in expected_predecessor.values():
+        path = resolve(predecessor["path"], root=root)
+        if (
+            not path.is_file()
+            or hashlib.sha256(path.read_bytes()).hexdigest() != predecessor["sha256"]
+        ):
+            errors.append(f"Plan 18 Task 2 v2 predecessor bytes differ: {path}")
+
+    producer = receipt.get("producer")
+    source_digest: str | None = None
+    if not isinstance(producer, dict):
+        errors.append("Plan 18 Task 2 v2 producer must be an object")
+    else:
+        if (
+            producer.get("candidate_commit") is not None
+            or producer.get("worktree_clean") is not None
+        ):
+            errors.append("Plan 18 Task 2 v2 candidate contains future commit evidence")
+        if producer.get("source") != CURRENT_STRATEGY_CONTRACT_SOURCE:
+            errors.append("Plan 18 Task 2 v2 canonical source path differs")
+        source_path = _resolve_local_file(
+            producer.get("source"),
+            label="Plan 18 Task 2 v2 canonical source",
+            root=root,
+            errors=errors,
+        )
+        if source_path is not None:
+            source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+            if source_digest != producer.get("source_sha256"):
+                errors.append("Plan 18 Task 2 v2 canonical source bytes differ")
+
+    index_ref = receipt.get("contract_asset_index")
+    if not isinstance(index_ref, dict) or index_ref.get("path") != TASK_2_V2_INDEX_PATH:
+        errors.append("Plan 18 Task 2 v2 asset index reference differs")
+    else:
+        index_path = _resolve_local_file(
+            index_ref.get("path"),
+            label="Plan 18 Task 2 v2 asset index",
+            root=root,
+            errors=errors,
+        )
+        if index_path is not None:
+            index_digest = hashlib.sha256(index_path.read_bytes()).hexdigest()
+            if index_digest != index_ref.get("sha256"):
+                errors.append("Plan 18 Task 2 v2 asset index digest differs")
+            index = _load_gate_json(
+                index_path, label="Plan 18 Task 2 v2 asset index", errors=errors
+            )
+            if index is not None:
+                if (
+                    index.get("candidate_status") != "PENDING_REQUIREMENTS_REVIEWS"
+                    or index.get("v1_canonical_replaced") is not False
+                    or index.get("predecessor") != expected_predecessor
+                ):
+                    errors.append("Plan 18 Task 2 v2 asset index candidate boundary differs")
+                if (
+                    source_digest is not None
+                    and index.get("producer_source_sha256") != source_digest
+                ):
+                    errors.append("Plan 18 Task 2 v2 index source digest differs")
+                for entry in index.get("assets", []):
+                    if not isinstance(entry, dict):
+                        errors.append("Plan 18 Task 2 v2 asset entry is not an object")
+                        continue
+                    asset_path = _resolve_local_file(
+                        entry.get("path"),
+                        label="Plan 18 Task 2 v2 generated asset",
+                        root=root,
+                        errors=errors,
+                    )
+                    if asset_path is None:
+                        continue
+                    if hashlib.sha256(asset_path.read_bytes()).hexdigest() != entry.get("sha256"):
+                        errors.append(f"Plan 18 Task 2 v2 asset digest differs: {asset_path}")
+                    if asset_path.stat().st_size != entry.get("size_bytes"):
+                        errors.append(f"Plan 18 Task 2 v2 asset size differs: {asset_path}")
+
+    reviews = receipt.get("requirements_reviews")
+    expected_reviews = {"crucible_rust_plan_88", "philosophers_stone_plan_54"}
+    if not isinstance(reviews, dict) or set(reviews) != expected_reviews:
+        errors.append("Plan 18 Task 2 v2 pending requirements review set differs")
+    else:
+        for name, review in reviews.items():
+            if not isinstance(review, dict) or review != {
+                "status": "PENDING_REQUIREMENTS_REVIEW",
+                "receipt": None,
+            }:
+                errors.append(f"Plan 18 Task 2 v2 {name} contains future review evidence")
+
+    if len(errors) != initial_error_count:
+        return None
+    return source_digest
+
+
+def verify_plan_18_task_3_distribution_receipt(
+    errors: list[str],
+    *,
+    root: Path = ROOT,
+    allowed_current_source_digest: str | None = None,
+) -> bool:
     """Validate the explicit T3 successor path without rewriting Task 2 history."""
 
     initial_error_count = len(errors)
@@ -469,7 +597,7 @@ def verify_plan_18_task_3_distribution_receipt(errors: list[str], *, root: Path 
             errors.append("Plan 18 Task 3 canonical source digest binding differs")
         elif canonical_path is not None:
             digest = hashlib.sha256(canonical_path.read_bytes()).hexdigest()
-            if digest != current.get("sha256"):
+            if digest not in {current.get("sha256"), allowed_current_source_digest}:
                 errors.append("Plan 18 Task 3 canonical source bytes differ")
 
     shim = receipt.get("legacy_shim")
@@ -548,7 +676,11 @@ def main() -> int:
                             f"runner command golden differs from optional sibling: {sibling_path}"
                         )
     verify_strategy_contract_assets(errors)
-    task_3_move_verified = verify_plan_18_task_3_distribution_receipt(errors)
+    v2_source_digest = verify_plan_18_task_2_v2_candidate(errors)
+    task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
+        errors,
+        allowed_current_source_digest=v2_source_digest,
+    )
     verify_plan_18_task_2_receipt(
         errors,
         verify_historical_path_bytes=not task_3_move_verified,

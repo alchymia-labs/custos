@@ -35,12 +35,40 @@
       "path": "docs/authority/strategy-contract-assets-v1.json"
     },
     {
+      "role": "strategy_contract_asset_index_v2_candidate",
+      "path": "docs/authority/strategy-contract-assets-v2.json",
+      "candidate_status": "PENDING_REQUIREMENTS_REVIEWS",
+      "replaces_v1": false
+    },
+    {
       "role": "strategy_artifact_lifecycle_golden",
       "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"
     },
     {
+      "role": "strategy_artifact_pre_import_lifecycle_golden_v2_candidate",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json"
+    },
+    {
+      "role": "strategy_artifact_pre_import_lifecycle_golden_v2_sidecar",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json.sha256"
+    },
+    {
+      "role": "strategy_artifact_pre_import_lifecycle_negative_v2_candidate",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json"
+    },
+    {
+      "role": "strategy_artifact_pre_import_lifecycle_negative_v2_sidecar",
+      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json.sha256"
+    },
+    {
       "role": "plan_18_task_2_receipt",
       "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+    },
+    {
+      "role": "plan_18_task_2_receipt_v2_candidate",
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
+      "receipt_status": "PENDING_REQUIREMENTS_REVIEWS",
+      "handoff_ready": false
     },
     {
       "role": "plan_18_task_3_distribution_receipt",
@@ -73,6 +101,10 @@
     {
       "role": "strategy_artifact_verification_receipt_schema",
       "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json"
+    },
+    {
+      "role": "strategy_artifact_pre_import_verification_receipt_schema_v2_candidate",
+      "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json"
     },
     {
       "role": "local_telemetry",
