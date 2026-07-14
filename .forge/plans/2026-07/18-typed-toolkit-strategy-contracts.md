@@ -673,6 +673,22 @@ production release runner with real credentials, verify its immutable remote rec
 and register that receipt in the authority chain. Until that operational action occurs,
 T6 remains open and no toolkit RC READY claim is allowed.
 
+#### T6 local readiness checkpoint
+
+Local T6a-T6d implementation readiness is frozen at verification HEAD
+`b5f0449df04ffb74192e65346127e9abf7463d0f`. A clean full `make verify` passed with
+`550 passed, 4 skipped, 1 xfailed`; all `177` Python files were formatted, Ruff,
+generated-asset drift, authority, extraction `241/241`, and strict mypy base `0/41`
+plus adapter `0/59` passed.
+
+This checkpoint closes local contract, reproducible-build, publication-protocol, formal
+SBOM, exact dependency-lock, provenance, workflow, and fail-closed authority readiness
+only. It does not complete T6 or Plan 18 and does not create an immutable toolkit RC
+receipt. The single remaining external T6 gate is execution of the protected production
+release runner with real credentials, production Sigstore identity, remote immutable
+digest readback, and registration of the resulting READY receipt. T7-T9 remain downstream
+and unclaimed after that receipt; they are not additional local T6-readiness blockers.
+
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
 2. 发布不可覆盖的 toolkit `0.1.0rcN` artifacts；失败时递增 rc，不覆盖旧制品。
@@ -773,8 +789,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
 | T6c Atomic publication protocol | [x] | 2026-07-15 | Local-only artifact-service contract validates exact T6a/T6b/object bytes, preflights every immutable rcN coordinate, requires atomic staging ACK + complete PubAck + digest readback, and emits PENDING-only evidence; fake HTTP failure/retry matrix passes, while production service/credentials/signatures/SBOM/final receipt remain T6d |
-| T6d Production runner readiness | [x] | 2026-07-15 | Deterministic CycloneDX 1.6, exact uv.lock dependency evidence, complete in-toto/SLSA provenance, exact alchymia-labs OIDC identity, protected manual workflow, production Sigstore re-verification, source-generated PENDING schema and fail-closed authority gates are implemented without remote/signature/binary execution |
-| T6 Toolkit candidate | [ ] | — | Exactly one blocker remains: execute the protected production release runner with real credentials and register its verified immutable remote receipt; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not T6 START gates |
+| T6d Production runner readiness | [x] | 2026-07-15 | Local T6a-T6d readiness verified at `b5f0449df04ffb74192e65346127e9abf7463d0f`: full `make verify` 550 passed/4 skipped/1 xfailed, 177 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote/signature/binary execution |
+| T6 Toolkit candidate | [ ] | — | Local readiness complete, but exactly one external gate remains: execute the protected production release runner with real credentials and production Sigstore, verify remote immutable digest readback, and register its READY receipt; T7-T9 and Plan 18 remain uncompleted |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
