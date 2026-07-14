@@ -110,16 +110,14 @@ def test_node_dict_recursive_no_credential() -> None:
     spec = _spec()
     credential = _credential()
 
-    # Assemble the node config exactly as NtTradingNodeHost.deploy does (sandbox),
-    # so the credential enters the graph through the real venue-config path.
+    # Assemble the node config exactly as NtTradingNodeHost.deploy does. Sandbox
+    # market data is public, so the credential must not enter the NT config graph
+    # at all; the execution client is locally simulated and also credential-free.
     data_cfg = venue.build_data_client_config(
         spec, credential, venue.data_environment_for_mode("sandbox")
     )
-    # Positive control: the sentinel really is in the config graph — otherwise the
-    # walk below would pass trivially (a walk over a graph that never held the key
-    # proves nothing).
-    assert data_cfg.api_key == _SENTINEL_KEY
-    assert data_cfg.api_secret == _SENTINEL_SECRET
+    assert data_cfg.api_key is None
+    assert data_cfg.api_secret is None
 
     exec_cfg = venue.build_exec_client_config_sandbox(spec, credential, ["10_000 USDT"])
     node_config = TradingNodeConfig(

@@ -1,7 +1,8 @@
 """Binance venue-config helpers — pure functions from spec+credential to NT config.
 
 Covers the failure-mode contract for the venue-assembly layer:
-- missing api_key in the credential dict -> KeyError (fail-fast, no NT build)
+- sandbox data uses the anonymous public feed and ignores bootstrap credentials
+- missing api_key in an authenticated mode -> KeyError (fail-fast, no NT build)
 - unsupported connector (non-binance) -> NotImplementedError (explicit reject)
 
 Plus happy-path field assertions on the constructed NT config objects. Requires
@@ -100,7 +101,9 @@ def test_build_futures_leverages_keyed_by_instrument_id() -> None:
 
 
 def test_build_data_client_config_perpetual() -> None:
-    cfg = build_data_client_config(_spec("binance_perpetual"), _credential())
+    spec = _spec("binance_perpetual")
+    spec["trading_mode"] = "live"
+    cfg = build_data_client_config(spec, _credential())
     assert cfg.api_key == "test-key"
     assert cfg.api_secret == "test-secret"
     assert cfg.account_type == BinanceAccountType.USDT_FUTURES
@@ -110,8 +113,20 @@ def test_build_data_client_config_perpetual() -> None:
 
 
 def test_build_data_client_config_spot() -> None:
-    cfg = build_data_client_config(_spec("binance"), _credential())
+    spec = _spec("binance")
+    spec["trading_mode"] = "live"
+    cfg = build_data_client_config(spec, _credential())
     assert cfg.account_type == BinanceAccountType.SPOT
+
+
+def test_build_data_client_config_sandbox_uses_anonymous_public_feed() -> None:
+    spec = _spec("binance_perpetual")
+    spec["trading_mode"] = "sandbox"
+
+    cfg = build_data_client_config(spec, _credential())
+
+    assert cfg.api_key is None
+    assert cfg.api_secret is None
 
 
 def test_build_exec_client_config_sandbox_futures() -> None:
@@ -137,8 +152,10 @@ def test_build_exec_client_config_sandbox_spot_is_cash() -> None:
 def test_missing_api_key_raises() -> None:
     # Failure-mode contract: credential without api_key -> KeyError (fail-fast).
     bad_credential = {"api_secret": "s", "permission_scope": "trade_no_withdraw"}
+    spec = _spec("binance_perpetual")
+    spec["trading_mode"] = "live"
     with pytest.raises(KeyError):
-        build_data_client_config(_spec("binance_perpetual"), bad_credential)
+        build_data_client_config(spec, bad_credential)
 
 
 def test_unsupported_connector_notimpl() -> None:
@@ -206,7 +223,7 @@ def test_data_environment_for_mode_unknown_maps_live() -> None:
 
 
 def test_build_data_client_config_testnet_env() -> None:
-    cfg = build_data_client_config(
-        _spec("binance_perpetual"), _credential(), BinanceEnvironment.TESTNET
-    )
+    spec = _spec("binance_perpetual")
+    spec["trading_mode"] = "testnet"
+    cfg = build_data_client_config(spec, _credential(), BinanceEnvironment.TESTNET)
     assert cfg.environment == BinanceEnvironment.TESTNET

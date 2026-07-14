@@ -19,7 +19,8 @@
   `spec.trading_mode` 分派三档执行通道 —— `sandbox`（实时 Binance 数据 + 本地模拟撮合）
   / `testnet`（真 Binance exec 走 testnet 端点，测试资金）/ `live`（真交易所，过 G6 gate
   + 云端双人审批）。它声明 `supports_live() -> True` / `supports_venue(name)`（Binance
-  connector 集）。
+  connector 集）。sandbox 行情使用匿名公共 feed，vault credential 不进入 NT data/exec
+  config；testnet/live 才构造 authenticated client。
 
 ## 关键接口
 

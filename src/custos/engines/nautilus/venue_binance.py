@@ -10,9 +10,10 @@ NautilusTrader client-config objects. Three execution modes:
 - live: same but environment LIVE against the real exchange; a live exec config
   cannot be built without separation-of-duties approval (>= 2 approvers).
 
-non-custodial red line 0.1: this module only forwards the caller-supplied
-credential fields into NT config objects and returns them. It never logs,
-prints, or publishes credential material — keep it that way.
+non-custodial red line 0.1: sandbox does not place credential fields in NT
+config objects; authenticated modes only forward them into local NT configs.
+This module never logs, prints, or publishes credential material — keep it
+that way.
 
 Only Binance (spot + USDT-perpetual) is wired here; other venues are rejected
 explicitly. Sandbox data uses the LIVE Binance feed because simulated execution
@@ -142,13 +143,25 @@ def build_data_client_config(
     credential: dict,
     environment: BinanceEnvironment = BinanceEnvironment.LIVE,
 ) -> BinanceDataClientConfig:
-    """Binance data-feed config for the given environment (defaults to LIVE prices)."""
+    """Binance data-feed config for the requested trading mode and environment.
+
+    Sandbox consumes public market data and must not authenticate with the
+    exchange: execution is local and a bootstrap-only vault credential may be
+    deliberately non-functional. Testnet and live retain authenticated data
+    clients so their credential failures remain fail-fast.
+    """
     connector = spec["connector"]
     exchange_type = _binance_exchange_type(connector)
-    # Fail-fast on a malformed credential before any NT object is built.
-    api_key = credential["api_key"]
-    api_secret = credential["api_secret"]
-    key_type = BinanceKeyType[str(credential.get("key_type", "HMAC")).upper()]
+    trading_mode = str(spec.get("trading_mode") or "sandbox").lower()
+    if trading_mode == "sandbox":
+        api_key = None
+        api_secret = None
+        key_type = BinanceKeyType.HMAC
+    else:
+        # Fail-fast on a malformed credential before any NT object is built.
+        api_key = credential["api_key"]
+        api_secret = credential["api_secret"]
+        key_type = BinanceKeyType[str(credential.get("key_type", "HMAC")).upper()]
     account_type = (
         BinanceAccountType.USDT_FUTURES if exchange_type == "futures" else BinanceAccountType.SPOT
     )
