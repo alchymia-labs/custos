@@ -1,8 +1,9 @@
 # SuperTrend sandbox with Custos 0.3.0
 
-This example runs a NautilusTrader strategy with live market data and locally
-simulated fills. Exchange credentials, the age key, and strategy code remain on
-the runner host.
+This example runs NautilusTrader with live market data and locally simulated
+fills. Crucible remains the deployment owner: it enrolls the runner, owns the
+JetStream command topology, and sends signed desired-state events. Custos does
+not create streams or publish its own DeploymentSpec.
 
 Install the development and NautilusTrader extras on Python 3.12+:
 
@@ -10,90 +11,62 @@ Install the development and NautilusTrader extras on Python 3.12+:
 uv sync --extra dev --extra nautilus
 ```
 
-[`spec-example.json`](spec-example.json) is byte-identical to the informative
-[`deployment_spec_sandbox.json`](../../docs/gateway-contract/v1/samples/deployment_spec_sandbox.json)
-gateway sample. Set its `strategy_path` to the strategy file on this host before
-publishing it.
+`spec-example.json` is byte-identical to the gateway sample. It is an offline
+diagnostic fixture; replace its placeholder hashes with values issued by
+Crucible before using the equivalent canonical spec.
 
-## 1. Provision one per-key vault entry
+## 1. Enroll the runner machine principal
 
-Generate an age key once, then pass the secret through stdin. The only accepted
-permission boundary in Custos 0.3.x is `trade_no_withdraw`.
+Generate an age identity, obtain a one-time enrollment token from the
+Crucible control plane, then run the nonce-bound enrollment command:
 
 ```bash
-mkdir -p ~/.arx/vault
-chmod 700 ~/.arx ~/.arx/vault
+mkdir -p ~/.arx/vault ~/.arx/state
+chmod 700 ~/.arx ~/.arx/vault ~/.arx/state
 age-keygen -o ~/.arx/age.key
 chmod 600 ~/.arx/age.key
+export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
+export SOPS_AGE_RECIPIENT="$(age-keygen -y "$SOPS_AGE_KEY_FILE")"
 
+uv run arx-runner enroll \
+  --token '<one-time-token>' \
+  --backend https://crucible.example \
+  --tenant-id acme \
+  --runner-id 22222222-2222-4222-8222-222222222222
+```
+
+Enrollment writes public binding metadata to `~/.arx/runner.toml` and keeps
+the opaque credential plus Ed25519 private key in the encrypted machine vault.
+Manual runner records are not supported.
+
+## 2. Provision the venue credential
+
+```bash
 printf '%s\n' '<sandbox-api-secret>' | uv run arx-runner vault put \
   --key-id binance-sandbox-key \
   --tenant-id acme \
   --api-key '<sandbox-api-key>' \
   --api-secret-stdin \
-  --age-recipient '<age1-public-key>' \
+  --age-recipient "$SOPS_AGE_RECIPIENT" \
   --permission-scope trade_no_withdraw
 ```
 
-The command writes `~/.arx/vault/binance-sandbox-key.enc`; it never creates a
-shared multi-credential file.
+## 3. Validate locally and start
 
-## 2. Create the sanctioned sandbox runner.toml
-
-When no enrollment backend is available, a manually constructed runner record
-is an approved non-live path. It does not grant live scope.
+Local validation is diagnostic only:
 
 ```bash
-uv run python - <<'PY'
-import time
-from pathlib import Path
-
-from custos.core.runner_toml import RunnerToml
-
-RunnerToml.write(
-    Path.home() / ".arx" / "runner.toml",
-    RunnerToml(
-        tenant_id="acme",
-        runner_id="runner-sandbox-1",
-        backend_url="http://mock-sandbox:8000",
-        long_term_credential="sandbox-local-only",
-        enrolled_at_ns=time.time_ns(),
-    ),
-)
-PY
-```
-
-See the full security and mode constraints in
-[`docs/design/enrollment.md`](../../docs/design/enrollment.md#sandbox-mode-manually-constructed-runnertoml-sanctioned-pattern).
-
-## 3. Start and publish the spec
-
-Start a local JetStream-enabled NATS server, bootstrap the standalone topology,
-then run the real Nautilus engine:
-
-```bash
-export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
-uv run arx-runner nats bootstrap \
-  --profile standalone \
-  --nats-url nats://localhost:4222 \
-  --tenant-id acme
+uv run arx-runner deployment validate \
+  --spec-file examples/supertrend-sandbox/spec-example.json
 
 uv run arx-runner start \
-  --nats-url nats://localhost:4222 \
-  --reconcile-strategy-id supertrend-btcusdt \
-  --engine nautilus \
-  --vault-dir "$HOME/.arx/vault"
+  --nats-url nats://crucible-nats.internal:4222 \
+  --crucible-domain-public-key "$HOME/.arx/crucible-domain-event.pub" \
+  --crucible-domain-key-id crucible-domain-v1 \
+  --engine nautilus
 ```
 
-In another terminal, publish the strict DeploymentSpec through the public seam:
-
-```bash
-uv run arx-runner deployment publish \
-  --spec-file examples/supertrend-sandbox/spec-example.json \
-  --tenant-id acme \
-  --strategy-id supertrend-btcusdt \
-  --nats-url nats://localhost:4222
-```
-
-A `null` `code_hash` is permitted for sandbox and audited as a skipped
-provenance check; live mode requires a matching hash and the G6 gate.
+Submit the corresponding desired state through Crucible. The runner becomes
+ready only after machine authority verification and subscription to its exact
+Crucible command subject. Lifecycle observations return through the signed
+RunnerFact outbox.

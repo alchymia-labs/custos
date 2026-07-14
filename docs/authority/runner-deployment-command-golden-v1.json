@@ -1,0 +1,177 @@
+{
+  "fixture_schema_version": 1,
+  "producer": "crucible-rust",
+  "canonical_digest_algorithm": "sha256-canonical-json-v1",
+  "cases": [
+    {
+      "name": "deployment_spec_ready_for_runner",
+      "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentSpecReadyForRunner.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+      "event_document": {
+        "schema_version": 2,
+        "event_id": "90000000-0000-4000-8000-000000000009",
+        "tenant_id": "acme",
+        "event_plane": {
+          "kind": "mode",
+          "trading_mode": "sandbox"
+        },
+        "bounded_context": "deployment",
+        "aggregate_type": "deployment_instance",
+        "aggregate_id": "20000000-0000-4000-8000-000000000002",
+        "aggregate_version": 1,
+        "event_type": "DeploymentSpecReadyForRunner.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+        "payload": {
+          "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
+          "deployment_spec": {
+            "code_provenance": {
+              "strategy_path": "/opt/custos/strategies/supertrend/strategy.py"
+            },
+            "credential_scope": {
+              "scope_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "scope_id": "sandbox-credential"
+            },
+            "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+            "engine_binding_id": "80000000-0000-4000-8000-000000000008",
+            "execution_channel": {
+              "channel_type": "runner"
+            },
+            "parameters": {
+              "runner_runtime": {
+                "connector": "binance_perpetual",
+                "leverage": 1,
+                "pairs": [
+                  "BTC-USDT"
+                ],
+                "sandbox": {
+                  "starting_balances": [
+                    "10000 USDT"
+                  ]
+                },
+                "strategy_config": {
+                  "period": 10
+                }
+              }
+            },
+            "promotion_evidence_digest": null,
+            "promotion_id": null,
+            "risk_policy_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "risk_policy_id": "70000000-0000-4000-8000-000000000007",
+            "risk_policy_version": 1,
+            "runner_contract_requirements": {},
+            "scheduling_policy": {},
+            "scheduling_policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "schema_version": 1,
+            "source_policy_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "strategy_artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "strategy_id": "40000000-0000-4000-8000-000000000004",
+            "strategy_manifest_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "strategy_product_id": "60000000-0000-4000-8000-000000000006",
+            "strategy_release_id": "50000000-0000-4000-8000-000000000005",
+            "strategy_release_snapshot_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "strategy_release_version": 1,
+            "target_runner_id": "10000000-0000-4000-8000-000000000001",
+            "tenant_id": "acme",
+            "trading_mode": "sandbox",
+            "venue_source_policy": []
+          },
+          "deployment_spec_digest": "57e061b5c6ebf8fa76129838364552c88924e2e66a07ea1c490fdc786b249ede",
+          "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+          "generation": 1,
+          "issued_at": "2026-07-14T00:00:00Z",
+          "lifecycle_state": "running",
+          "mode": "sandbox",
+          "runner_id": "10000000-0000-4000-8000-000000000001",
+          "schema_version": 1,
+          "tenant_id": "acme"
+        },
+        "correlation_id": "fixture-correlation-1",
+        "actor_assertion_jti": "fixture-actor-jti-1",
+        "occurred_at": "2026-07-14T00:00:00Z"
+      }
+    },
+    {
+      "name": "deployment_instance_desired_state_changed",
+      "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentInstanceDesiredStateChanged.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+      "event_document": {
+        "schema_version": 2,
+        "event_id": "90000000-0000-4000-8000-000000000010",
+        "tenant_id": "acme",
+        "event_plane": {
+          "kind": "mode",
+          "trading_mode": "sandbox"
+        },
+        "bounded_context": "deployment",
+        "aggregate_type": "deployment_instance",
+        "aggregate_id": "20000000-0000-4000-8000-000000000002",
+        "aggregate_version": 2,
+        "event_type": "DeploymentInstanceDesiredStateChanged.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+        "payload": {
+          "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
+          "deployment_spec": {
+            "code_provenance": {
+              "strategy_path": "/opt/custos/strategies/supertrend/strategy.py"
+            },
+            "credential_scope": {
+              "scope_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "scope_id": "sandbox-credential"
+            },
+            "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+            "engine_binding_id": "80000000-0000-4000-8000-000000000008",
+            "execution_channel": {
+              "channel_type": "runner"
+            },
+            "parameters": {
+              "runner_runtime": {
+                "connector": "binance_perpetual",
+                "leverage": 1,
+                "pairs": [
+                  "BTC-USDT"
+                ],
+                "sandbox": {
+                  "starting_balances": [
+                    "10000 USDT"
+                  ]
+                },
+                "strategy_config": {
+                  "period": 10
+                }
+              }
+            },
+            "promotion_evidence_digest": null,
+            "promotion_id": null,
+            "risk_policy_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "risk_policy_id": "70000000-0000-4000-8000-000000000007",
+            "risk_policy_version": 1,
+            "runner_contract_requirements": {},
+            "scheduling_policy": {},
+            "scheduling_policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "schema_version": 1,
+            "source_policy_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "strategy_artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "strategy_id": "40000000-0000-4000-8000-000000000004",
+            "strategy_manifest_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "strategy_product_id": "60000000-0000-4000-8000-000000000006",
+            "strategy_release_id": "50000000-0000-4000-8000-000000000005",
+            "strategy_release_snapshot_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "strategy_release_version": 1,
+            "target_runner_id": "10000000-0000-4000-8000-000000000001",
+            "tenant_id": "acme",
+            "trading_mode": "sandbox",
+            "venue_source_policy": []
+          },
+          "deployment_spec_digest": "57e061b5c6ebf8fa76129838364552c88924e2e66a07ea1c490fdc786b249ede",
+          "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+          "generation": 2,
+          "issued_at": "2026-07-14T00:01:00Z",
+          "lifecycle_state": "paused",
+          "mode": "sandbox",
+          "runner_id": "10000000-0000-4000-8000-000000000001",
+          "schema_version": 1,
+          "tenant_id": "acme"
+        },
+        "correlation_id": "fixture-correlation-2",
+        "actor_assertion_jti": "fixture-actor-jti-2",
+        "occurred_at": "2026-07-14T00:01:00Z"
+      }
+    }
+  ]
+}

@@ -30,9 +30,9 @@ DEFAULT_GRACE_SECS = 60.0
 @dataclass(frozen=True)
 class ZombieVerdict:
     """Outcome of one connectivity observation. ``is_zombie`` means the engine
-    has been disconnected past the grace window and the spec should degrade."""
+    has been disconnected past the grace window and the instance should degrade."""
 
-    spec_id: str
+    deployment_instance_id: str
     is_zombie: bool
     disconnected_secs: float
 
@@ -50,16 +50,20 @@ class ZombieWatchdog:
     ) -> None:
         self._grace_secs = grace_secs
         self._clock = clock
-        # spec_id -> monotonic timestamp first observed disconnected.
+        # deployment_instance_id -> monotonic timestamp first observed disconnected.
         self._degraded_since: dict[str, float] = {}
 
     @property
     def grace_secs(self) -> float:
         return self._grace_secs
 
+    def forget(self, deployment_instance_id: str) -> None:
+        """Remove terminal instance state so a later instance starts cleanly."""
+        self._degraded_since.pop(deployment_instance_id, None)
+
     def observe(
         self,
-        spec_id: str,
+        deployment_instance_id: str,
         connectivity: ConnectivityState,
         *,
         paused: bool = False,
@@ -69,12 +73,16 @@ class ZombieWatchdog:
         if paused or connected:
             # Healthy again, or intentionally paused — reset the timer so a later
             # disconnect starts a fresh grace window.
-            self._degraded_since.pop(spec_id, None)
-            return ZombieVerdict(spec_id=spec_id, is_zombie=False, disconnected_secs=0.0)
-        since = self._degraded_since.setdefault(spec_id, now)
+            self._degraded_since.pop(deployment_instance_id, None)
+            return ZombieVerdict(
+                deployment_instance_id=deployment_instance_id,
+                is_zombie=False,
+                disconnected_secs=0.0,
+            )
+        since = self._degraded_since.setdefault(deployment_instance_id, now)
         disconnected_secs = now - since
         return ZombieVerdict(
-            spec_id=spec_id,
+            deployment_instance_id=deployment_instance_id,
             is_zombie=disconnected_secs >= self._grace_secs,
             disconnected_secs=disconnected_secs,
         )

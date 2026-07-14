@@ -1,41 +1,32 @@
-"""Declarative deployment reconcile loop.
-
-Cloud sends DeploymentSpec over NATS → runner compares generation locally →
-starts/stops execution engine → publishes DeploymentStatus over NATS.
-
-Declarative + level-triggered (plan-index §6):
-- generation comparison is idempotent: repeated snapshots with same generation do not
-  trigger duplicate execution.
-- disconnect-tolerant: when NATS is disconnected, the reconcile loop keeps running;
-  local NT still runs and latest status is re-published after reconnect.
-- active observability: silent paths should still emit structlog events (lesson #21).
-
-New module, does not extend reconcile.py (that one handles state snapshot
-reconciliation upload via ReconcileUploader with a different responsibility).
-"""
+"""Instance-keyed reconciliation of Crucible-signed desired state."""
 
 from __future__ import annotations
 
 import asyncio
-import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol
+from uuid import uuid4
 
 from pydantic import ValidationError
 
-from custos.contracts import DeploymentMessage, DeploymentSpec, TradingMode
+from custos.contracts import CrucibleDomainEventVerifier, DeploymentMessage, DeploymentSpec
 from custos.core.engine_protocol import ExecutionEngineProtocol
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.g6_gate import check_g6_gate
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.log import get_logger
-from custos.core.nats_client import ArxNatsClient, build_subject
-from custos.core.runner_fact import RunnerFactAuthority
+from custos.core.nats_client import CrucibleNatsClient
+from custos.core.runner_deployment_lifecycle_fact import (
+    RunnerDeploymentLifecycleFact,
+    RunnerDeploymentLifecycleFactEmitter,
+)
+from custos.core.runner_fact import RunnerFactAuthority, RunnerFactError
 from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogFactError
 from custos.core.zombie_watchdog import ZombieWatchdog
 
 _log = get_logger("custos.deployment_reconciler")
+_TERMINAL_STATES = frozenset({"stopped", "archived"})
 
 
 class CredentialVaultProtocol(Protocol):
@@ -56,83 +47,59 @@ class ReadinessProtocol(Protocol):
 
 @dataclass
 class _ReconcileState:
-    """Per-spec-id reconcile bookkeeping.
+    """Engine apply and durable fact reporting advance independently."""
 
-    observed_generation is the runner-observed generation that has fully completed
-    reconcile; drift_strikes counts consecutive samples where
-    spec.generation > observed_generation, and crossing threshold triggers drift.
-    """
-
-    observed_generation: int = 0
+    applied_generation: int = 0
+    reported_generation: int = 0
     container_id: str | None = None
     drift_strikes: int = 0
     last_spec: dict | None = None
     strategy_id: str | None = None
+    fact_authority: RunnerFactAuthority | None = None
     runtime_log_authority: RunnerFactAuthority | None = None
+    pending_lifecycle_fact: RunnerDeploymentLifecycleFact | None = None
 
 
 @dataclass
 class DeploymentReconciler:
-    """Declarative reconcile loop."""
-
-    nats_client: ArxNatsClient
+    nats_client: CrucibleNatsClient
     tenant_id: str
     runner_id: str
     execution_engine: ExecutionEngineProtocol
     credential_vault: CredentialVaultProtocol
     runtime_log_emitter: RunnerRuntimeLogEmitter
+    lifecycle_fact_emitter: RunnerDeploymentLifecycleFactEmitter
+    deployment_verifier: CrucibleDomainEventVerifier
     drift_threshold: int = 3
     poll_interval_secs: float = 0.5
-    # Optional local guards injected at the composition root (cli/main.py). When
-    # present the reconcile loop enforces them on the disconnect-resilient path;
-    # when None the loop behaves as a pure spec follower (unit-test default).
-    # local_cap is the pre-trade soft limit (its per-order enforcement lives at
-    # the trade path); fallback_breaker + zombie_watchdog run on the loop tick.
     local_cap: RunnerNotionalCap | None = None
-    fallback_breaker: FallbackBreaker | None = None
     zombie_watchdog: ZombieWatchdog | None = None
     readiness: ReadinessProtocol | None = None
     subscribe_backoff_initial_secs: float = 0.25
     subscribe_backoff_max_secs: float = 5.0
-    session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     _state: dict[str, _ReconcileState] = field(default_factory=dict)
+    _fallback_breakers: dict[str, FallbackBreaker] = field(default_factory=dict)
 
-    async def reconcile_loop(
-        self,
-        stop: asyncio.Event,
-        strategy_id: str,
-    ) -> None:
-        """Main loop: subscribe deployment_spec → process → report status.
-
-        Disconnect-safe operation (CLAUDE.md red line: reconnection does not stop):
-        - on subscribe/connect errors: log + retry with backoff; local NT keeps running.
-        - publish_deployment_status failures are logged and skipped; next reconcile
-          cycle re-sends status.
-        """
+    async def reconcile_loop(self, stop: asyncio.Event) -> None:
+        """Verify, apply, durably report, then ACK; local apply failures NAK."""
         _log.info(
             "deployment_reconciler_started",
             tenant_id=self.tenant_id,
             runner_id=self.runner_id,
-            session_id=self.session_id,
-            strategy_id=strategy_id,
         )
         if self.readiness is not None:
             self.readiness.clear()
-        sub = None
+        subscription = None
         backoff = self.subscribe_backoff_initial_secs
         try:
             while not stop.is_set():
-                # Autonomous local guards run whether subscribed, retrying, or idle.
                 await self._tick_local_guards()
-                if sub is None:
+                if subscription is None:
                     try:
-                        sub = await self.nats_client.subscribe_deployment_spec(
-                            strategy_id=strategy_id
-                        )
-                    except Exception as exc:  # noqa: BLE001 - retry until stop
+                        subscription = await self.nats_client.subscribe_deployment_spec()
+                    except Exception as exc:  # noqa: BLE001
                         _log.error(
                             "deployment_reconciler_subscribe_failed",
-                            strategy_id=strategy_id,
                             error=str(exc),
                             retry_in_secs=backoff,
                         )
@@ -140,71 +107,52 @@ class DeploymentReconciler:
                         backoff = min(backoff * 2, self.subscribe_backoff_max_secs)
                         continue
                     backoff = self.subscribe_backoff_initial_secs
-                    _log.info(
-                        "deployment_reconciler_subscribed",
-                        strategy_id=strategy_id,
-                    )
                     if self.readiness is not None:
                         self.readiness.mark_ready(
-                            strategy_id=strategy_id,
+                            strategy_id=None,
                             nats_connected=True,
                             deployment_subscription=True,
                         )
-
                 try:
-                    msg = await asyncio.wait_for(
-                        sub.next_msg(timeout=self.poll_interval_secs),
+                    message = await asyncio.wait_for(
+                        subscription.next_msg(timeout=self.poll_interval_secs),
                         timeout=self.poll_interval_secs * 2,
                     )
                 except TimeoutError:
                     continue
-                except Exception as exc:  # noqa: BLE001 - clear readiness and resubscribe
-                    _log.warning(
-                        "deployment_reconciler_subscription_lost",
-                        strategy_id=strategy_id,
-                        error=str(exc),
-                    )
+                except Exception as exc:  # noqa: BLE001
+                    _log.warning("deployment_reconciler_subscription_lost", error=str(exc))
                     if self.readiness is not None:
                         self.readiness.clear()
-                    sub = None
+                    subscription = None
                     await self._wait_for_retry(stop, backoff)
                     backoff = min(backoff * 2, self.subscribe_backoff_max_secs)
                     continue
-
                 try:
-                    message = DeploymentMessage.parse(
-                        msg.data,
+                    command = DeploymentMessage.parse(
+                        message.data,
+                        subject=str(message.subject),
                         expected_tenant_id=self.tenant_id,
+                        expected_runner_id=self.runner_id,
+                        verifier=self.deployment_verifier,
                     )
                 except (ValidationError, ValueError, AttributeError) as exc:
-                    _log.error(
-                        "deployment_spec_decode_failed",
-                        error=str(exc),
-                    )
+                    _log.error("deployment_spec_decode_failed", error=str(exc))
+                    terminate = getattr(message, "term", None)
+                    if terminate is not None:
+                        await terminate()
                     continue
-                expected_subject = build_subject(self.tenant_id, "deployment_spec", strategy_id)
-                if message.subject != expected_subject:
-                    _log.error(
-                        "deployment_message_strategy_mismatch",
-                        expected_subject=expected_subject,
-                        message_subject=message.subject,
-                    )
-                    continue
-                await self.handle_spec(
-                    message.spec.model_dump(mode="json"),
-                    strategy_id=str(message.envelope.payload["strategy_id"]),
+                applied = await self.handle_spec(
+                    command.spec.model_dump(mode="json"),
+                    strategy_id=str(command.spec.strategy_id),
                 )
+                disposition = getattr(message, "ack" if applied else "nak", None)
+                if disposition is not None:
+                    await disposition()
         finally:
             if self.readiness is not None:
                 self.readiness.clear()
-            _log.info(
-                "deployment_reconciler_stopped",
-                session_id=self.session_id,
-            )
-
-    async def _tick_local_guards(self) -> None:
-        await self._watchdog_tick()
-        await self._breaker_tick()
+            _log.info("deployment_reconciler_stopped")
 
     async def _wait_for_retry(self, stop: asyncio.Event, delay: float) -> None:
         deadline = asyncio.get_running_loop().time() + delay
@@ -212,382 +160,276 @@ class DeploymentReconciler:
             remaining = deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
                 return
-            interval = min(max(self.poll_interval_secs, 0.001), remaining)
             try:
-                await asyncio.wait_for(stop.wait(), timeout=interval)
+                await asyncio.wait_for(
+                    stop.wait(), timeout=min(max(self.poll_interval_secs, 0.001), remaining)
+                )
             except TimeoutError:
                 await self._tick_local_guards()
 
-    async def handle_spec(self, spec: dict, *, strategy_id: str | None = None) -> None:
-        """Process one DeploymentSpec snapshot with generation idempotency + drift detection."""
+    async def handle_spec(self, spec: dict, *, strategy_id: str | None = None) -> bool:
+        """Apply each generation once and retry only its durable fact on redelivery."""
         try:
             validated = DeploymentSpec.model_validate(spec)
         except ValidationError as exc:
-            _log.error(
-                "deployment_spec_validation_failed",
-                error_count=exc.error_count(),
-            )
-            return
-        spec = validated.model_dump(mode="json")
-        spec_id = spec.get("spec_id")
-        if not spec_id:
-            _log.error("deployment_spec_missing_spec_id", payload_keys=list(spec.keys()))
-            return
+            _log.error("deployment_spec_validation_failed", error_count=exc.error_count())
+            return False
+        runtime_spec = validated.model_dump(mode="json")
+        instance_id = str(validated.deployment_instance_id)
+        generation = validated.generation
+        state = self._state.setdefault(instance_id, _ReconcileState())
+        effective_strategy_id = strategy_id or str(validated.strategy_id)
+        if state.strategy_id is not None and state.strategy_id != effective_strategy_id:
+            _log.error("deployment_spec_strategy_identity_changed", deployment_instance_id=instance_id)
+            return False
+        state.strategy_id = effective_strategy_id
         try:
-            generation = int(spec.get("generation", 0))
-        except (TypeError, ValueError):
-            _log.error(
-                "deployment_spec_invalid_generation",
-                spec_id=spec_id,
-                raw=spec.get("generation"),
-            )
-            return
-
-        state = self._state.setdefault(spec_id, _ReconcileState())
-        if strategy_id is not None:
-            if state.strategy_id is not None and state.strategy_id != strategy_id:
-                _log.error(
-                    "deployment_spec_strategy_identity_changed",
-                    spec_id=spec_id,
-                    previous_strategy_id=state.strategy_id,
-                    strategy_id=strategy_id,
-                )
-                return
-            state.strategy_id = strategy_id
-        effective_strategy_id = state.strategy_id or strategy_id
-        if effective_strategy_id is None:
-            _log.error(
-                "deployment_runtime_log_binding_missing",
-                spec_id=spec_id,
-            )
-            return
-        try:
-            runtime_authority = self.runtime_log_emitter.authority_for_spec(
-                spec,
+            authority = self.lifecycle_fact_emitter.authority_for_spec(
+                runtime_spec,
                 strategy_id=effective_strategy_id,
             )
-        except RuntimeLogFactError as exc:
+            runtime_log_authority = self.runtime_log_emitter.authority_for_spec(
+                runtime_spec,
+                strategy_id=effective_strategy_id,
+            )
+        except (RuntimeLogFactError, RunnerFactError, ValueError) as exc:
             _log.error(
-                "deployment_runtime_log_binding_rejected",
-                spec_id=spec_id,
+                "deployment_fact_binding_rejected",
+                deployment_instance_id=instance_id,
                 error_type=type(exc).__name__,
             )
-            return
-        if (
-            state.runtime_log_authority is not None
-            and state.runtime_log_authority.stream_key != runtime_authority.stream_key
-        ):
-            _log.error(
-                "deployment_runtime_log_binding_changed",
-                spec_id=spec_id,
-            )
-            return
-        state.runtime_log_authority = runtime_authority
-        # Keep the latest spec so the watchdog can read lifecycle_state (paused
-        # exemption) and report status without re-fetching.
-        state.last_spec = spec
+            return False
+        if state.fact_authority is not None and state.fact_authority.stream_key != authority.stream_key:
+            _log.error("deployment_fact_binding_changed", deployment_instance_id=instance_id)
+            return False
+        if runtime_log_authority.stream_key != authority.stream_key:
+            _log.error("deployment_fact_authorities_disagree", deployment_instance_id=instance_id)
+            return False
+        state.fact_authority = authority
+        state.runtime_log_authority = runtime_log_authority
 
-        # Live-refresh the runner-wide risk guards from this spec's
-        # ``risk_config`` before evaluating generation drift. docs/domain.md
-        # L104 promises "daemon reads risk_config from the spec and changes
-        # take effect next loop" — running the refresh outside the generation
-        # gate lets a spec that is otherwise a no-op still push new limits.
-        self._refresh_risk_config(spec)
+        if state.reported_generation < state.applied_generation:
+            if state.last_spec is None or not await self._report_applied_generation(
+                state,
+                state.last_spec,
+            ):
+                return False
 
-        if generation == state.observed_generation:
-            # No-op: repeated snapshots with same generation are ignored (idempotent).
-            _log.debug(
-                "deployment_spec_noop",
-                spec_id=spec_id,
-                generation=generation,
-            )
-            return
-
-        if generation < state.observed_generation:
+        if generation < state.applied_generation:
             _log.warning(
                 "deployment_spec_stale",
-                spec_id=spec_id,
+                deployment_instance_id=instance_id,
                 spec_generation=generation,
-                observed_generation=state.observed_generation,
+                applied_generation=state.applied_generation,
             )
-            return
+            return True
+        if generation == state.applied_generation:
+            if state.reported_generation < generation:
+                return await self._report_applied_generation(state, runtime_spec)
+            return True
 
-        # Need reconcile when generation > observed_generation.
+        state.last_spec = runtime_spec
         try:
-            container_id = await self._apply_spec(spec, state)
-            state.container_id = container_id
-            state.observed_generation = generation
-            state.drift_strikes = 0
-            phase = (
-                "stopped" if spec.get("lifecycle_state") in ("stopped", "archived") else "running"
-            )
-            await self._report_status(
-                spec_id=spec_id,
-                spec=spec,
-                state=state,
-                phase=phase,
-                health="healthy",
-            )
+            state.container_id = await self._apply_spec(instance_id, runtime_spec, state)
         except Exception as exc:  # noqa: BLE001
             state.drift_strikes += 1
             _log.error(
                 "deployment_reconcile_failed",
-                spec_id=spec_id,
+                deployment_instance_id=instance_id,
                 error=str(exc),
                 drift_strikes=state.drift_strikes,
-                threshold=self.drift_threshold,
             )
-            await self._report_status(
-                spec_id=spec_id,
-                spec=spec,
-                state=state,
-                phase="degraded",
-                health="unhealthy",
+            await self._emit_runtime_log(
+                state,
+                level="ERROR",
+                message="Deployment apply failed",
+                fields={"generation": generation, "error_type": type(exc).__name__},
             )
-            if state.drift_strikes >= self.drift_threshold:
-                _log.error(
-                    "deployment_drift_detected",
-                    spec_id=spec_id,
-                    drift_strikes=state.drift_strikes,
-                )
+            return False
+        self._refresh_instance_guards(instance_id, runtime_spec)
+        state.applied_generation = generation
+        state.drift_strikes = 0
+        if validated.lifecycle_state.value in _TERMINAL_STATES:
+            self._fallback_breakers.pop(instance_id, None)
+            if self.zombie_watchdog is not None:
+                self.zombie_watchdog.forget(instance_id)
+        return await self._report_applied_generation(state, runtime_spec)
 
-    async def _apply_spec(self, spec: dict, state: _ReconcileState) -> str:
-        """Apply spec to NT: new deploy / reconfigure / stop."""
-        lifecycle = spec.get("lifecycle_state")
-        spec_id = spec["spec_id"]
-        if lifecycle in ("stopped", "archived"):
-            await self.execution_engine.stop(spec_id)
-            return ""
-        # New deployment: decrypt credential → run full G6 gate (including scope fallback)
-        # → deploy.
-        # A successful stop stores an empty container id. Any later active
-        # generation must create a fresh engine instance, not reconfigure the
-        # instance that stop() already removed.
-        if not state.container_id:
-            cred = self.credential_vault.decrypt(self._credential_ref(spec, spec_id))
-            check_g6_gate(self.execution_engine, spec, cred)
-            runtime_spec = dict(spec)
-            if state.strategy_id is not None:
-                runtime_spec["strategy_id"] = state.strategy_id
-            return await self.execution_engine.deploy(runtime_spec, cred)
-        # Existing deployment: reconfigure. Re-run G6 gate check for host/venue/code_hash;
-        # layer-4 scope was already validated at deploy time, so do not re-decrypt
-        # credential here.
-        check_g6_gate(self.execution_engine, spec, credential=None)
-        runtime_spec = dict(spec)
-        if state.strategy_id is not None:
-            runtime_spec["strategy_id"] = state.strategy_id
-        await self.execution_engine.reconfigure(runtime_spec)
-        return state.container_id or ""
-
-    def _refresh_risk_config(self, spec: dict) -> None:
-        """Re-read local guard configs from ``spec.risk_config``.
-
-        Called on every accepted spec so cloud-side operator edits to
-        ``max_notional_per_runner`` / ``fallback_breaker.max_notional`` /
-        ``fallback_breaker.max_drawdown_pct`` take effect on the next loop.
-        Emits a single structured ``risk_config_refreshed`` event when
-        anything actually changed — a no-op refresh stays silent so the log
-        signal remains meaningful (audit-not-silent + no-log-spam)."""
-
-        live = spec.get("trading_mode") == TradingMode.LIVE.value
-        changed = False
-
-        if self.local_cap is not None:
-            if self.local_cap.apply_config(LocalCapConfig.from_spec(spec, live=live)):
-                changed = True
-
-        if self.fallback_breaker is not None:
-            if self.fallback_breaker.apply_config(FallbackBreakerConfig.from_spec(spec)):
-                changed = True
-
-        if changed:
-            _log.info(
-                "risk_config_refreshed",
-                spec_id=spec.get("spec_id"),
-                generation=spec.get("generation"),
-                trading_mode=spec.get("trading_mode"),
-                lifecycle_state=spec.get("lifecycle_state"),
-                cap=str(self.local_cap.config.max_notional_per_runner)
-                if self.local_cap is not None
-                else None,
-                breaker_max_notional=str(self.fallback_breaker._config.max_notional)
-                if self.fallback_breaker is not None
-                else None,
-                breaker_max_drawdown_pct=str(self.fallback_breaker._config.max_drawdown_pct)
-                if self.fallback_breaker is not None
-                else None,
-            )
-
-    def active_spec_ids(self) -> list[str]:
-        """Spec ids the reconciler has actively deployed (``container_id`` set).
-        The state snapshot publisher iterates this each interval so a runner
-        with N concurrent deployments publishes one snapshot per active spec.
-        Reading through this method keeps composition-root code out of the
-        reconciler's ``_state`` internals."""
-        return [spec_id for spec_id, state in self._state.items() if state.container_id]
-
-    async def _watchdog_tick(self) -> None:
-        """Probe each deployed spec's engine connectivity and degrade any that
-        the zombie watchdog flags. No-op when no watchdog is injected."""
-        if self.zombie_watchdog is None:
-            return
-        for spec_id, state in list(self._state.items()):
-            if not state.container_id:
-                # Not actively deployed (never started / stopped) — nothing to watch.
-                continue
-            try:
-                connectivity = await self.execution_engine.check_engine_connected(spec_id)
-            except Exception as exc:  # noqa: BLE001 — a probe failure must not kill the loop
-                _log.warning(
-                    "zombie_watchdog_probe_failed",
-                    spec_id=spec_id,
-                    error=str(exc),
-                )
-                continue
-            paused = bool(state.last_spec and state.last_spec.get("lifecycle_state") == "paused")
-            verdict = self.zombie_watchdog.observe(spec_id, connectivity, paused=paused)
-            if not verdict.is_zombie:
-                continue
-            _log.warning(
-                "engine_zombie_detected",
-                spec_id=spec_id,
-                disconnected_secs=verdict.disconnected_secs,
-            )
-            await self._report_status(
-                spec_id=spec_id,
-                spec=state.last_spec or {},
-                state=state,
-                phase="degraded",
-                health="unhealthy",
-                reason="engine_disconnected_zombie",
-            )
-
-    async def _breaker_tick(self) -> None:
-        """Evaluate the runner fallback breaker against total open notional
-        and total current equity across every deployed spec; on a trip,
-        flatten every deployed spec. Runs on every poll so a runaway runner
-        is contained even while the cloud is unreachable. No-op when no
-        breaker is injected.
-
-        Equity comes from the engine's Tier-2 ``get_engine_status`` — summing
-        ``current_equity`` across active specs gives the runner-wide feed the
-        breaker's drawdown check needs. A ``get_engine_status`` probe failure
-        degrades to notional-only evaluation for that tick (better than
-        skipping the whole tick and letting a runaway notional slip).
-        """
-
-        if self.fallback_breaker is None:
-            return
-        active = [spec_id for spec_id, state in self._state.items() if state.container_id]
-        if not active:
-            return
-        total_notional = Decimal("0")
-        for spec_id in active:
-            try:
-                total_notional += await self.execution_engine.get_open_notional(spec_id)
-            except Exception as exc:  # noqa: BLE001 — a probe failure must not kill the loop
-                _log.warning("breaker_notional_probe_failed", spec_id=spec_id, error=str(exc))
-        total_equity: Decimal | None = Decimal("0")
-        for spec_id in active:
-            try:
-                status = await self.execution_engine.get_engine_status(spec_id)
-                total_equity = (total_equity or Decimal("0")) + status.current_equity
-            except Exception as exc:  # noqa: BLE001 — equity probe failure degrades to notional-only
-                _log.warning("breaker_equity_probe_failed", spec_id=spec_id, error=str(exc))
-                total_equity = None
-                break
-        was_frozen = self.fallback_breaker.frozen
-        verdict = self.fallback_breaker.evaluate(
-            open_notional=total_notional,
-            current_equity=total_equity,
-        )
-        if not verdict.tripped:
-            return
-        if was_frozen:
-            # First-trip tick already dispatched flatten; re-issuing every tick
-            # after freeze would spam the exchange until an operator resets.
-            return
-        _log.warning(
-            "fallback_breaker_flatten",
-            reason=verdict.reason,
-            open_notional=str(total_notional),
-            current_equity=str(total_equity) if total_equity is not None else "unavailable",
-            drawdown_pct=str(verdict.drawdown_pct),
-        )
-        for spec_id in active:
-            try:
-                await self.execution_engine.flatten_positions(
-                    spec_id, verdict.reason or "fallback_breaker"
-                )
-            except Exception as exc:  # noqa: BLE001 — one flatten failure must not skip the rest
-                _log.error("flatten_positions_failed", spec_id=spec_id, error=str(exc))
-
-    @staticmethod
-    def _credential_ref(spec: dict, spec_id: str) -> str:
-        provenance = spec.get("provenance_ref")
-        if isinstance(provenance, dict) and provenance.get("credential_id"):
-            return provenance["credential_id"]
-        return spec_id  # fallback: use spec_id as opaque cred ref
-
-    async def _report_status(
+    async def _apply_spec(
         self,
-        *,
-        spec_id: str,
+        instance_id: str,
         spec: dict,
         state: _ReconcileState,
-        phase: str,
-        health: str,
-        reason: str | None = None,
+    ) -> str:
+        lifecycle = str(spec["lifecycle_state"])
+        if lifecycle in _TERMINAL_STATES:
+            await self.execution_engine.stop(instance_id)
+            return ""
+        if not state.container_id:
+            credential = self.credential_vault.decrypt(self._credential_ref(spec, instance_id))
+            check_g6_gate(self.execution_engine, spec, credential)
+            return await self.execution_engine.deploy(spec, credential)
+        check_g6_gate(self.execution_engine, spec, credential=None)
+        await self.execution_engine.reconfigure(spec)
+        return state.container_id
+
+    def _refresh_instance_guards(self, instance_id: str, spec: dict) -> None:
+        live = spec.get("trading_mode") == "live"
+        if self.local_cap is not None:
+            self.local_cap.apply_config(LocalCapConfig.from_spec(spec, live=live))
+        config = FallbackBreakerConfig.from_spec(spec)
+        breaker = self._fallback_breakers.get(instance_id)
+        if breaker is None:
+            self._fallback_breakers[instance_id] = FallbackBreaker(config)
+        else:
+            breaker.apply_config(config)
+
+    async def _report_applied_generation(self, state: _ReconcileState, spec: dict) -> bool:
+        authority = state.fact_authority
+        if authority is None:
+            return False
+        generation = int(spec["generation"])
+        if state.pending_lifecycle_fact is None:
+            state.pending_lifecycle_fact = RunnerDeploymentLifecycleFact.observed(
+                authority,
+                generation=generation,
+                lifecycle_state=str(spec["lifecycle_state"]),
+            )
+        try:
+            await self.lifecycle_fact_emitter.emit_fact(
+                authority,
+                state.pending_lifecycle_fact,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _log.error(
+                "deployment_lifecycle_fact_enqueue_failed",
+                deployment_instance_id=str(authority.deployment_instance_id),
+                generation=generation,
+                error_type=type(exc).__name__,
+            )
+            return False
+        state.reported_generation = generation
+        state.pending_lifecycle_fact = None
+        await self._emit_runtime_log(
+            state,
+            level="INFO",
+            message="Deployment lifecycle applied",
+            fields={
+                "generation": generation,
+                "lifecycle_state": spec["lifecycle_state"],
+                "applied_generation": state.applied_generation,
+                "reported_generation": state.reported_generation,
+            },
+        )
+        return True
+
+    async def _emit_runtime_log(
+        self,
+        state: _ReconcileState,
+        *,
+        level: str,
+        message: str,
+        fields: dict,
     ) -> None:
-        """Publish DeploymentStatus back to cloud. Publish failure is always logged (lesson #21)."""
-        payload = {
-            "status_id": str(uuid.uuid4()),
-            "spec_id": spec_id,
-            "deployment_instance_id": spec.get("deployment_instance_id"),
-            "deployment_spec_id": spec_id,
-            "deployment_spec_digest": spec.get("deployment_spec_digest"),
-            "correlation_id": str(uuid.uuid4()),
-            "observed_generation": state.observed_generation,
-            "container_id": state.container_id,
-            "phase": phase,
-            "health": health,
-            "runner_id": self.runner_id,
-        }
-        if reason is not None:
-            payload["health_reason"] = reason
         if state.runtime_log_authority is None:
-            raise RuntimeError("runtime log authority is absent for DeploymentStatus")
+            return
         try:
             await self.runtime_log_emitter.emit(
                 state.runtime_log_authority,
-                level="ERROR" if health == "unhealthy" else "INFO",
+                level=level,
                 component="deployment_reconciler",
-                message="Deployment status observed",
-                structured_fields={
-                    "status_id": payload["status_id"],
-                    "phase": phase,
-                    "health": health,
-                    "health_reason": reason,
-                    "observed_generation": state.observed_generation,
-                    "container_id": state.container_id,
-                },
-                correlation_id=payload["correlation_id"],
-            )
-        except Exception as exc:
-            _log.error(
-                "runner_runtime_log_fact_rejected",
-                spec_id=spec_id,
-                error_type=type(exc).__name__,
-            )
-        try:
-            await self.nats_client.publish_deployment_status(
-                spec_id=spec_id,
-                payload=payload,
+                message=message,
+                structured_fields=fields,
+                correlation_id=uuid4(),
             )
         except Exception as exc:  # noqa: BLE001
             _log.warning(
-                "deployment_status_publish_failed",
-                spec_id=spec_id,
-                error=str(exc),
+                "runner_runtime_log_fact_skipped",
+                deployment_instance_id=str(state.runtime_log_authority.deployment_instance_id),
+                error_type=type(exc).__name__,
             )
+
+    def active_deployment_instance_ids(self) -> list[str]:
+        return [key for key, state in self._state.items() if state.container_id]
+
+    async def _tick_local_guards(self) -> None:
+        await self._watchdog_tick()
+        await self._breaker_tick()
+
+    async def _watchdog_tick(self) -> None:
+        if self.zombie_watchdog is None:
+            return
+        for instance_id, state in tuple(self._state.items()):
+            if not state.container_id:
+                continue
+            try:
+                connectivity = await self.execution_engine.check_engine_connected(instance_id)
+            except Exception as exc:  # noqa: BLE001
+                _log.warning(
+                    "zombie_watchdog_probe_failed",
+                    deployment_instance_id=instance_id,
+                    error_type=type(exc).__name__,
+                )
+                continue
+            paused = bool(state.last_spec and state.last_spec.get("lifecycle_state") == "paused")
+            verdict = self.zombie_watchdog.observe(instance_id, connectivity, paused=paused)
+            if verdict.is_zombie:
+                await self._emit_runtime_log(
+                    state,
+                    level="ERROR",
+                    message="Execution engine connectivity degraded",
+                    fields={"disconnected_secs": verdict.disconnected_secs},
+                )
+
+    async def _breaker_tick(self) -> None:
+        for instance_id, breaker in tuple(self._fallback_breakers.items()):
+            state = self._state.get(instance_id)
+            if state is None or not state.container_id:
+                continue
+            try:
+                notional = await self.execution_engine.get_open_notional(instance_id)
+            except Exception as exc:  # noqa: BLE001
+                _log.warning(
+                    "breaker_notional_probe_failed",
+                    deployment_instance_id=instance_id,
+                    error_type=type(exc).__name__,
+                )
+                continue
+            equity: Decimal | None
+            try:
+                equity = (await self.execution_engine.get_engine_status(instance_id)).current_equity
+            except Exception as exc:  # noqa: BLE001
+                _log.warning(
+                    "breaker_equity_probe_failed",
+                    deployment_instance_id=instance_id,
+                    error_type=type(exc).__name__,
+                )
+                equity = None
+            was_frozen = breaker.frozen
+            verdict = breaker.evaluate(open_notional=notional, current_equity=equity)
+            if not verdict.tripped or was_frozen:
+                continue
+            try:
+                await self.execution_engine.flatten_positions(
+                    instance_id,
+                    verdict.reason or "fallback_breaker",
+                )
+            except Exception as exc:  # noqa: BLE001
+                _log.error(
+                    "flatten_positions_failed",
+                    deployment_instance_id=instance_id,
+                    error_type=type(exc).__name__,
+                )
+            await self._emit_runtime_log(
+                state,
+                level="ERROR",
+                message="Instance fallback breaker tripped",
+                fields={"reason": verdict.reason, "open_notional": str(notional)},
+            )
+
+    @staticmethod
+    def _credential_ref(spec: dict, instance_id: str) -> str:
+        provenance = spec.get("provenance_ref")
+        if isinstance(provenance, dict) and provenance.get("credential_id"):
+            return str(provenance["credential_id"])
+        return instance_id

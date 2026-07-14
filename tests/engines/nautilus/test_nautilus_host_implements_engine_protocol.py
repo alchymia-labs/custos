@@ -12,7 +12,6 @@ def test_noophost_implements_protocol() -> None:
 
 def test_nt_trading_node_host_implements_protocol() -> None:
     host = NtTradingNodeHost(
-        telemetry_client=None,
         tenant_id="test",
         runner_id="r1",
     )

@@ -42,9 +42,11 @@ def test_no_custos_console_script_registered() -> None:
 def test_default_paths_target_arx_namespace() -> None:
     for attr in (
         "DEFAULT_RUNNER_TOML",
-        "DEFAULT_WAL_PATH",
-        "DEFAULT_ENROLLMENT_PATH",
         "DEFAULT_VAULT_DIR",
+        "DEFAULT_READY_FILE",
+        "DEFAULT_RUNNER_CAPABILITY",
+        "DEFAULT_RUNNER_FACT_OUTBOX",
+        "DEFAULT_CRUCIBLE_DOMAIN_PUBLIC_KEY",
     ):
         path = getattr(start, attr)
         assert ".custos" not in str(path), f"{attr} still references ~/.custos: {path}"

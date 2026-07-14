@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 
 from cryptography.hazmat.primitives import serialization
 
-from custos.cli.validators import validate_backend, validate_id
+from custos.cli.validators import validate_backend_url, validate_id
 from custos.core.machine_credential_vault import (
     MachineCredential,
     MachineCredentialError,
@@ -43,7 +43,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Enroll a runner with nonce-bound Ed25519 proof of possession.",
     )
     parser.add_argument("--token", required=True, type=_non_empty_secret)
-    parser.add_argument("--backend", required=True, type=validate_backend)
+    parser.add_argument("--backend", required=True, type=validate_backend_url)
     parser.add_argument(
         "--tenant-id", required=True, type=lambda value: validate_id("tenant_id", value)
     )

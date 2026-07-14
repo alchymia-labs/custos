@@ -21,7 +21,7 @@ from custos.engines.nautilus.host import NoopHost, NtTradingNodeHost
 
 
 def _nt_host() -> NtTradingNodeHost:
-    return NtTradingNodeHost(telemetry_client=None, tenant_id="t", runner_id="r")
+    return NtTradingNodeHost(tenant_id="t", runner_id="r")
 
 
 async def test_get_open_notional_noophost_zero() -> None:

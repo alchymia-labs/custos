@@ -41,18 +41,16 @@ commit-hook-dry-run:  ## Validate the pre-commit hook path in a dry way (no real
 test:  ## Run full pytest (base profile; NT tests importorskip; includes known-failing wire_shapes)
 	uv run pytest tests/
 
-test-baseline:  ## Run green baseline (base, ignore test_wire_shapes.py, see Plan 01 DEV-01-WIRE-FIXTURES)
-	# test_wire_shapes.py depends on an arx fixture path. After subtree split, standalone clone no longer has this path.
-	# Until standalone fixture generation is added (Plan 02+), this target provides the release baseline.
+test-baseline:  ## Run the standalone green baseline
 	# Base gate does not hard-require NT: if nautilus is missing, NT host tests are skipped by pytest.importorskip.
-	uv run pytest tests/ --ignore=tests/test_wire_shapes.py
+	uv run pytest tests/
 
 test-nt:  ## Run NT gate (requires py3.12+): run NT host tests under --extra nautilus
 	# Preflight hard gate: if NT is still unavailable in nautilus (py<3.12 or install failure), NT host tests are silently skipped by pytest.importorskip and verify-nt could appear green.
 	# Validate NT importability first; fail early if missing.
 	@uv run --extra nautilus python -c "import nautilus_trader; assert nautilus_trader.__version__" \
 		|| (echo "❌ nautilus_trader is not installed with nautilus extra (requires Python 3.12+); NT gate cannot run"; exit 1)
-	uv run --extra nautilus pytest tests/ --ignore=tests/test_wire_shapes.py
+	uv run --extra nautilus pytest tests/
 
 verify: check test-baseline  ## Base release gate: check + green test-baseline
 	@echo "✅ make verify passed"
@@ -177,3 +175,10 @@ toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ opt
 #
 # docs:  ## Generate API docs when needed
 # 	@echo "TODO"
+
+# Architecture authority and document drift gate.
+.PHONY: check-authority
+check-authority:
+	@/usr/bin/python3 scripts/check-authority-docs.py
+
+verify: check-authority

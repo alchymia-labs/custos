@@ -194,9 +194,9 @@ def test_post_publish_verifies_complete_runtime_contract() -> None:
     required_fragments = (
         '"${IMAGE_NAME}:v${VERSION}" --help',
         '"${IMAGE_NAME}:v${VERSION}" start --help',
+        '"${IMAGE_NAME}:v${VERSION}" enroll --help',
         '"${IMAGE_NAME}:v${VERSION}" vault put --help',
-        '"${IMAGE_NAME}:v${VERSION}" nats bootstrap --help',
-        '"${IMAGE_NAME}:v${VERSION}" deployment publish --help',
+        '"${IMAGE_NAME}:v${VERSION}" deployment validate --help',
         '"${IMAGE_NAME}:v${VERSION}" health --help',
         "import nautilus_trader, yaml",
         'sops "${IMAGE_NAME}:v${VERSION}" --version',

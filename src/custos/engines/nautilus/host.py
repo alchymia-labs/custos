@@ -28,7 +28,6 @@ from custos.core.engine_protocol import (
     PositionSnapshot,
 )
 from custos.core.log import get_logger
-from custos.core.nats_client import ArxNatsClient
 from custos.core.runner_fact import (
     SUPPORTED_CURRENCIES,
     RunnerCapabilityReceipt,
@@ -40,7 +39,6 @@ from custos.core.runner_fact_producer import (
     RunnerFactMessageBusBridge,
     VenueLedgerEvidence,
 )
-from custos.engines.nautilus.risk import NtRiskEngineBridge
 from custos.engines.nautilus.strategy_loader import load_strategy_class
 
 try:
@@ -112,15 +110,21 @@ class NoopHost:
     """
 
     async def deploy(self, spec: dict, credential: dict) -> str:
-        spec_id = spec.get("spec_id")
-        _log.info("nautilus_host_deploy_stub", spec_id=spec_id)
-        return f"container-{spec_id}"
+        deployment_instance_id = str(spec.get("deployment_instance_id") or "")
+        _log.info(
+            "nautilus_host_deploy_stub",
+            deployment_instance_id=deployment_instance_id,
+        )
+        return f"container-{deployment_instance_id}"
 
     async def reconfigure(self, spec: dict) -> None:
-        _log.info("nautilus_host_reconfigure_stub", spec_id=spec.get("spec_id"))
+        _log.info(
+            "nautilus_host_reconfigure_stub",
+            deployment_instance_id=spec.get("deployment_instance_id"),
+        )
 
-    async def stop(self, spec_id: str) -> None:
-        _log.info("nautilus_host_stop_stub", spec_id=spec_id)
+    async def stop(self, deployment_instance_id: str) -> None:
+        _log.info("nautilus_host_stop_stub", deployment_instance_id=deployment_instance_id)
 
     def supports_live(self) -> bool:
         # Fail-safe: a stub that neither routes orders nor holds venue state must
@@ -130,31 +134,35 @@ class NoopHost:
     def supports_venue(self, venue: str) -> bool:
         return False
 
-    async def get_open_notional(self, spec_id: str) -> Decimal:
+    async def get_open_notional(self, deployment_instance_id: str) -> Decimal:
         # Stub holds no positions — zero exposure. The runner cap / breaker are
         # correctly no-ops against it (NoopHost only ever runs paper / sim).
         return Decimal("0")
 
-    async def check_engine_connected(self, spec_id: str) -> ConnectivityState:
+    async def check_engine_connected(self, deployment_instance_id: str) -> ConnectivityState:
         # Stub has no engine to disconnect — always reports connected so the
         # zombie watchdog never flags a paper/sim runner.
         return ConnectivityState(
             data_connected=True, exec_connected=True, checked_at_epoch_s=time.time()
         )
 
-    async def flatten_positions(self, spec_id: str, reason: str) -> None:
+    async def flatten_positions(self, deployment_instance_id: str, reason: str) -> None:
         # Stub holds no positions — flatten is a no-op, logged so the breaker's
         # trip is still observable on a paper/sim runner.
-        _log.info("noophost_flatten_noop", spec_id=spec_id, reason=reason)
+        _log.info(
+            "noophost_flatten_noop",
+            deployment_instance_id=deployment_instance_id,
+            reason=reason,
+        )
 
-    async def get_positions(self, spec_id: str) -> list[PositionSnapshot]:
+    async def get_positions(self, deployment_instance_id: str) -> list[PositionSnapshot]:
         # Stub holds no positions — the snapshot publisher sees an empty list.
         return []
 
-    async def get_orders(self, spec_id: str) -> list[OrderSnapshot]:
+    async def get_orders(self, deployment_instance_id: str) -> list[OrderSnapshot]:
         return []
 
-    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+    async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus:
         # Stub is always healthy with zero exposure; every money field is a
         # Decimal so the money-invariant guard on EngineStatus stays green.
         return EngineStatus(
@@ -179,29 +187,27 @@ class NtTradingNodeHost:
     non-custodial red line 0.1: the decrypted credential is used only to build the
     NT data-client config and is never stored on the host, logged, or published.
 
-    Observability (telemetry + pre-trade reject bridges) is opt-in: pass a NATS
-    client + identity to wire it. Without one (G6 capability probes, unit tests)
-    deploy runs the trade path only and never touches the MessageBus.
+    Signed observations are opt-in: pass a RunnerFact emitter and capability
+    receipt to wire the message-bus bridge. Deployment commands are the only
+    NATS input; execution facts leave through the signed RunnerFact outbox.
     """
 
     def __init__(
         self,
         *,
-        telemetry_client: ArxNatsClient | None = None,
         tenant_id: str | None = None,
         runner_id: str | None = None,
         runner_fact_emitter: RunnerFactEmitter | None = None,
         capability_receipt: RunnerCapabilityReceipt | None = None,
     ) -> None:
-        # spec_id -> (TradingNode, background run task). Never holds credentials.
+        # deployment_instance_id -> (TradingNode, background run task). Never holds credentials.
         self._active_nodes: dict[str, tuple] = {}
         # deployment_instance_id -> signed fact scope plus independent venue ledger adapter.
         self._runner_fact_contexts: dict[str, tuple[RunnerFactDeployment, object | None]] = {}
-        # Decimal equity high-water mark per spec so get_engine_status can
+        # Decimal equity high-water mark per instance so get_engine_status can
         # report drawdown percentage over time. Never a float (red line 0.4).
         self._peak_equity: dict[str, Decimal] = {}
         self._stop_timeout_secs = _STOP_TIMEOUT_SECS
-        self._telemetry_client = telemetry_client
         self._tenant_id = tenant_id
         self._runner_id = runner_id
         self._runner_fact_emitter = runner_fact_emitter
@@ -223,11 +229,14 @@ class NtTradingNodeHost:
 
     async def deploy(self, spec: dict, credential: dict) -> str:
         self._ensure_nt_available()
-        spec_id = spec["spec_id"]
-        if spec_id in self._active_nodes:
+        spec_id = str(spec["spec_id"])
+        deployment_instance_id = str(spec["deployment_instance_id"])
+        if deployment_instance_id in self._active_nodes:
             # Idempotency guard: re-deploying a live spec must go through stop first
             # (structural changes are stop + re-deploy), never silently replace it.
-            raise RuntimeError(f"spec {spec_id!r} already deployed; call stop first")
+            raise RuntimeError(
+                f"deployment instance {deployment_instance_id!r} already deployed; call stop first"
+            )
 
         # Red line layer 1: verify code_hash before any strategy code is imported.
         # strategy_registry_name (optional) turns on the second-line check that
@@ -261,7 +270,7 @@ class NtTradingNodeHost:
         # absent key falls through to the NT internal default.
         nautilus_cfg = spec.get("nautilus_config") or {}
         node_kwargs: dict = {
-            "trader_id": TraderId(self._trader_id(spec_id)),
+            "trader_id": TraderId(self._trader_id(deployment_instance_id)),
             "logging": LoggingConfig(log_level=str(spec.get("log_level", "INFO"))),
             "data_clients": {venue.BINANCE_VENUE: data_cfg},
             "exec_clients": {venue.BINANCE_VENUE: exec_cfg},
@@ -288,7 +297,12 @@ class NtTradingNodeHost:
             node.add_exec_client_factory(venue.BINANCE_VENUE, exec_factory)
             node.build()
         except Exception as exc:  # noqa: BLE001 — reconciler maps this to degraded status
-            _log.error("nt_startup_failure", spec_id=spec_id, **_sanitize_exception(exc))
+            _log.error(
+                "nt_startup_failure",
+                deployment_instance_id=deployment_instance_id,
+                spec_id=spec_id,
+                **_sanitize_exception(exc),
+            )
             raise
 
         fact_context = self._build_runner_fact_context(spec, credential)
@@ -303,18 +317,23 @@ class NtTradingNodeHost:
         node.trader.add_strategy(strategy)
 
         task = asyncio.create_task(node.run_async())
-        task.add_done_callback(lambda t, sid=spec_id: self._on_node_task_done(sid, t))
-        self._active_nodes[spec_id] = (node, task)
+        task.add_done_callback(
+            lambda task, instance_id=deployment_instance_id: self._on_node_task_done(
+                instance_id, task
+            )
+        )
+        self._active_nodes[deployment_instance_id] = (node, task)
 
         _log.info(
             "nt_deploy_started",
+            deployment_instance_id=deployment_instance_id,
             spec_id=spec_id,
             trading_mode=trading_mode,
             connector=spec.get("connector"),
             permission_scope=credential.get("permission_scope"),
             strategy=type(strategy).__name__,
         )
-        return spec_id
+        return deployment_instance_id
 
     def _build_exec_plan(self, trading_mode: str, spec: dict, credential: dict, venue):
         """Resolve (exec_config, exec_factory, reconciliation) for the trading mode.
@@ -322,8 +341,7 @@ class NtTradingNodeHost:
         sandbox fills locally against live prices (no exchange contact); testnet /
         live place real orders on the Binance testnet / live endpoints. Real venues
         reconcile against exchange account state, the sandbox has none. A live plan
-        emits an operational warning and cannot be built without dual approval
-        (enforced inside build_exec_client_config_live).
+        requires Crucible-signed promotion evidence inside the accepted spec.
         """
         if trading_mode == "sandbox":
             starting_balances = (spec.get("sandbox") or {}).get(
@@ -339,7 +357,7 @@ class NtTradingNodeHost:
                 "nt_live_deploy_requested",
                 spec_id=spec.get("spec_id"),
                 connector=spec.get("connector"),
-                approver_count=len({a for a in (spec.get("approved_by") or []) if a}),
+                promotion_id=spec.get("promotion_id"),
             )
             exec_cfg = venue.build_exec_client_config_live(spec, credential)
             return exec_cfg, BinanceLiveExecClientFactory, True
@@ -353,12 +371,6 @@ class NtTradingNodeHost:
             RunnerFactMessageBusBridge(
                 emitter=self._runner_fact_emitter,
                 deployment=fact_context[0],
-            ).bootstrap(msgbus)
-        if self._telemetry_client is not None:
-            NtRiskEngineBridge(
-                client=self._telemetry_client,
-                tenant_id=self._tenant_id or "",
-                runner_id=self._runner_id or "",
             ).bootstrap(msgbus)
 
     def _build_runner_fact_context(self, spec: dict, credential: dict):
@@ -420,21 +432,27 @@ class NtTradingNodeHost:
         )
         return deployment, provider
 
-    async def stop(self, spec_id: str) -> None:
-        for instance_id, context in tuple(self._runner_fact_contexts.items()):
-            if context[0].deployment_spec_id == str(spec_id):
-                self._runner_fact_contexts.pop(instance_id, None)
-        entry = self._active_nodes.pop(spec_id, None)
+    async def stop(self, deployment_instance_id: str) -> None:
+        self._peak_equity.pop(deployment_instance_id, None)
+        self._runner_fact_contexts.pop(deployment_instance_id, None)
+        entry = self._active_nodes.pop(deployment_instance_id, None)
         if entry is None:
             # Idempotent: stopping an unknown / already-stopped spec is a no-op.
-            _log.info("nt_stop_noop_unknown_spec", spec_id=spec_id)
+            _log.info(
+                "nt_stop_noop_unknown_instance",
+                deployment_instance_id=deployment_instance_id,
+            )
             return
 
         node, task = entry
         try:
             await asyncio.wait_for(node.stop_async(), timeout=self._stop_timeout_secs)
         except TimeoutError:
-            _log.error("nt_stop_timeout", spec_id=spec_id, timeout_secs=self._stop_timeout_secs)
+            _log.error(
+                "nt_stop_timeout",
+                deployment_instance_id=deployment_instance_id,
+                timeout_secs=self._stop_timeout_secs,
+            )
         finally:
             node.dispose()
             task.cancel()
@@ -442,11 +460,11 @@ class NtTradingNodeHost:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001 — reaping the run task
                 pass
-        _log.info("nt_stop_completed", spec_id=spec_id)
+        _log.info("nt_stop_completed", deployment_instance_id=deployment_instance_id)
 
     async def close(self) -> None:
-        for spec_id in tuple(self._active_nodes):
-            await self.stop(spec_id)
+        for deployment_instance_id in tuple(self._active_nodes):
+            await self.stop(deployment_instance_id)
 
     def runner_fact_deployments(self) -> tuple[RunnerFactDeployment, ...]:
         return tuple(context[0] for context in self._runner_fact_contexts.values())
@@ -455,9 +473,7 @@ class NtTradingNodeHost:
         self, deployment_instance_id: str, currency: str
     ) -> tuple[Decimal, list[dict]]:
         context = self._runner_fact_contexts.get(deployment_instance_id)
-        entry = (
-            self._active_nodes.get(context[0].deployment_spec_id) if context is not None else None
-        )
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None or context is None:
             raise RuntimeError(
                 f"RunnerFact DeploymentInstance {deployment_instance_id!r} is not active"
@@ -519,28 +535,29 @@ class NtTradingNodeHost:
         explicitly flags as runtime-tunable (leverage / notional cap) are accepted
         here; today they are logged as intent (live application is a follow-up).
         """
-        spec_id = spec.get("spec_id")
+        deployment_instance_id = str(spec.get("deployment_instance_id") or "")
         reconfigure_spec = spec.get("reconfigure") or {}
         if reconfigure_spec.get("runtime_tunable_only"):
             _log.info(
                 "nt_reconfigure_runtime_tunable",
-                spec_id=spec_id,
+                deployment_instance_id=deployment_instance_id,
                 params=reconfigure_spec.get("params"),
             )
             return
         raise NotImplementedError(
-            f"structural reconfigure of spec {spec_id!r} requires spec drop + re-deploy "
+            f"structural reconfigure of instance {deployment_instance_id!r} "
+            "requires stop + re-deploy "
             "(v1 NtTradingNodeHost does not hot-swap strategy / venue / symbol)"
         )
 
-    async def get_open_notional(self, spec_id: str) -> Decimal:
+    async def get_open_notional(self, deployment_instance_id: str) -> Decimal:
         """Total gross open notional across this spec's open positions, as Decimal.
 
         Reads the built node's cache; an unknown / not-yet-deployed spec has zero
         exposure. Quantity + entry price are stringified before Decimal
         conversion so no float reaches the money math (red line 0.4).
         """
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return Decimal("0")
         node, _task = entry
@@ -551,11 +568,11 @@ class NtTradingNodeHost:
             total += quantity * entry_px
         return total
 
-    async def check_engine_connected(self, spec_id: str) -> ConnectivityState:
+    async def check_engine_connected(self, deployment_instance_id: str) -> ConnectivityState:
         """Data + execution engine connectivity for this spec's node. An unknown
         / not-yet-deployed spec is reported disconnected — a spec the reconciler
         believes is running but has no live node is exactly the zombie case."""
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return ConnectivityState(
                 data_connected=False, exec_connected=False, checked_at_epoch_s=time.time()
@@ -567,14 +584,18 @@ class NtTradingNodeHost:
             checked_at_epoch_s=time.time(),
         )
 
-    async def flatten_positions(self, spec_id: str, reason: str) -> None:
+    async def flatten_positions(self, deployment_instance_id: str, reason: str) -> None:
         """Close every open position for this spec via NT's per-instrument
         ``Strategy.close_all_positions`` — the engine-neutral ``flatten_positions``
         name maps here (NT has no ``flatten_positions``). An unknown spec is a
         logged no-op."""
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
-            _log.warning("flatten_positions_unknown_spec", spec_id=spec_id, reason=reason)
+            _log.warning(
+                "flatten_positions_unknown_instance",
+                deployment_instance_id=deployment_instance_id,
+                reason=reason,
+            )
             return
         node, _task = entry
         instrument_ids = {position.instrument_id for position in node.kernel.cache.positions_open()}
@@ -583,12 +604,12 @@ class NtTradingNodeHost:
                 strategy.close_all_positions(instrument_id)
         _log.warning(
             "positions_flattened",
-            spec_id=spec_id,
+            deployment_instance_id=deployment_instance_id,
             reason=reason,
             instrument_count=len(instrument_ids),
         )
 
-    async def get_positions(self, spec_id: str) -> list[PositionSnapshot]:
+    async def get_positions(self, deployment_instance_id: str) -> list[PositionSnapshot]:
         """Materialise every open position as a Decimal-only ``PositionSnapshot``.
 
         Quantity, entry price and unrealized pnl are stringified before Decimal
@@ -596,7 +617,7 @@ class NtTradingNodeHost:
         unknown / not-yet-deployed spec has no positions.
         """
 
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return []
         node, _task = entry
@@ -616,10 +637,10 @@ class NtTradingNodeHost:
             )
         return snapshots
 
-    async def get_orders(self, spec_id: str) -> list[OrderSnapshot]:
+    async def get_orders(self, deployment_instance_id: str) -> list[OrderSnapshot]:
         """Materialise every open order as a Decimal-only ``OrderSnapshot``."""
 
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return []
         node, _task = entry
@@ -637,7 +658,7 @@ class NtTradingNodeHost:
             )
         return snapshots
 
-    async def get_engine_status(self, spec_id: str) -> EngineStatus:
+    async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus:
         """Aggregate exposure + equity snapshot for the reconciler and the
         state-snapshot publisher.
 
@@ -649,7 +670,7 @@ class NtTradingNodeHost:
         Decimal (red line 0.4, no float high-water mark).
         """
 
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return EngineStatus(
                 phase="unknown",
@@ -675,10 +696,10 @@ class NtTradingNodeHost:
             open_notional += abs(quantity) * avg_px
             unrealized_total += Decimal(str(getattr(position, "unrealized_pnl", "0")))
         current_equity = open_notional + unrealized_total
-        peak = self._peak_equity.get(spec_id, Decimal("0"))
+        peak = self._peak_equity.get(deployment_instance_id, Decimal("0"))
         if current_equity > peak:
             peak = current_equity
-            self._peak_equity[spec_id] = peak
+            self._peak_equity[deployment_instance_id] = peak
         if peak > 0 and current_equity < peak:
             drawdown_pct = (peak - current_equity) / peak * Decimal("100")
         else:
@@ -707,23 +728,25 @@ class NtTradingNodeHost:
         return strategy_cls()
 
     @staticmethod
-    def _trader_id(spec_id: str) -> str:
-        tag = "".join(ch for ch in spec_id if ch.isalnum())[:20] or "000"
+    def _trader_id(deployment_instance_id: str) -> str:
+        tag = "".join(ch for ch in deployment_instance_id if ch.isalnum())[:20] or "000"
         return f"CUSTOS-{tag}"
 
-    def _on_node_task_done(self, spec_id: str, task) -> None:
+    def _on_node_task_done(self, deployment_instance_id: str, task) -> None:
         # A background node loop dying must never be silent — surface the error.
         # Also drop the registry entry so a self-terminated node doesn't linger;
         # guard on task identity so a re-deployed spec_id (new task) isn't cleared
         # by a stale callback.
-        entry = self._active_nodes.get(spec_id)
+        entry = self._active_nodes.get(deployment_instance_id)
         if entry is not None and entry[1] is task:
-            self._active_nodes.pop(spec_id, None)
-            for instance_id, context in tuple(self._runner_fact_contexts.items()):
-                if context[0].deployment_spec_id == str(spec_id):
-                    self._runner_fact_contexts.pop(instance_id, None)
+            self._active_nodes.pop(deployment_instance_id, None)
+            self._runner_fact_contexts.pop(deployment_instance_id, None)
         if task.cancelled():
             return
         exc = task.exception()
         if exc is not None:
-            _log.error("nt_node_loop_failed", spec_id=spec_id, **_sanitize_exception(exc))
+            _log.error(
+                "nt_node_loop_failed",
+                deployment_instance_id=deployment_instance_id,
+                **_sanitize_exception(exc),
+            )

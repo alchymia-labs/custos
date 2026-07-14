@@ -34,7 +34,7 @@
 - Gateway contracts are versioned under `docs/gateway-contract/`; accepted mode
   values are only `sandbox`, `testnet`, and `live`.
 
-详见 [`README.md#Contract with Arx`](README.md) + [`docs/domain.md`](docs/domain.md) §分层信任边界.
+详见 [`README.md#production-topology`](README.md#production-topology) 与 [`docs/domain.md`](docs/domain.md).
 
 ---
 
@@ -43,11 +43,11 @@
 | 模块 | 职责 | 设计文档 | 承担红线 |
 |------|------|---------|---------|
 | **enrollment** | nonce-bound Ed25519 PoP; encrypted `rkc2` credential; rotate/revoke | [`docs/design/enrollment.md`](docs/design/enrollment.md) | 私钥不出机 + startup fail closed |
-| **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [`docs/design/reconcile.md`](docs/design/reconcile.md) | 失联≠停止 (红线 0.3) |
+| **reconcile** | Verify signed desired state → start/stop NT → enqueue typed lifecycle RunnerFact | [`docs/design/reconcile.md`](docs/design/reconcile.md) | 失联≠停止 (红线 0.3) |
 | **nautilus_host** | NT 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | [`docs/design/nautilus_host.md`](docs/design/nautilus_host.md) | **G6 不绕过 (红线 0.2)** |
-| **telemetry_actor** | NT MessageBus → 白名单 + 脱敏 + 版本化 NATS uplink | [`docs/design/telemetry_actor.md`](docs/design/telemetry_actor.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
+| **runner_fact** | NT MessageBus → typed signed RunnerFact outbox → Crucible | [`docs/design/telemetry_actor.md`](docs/design/telemetry_actor.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
 | **credential_vault** | sops+age exchange key + machine principal vault | [`docs/design/credential_vault.md`](docs/design/credential_vault.md) | KEK/机器私钥不出进程 (红线 0.1) |
-| **nats_client** | JetStream client + envelope schema + subject naming | [`docs/design/nats_client.md`](docs/design/nats_client.md) | schema 版本化 |
+| **nats_client** | Crucible signed desired-state subscriber only | [`docs/design/nats_client.md`](docs/design/nats_client.md) | schema 版本化 |
 
 顶层 domain 词汇: [`docs/domain.md`](docs/domain.md).
 
@@ -87,7 +87,7 @@ tailing stdout or forwarding raw exception text is forbidden.
 |------|------|
 | 装依赖 (dev extra) | `make install` (= `uv sync --extra dev`) |
 | 跑测试 (完整, 含已知 fail) | `make test` |
-| 跑测试 (可绿基线) | `make test-baseline` |
+| 跑测试 (独立仓基线) | `make test-baseline` |
 | 格式化 | `make fmt` |
 | 格式检查 | `make fmt-check` |
 | Lint | `make lint` |
@@ -106,7 +106,7 @@ tailing stdout or forwarding raw exception text is forbidden.
 - **规则**: [`.claude/rules/`](.claude/rules/) — 9 份 rule 文件, 会话开始自动加载
 - **权威文档路径清单**: [`.claude/rules/authority-docs.md`](.claude/rules/authority-docs.md)
 - **技术栈**: [`.claude/rules/tech-stack.md`](.claude/rules/tech-stack.md) (Python 3.11+/uv/nats-py/Pydantic v2)
-- **代码风格**: [`.claude/rules/code-style.md`](.claude/rules/code-style.md) (ruff 88, 脱敏日志, Decimal money)
+- **代码风格**: [`.claude/rules/code-style.md`](.claude/rules/code-style.md) (ruff 100, 脱敏日志, Decimal money)
 - **常见错误**: [`.claude/rules/common-errors.md`](.claude/rules/common-errors.md) (uv/pip 混用, NT lifecycle, async silent drop)
 - **历史教训**: [`.claude/rules/historical-lessons.md`](.claude/rules/historical-lessons.md) (生态精华继承)
 - **验证入口**: [`.claude/rules/verification.md`](.claude/rules/verification.md)
@@ -115,7 +115,8 @@ tailing stdout or forwarding raw exception text is forbidden.
 
 custos 是**独立仓库**, 外部审计员会 clone 单仓查代码:
 
-- `.claude/rules/` 是**自足**的 — 不引 workspace root, 不假设 monorepo 存在
+- `.claude/rules/` 与 `docs/authority/ecosystem-authority.json` 是**自足**的;
+  workspace 文档仅作存在时的可选交叉核对
 - 规则思想与生态 `the-alephain-guild/.claude/rules/` 一致, 但文本独立维护
 - workspace 场景开发者仍可参考 `../../.claude/rules/*.md` (生态原文), 但独立场景以本仓规则集为准
 
@@ -165,3 +166,9 @@ Global CLAUDE.md already sets this; executors have historically drifted, so it i
 - AI ↔ user conversation (global rule; unchanged)
 
 **Enforcement**: rewrite the offending artifact in English; do not translate in-line or leave `// TODO: translate` markers. Review-time slips are grounds for a rework commit, not a follow-up TODO.
+
+## Authority manifest
+
+authority-manifest.json is the machine-readable entry point for ecosystem
+ownership, migration and architecture documents. Run make check-authority when
+changing ownership or cross-service protocols.

@@ -68,30 +68,23 @@ def test_changelog_documents_v030_clean_break() -> None:
         assert contract in text
 
 
-def test_readme_declares_local_image_and_downstream_gate() -> None:
+def test_readme_declares_single_authority_topology() -> None:
     text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert LOCAL_IMAGE in text
-    assert "make verify-local-v030" in text
-    assert "Remote release: deferred" in text
-    assert REMOTE_IMAGE not in text
-    assert "PS Plan 49 must not execute against custos < 0.3.0." in text
-    assert "PS must consume the verified local image directly." in text
-    assert "PS must not maintain a derived custos Dockerfile." in text
-    assert "PS owns strategy_config assembly only." in text
+    assert "ARX: authenticate actor and authorize intent" in text
+    assert "Crucible: validate business rules, persist state, approve and sign command" in text
+    assert "Custos: verify command, reconcile local runtime, sign execution facts" in text
+    assert "deployment_instance_id is the only key" in text
+    assert "make check-authority" in text
 
 
-def test_remote_release_follow_up_names_identity_decisions() -> None:
+def test_readme_forbids_arx_business_fact_relay() -> None:
     text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
 
-    for decision in (
-        "GitHub repository",
-        "GHCR namespace",
-        "cosign identity",
-        "tag ownership",
-        "PyPI trusted publisher identity",
-    ):
-        assert decision in text
+    assert "ARX may consume audit or read-model events" in text
+    assert "never a relay for a DeploymentSpec or a RunnerFact" in normalized
+    assert "Custos does not count human approvals" in text
 
 
 @pytest.mark.parametrize("path", TEXT_FILES, ids=lambda path: str(path.relative_to(REPO_ROOT)))
@@ -108,25 +101,24 @@ def test_active_runtime_docs_do_not_use_removed_engine_flag(path: Path) -> None:
     assert "--use-nt-host" not in path.read_text(encoding="utf-8")
 
 
-def test_testnet_compose_uses_v030_official_runtime_shape() -> None:
-    compose = yaml.safe_load((TESTNET_DIR / "docker-compose.yaml").read_text(encoding="utf-8"))
+def test_testnet_compose_uses_inbound_only_runtime_shape() -> None:
+    raw = (TESTNET_DIR / "docker-compose.yaml").read_text(encoding="utf-8")
+    compose = yaml.safe_load(raw)
+    assert set(compose["services"]) == {"runner"}
     runner = compose["services"]["runner"]
-    bootstrap = compose["services"]["nats-bootstrap"]
-    publisher = compose["services"]["spec-publisher"]
 
     assert "build" not in runner
-    for service in (runner, bootstrap, publisher):
-        assert service["image"] == LOCAL_IMAGE
-        assert service["pull_policy"] == "never"
+    assert runner["image"] == LOCAL_IMAGE
+    assert runner["pull_policy"] == "never"
     assert runner["command"][0] == "start"
-    assert ["--engine", "nautilus"] == runner["command"][5:7]
-    assert runner["depends_on"]["nats-bootstrap"]["condition"] == "service_completed_successfully"
+    engine_index = runner["command"].index("--engine")
+    assert runner["command"][engine_index : engine_index + 2] == ["--engine", "nautilus"]
+    assert "--crucible-domain-public-key" in runner["command"]
+    assert "--crucible-domain-key-id" in runner["command"]
     assert runner["healthcheck"]["test"] == ["CMD", "arx-runner", "health"]
     assert "./runtime/.arx:/home/custos/.arx" in runner["volumes"]
-
-    assert bootstrap["command"][0:2] == ["nats", "bootstrap"]
-    assert publisher["command"][0:2] == ["deployment", "publish"]
-    assert publisher["depends_on"]["runner"]["condition"] == "service_healthy"
+    assert "deployment publish" not in raw
+    assert "nats bootstrap" not in raw
 
 
 def test_testnet_readme_requires_local_image_gate() -> None:
@@ -158,12 +150,13 @@ def test_testnet_env_contains_only_non_secret_runtime_keys() -> None:
             key, value = line.split("=", 1)
             values[key] = value
     assert set(values) == {
-        "ARX_TENANT_ID",
-        "ARX_RUNNER_ID",
-        "ARX_NATS_URL",
-        "ARX_STRATEGY_ID",
+        "CUSTOS_TENANT_ID",
+        "CUSTOS_RUNNER_ID",
+        "CRUCIBLE_HTTP_URL",
+        "CRUCIBLE_NATS_URL",
+        "CRUCIBLE_DOMAIN_EVENT_KEY_ID",
     }
-    assert all("KEY" not in key and "SECRET" not in key for key in values)
+    assert all("API_KEY" not in key and "SECRET" not in key and "TOKEN" not in key for key in values)
 
 
 def test_testnet_vault_fixture_is_one_per_key_payload() -> None:
@@ -202,13 +195,17 @@ def test_gateway_docs_teach_public_deployment_seam() -> None:
     )
 
     assert "DeploymentMessage" in text
-    assert "deployment publish" in text
+    assert "Crucible" in text
+    assert "not a Custos CLI operation" in text
 
 
 @pytest.mark.parametrize("path", (SANDBOX_DIR / "README.md", TESTNET_DIR / "README.md"))
-def test_example_readme_teaches_v030_three_step_flow(path: Path) -> None:
+def test_example_readme_teaches_owner_correct_three_step_flow(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
+    assert "arx-runner enroll" in text
     assert "arx-runner vault put" in text
     assert "runner.toml" in text
     assert "arx-runner start" in text or "docker compose up" in text
     assert "trade_no_withdraw" in text
+    assert "Crucible" in text
+    assert "deployment publish" not in text

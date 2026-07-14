@@ -18,8 +18,8 @@ import logging
 import signal
 from uuid import UUID
 
+from custos.contracts import CrucibleDomainEventVerifier
 from custos.core.deployment_reconciler import DeploymentReconciler
-from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.machine_credential_vault import (
     MachineCredentialError,
@@ -28,9 +28,10 @@ from custos.core.machine_credential_vault import (
     MachineCredentialTransportError,
     MachineCredentialVault,
 )
-from custos.core.nats_client import ArxNatsClient
+from custos.core.nats_client import CrucibleNatsClient
 from custos.core.per_key_vault import PerKeyVault
 from custos.core.readiness import ReadinessFile
+from custos.core.runner_deployment_lifecycle_fact import RunnerDeploymentLifecycleFactEmitter
 from custos.core.runner_fact import (
     RunnerCapabilityReceipt,
     RunnerFactEmitter,
@@ -42,7 +43,6 @@ from custos.core.runner_fact_producer import RunnerFactProductionLoop
 from custos.core.runner_toml import RunnerToml
 from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogRedactor
 from custos.core.zombie_watchdog import ZombieWatchdog
-from custos.engines.nautilus.risk import make_runner_cap_reject_publisher
 
 log = logging.getLogger("custos")
 
@@ -111,7 +111,6 @@ def _build_vault(args: argparse.Namespace) -> PerKeyVault:
 
 def _build_host(
     args: argparse.Namespace,
-    client: ArxNatsClient | None = None,
     *,
     fact_emitter: RunnerFactEmitter | None = None,
     capability_receipt: RunnerCapabilityReceipt | None = None,
@@ -132,7 +131,6 @@ def _build_host(
         from custos.engines.nautilus.host import NtTradingNodeHost
 
         return NtTradingNodeHost(
-            telemetry_client=client,
             tenant_id=args.tenant_id,
             runner_id=args.runner_id,
             runner_fact_emitter=fact_emitter,
@@ -147,23 +145,19 @@ def _build_host(
 
 def _build_reconciler(
     args: argparse.Namespace,
-    client: ArxNatsClient,
+    client: CrucibleNatsClient,
     host: object,
     vault: PerKeyVault,
     runtime_log_emitter: RunnerRuntimeLogEmitter,
+    lifecycle_fact_emitter: RunnerDeploymentLifecycleFactEmitter,
+    deployment_verifier: CrucibleDomainEventVerifier,
     readiness: ReadinessFile | None = None,
 ) -> DeploymentReconciler:
     """Compose the reconciler with the three local guards wired in (non-custodial
     red line 0.3 runtime wire — cap + breaker + watchdog keep guarding when
     the cloud is unreachable). Cap / breaker configs start at conservative
     floors; per-spec risk_config refresh is a follow-up."""
-    runner_cap = RunnerNotionalCap(
-        LocalCapConfig.from_spec({}, live=False),
-        reject_publisher=make_runner_cap_reject_publisher(
-            client=client, tenant_id=args.tenant_id, runner_id=args.runner_id
-        ),
-    )
-    fallback_breaker = FallbackBreaker(FallbackBreakerConfig.from_spec({}))
+    runner_cap = RunnerNotionalCap(LocalCapConfig.from_spec({}, live=False))
     zombie_watchdog = ZombieWatchdog()
     return DeploymentReconciler(
         nats_client=client,
@@ -172,25 +166,21 @@ def _build_reconciler(
         execution_engine=host,  # type: ignore[arg-type]
         credential_vault=vault,
         runtime_log_emitter=runtime_log_emitter,
+        lifecycle_fact_emitter=lifecycle_fact_emitter,
+        deployment_verifier=deployment_verifier,
         local_cap=runner_cap,
-        fallback_breaker=fallback_breaker,
         zombie_watchdog=zombie_watchdog,
         readiness=readiness,
     )
 
 
 async def run_daemon(args: argparse.Namespace) -> int:
-    """Start the reconcile / telemetry / heartbeat runtime loop.
+    """Start signed-command reconciliation and signed RunnerFact publication.
 
     Body is verbatim from the pre-Plan-11 flat CLI ``_run`` coroutine
     aside from the vault selection (see ``_build_vault``).
     """
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    # WAL path enables at-least-once state snapshot + reconcile status:
-    # messages published while NATS is disconnected are stashed and replayed
-    # on the next connect. Ensure the parent directory exists so a fresh
-    # runner install doesn't fail on first boot.
-    args.wal_path.parent.mkdir(parents=True, exist_ok=True)
     args.ready_file.expanduser().resolve().unlink(missing_ok=True)
     metadata = RunnerToml.read(args.runner_toml_path)
     machine_credential = MachineCredentialVault(args.machine_vault).load()
@@ -224,18 +214,18 @@ async def run_daemon(args: argparse.Namespace) -> int:
         capability=capability,
         redactor=RuntimeLogRedactor(known_secrets=(machine_credential.machine_credential,)),
     )
+    lifecycle_fact_emitter = RunnerDeploymentLifecycleFactEmitter(fact_emitter, capability)
     fact_publisher = RunnerFactJetStreamPublisher(
         servers=(args.nats_url,),
         outbox=fact_outbox,
         runner_id=runner_id,
         authority_guard=machine_credential.assert_active,
     )
-    client = ArxNatsClient(
+    client = CrucibleNatsClient(
         nats_url=args.nats_url,
         tenant_id=args.tenant_id,
         runner_id=args.runner_id,
         machine_credential=machine_credential,
-        wal_path=args.wal_path,
     )
     readiness = ReadinessFile(
         args.ready_file,
@@ -277,17 +267,19 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 name="crucible-runner-fact-publisher",
             )
         )
-        # Deployment reconciler (opt-in via --reconcile-strategy-id).
-        if args.reconcile_strategy_id:
+        # Deployment reconciler consumes only Crucible-signed, runner-scoped commands.
+        if args.reconcile:
+            deployment_verifier = CrucibleDomainEventVerifier.from_file(
+                args.crucible_domain_public_key,
+                key_id=args.crucible_domain_key_id,
+            )
             vault = _build_vault(args)
             # ``--engine noop`` declares supports_live()=False so the G6 gate
             # refuses it on live; the default nautilus engine selects the real
-            # NtTradingNodeHost. The real host wires the telemetry + pre-
-            # trade reject bridges to each deployment's MessageBus inside
-            # deploy() — that is where the bus exists.
+            # NtTradingNodeHost. The host wires only signed RunnerFact bridges
+            # to each deployment's MessageBus inside deploy().
             host = _build_host(
                 args,
-                client,
                 fact_emitter=fact_emitter,
                 capability_receipt=capability,
             )
@@ -297,12 +289,14 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 host,
                 vault,
                 runtime_log_emitter,
+                lifecycle_fact_emitter,
+                deployment_verifier,
                 readiness,
             )
             tasks.append(
                 asyncio.create_task(
-                    reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
-                    name="arx-deployment-reconciler",
+                    reconciler.reconcile_loop(stop),
+                    name="crucible-deployment-reconciler",
                 )
             )
             if args.engine == "nautilus":

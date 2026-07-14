@@ -1,10 +1,4 @@
-"""Failing-first tests for ``arx-runner start``.
-
-The start subcommand reads ``~/.arx/runner.toml``, builds a runtime
-namespace (with per-key vault + WAL + reconciler defaults), and delegates
-to ``custos.cli._daemon.run_daemon``. Tests mock ``run_daemon`` so no
-real NATS / NT connect happens.
-"""
+"""Fail-closed tests for ``arx-runner start`` machine authority loading."""
 
 from __future__ import annotations
 
@@ -15,44 +9,65 @@ from unittest import mock
 import pytest
 
 from custos.cli.subcommands import main
+from custos.cli.subcommands import start as start_command
 from custos.core.runner_toml import RunnerToml
 
+_RUNNER_ID = "22222222-2222-4222-8222-222222222222"
 
-def _seed_runner_toml(target: Path) -> None:
-    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+def _seed_runner_toml(target: Path) -> Path:
+    machine_vault = target.parent / "vault" / "runner-machine.enc"
     RunnerToml.write(
         target,
         RunnerToml(
             tenant_id="acme",
-            runner_id="runner-7",
-            backend_url="https://team-server.example",
-            long_term_credential="lt-abc",
-            enrolled_at_ns=1_700_000_000_000_000_000,
+            runner_id=_RUNNER_ID,
+            backend_url="https://crucible.example",
+            credential_id="33333333-3333-4333-8333-333333333333",
+            credential_version=1,
+            credential_valid_until="2027-07-14T00:00:00Z",
+            machine_key_id="ed25519-test-key",
+            machine_vault_path=str(machine_vault),
+            enrolled_at="2026-07-14T00:00:00Z",
         ),
     )
+    return machine_vault
 
 
-def _run_start(argv: list[str], *, monkeypatch: pytest.MonkeyPatch) -> tuple[int, mock.MagicMock]:
+def _run_start(
+    argv: list[str],
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[int, mock.MagicMock, mock.MagicMock]:
     run_daemon = mock.MagicMock()
+    credential = mock.MagicMock(spec=["assert_binding"])
 
     async def _fake(*args, **kwargs):
         run_daemon(*args, **kwargs)
         return 0
 
+    monkeypatch.setattr(start_command.MachineCredentialVault, "load", mock.MagicMock(return_value=credential))
     monkeypatch.setattr("custos.cli._daemon.run_daemon", _fake)
-    return main(["start", *argv]), run_daemon
+    return main(["start", *argv]), run_daemon, credential
 
 
-def test_start_reads_runner_toml_and_wires_reconciler(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_start_loads_bound_machine_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner_toml = tmp_path / "arx" / "runner.toml"
-    _seed_runner_toml(runner_toml)
-    exit_code, run_daemon = _run_start(["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch)
+    machine_vault = _seed_runner_toml(runner_toml)
+
+    exit_code, run_daemon, credential = _run_start(
+        ["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch
+    )
+
     assert exit_code == 0
-    ns = run_daemon.call_args.args[0]
-    assert ns.tenant_id == "acme"
-    assert ns.runner_id == "runner-7"
+    namespace = run_daemon.call_args.args[0]
+    assert namespace.tenant_id == "acme"
+    assert namespace.runner_id == _RUNNER_ID
+    assert namespace.machine_vault == machine_vault
+    credential.assert_binding.assert_called_once()
 
 
 def test_start_missing_runner_toml_fails_fast(
@@ -60,26 +75,27 @@ def test_start_missing_runner_toml_fails_fast(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    exit_code, run_daemon = _run_start(["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch)
-    assert exit_code != 0
-    err = capsys.readouterr().err
-    assert "arx-runner enroll" in err
+    exit_code, run_daemon, _credential = _run_start(
+        ["--runner-toml", str(tmp_path / "missing.toml")], monkeypatch=monkeypatch
+    )
+    assert exit_code == 1
+    assert "arx-runner enroll" in capsys.readouterr().err
     run_daemon.assert_not_called()
 
 
 def test_start_partial_runner_toml_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     runner_toml = tmp_path / "runner.toml"
-    runner_toml.write_text('tenant_id = "acme"\nrunner_id = "r"\n', encoding="utf-8")
+    runner_toml.write_text('tenant_id = "acme"\nrunner_id = "r"\n')
     os.chmod(runner_toml, 0o600)
-    exit_code, run_daemon = _run_start(["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch)
-    assert exit_code != 0
-    err = capsys.readouterr().err
-    assert "backend_url" in err or "missing" in err.lower()
+
+    exit_code, run_daemon, _credential = _run_start(
+        ["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch
+    )
+
+    assert exit_code == 1
     run_daemon.assert_not_called()
 
 
@@ -89,47 +105,67 @@ def test_start_rejects_world_readable_runner_toml(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     runner_toml = tmp_path / "runner.toml"
-    runner_toml.write_text(
-        'tenant_id = "acme"\n'
-        'runner_id = "runner-7"\n'
-        'backend_url = "https://x"\n'
-        'long_term_credential = "abc"\n'
-        "enrolled_at_ns = 1\n",
-        encoding="utf-8",
-    )
+    runner_toml.write_text('tenant_id = "acme"\n')
     os.chmod(runner_toml, 0o644)
-    exit_code, run_daemon = _run_start(["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch)
-    assert exit_code != 0
-    err = capsys.readouterr().err
-    assert "0600" in err
+
+    exit_code, run_daemon, _credential = _run_start(
+        ["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch
+    )
+
+    assert exit_code == 1
+    assert "0600" in capsys.readouterr().err
     run_daemon.assert_not_called()
 
 
-def test_start_preserves_engine_and_wal_flags(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_start_preserves_engine_and_fact_outbox_flags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner_toml = tmp_path / "arx" / "runner.toml"
     _seed_runner_toml(runner_toml)
-    wal = tmp_path / "custom-wal.db"
-    vault_dir = tmp_path / "custom-vault"
-    exit_code, run_daemon = _run_start(
+    outbox = tmp_path / "runner-facts.db"
+    vault_dir = tmp_path / "venue-vault"
+
+    exit_code, run_daemon, _credential = _run_start(
         [
             "--runner-toml",
             str(runner_toml),
             "--engine",
             "nautilus",
-            "--wal-path",
-            str(wal),
+            "--runner-fact-outbox",
+            str(outbox),
             "--vault-dir",
             str(vault_dir),
         ],
         monkeypatch=monkeypatch,
     )
+
     assert exit_code == 0
-    ns = run_daemon.call_args.args[0]
-    assert ns.engine == "nautilus"
-    assert ns.wal_path == wal
-    assert ns.vault_dir == vault_dir
+    namespace = run_daemon.call_args.args[0]
+    assert namespace.engine == "nautilus"
+    assert namespace.runner_fact_outbox == outbox
+    assert namespace.vault_dir == vault_dir
+
+
+def test_start_rejects_machine_vault_override_binding_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_toml = tmp_path / "arx" / "runner.toml"
+    _seed_runner_toml(runner_toml)
+
+    exit_code, run_daemon, _credential = _run_start(
+        [
+            "--runner-toml",
+            str(runner_toml),
+            "--machine-vault",
+            str(tmp_path / "other.enc"),
+        ],
+        monkeypatch=monkeypatch,
+    )
+
+    assert exit_code == 1
+    run_daemon.assert_not_called()
 
 
 def test_engine_nautilus_selects_real_host() -> None:
@@ -138,8 +174,7 @@ def test_engine_nautilus_selects_real_host() -> None:
     from custos.cli._daemon import _build_host
     from custos.engines.nautilus.host import NtTradingNodeHost
 
-    host = _build_host(Namespace(engine="nautilus", tenant_id="acme", runner_id="runner-1"))
-
+    host = _build_host(Namespace(engine="nautilus", tenant_id="acme", runner_id=_RUNNER_ID))
     assert isinstance(host, NtTradingNodeHost)
 
 
@@ -149,8 +184,7 @@ def test_engine_noop_selects_noop_host() -> None:
     from custos.cli._daemon import _build_host
     from custos.engines.nautilus.host import NoopHost
 
-    host = _build_host(Namespace(engine="noop", tenant_id="acme", runner_id="runner-1"))
-
+    host = _build_host(Namespace(engine="noop", tenant_id="acme", runner_id=_RUNNER_ID))
     assert isinstance(host, NoopHost)
 
 
@@ -159,12 +193,15 @@ def test_use_nt_host_flag_is_removed() -> None:
         main(["start", "--use-nt-host"])
 
 
-def test_start_preserves_ready_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_start_preserves_ready_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner_toml = tmp_path / "arx" / "runner.toml"
     _seed_runner_toml(runner_toml)
     ready_file = tmp_path / "runner-ready.json"
 
-    exit_code, run_daemon = _run_start(
+    exit_code, run_daemon, _credential = _run_start(
         ["--runner-toml", str(runner_toml), "--ready-file", str(ready_file)],
         monkeypatch=monkeypatch,
     )
@@ -177,12 +214,21 @@ def test_start_default_paths_target_arx_namespace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No CLI overrides → every default path begins with ~/.arx (no .custos)."""
     runner_toml = tmp_path / "arx" / "runner.toml"
     _seed_runner_toml(runner_toml)
-    exit_code, run_daemon = _run_start(["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch)
+
+    exit_code, run_daemon, _credential = _run_start(
+        ["--runner-toml", str(runner_toml)], monkeypatch=monkeypatch
+    )
+
     assert exit_code == 0
-    ns = run_daemon.call_args.args[0]
-    for path in (ns.wal_path, ns.enrollment_path, ns.vault_dir):
+    namespace = run_daemon.call_args.args[0]
+    for path in (
+        namespace.vault_dir,
+        namespace.ready_file,
+        namespace.runner_capability,
+        namespace.runner_fact_outbox,
+        namespace.crucible_domain_public_key,
+    ):
         assert ".custos" not in str(path)
         assert ".arx" in str(path)

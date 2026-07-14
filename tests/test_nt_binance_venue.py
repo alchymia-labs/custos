@@ -32,13 +32,14 @@ from custos.engines.nautilus.venue_binance import (  # noqa: E402
     build_futures_leverages,
     build_instrument_ids,
     data_environment_for_mode,
-    require_live_dual_approval,
+    require_live_owner_evidence,
 )
 
 
 def _approved_spec(connector: str = "binance_perpetual") -> dict:
     spec = _spec(connector)
-    spec["approved_by"] = ["alice", "bob"]
+    spec["promotion_id"] = "44444444-4444-4444-8444-444444444444"
+    spec["promotion_evidence_digest"] = "a" * 64
     return spec
 
 
@@ -183,26 +184,24 @@ def test_live_env_pin() -> None:
     assert cfg.account_type == BinanceAccountType.USDT_FUTURES
 
 
-def test_live_missing_approvers_rejected() -> None:
-    # Failure-mode contract: a live exec config cannot be built without >= 2
-    # approvers (separation of duties); the reason_code is sod_approval_missing.
-    with pytest.raises(RuntimeError, match="sod_approval_missing"):
+def test_live_missing_owner_evidence_rejected() -> None:
+    with pytest.raises(RuntimeError, match="live_owner_evidence_missing"):
         build_exec_client_config_live(_spec("binance_perpetual"), _credential())
 
 
-def test_live_single_approver_rejected() -> None:
+def test_live_missing_evidence_digest_rejected() -> None:
     spec = _spec("binance_perpetual")
-    spec["approved_by"] = ["alice"]
-    with pytest.raises(RuntimeError, match="sod_approval_missing"):
+    spec["promotion_id"] = "44444444-4444-4444-8444-444444444444"
+    with pytest.raises(RuntimeError, match="live_owner_evidence_missing"):
         build_exec_client_config_live(spec, _credential())
 
 
-def test_live_duplicate_approvers_rejected() -> None:
-    # Two entries but one distinct approver is not separation of duties.
+def test_live_invalid_evidence_digest_rejected() -> None:
     spec = _spec("binance_perpetual")
-    spec["approved_by"] = ["alice", "alice"]
-    with pytest.raises(RuntimeError, match="sod_approval_missing"):
-        require_live_dual_approval(spec)
+    spec["promotion_id"] = "44444444-4444-4444-8444-444444444444"
+    spec["promotion_evidence_digest"] = "short"
+    with pytest.raises(RuntimeError, match="live_owner_evidence_missing"):
+        require_live_owner_evidence(spec)
 
 
 def test_data_environment_for_mode() -> None:

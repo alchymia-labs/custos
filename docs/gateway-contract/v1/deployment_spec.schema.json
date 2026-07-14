@@ -1,7 +1,12 @@
 {
   "$defs": {
     "LifecycleState": {
-      "enum": ["running", "paused", "stopped", "archived"],
+      "enum": [
+        "running",
+        "paused",
+        "stopped",
+        "archived"
+      ],
       "title": "LifecycleState",
       "type": "string"
     },
@@ -9,12 +14,14 @@
       "additionalProperties": false,
       "properties": {
         "credential_id": {
-          "pattern": "^[a-zA-Z0-9_-]{1,64}$",
+          "pattern": "^[a-zA-Z0-9_-]{1,128}$",
           "title": "Credential Id",
           "type": "string"
         }
       },
-      "required": ["credential_id"],
+      "required": [
+        "credential_id"
+      ],
       "title": "ProvenanceRef",
       "type": "object"
     },
@@ -22,68 +29,51 @@
       "additionalProperties": false,
       "properties": {
         "starting_balances": {
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "minItems": 1,
           "title": "Starting Balances",
           "type": "array"
         }
       },
-      "required": ["starting_balances"],
+      "required": [
+        "starting_balances"
+      ],
       "title": "SandboxConfig",
       "type": "object"
     },
     "TradingMode": {
-      "enum": ["sandbox", "testnet", "live"],
+      "enum": [
+        "sandbox",
+        "testnet",
+        "live"
+      ],
       "title": "TradingMode",
       "type": "string"
     }
   },
-  "$id": "https://custos.the-alephain-guild/gateway-contract/v1/deployment_spec.schema.json",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "allOf": [
-    {
-      "if": {
-        "properties": {"trading_mode": {"const": "live"}},
-        "required": ["trading_mode"]
-      },
-      "then": {
-        "properties": {
-          "code_hash": {
-            "pattern": "^[a-f0-9]{64}$",
-            "type": "string"
-          }
-        },
-        "required": ["code_hash"]
-      }
-    },
-    {
-      "if": {
-        "properties": {"trading_mode": {"const": "sandbox"}},
-        "required": ["trading_mode"]
-      },
-      "then": {
-        "properties": {
-          "sandbox": {
-            "properties": {
-              "starting_balances": {
-                "minItems": 1,
-                "type": "array"
-              }
-            },
-            "required": ["starting_balances"],
-            "type": "object"
-          }
-        },
-        "required": ["sandbox"]
-      }
-    }
-  ],
-  "description": "Validated desired state accepted by the Custos runtime.",
+  "description": "Validated local execution view of a canonical Crucible DeploymentSpec.",
   "properties": {
-    "spec_id": {
-      "pattern": "^[a-zA-Z0-9_-]{1,64}$",
-      "title": "Spec Id",
+    "code_hash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Code Hash",
+      "type": "string"
+    },
+    "connector": {
+      "minLength": 1,
+      "title": "Connector",
+      "type": "string"
+    },
+    "deployment_instance_id": {
+      "format": "uuid",
+      "title": "Deployment Instance Id",
+      "type": "string"
+    },
+    "deployment_spec_digest": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Deployment Spec Digest",
       "type": "string"
     },
     "generation": {
@@ -91,75 +81,118 @@
       "title": "Generation",
       "type": "integer"
     },
-    "trading_mode": {"$ref": "#/$defs/TradingMode"},
-    "lifecycle_state": {"$ref": "#/$defs/LifecycleState"},
-    "strategy_path": {
-      "minLength": 1,
-      "title": "Strategy Path",
-      "type": "string"
-    },
-    "provenance_ref": {"$ref": "#/$defs/ProvenanceRef"},
-    "connector": {
-      "minLength": 1,
-      "title": "Connector",
-      "type": "string"
-    },
-    "pairs": {
-      "items": {"type": "string"},
-      "minItems": 1,
-      "title": "Pairs",
-      "type": "array"
-    },
     "leverage": {
       "minimum": 1,
       "title": "Leverage",
       "type": "integer"
     },
-    "strategy_config": {
-      "additionalProperties": true,
-      "title": "Strategy Config",
-      "type": "object"
-    },
-    "strategy_registry_name": {
-      "anyOf": [{"type": "string"}, {"type": "null"}],
-      "default": null,
-      "title": "Strategy Registry Name"
-    },
-    "code_hash": {
-      "anyOf": [
-        {"pattern": "^[a-f0-9]{64}$", "type": "string"},
-        {"type": "null"}
-      ],
-      "default": null,
-      "title": "Code Hash"
+    "lifecycle_state": {
+      "$ref": "#/$defs/LifecycleState"
     },
     "log_level": {
       "default": "INFO",
       "title": "Log Level",
       "type": "string"
     },
-    "sandbox": {
-      "anyOf": [{"$ref": "#/$defs/SandboxConfig"}, {"type": "null"}],
-      "default": null
+    "nautilus_config": {
+      "additionalProperties": true,
+      "title": "Nautilus Config",
+      "type": "object"
     },
-    "approved_by": {
-      "items": {"type": "string"},
-      "title": "Approved By",
+    "pairs": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Pairs",
       "type": "array"
+    },
+    "promotion_evidence_digest": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Promotion Evidence Digest"
+    },
+    "promotion_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Promotion Id"
+    },
+    "provenance_ref": {
+      "$ref": "#/$defs/ProvenanceRef"
     },
     "risk_config": {
       "additionalProperties": true,
       "title": "Risk Config",
       "type": "object"
     },
-    "nautilus_config": {
+    "sandbox": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SandboxConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "spec_id": {
+      "format": "uuid",
+      "title": "Spec Id",
+      "type": "string"
+    },
+    "strategy_config": {
       "additionalProperties": true,
-      "title": "Nautilus Config",
+      "title": "Strategy Config",
       "type": "object"
+    },
+    "strategy_id": {
+      "format": "uuid",
+      "title": "Strategy Id",
+      "type": "string"
+    },
+    "strategy_path": {
+      "minLength": 1,
+      "title": "Strategy Path",
+      "type": "string"
+    },
+    "strategy_registry_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Strategy Registry Name"
+    },
+    "trading_mode": {
+      "$ref": "#/$defs/TradingMode"
     }
   },
   "required": [
     "spec_id",
+    "deployment_instance_id",
+    "deployment_spec_digest",
+    "strategy_id",
     "generation",
     "trading_mode",
     "lifecycle_state",
@@ -167,7 +200,8 @@
     "provenance_ref",
     "connector",
     "pairs",
-    "leverage"
+    "leverage",
+    "code_hash"
   ],
   "title": "DeploymentSpecPayload v1",
   "type": "object"

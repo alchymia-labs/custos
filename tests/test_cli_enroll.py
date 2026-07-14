@@ -1,54 +1,42 @@
-"""Failing-first tests for ``arx-runner enroll``.
-
-Mocks ``urllib.request.urlopen`` for every network call; asserts:
-- happy path: 200 → runner.toml written at 0600 with expected fields
-- 4xx / 5xx / connection error → no partial write
-- boundary validation runs before any urlopen call
-- payload shape (`token_hash` + `runner_id` + `agent_version` + `capabilities`)
-  matches the backend contract; ``tenant_id`` is NOT sent (backend resolves
-  it server-side via token → tenant lookup).
-- non-http(s) `--backend` scheme rejected before urlopen
-"""
+"""CLI coverage for nonce-bound runner machine-principal enrollment."""
 
 from __future__ import annotations
 
-import hashlib
-import io
-import json
+import base64
+import os
+import stat
 from pathlib import Path
 from unittest import mock
-from urllib.error import HTTPError, URLError
+from uuid import UUID
 
 import pytest
 
+from custos.cli.subcommands import enroll as enroll_command
 from custos.cli.subcommands import main
+from custos.core.machine_credential_vault import MachineCredentialError
 from custos.core.runner_toml import RunnerToml
 
-_BACKEND = "http://team-server:8000"
+_BACKEND = "http://127.0.0.1:8000"
+_RUNNER_ID = "22222222-2222-4222-8222-222222222222"
+_CREDENTIAL_ID = "33333333-3333-4333-8333-333333333333"
 
 
-def _fake_response(payload: dict, status: int = 200) -> mock.MagicMock:
-    resp = mock.MagicMock()
-    resp.status = status
-    resp.read.return_value = json.dumps(payload).encode("utf-8")
-    resp.__enter__.return_value = resp
-    resp.__exit__.return_value = False
-    return resp
+def _authority_response(body: dict[str, object]) -> dict[str, object]:
+    return {
+        "tenant_id": body["tenant_id"],
+        "runner_id": body["runner_id"],
+        "machine_key_id": body["machine_key_id"],
+        "credential_id": _CREDENTIAL_ID,
+        "credential_version": 1,
+        "credential_valid_until": "2027-07-14T00:00:00Z",
+        "long_term_credential": "rkc2.test-machine-credential",
+        "enrolled_at": "2026-07-14T00:00:00Z",
+    }
 
 
-def _happy_response() -> mock.MagicMock:
-    return _fake_response(
-        {"long_term_credential": "lt-abc", "enrolled_at_ns": 1_700_000_000_000_000_000}
-    )
-
-
-def _run_enroll(argv: list[str], *, monkeypatch, urlopen) -> int:
-    monkeypatch.setattr("custos.cli.subcommands.enroll.urllib.request.urlopen", urlopen)
-    return main(["enroll", *argv])
-
-
-def _base_argv(runner_toml: Path, token: str = "one-shot-token") -> list[str]:
+def _base_argv(tmp_path: Path, *, token: str = "one-shot-token") -> list[str]:
     return [
+        "enroll",
         "--token",
         token,
         "--backend",
@@ -56,189 +44,171 @@ def _base_argv(runner_toml: Path, token: str = "one-shot-token") -> list[str]:
         "--tenant-id",
         "acme",
         "--runner-id",
-        "runner-7",
+        _RUNNER_ID,
+        "--agent-version",
+        "0.3.0",
         "--runner-toml",
-        str(runner_toml),
+        str(tmp_path / "arx" / "runner.toml"),
+        "--machine-vault",
+        str(tmp_path / "arx" / "vault" / "runner-machine.enc"),
+        "--age-recipient",
+        "age1test-recipient",
     ]
 
 
-def test_enroll_happy_path_persists_runner_toml(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def _wire_enrollment(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    post: mock.MagicMock | None = None,
+) -> tuple[mock.MagicMock, list[tuple[object, str]]]:
+    if post is None:
+        post = mock.MagicMock(side_effect=lambda _backend, body: _authority_response(body))
+    persisted: list[tuple[object, str]] = []
+
+    def _persist(_vault, credential, *, age_recipient: str) -> None:
+        persisted.append((credential, age_recipient))
+
+    monkeypatch.setattr(enroll_command, "_post_enrollment", post)
+    monkeypatch.setattr(enroll_command.MachineCredentialVault, "persist", _persist)
+    return post, persisted
+
+
+def test_enroll_persists_public_metadata_and_machine_principal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    post, persisted = _wire_enrollment(monkeypatch)
+
+    assert main(_base_argv(tmp_path)) == 0
+
     runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    exit_code = _run_enroll(_base_argv(runner_toml), monkeypatch=monkeypatch, urlopen=urlopen)
-    assert exit_code == 0
     loaded = RunnerToml.read(runner_toml)
     assert loaded.tenant_id == "acme"
-    assert loaded.runner_id == "runner-7"
+    assert loaded.runner_id == _RUNNER_ID
     assert loaded.backend_url == _BACKEND
-    assert loaded.long_term_credential == "lt-abc"
-    assert loaded.enrolled_at_ns == 1_700_000_000_000_000_000
-    import os
-    import stat
-
+    assert loaded.credential_id == _CREDENTIAL_ID
+    assert loaded.credential_version == 1
+    assert loaded.machine_vault_path == str(
+        tmp_path / "arx" / "vault" / "runner-machine.enc"
+    )
     assert stat.S_IMODE(os.stat(runner_toml).st_mode) == 0o600
-
-
-def test_enroll_backend_unreachable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(side_effect=URLError("connection refused"))
-    exit_code = _run_enroll(_base_argv(runner_toml), monkeypatch=monkeypatch, urlopen=urlopen)
-    assert exit_code != 0
-    assert not runner_toml.exists()
-    assert "connection" in capsys.readouterr().err.lower()
-
-
-def test_enroll_backend_500_no_partial_persist(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    err = HTTPError(_BACKEND, 500, "Internal Server Error", hdrs=None, fp=io.BytesIO(b""))
-    urlopen = mock.MagicMock(side_effect=err)
-    exit_code = _run_enroll(_base_argv(runner_toml), monkeypatch=monkeypatch, urlopen=urlopen)
-    assert exit_code != 0
-    assert not runner_toml.exists()
-
-
-def test_enroll_double_use_rejected(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    err = HTTPError(_BACKEND, 409, "Conflict", hdrs=None, fp=io.BytesIO(b"token already used"))
-    urlopen = mock.MagicMock(side_effect=err)
-    exit_code = _run_enroll(_base_argv(runner_toml), monkeypatch=monkeypatch, urlopen=urlopen)
-    assert exit_code != 0
-    assert not runner_toml.exists()
-    assert "token already used" in capsys.readouterr().err
-
-
-def test_enroll_creates_arx_dir_at_0700(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    assert not runner_toml.parent.exists()
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    _run_enroll(_base_argv(runner_toml), monkeypatch=monkeypatch, urlopen=urlopen)
-    import os
-    import stat
-
     assert stat.S_IMODE(os.stat(runner_toml.parent).st_mode) == 0o700
+    assert post.call_count == 1
+    assert len(persisted) == 1
+    credential, recipient = persisted[0]
+    assert credential.runner_id == UUID(_RUNNER_ID)
+    assert credential.machine_credential.startswith("rkc2.")
+    assert recipient == "age1test-recipient"
 
 
-def test_enroll_rejects_token_with_null_byte(
+def test_enroll_sends_nonce_bound_proof_to_crucible(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    post, _persisted = _wire_enrollment(monkeypatch)
+
+    assert main(_base_argv(tmp_path)) == 0
+
+    backend, body = post.call_args.args
+    assert backend == _BACKEND
+    assert body["enrollment_token"] == "one-shot-token"
+    assert body["tenant_id"] == "acme"
+    assert body["runner_id"] == _RUNNER_ID
+    assert body["agent_version"] == "0.3.0"
+    UUID(str(body["challenge_nonce"]))
+    assert str(body["machine_key_id"]).startswith("ed25519-")
+    assert len(base64.b64decode(str(body["public_key_base64"]))) == 32
+    assert len(base64.b64decode(str(body["proof_signature_base64"]))) == 64
+
+
+def test_enroll_authority_failure_leaves_no_public_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    argv = _base_argv(runner_toml, token="abc\x00def")
-    with pytest.raises(SystemExit):
-        _run_enroll(argv, monkeypatch=monkeypatch, urlopen=urlopen)
-    assert not runner_toml.exists()
-    urlopen.assert_not_called()
+    post = mock.MagicMock(side_effect=MachineCredentialError("authority unavailable"))
+    _wire_enrollment(monkeypatch, post=post)
+
+    assert main(_base_argv(tmp_path)) == 1
+    assert not (tmp_path / "arx" / "runner.toml").exists()
+    assert not (tmp_path / "arx" / "vault" / "runner-machine.enc").exists()
+    assert "authority unavailable" in capsys.readouterr().err
 
 
-def test_enroll_rejects_tenant_traversal(
+def test_enroll_existing_state_is_not_overwritten(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    argv = [
-        "--token",
-        "abc",
-        "--backend",
-        _BACKEND,
-        "--tenant-id",
-        "../evil",
-        "--runner-id",
-        "runner-7",
-        "--runner-toml",
-        str(runner_toml),
-    ]
+    runner_toml.parent.mkdir(parents=True)
+    runner_toml.write_text("existing")
+    post, _persisted = _wire_enrollment(monkeypatch)
+
+    assert main(_base_argv(tmp_path)) == 1
+    assert runner_toml.read_text() == "existing"
+    post.assert_not_called()
+
+
+@pytest.mark.parametrize("backend", ["file:///etc/passwd", "gopher://host", "host-only"])
+def test_enroll_rejects_non_http_backend_before_handler(
+    backend: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    post, _persisted = _wire_enrollment(monkeypatch)
+    argv = _base_argv(tmp_path)
+    argv[argv.index(_BACKEND)] = backend
+
     with pytest.raises(SystemExit):
-        _run_enroll(argv, monkeypatch=monkeypatch, urlopen=urlopen)
-    urlopen.assert_not_called()
+        main(argv)
+    post.assert_not_called()
+
+
+def test_enroll_rejects_insecure_non_loopback_http(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    post, _persisted = _wire_enrollment(monkeypatch)
+    argv = _base_argv(tmp_path)
+    argv[argv.index(_BACKEND)] = "http://crucible.internal:8000"
+
+    assert main(argv) == 1
+    post.assert_not_called()
 
 
 @pytest.mark.parametrize(
-    "bad_backend",
-    ["file:///etc/passwd", "gopher://x", "foo"],
+    ("flag", "value"),
+    [
+        ("--token", "abc\x00def"),
+        ("--tenant-id", "../evil"),
+        ("--runner-id", "runner-7"),
+    ],
 )
-def test_enroll_rejects_non_http_backend(
-    bad_backend: str,
+def test_enroll_rejects_invalid_boundary_values(
+    flag: str,
+    value: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    argv = [
-        "--token",
-        "abc",
-        "--backend",
-        bad_backend,
-        "--tenant-id",
-        "acme",
-        "--runner-id",
-        "runner-7",
-        "--runner-toml",
-        str(runner_toml),
-    ]
+    post, _persisted = _wire_enrollment(monkeypatch)
+    argv = _base_argv(tmp_path)
+    argv[argv.index(flag) + 1] = value
+
     with pytest.raises(SystemExit):
-        _run_enroll(argv, monkeypatch=monkeypatch, urlopen=urlopen)
-    urlopen.assert_not_called()
-    assert not runner_toml.exists()
+        main(argv)
+    post.assert_not_called()
 
 
-def test_enroll_payload_shape(
+def test_enroll_never_prints_raw_token(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    argv = _base_argv(runner_toml)
-    argv.extend(["--agent-version", "0.2.0"])
-    argv.extend(["--capabilities", "nautilus"])
-    argv.extend(["--capabilities", "noop-host"])
-    exit_code = _run_enroll(argv, monkeypatch=monkeypatch, urlopen=urlopen)
-    assert exit_code == 0
-    call = urlopen.call_args
-    request = call.args[0]
-    payload = json.loads(request.data)
-    expected_hash = hashlib.sha256(b"one-shot-token").hexdigest()
-    assert payload == {
-        "token_hash": expected_hash,
-        "runner_id": "runner-7",
-        "agent_version": "0.2.0",
-        "capabilities": ["nautilus", "noop-host"],
-    }
-    assert "tenant_id" not in payload, "backend resolves tenant server-side via token_hash"
-    assert request.get_header("Content-type") == "application/json"
-    assert request.full_url == f"{_BACKEND}/api/v1/enrollments"
+    _wire_enrollment(monkeypatch)
+    token = "super-secret-token"
 
+    assert main(_base_argv(tmp_path, token=token)) == 0
 
-def test_enroll_never_logs_raw_token(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    runner_toml = tmp_path / "arx" / "runner.toml"
-    urlopen = mock.MagicMock(return_value=_happy_response())
-    with caplog.at_level("DEBUG"):
-        _run_enroll(
-            _base_argv(runner_toml, token="super-secret-token"),
-            monkeypatch=monkeypatch,
-            urlopen=urlopen,
-        )
-    for record in caplog.records:
-        assert "super-secret-token" not in record.getMessage()
+    captured = capsys.readouterr()
+    assert token not in captured.out
+    assert token not in captured.err

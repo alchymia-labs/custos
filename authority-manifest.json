@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "project": "custos",
+  "authority_documents": [
+    {"role": "ecosystem_snapshot", "path": "docs/authority/ecosystem-authority.json"},
+    {"role": "runner_command_golden", "path": "docs/authority/runner-deployment-command-golden-v1.json"},
+    {"role": "local_domain", "path": "docs/domain.md"},
+    {"role": "local_reconciliation", "path": "docs/design/reconcile.md"},
+    {"role": "local_engine_protocol", "path": "docs/design/engine_protocol.md"},
+    {"role": "local_telemetry", "path": "docs/design/telemetry_actor.md"},
+    {"role": "local_nats_contract", "path": "docs/design/nats_client.md"}
+  ],
+  "external_optional_documents": [
+    {"role": "workspace_migration_rollout", "path": "../../the-alephain-guild/codex/projects/arx/00-core/authority-migration-rollout.md", "must_contain": ["0068", "0026", "0113"]},
+    {"role": "workspace_architecture", "path": "../../the-alephain-guild/codex/projects/arx/00-core/architecture.md"}
+  ],
+  "expected_migration_heads": {"arx": "0068", "crucible_control": "0026", "crucible_mode": "0113"},
+  "doc_drift": {
+    "paths": [
+      "CLAUDE.md",
+      "docs/gateway-contract/v1/README.md",
+      "docs/gateway-contract/v1/deployment_spec.schema.json",
+      "src/custos/contracts/deployment.py",
+      "src/custos/core/nats_client.py",
+      "src/custos/core/deployment_reconciler.py",
+      "src/custos/core/runner_deployment_lifecycle_fact.py",
+      "src/custos/cli/subcommands/__init__.py",
+      "tests/test_authority_runtime_alignment.py",
+      "tests/test_deployment_contract.py",
+      "tests/test_deployment_reconciler.py",
+      "tests/test_runner_deployment_command_golden.py",
+      "scripts/check-authority-docs.py"
+    ],
+    "forbidden_regex": [
+      "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",
+      "Custos\\s*(<->|->|↔).*ARX",
+      "DeploymentMessage\\.create",
+      "publish_deployment_status",
+      "standalone_nats",
+      "ArxNatsTelemetryAdapter",
+      "NtRiskEngineBridge"
+    ]
+  },
+  "required_claims": [
+    {"path": "docs/authority/ecosystem-authority.json", "must_contain": ["deployment_instance_id", "sha256-canonical-json-v1", "RunnerDeploymentLifecycleFact.v1", "facts[].seq"]},
+    {"path": "docs/authority/runner-deployment-command-golden-v1.json", "must_contain": ["DeploymentSpecReadyForRunner", "DeploymentInstanceDesiredStateChanged", "\"mode\": \"sandbox\""]},
+    {"path": "docs/domain.md", "must_contain": ["DeploymentSpec", "DeploymentInstance", "RunnerFact"]},
+    {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]}
+  ]
+}

@@ -39,6 +39,7 @@ _FIXTURE_STRATEGY = Path(__file__).parents[2] / "fixtures" / "minimal_supertrend
 def _spec(**overrides: Any) -> dict:
     spec = {
         "spec_id": "cfg-1",
+        "deployment_instance_id": "cfg-1",
         "strategy_path": str(_FIXTURE_STRATEGY),
         "connector": "binance_perpetual",
         "pairs": ["BTC-USDT"],

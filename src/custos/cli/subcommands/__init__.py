@@ -21,7 +21,6 @@ from custos.cli.subcommands import (
     deployment,
     enroll,
     health,
-    nats,
     onboard,
     start,
     vault,
@@ -51,20 +50,19 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="arx-runner",
         description=(
-            "custos self-hosted runner — enroll, provision keys, and start "
-            "the reconcile / telemetry / heartbeat loop."
+            "custos self-hosted runner — enroll, provision keys, reconcile "
+            "signed desired state, and publish signed RunnerFacts."
         ),
     )
     subparsers = parser.add_subparsers(
         dest="cmd",
-        metavar="{credential,deployment,enroll,onboard,health,nats,start,vault}",
+        metavar="{credential,deployment,enroll,onboard,health,start,vault}",
     )
     credential.register(subparsers)
     deployment.register(subparsers)
     enroll.register(subparsers)
     onboard.register(subparsers)
     health.register(subparsers)
-    nats.register(subparsers)
     start.register(subparsers)
     vault.register(subparsers)
     return parser

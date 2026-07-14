@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -14,11 +15,11 @@ from custos.core.machine_credential_vault import (
 from custos.core.runner_toml import RunnerToml
 
 DEFAULT_RUNNER_TOML = Path.home() / ".arx" / "runner.toml"
-DEFAULT_WAL_PATH = Path.home() / ".arx" / "state" / "telemetry-wal.db"
 DEFAULT_VAULT_DIR = Path.home() / ".arx" / "vault"
 DEFAULT_READY_FILE = Path.home() / ".arx" / "state" / "runner-ready.json"
 DEFAULT_RUNNER_CAPABILITY = Path.home() / ".arx" / "runner-capability.json"
 DEFAULT_RUNNER_FACT_OUTBOX = Path.home() / ".arx" / "state" / "runner-fact-outbox.db"
+DEFAULT_CRUCIBLE_DOMAIN_PUBLIC_KEY = Path.home() / ".arx" / "crucible-domain-event.pub"
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -36,10 +37,18 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     parser.add_argument("--nats-url", default="nats://localhost:4222")
     parser.add_argument("--vault-dir", type=Path, default=DEFAULT_VAULT_DIR)
-    parser.add_argument("--reconcile-strategy-id", default=None)
+    parser.add_argument("--reconcile", action="store_true")
+    parser.add_argument(
+        "--crucible-domain-public-key",
+        type=Path,
+        default=DEFAULT_CRUCIBLE_DOMAIN_PUBLIC_KEY,
+    )
+    parser.add_argument(
+        "--crucible-domain-key-id",
+        default=os.environ.get("CRUCIBLE_DOMAIN_EVENT_KEY_ID", ""),
+    )
     parser.add_argument("--engine", choices=["nautilus", "noop"], default="nautilus")
     parser.add_argument("--ready-file", type=Path, default=DEFAULT_READY_FILE)
-    parser.add_argument("--wal-path", type=Path, default=DEFAULT_WAL_PATH)
     parser.add_argument("--runner-capability", type=Path, default=DEFAULT_RUNNER_CAPABILITY)
     parser.add_argument("--runner-fact-outbox", type=Path, default=DEFAULT_RUNNER_FACT_OUTBOX)
     parser.add_argument("--runner-fact-snapshot-interval-secs", type=float, default=10.0)
@@ -73,10 +82,11 @@ def run(args: argparse.Namespace) -> int:
         machine_vault=bound_vault_path,
         nats_url=args.nats_url,
         vault_dir=args.vault_dir,
-        reconcile_strategy_id=args.reconcile_strategy_id,
+        reconcile=args.reconcile,
+        crucible_domain_public_key=args.crucible_domain_public_key,
+        crucible_domain_key_id=args.crucible_domain_key_id,
         engine=args.engine,
         ready_file=args.ready_file,
-        wal_path=args.wal_path,
         runner_capability=args.runner_capability,
         runner_fact_outbox=args.runner_fact_outbox,
         runner_fact_snapshot_interval_secs=args.runner_fact_snapshot_interval_secs,

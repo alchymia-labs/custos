@@ -41,22 +41,17 @@ def test_local_cap_falls_back_to_floor_when_spec_missing() -> None:
     assert live.max_notional_per_runner == LIVE_CAP_FLOOR_USD
 
 
-async def test_cap_exceeded_emits_pre_trade_rejected() -> None:
-    """A breach publishes a PreTradeRejected (reject_reason=max_notional) on the
-    pre-trade reject channel, using the real risk-edge publisher."""
-    from custos.engines.nautilus.risk import make_runner_cap_reject_publisher
+async def test_cap_exceeded_invokes_injected_fact_sink() -> None:
+    published: list[tuple[str, Decimal, Decimal, Decimal]] = []
 
-    published: list = []
+    async def publisher(
+        symbol: str,
+        current_open: Decimal,
+        requested_notional: Decimal,
+        cap: Decimal,
+    ) -> None:
+        published.append((symbol, current_open, requested_notional, cap))
 
-    class _FakeClient:
-        async def publish_telemetry_envelope(self, subject: str, envelope) -> None:
-            published.append((subject, envelope))
-
-    publisher = make_runner_cap_reject_publisher(
-        client=_FakeClient(),  # type: ignore[arg-type]
-        tenant_id="acme",
-        runner_id="r1",
-    )
     guard = RunnerNotionalCap(_cfg("1000"), reject_publisher=publisher)
 
     allowed = await guard.allows(
@@ -64,12 +59,7 @@ async def test_cap_exceeded_emits_pre_trade_rejected() -> None:
     )
 
     assert allowed is False
-    assert len(published) == 1
-    subject, envelope = published[0]
-    assert subject == "arx.acme.pre_trade_reject.r1"
-    assert envelope.payload["reject_reason"] == "max_notional"
-    assert envelope.payload["rule_id"] == "runner_notional_cap"
-    assert envelope.payload["symbol"] == "BTCUSDT"
+    assert published == [("BTCUSDT", Decimal("900"), Decimal("200"), Decimal("1000"))]
 
 
 async def test_cap_exceeded_during_disconnect_still_rejects() -> None:

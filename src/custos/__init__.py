@@ -1,4 +1,4 @@
-"""Arx self-hosted execution host (Runner / ExecutionHost).
+"""Custos self-hosted execution host (Runner / ExecutionHost).
 
 This maps architecture §1 trust-boundary policy:
 - Key material and strategy logic stay local.

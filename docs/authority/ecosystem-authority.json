@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "snapshot_version": "2026-07-14",
+  "topology": [
+    "ARX authorizes actor intent and issues ActorAssertion",
+    "Crucible owns business workflows, DeploymentSpec, DeploymentInstance, and canonical facts",
+    "Custos verifies signed desired state, executes locally, and emits signed RunnerFacts"
+  ],
+  "ownership": {
+    "arx": ["identity", "tenant", "RBAC", "TOTP", "resource policy", "ActorAssertion"],
+    "crucible-rust": ["business approvals", "risk policy", "DeploymentSpec", "DeploymentInstance", "canonical lifecycle"],
+    "custos": ["local credentials", "engine process", "venue interaction", "local safety", "runner observations"]
+  },
+  "runtime_identity": "deployment_instance_id",
+  "provenance_identity": ["deployment_spec_id", "deployment_spec_digest"],
+  "command_events": [
+    "DeploymentSpecReadyForRunner.<runner_id>.<deployment_instance_id>",
+    "DeploymentInstanceDesiredStateChanged.<runner_id>.<deployment_instance_id>"
+  ],
+  "fact_kind": "RunnerDeploymentLifecycleFact.v1",
+  "fact_capability_projector": "deployment_lifecycle",
+  "fact_sequence": {
+    "field": "facts[].seq",
+    "owner": "RunnerFactOutbox",
+    "rule": "typed fact producers must not pre-populate seq; the durable outbox allocates it"
+  },
+  "deployment_spec_digest": {
+    "algorithm": "sha256-canonical-json-v1",
+    "input": "DeploymentSpecCanonicalPayloadV1 only; command envelope and digest field excluded",
+    "canonicalization": "UTF-8 JSON, object keys sorted recursively, arrays preserved, no insignificant whitespace"
+  },
+  "runner_command_golden_fixture": {
+    "path": "docs/authority/runner-deployment-command-golden-v1.json",
+    "sha256": "12b2133822cc5b2608b326263e41cb7b8b34ea6cb5e16ab4973f1be6e41bb465",
+    "sha256_sidecar": "docs/authority/runner-deployment-command-golden-v1.json.sha256",
+    "optional_sibling_path": "../crucible-rust/docs/authority/runner-deployment-command-golden-v1.json",
+    "cases": [
+      "DeploymentSpecReadyForRunner",
+      "DeploymentInstanceDesiredStateChanged"
+    ],
+    "outer_payload_mode_field": "mode",
+    "canonical_spec_mode_field": "trading_mode",
+    "event_plane_mode_field": "trading_mode"
+  },
+  "migration_heads": {
+    "arx": "0068",
+    "crucible_control": "0026",
+    "crucible_mode": "0113"
+  }
+}

@@ -24,10 +24,14 @@ from custos.core.runner_toml import RunnerToml
 def _sample_record() -> RunnerToml:
     return RunnerToml(
         tenant_id="acme",
-        runner_id="runner-7",
-        backend_url="https://team-server.example",
-        long_term_credential="lt-credential-value",
-        enrolled_at_ns=1_700_000_000_000_000_000,
+        runner_id="22222222-2222-4222-8222-222222222222",
+        backend_url="https://crucible.example",
+        credential_id="33333333-3333-4333-8333-333333333333",
+        credential_version=1,
+        credential_valid_until="2027-07-14T00:00:00Z",
+        machine_key_id="ed25519-test-key",
+        machine_vault_path="/tmp/custos-runner-machine.enc",
+        enrolled_at="2026-07-14T00:00:00Z",
     )
 
 
@@ -82,13 +86,17 @@ def test_atomic_write_survives_interrupt(tmp_path: Path) -> None:
 
     updated = RunnerToml(
         tenant_id="acme",
-        runner_id="runner-7",
-        backend_url="https://team-server.example",
-        long_term_credential="rotated-value",
-        enrolled_at_ns=1_700_000_000_000_000_001,
+        runner_id="22222222-2222-4222-8222-222222222222",
+        backend_url="https://crucible.example",
+        credential_id="33333333-3333-4333-8333-333333333333",
+        credential_version=2,
+        credential_valid_until="2028-07-14T00:00:00Z",
+        machine_key_id="ed25519-rotated-key",
+        machine_vault_path="/tmp/custos-runner-machine.enc",
+        enrolled_at="2026-07-14T00:00:00Z",
     )
 
-    with mock.patch("os.rename", side_effect=OSError("simulated crash")):
+    with mock.patch("os.replace", side_effect=OSError("simulated crash")):
         with pytest.raises(OSError, match="simulated crash"):
             RunnerToml.write(target, updated)
 
@@ -101,11 +109,10 @@ def test_read_rejects_missing_required_field(tmp_path: Path) -> None:
     target = tmp_path / "runner.toml"
     target.write_text(
         'tenant_id = "acme"\n'
-        'runner_id = "runner-7"\n'
-        'backend_url = "https://team-server.example"\n'
-        "enrolled_at_ns = 1700000000000000000\n",  # missing long_term_credential
+        'runner_id = "22222222-2222-4222-8222-222222222222"\n'
+        'backend_url = "https://crucible.example"\n',
         encoding="utf-8",
     )
     os.chmod(target, 0o600)
-    with pytest.raises(ValueError, match="long_term_credential"):
+    with pytest.raises(ValueError, match="machine_vault_path"):
         RunnerToml.read(target)

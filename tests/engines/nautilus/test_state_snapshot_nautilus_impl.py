@@ -37,7 +37,7 @@ class _FakeNode:
 
 
 def _host() -> NtTradingNodeHost:
-    return NtTradingNodeHost(telemetry_client=None, tenant_id="t", runner_id="r")
+    return NtTradingNodeHost(tenant_id="t", runner_id="r")
 
 
 async def test_nt_host_get_open_notional_sums_positions_decimal() -> None:

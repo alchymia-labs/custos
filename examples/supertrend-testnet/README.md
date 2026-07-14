@@ -1,121 +1,82 @@
-# SuperTrend on Binance testnet with custos 0.3.0
+# SuperTrend on Binance testnet with Custos 0.3.0
 
-This Compose example uses the verified local `custos-runner:v0.3.0` image
-directly. It starts JetStream, creates the standalone stream topology once,
-waits for runner readiness, and publishes the included DeploymentSpec through
-the public CLI. No derived Custos Dockerfile is required, and Compose uses
-`pull_policy: never` so it cannot silently substitute a registry artifact.
-
-Exchange credentials, the age private key, and strategy code remain under this
-directory on the operator host. Testnet credentials must allow trading but not
-withdrawal.
+This Compose example runs only the Custos execution boundary from the verified
+local `custos-runner:v0.3.0` image. A reachable Crucible deployment service and
+its provisioned JetStream domain-event stream are prerequisites. No derived
+Custos Dockerfile, local business-stream bootstrap, or runner-side command
+publisher is used.
 
 ## Prerequisites
 
 - Docker with Compose v2.
-- `uv` with this repository synced (`uv sync --extra dev`) for the sanctioned
-  local `runner.toml` helper.
 - A reviewed strategy at `strategy/strategy.py`.
-- `age-keygen` for the one-time local key creation.
-- Binance Futures testnet credentials with withdrawal disabled.
+- Crucible HTTP and NATS endpoints plus its domain-event public key.
+- A one-time runner enrollment token.
+- Binance testnet credentials with withdrawal disabled.
 
-From the Custos repository root, build and verify the exact local image before
-entering this example:
+Build and verify the exact local image:
 
 ```bash
 make verify-local-v030
 cd examples/supertrend-testnet
-```
-
-Copy the non-secret defaults without overwriting an existing configuration:
-
-```bash
 test -f .env || cp .env.example .env
-set -a
-. ./.env
-set +a
+set -a; . ./.env; set +a
 ```
 
-## 1. Provision the local identity and per-key vault
-
-Create the runtime directories and age identity locally:
+## 1. Enroll the machine principal
 
 ```bash
 mkdir -p runtime/.arx/vault runtime/.arx/state
 chmod 700 runtime/.arx runtime/.arx/vault runtime/.arx/state
 age-keygen -o runtime/.arx/age.key
 chmod 600 runtime/.arx/age.key
+export SOPS_AGE_RECIPIENT="$(age-keygen -y runtime/.arx/age.key)"
+
+docker run --rm \
+  -v "$PWD/runtime/.arx:/home/custos/.arx" \
+  -e SOPS_AGE_RECIPIENT \
+  custos-runner:v0.3.0 enroll \
+  --token '<one-time-token>' \
+  --backend "$CRUCIBLE_HTTP_URL" \
+  --tenant-id "$CUSTOS_TENANT_ID" \
+  --runner-id "$CUSTOS_RUNNER_ID"
 ```
 
-Use the verified local image's `arx-runner vault put` command to write the encrypted
-credential. Pass the secret through stdin:
+The `arx-runner enroll` flow creates `runner.toml` public metadata and an
+encrypted runner machine credential. Do not construct either file manually.
+Install the Crucible event verification key at
+`runtime/.arx/crucible-domain-event.pub`.
+
+## 2. Provision the venue credential
+
+The container entrypoint below invokes the same `arx-runner vault put` command
+used by a source installation.
 
 ```bash
 printf '%s\n' '<binance-testnet-api-secret>' | docker run --rm -i \
   -v "$PWD/runtime/.arx:/home/custos/.arx" \
   custos-runner:v0.3.0 vault put \
   --key-id binance-testnet \
-  --tenant-id "$ARX_TENANT_ID" \
+  --tenant-id "$CUSTOS_TENANT_ID" \
   --api-key '<binance-testnet-api-key>' \
   --api-secret-stdin \
-  --age-recipient '<age1-public-key>' \
+  --age-recipient "$SOPS_AGE_RECIPIENT" \
   --permission-scope trade_no_withdraw
 ```
 
-Create the sanctioned non-live `runner.toml` with the repository checkout:
+## 3. Validate and run
 
 ```bash
-uv run python - <<'PY'
-import os
-import time
-from pathlib import Path
+docker run --rm \
+  -v "$PWD/spec-example.json:/spec.json:ro" \
+  custos-runner:v0.3.0 deployment validate --spec-file /spec.json
 
-from custos.core.runner_toml import RunnerToml
-
-RunnerToml.write(
-    Path("runtime/.arx/runner.toml"),
-    RunnerToml(
-        tenant_id=os.environ["ARX_TENANT_ID"],
-        runner_id=os.environ["ARX_RUNNER_ID"],
-        backend_url="http://standalone.invalid",
-        long_term_credential="testnet-local-only",
-        enrolled_at_ns=time.time_ns(),
-    ),
-)
-PY
-```
-
-Production runners must use `arx-runner enroll`; this manual record is only the
-documented sandbox/testnet path.
-
-## 2. Start, wait, and publish
-
-```bash
 docker compose up
 ```
 
-The service order is explicit:
+The local JSON file is an offline execution-view fixture. Create, approve,
+promote, stop, or archive the real deployment through Crucible. Custos consumes
+the signed command and emits signed lifecycle facts; it never becomes the
+business fact owner. Observe only the runner with `docker compose logs -f runner`.
 
-1. `nats` starts JetStream.
-2. `nats-bootstrap` idempotently creates Custos-owned streams.
-3. `runner` starts with `--engine nautilus` and becomes healthy only after its
-   DeploymentSpec subscription is established.
-4. `spec-publisher` runs `arx-runner deployment publish` and exits after the
-   JetStream acknowledgement.
-
-Observe the reconcile result with:
-
-```bash
-docker compose logs -f runner spec-publisher
-```
-
-To stop the deployment, set `generation` to `2` and `lifecycle_state` to
-`stopped` in `spec-example.json`, then publish the new desired state:
-
-```bash
-docker compose run --rm spec-publisher
-```
-
-The verified local image defaults to the real Nautilus engine. This example
-passes it explicitly so the runtime intent remains visible in Compose. Remote
-release remains deferred; this workflow consumes no GHCR artifact.
+Remote release remains deferred; this workflow consumes no GHCR artifact.

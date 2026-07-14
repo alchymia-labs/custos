@@ -16,7 +16,7 @@ custos 单栈 Python daemon 项目进度跟踪规范.
 
 - Python: `pyproject.toml` → `[project].version`
 - 当前: 0.0.0 (pre-release, 未发布 pip)
-- 首次发布目标: 0.1.0 (Plan 00a `NtTradingNodeHost` 落地后)
+- 首次发布目标: 0.3.0 (Plan 00a `NtTradingNodeHost` 落地后)
 - 稳定发布目标: 1.0.0 (G6 gate + 6 模块全实现 + 签名 release pipeline 落地后)
 
 - **Major**: 破坏性 API 变更 (envelope schema 不兼容 / 6 模块契约变更)

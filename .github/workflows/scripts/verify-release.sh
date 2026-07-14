@@ -55,9 +55,9 @@ cosign verify "${IMAGE_NAME}:v${VERSION}" \
 echo "== Layer 3: published image command matrix =="
 docker run --rm "${IMAGE_NAME}:v${VERSION}" --help >/dev/null
 docker run --rm "${IMAGE_NAME}:v${VERSION}" start --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" enroll --help >/dev/null
 docker run --rm "${IMAGE_NAME}:v${VERSION}" vault put --help >/dev/null
-docker run --rm "${IMAGE_NAME}:v${VERSION}" nats bootstrap --help >/dev/null
-docker run --rm "${IMAGE_NAME}:v${VERSION}" deployment publish --help >/dev/null
+docker run --rm "${IMAGE_NAME}:v${VERSION}" deployment validate --help >/dev/null
 docker run --rm "${IMAGE_NAME}:v${VERSION}" health --help >/dev/null
 
 echo "== Layer 3: published image Python runtime =="

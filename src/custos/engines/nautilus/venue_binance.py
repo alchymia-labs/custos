@@ -72,19 +72,16 @@ def data_environment_for_mode(mode: str) -> BinanceEnvironment:
     return _DATA_ENVIRONMENT_BY_MODE.get(mode.lower(), BinanceEnvironment.LIVE)
 
 
-def require_live_dual_approval(spec: dict) -> None:
-    """Refuse a live deploy lacking separation-of-duties approval.
+def require_live_owner_evidence(spec: dict) -> None:
+    """Require immutable Crucible promotion evidence, not human approval logic.
 
-    Raises (not logs) to keep this module side-effect free; the caller / reconciler
-    surfaces the reason_code. Duplicate approver ids collapse to one, so two
-    entries by the same principal is still not dual approval.
+    ARX authenticates actors and Crucible owns SoD. Custos verifies only that the
+    signed owner command carries the exact promotion receipt required for live.
     """
-    approvers = {a for a in (spec.get("approved_by") or []) if a}
-    if len(approvers) < _LIVE_MIN_APPROVERS:
-        raise RuntimeError(
-            f"sod_approval_missing: live spec {spec.get('spec_id')!r} requires "
-            f">= {_LIVE_MIN_APPROVERS} distinct approvers, got {len(approvers)}"
-        )
+    promotion_id = str(spec.get("promotion_id") or "")
+    evidence_digest = str(spec.get("promotion_evidence_digest") or "")
+    if not promotion_id or len(evidence_digest) != 64:
+        raise RuntimeError("live_owner_evidence_missing")
 
 
 def _binance_exchange_type(connector: str) -> str:
@@ -244,6 +241,6 @@ def build_exec_client_config_testnet(spec: dict, credential: dict) -> BinanceExe
 
 
 def build_exec_client_config_live(spec: dict, credential: dict) -> BinanceExecClientConfig:
-    """Real Binance exec against the live endpoint — refused without dual approval."""
-    require_live_dual_approval(spec)
+    """Real Binance exec against live, gated by signed Crucible owner evidence."""
+    require_live_owner_evidence(spec)
     return _build_binance_exec_config(spec, credential, BinanceEnvironment.LIVE)

@@ -77,12 +77,16 @@ def _make_reconciler(host) -> DeploymentReconciler:
         runner_id="runner-7",
         execution_engine=host,
         credential_vault=_FakeVault(),  # type: ignore[arg-type]
+        runtime_log_emitter=object(),  # type: ignore[arg-type]
+        lifecycle_fact_emitter=object(),  # type: ignore[arg-type]
+        deployment_verifier=object(),  # type: ignore[arg-type]
     )
 
 
 def _spec(spec_id: str, trading_mode: str) -> dict:
     return {
         "spec_id": spec_id,
+        "deployment_instance_id": spec_id,
         "generation": 1,
         "trading_mode": trading_mode,
         "lifecycle_state": "running",
@@ -115,7 +119,7 @@ async def test_g6_gate_rejects_live_noophost(mode: str) -> None:
     reconciler = _make_reconciler(NoopHost())
     with structlog.testing.capture_logs() as logs:
         with pytest.raises(RuntimeError, match="G6 gate"):
-            await reconciler._apply_spec(_spec("s1", mode), _ReconcileState())
+            await reconciler._apply_spec("s1", _spec("s1", mode), _ReconcileState())
     events = [entry.get("event") for entry in logs]
     assert "g6_gate_live_capability_denied" in events
 
@@ -123,7 +127,7 @@ async def test_g6_gate_rejects_live_noophost(mode: str) -> None:
 @pytest.mark.asyncio
 async def test_g6_gate_allows_paper_noophost() -> None:
     reconciler = _make_reconciler(NoopHost())
-    container_id = await reconciler._apply_spec(_spec("s2", "paper"), _ReconcileState())
+    container_id = await reconciler._apply_spec("s2", _spec("s2", "paper"), _ReconcileState())
     assert container_id == "container-s2"
 
 
@@ -134,7 +138,7 @@ async def test_g6_gate_allows_live_nt_host(strategy_dir) -> None:
     # Real live wire value "Live" + a live-capable host clearing every layer →
     # gate admits (relaxed double).
     container_id = await reconciler._apply_spec(
-        _live_spec("s3", "Live", strategy_dir), _ReconcileState()
+        "s3", _live_spec("s3", "Live", strategy_dir), _ReconcileState()
     )
     assert container_id == "container-s3"
     assert len(host.deploy_calls) == 1

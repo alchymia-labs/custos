@@ -17,10 +17,11 @@ Nautilus the default, validates every desired-state message through the strict
    `--engine noop` only for non-live contract tests.
 3. Add `generation >= 1`, `lifecycle_state`, and `strategy_config` to every
    spec; validate with `arx-runner deployment validate --spec-file <path>`.
-4. For standalone NATS, run `arx-runner nats bootstrap --profile standalone`
-   before the runner. Do not expect `start` to create streams.
-5. Publish through `arx-runner deployment publish` and gate readiness with
-   `arx-runner health`.
+4. Provision the Crucible-owned JetStream topology and install the exact
+   Crucible domain-event public key on each runner. Custos does not create
+   business streams.
+5. Submit desired state through Crucible. Custos only validates local files
+   offline and consumes signed commands; gate readiness with `arx-runner health`.
 
 PS Plan 49 remains blocked until this upgrade is complete. PS consumes the
 verified local image directly, maintains no derived Custos Dockerfile, and
@@ -75,15 +76,14 @@ mounting a host directory whose ownership doesn't match container UID/GID.
 
 The 0.x → 1.0 promote is contractually gated on ALL of:
 
-- [ ] arx-side wire ready: the `CustosGatewayImpl` in
-      `arx/backend/crates/coordination/src/custos.rs` no longer returns
-      `CoordinationError::Unavailable`; the four methods really persist +
-      forward payloads (arx-79 wire close-out).
+- [ ] Crucible command and fact wires are production ready: signed deployment
+      commands reach exact runner subjects and signed RunnerFacts are durably
+      ingested without an ARX business-fact relay.
 - [ ] Three consecutive minor releases (`0.Y.0`, `0.Y+1.0`, `0.Y+2.0`)
       with zero breaking changes to `gateway-contract/v1/*.schema.json`
       or `[project.scripts]`.
-- [ ] `gateway-contract/v1/` covers 100% of the four CustosGateway
-      typed methods (already the case; keep true).
+- [ ] `gateway-contract/v1/` covers the local `DeploymentMessage` decode seam
+      and the signed RunnerFact output contract.
 - [ ] `docs/lts-commitment.md` has at least one row already inside its
       EOL window (i.e. we've kept the LTS promise on a prior line).
 - [ ] Council-level RFC: 1.0 promote is a MAJOR SEMVER bump and

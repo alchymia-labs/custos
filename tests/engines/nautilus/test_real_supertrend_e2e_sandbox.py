@@ -112,6 +112,7 @@ def _spec(spec_id: str = "int-1", **overrides) -> dict:
     """
     spec = {
         "spec_id": spec_id,
+        "deployment_instance_id": spec_id,
         "strategy_path": str(_REAL_SUPERTREND),
         "strategy_registry_name": "supertrend",
         "strategy_config": _load_strategy_config(),

@@ -1,279 +1,186 @@
 from __future__ import annotations
 
+import base64
 import json
-import sys
-import uuid
 from copy import deepcopy
 from pathlib import Path
-from types import ModuleType
+from uuid import UUID
 
 import pytest
-from jsonschema import Draft202012Validator
-from pydantic import ValidationError
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from custos.contracts import (
+    DEPLOYMENT_SPEC_DIGEST_ALGORITHM,
+    CrucibleDomainEventVerifier,
     DeploymentMessage,
     DeploymentSpec,
-    LifecycleState,
-    TradingMode,
-    compute_strategy_code_hash,
+    canonical_deployment_spec_digest,
 )
-from custos.core.deployment_reconciler import DeploymentReconciler
-from custos.core.local_cap import LIVE_CAP_FLOOR_USD, LocalCapConfig, RunnerNotionalCap
-from custos.engines.nautilus.host import NtTradingNodeHost
-from custos.engines.nautilus.strategy_loader import compute_strategy_dir_hash
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_PATH = ROOT / "docs/gateway-contract/v1/deployment_spec.schema.json"
+SCHEMA = ROOT / "docs/gateway-contract/v1/deployment_spec.schema.json"
+RUNNER_ID = "10000000-0000-4000-8000-000000000001"
+INSTANCE_ID = "20000000-0000-4000-8000-000000000002"
+SPEC_ID = "30000000-0000-4000-8000-000000000003"
+STRATEGY_ID = "40000000-0000-4000-8000-000000000004"
+SHA_A = "a" * 64
+SHA_B = "b" * 64
 
 
-def _sandbox_spec() -> dict:
+def canonical_spec() -> dict:
     return {
-        "spec_id": "supertrend-sandbox",
-        "generation": 1,
-        "trading_mode": "sandbox",
-        "lifecycle_state": "running",
-        "strategy_path": "/opt/strategies/supertrend/strategy.py",
-        "provenance_ref": {"credential_id": "binance-sandbox"},
-        "connector": "binance_perpetual",
-        "pairs": ["BTC-USDT"],
-        "leverage": 3,
-        "strategy_config": {"period": 10, "filters": {"adx": True}},
-        "strategy_registry_name": "supertrend",
-        "sandbox": {"starting_balances": ["10_000 USDT"]},
-    }
-
-
-def _live_spec() -> dict:
-    spec = _sandbox_spec()
-    spec.update(
-        trading_mode="live",
-        sandbox=None,
-        code_hash="a" * 64,
-        approved_by=["alice", "bob"],
-    )
-    return spec
-
-
-def test_generation_starts_at_one() -> None:
-    raw = _sandbox_spec()
-    raw["generation"] = 0
-
-    with pytest.raises(ValidationError):
-        DeploymentSpec.model_validate(raw)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("spec_id", "../status"),
-        ("spec_id", "spec.with.dot"),
-        ("spec_id", "x" * 65),
-        ("credential_id", "../../age"),
-        ("credential_id", "key.with.dot"),
-        ("credential_id", "\u51ed\u8bc1"),
-    ],
-)
-def test_deployment_boundary_ids_reject_unsafe_values(field: str, value: str) -> None:
-    raw = _sandbox_spec()
-    if field == "credential_id":
-        raw["provenance_ref"]["credential_id"] = value
-    else:
-        raw[field] = value
-
-    with pytest.raises(ValidationError):
-        DeploymentSpec.model_validate(raw)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("spec_id", "supertrend-sandbox"),
-        ("spec_id", "runner_01"),
-        ("credential_id", "BTCUSDT"),
-    ],
-)
-def test_deployment_boundary_ids_accept_safe_values(field: str, value: str) -> None:
-    raw = _sandbox_spec()
-    if field == "credential_id":
-        raw["provenance_ref"]["credential_id"] = value
-    else:
-        raw[field] = value
-
-    assert DeploymentSpec.model_validate(raw)
-
-
-@pytest.mark.parametrize("value", ["paper", "live", "degraded", "RUNNING"])
-def test_lifecycle_vocab_is_closed(value: str) -> None:
-    raw = _sandbox_spec()
-    raw["lifecycle_state"] = value
-
-    with pytest.raises(ValidationError):
-        DeploymentSpec.model_validate(raw)
-
-
-@pytest.mark.parametrize("code_hash", [None, "", "not-a-sha256", "A" * 64])
-def test_live_requires_code_hash(code_hash: str | None) -> None:
-    raw = _live_spec()
-    raw["code_hash"] = code_hash
-
-    with pytest.raises(ValidationError):
-        DeploymentSpec.model_validate(raw)
-
-
-def test_sandbox_requires_starting_balances() -> None:
-    raw = _sandbox_spec()
-    raw["sandbox"] = None
-
-    with pytest.raises(ValidationError):
-        DeploymentSpec.model_validate(raw)
-
-
-def test_unknown_top_level_field_is_rejected() -> None:
-    raw = _sandbox_spec()
-    raw["strategy_confg"] = {}
-
-    with pytest.raises(ValidationError):
-        DeploymentSpec.model_validate(raw)
-
-
-def test_strategy_config_reaches_factory_unchanged() -> None:
-    spec = DeploymentSpec.model_validate(_sandbox_spec())
-    module_name = "_deployment_contract_strategy"
-    module = ModuleType(module_name)
-    received: list[dict] = []
-
-    class Strategy:
-        pass
-
-    Strategy.__module__ = module_name
-
-    def create_strategy(config: dict) -> object:
-        received.append(config)
-        return object()
-
-    module.create_strategy = create_strategy
-    sys.modules[module_name] = module
-    try:
-        NtTradingNodeHost()._instantiate_strategy(Strategy, spec.model_dump(mode="json"))
-    finally:
-        sys.modules.pop(module_name, None)
-
-    assert received == [_sandbox_spec()["strategy_config"]]
-
-
-def test_registry_name_is_preserved() -> None:
-    spec = DeploymentSpec.model_validate(_sandbox_spec())
-
-    assert spec.strategy_registry_name == "supertrend"
-
-
-def test_risk_live_flag_uses_trading_mode_not_lifecycle() -> None:
-    local_cap = RunnerNotionalCap(LocalCapConfig.from_spec({}, live=False))
-    reconciler = DeploymentReconciler(
-        nats_client=object(),  # type: ignore[arg-type]
-        tenant_id="acme",
-        runner_id="runner-1",
-        execution_engine=object(),  # type: ignore[arg-type]
-        credential_vault=object(),  # type: ignore[arg-type]
-        local_cap=local_cap,
-    )
-    spec = DeploymentSpec.model_validate(_live_spec())
-
-    reconciler._refresh_risk_config(spec.model_dump(mode="json"))
-
-    assert local_cap.config.max_notional_per_runner == LIVE_CAP_FLOOR_USD
-
-
-def test_static_schema_is_generated_from_model() -> None:
-    static_schema = json.loads(SCHEMA_PATH.read_text())
-
-    assert static_schema == DeploymentSpec.model_json_schema()
-
-
-@pytest.mark.parametrize(
-    "raw",
-    [
-        {**_live_spec(), "code_hash": None},
-        {**_sandbox_spec(), "sandbox": None},
-    ],
-)
-def test_static_schema_enforces_mode_requirements(raw: dict) -> None:
-    validator = Draft202012Validator(DeploymentSpec.model_json_schema())
-
-    assert list(validator.iter_errors(raw))
-
-
-def test_model_validation_does_not_mutate_input() -> None:
-    raw = _sandbox_spec()
-    before = deepcopy(raw)
-
-    DeploymentSpec.model_validate(raw)
-
-    assert raw == before
-    assert DeploymentSpec.model_validate(raw).trading_mode is TradingMode.SANDBOX
-    assert DeploymentSpec.model_validate(raw).lifecycle_state is LifecycleState.RUNNING
-
-
-def _deployment_message() -> DeploymentMessage:
-    return DeploymentMessage.create(
-        tenant_id="acme",
-        strategy_id="supertrend-sandbox",
-        spec=DeploymentSpec.model_validate(_sandbox_spec()),
-    )
-
-
-def test_message_builds_canonical_subject() -> None:
-    assert _deployment_message().subject == "arx.acme.deployment_spec.supertrend-sandbox"
-
-
-def test_message_contains_full_envelope() -> None:
-    body = json.loads(_deployment_message().to_bytes())
-
-    assert body == {
-        "envelope_version": 1,
-        "event_id": body["event_id"],
+        "schema_version": 1,
+        "deployment_spec_id": SPEC_ID,
         "tenant_id": "acme",
-        "occurred_at": body["occurred_at"],
-        "payload_schema_version": 1,
-        "payload": {
-            "strategy_id": "supertrend-sandbox",
-            "spec": DeploymentSpec.model_validate(_sandbox_spec()).model_dump(mode="json"),
+        "trading_mode": "sandbox",
+        "strategy_id": STRATEGY_ID,
+        "strategy_release_id": "50000000-0000-4000-8000-000000000005",
+        "strategy_release_version": 1,
+        "strategy_artifact_digest": SHA_B,
+        "strategy_manifest_digest": SHA_A,
+        "strategy_release_snapshot_digest": SHA_B,
+        "parameters": {
+            "runner_runtime": {
+                "connector": "binance",
+                "pairs": ["BTC-USDT"],
+                "leverage": 1,
+                "strategy_config": {},
+                "sandbox": {"starting_balances": ["10000 USDT"]},
+            }
         },
+        "code_provenance": {"strategy_path": "/tmp/strategy"},
+        "strategy_product_id": "60000000-0000-4000-8000-000000000006",
+        "risk_policy_id": "70000000-0000-4000-8000-000000000007",
+        "risk_policy_version": 1,
+        "risk_policy_digest": SHA_A,
+        "target_runner_id": RUNNER_ID,
+        "engine_binding_id": "80000000-0000-4000-8000-000000000008",
+        "execution_channel": {"channel_type": "runner"},
+        "credential_scope": {"scope_id": "sandbox-credential", "scope_digest": SHA_A},
+        "runner_contract_requirements": {},
+        "venue_source_policy": [],
+        "source_policy_digest": SHA_A,
+        "scheduling_policy": {},
+        "scheduling_policy_digest": SHA_B,
+        "promotion_id": None,
+        "promotion_evidence_digest": None,
     }
 
 
-def test_message_event_id_is_uuid7() -> None:
-    event_id = uuid.UUID(_deployment_message().envelope.event_id)
+def signed_command(
+    event_name: str = "DeploymentSpecReadyForRunner",
+    *,
+    mutate_payload=None,
+) -> tuple[bytes, str, CrucibleDomainEventVerifier]:
+    private_key = Ed25519PrivateKey.generate()
+    canonical = canonical_spec()
+    digest = canonical_deployment_spec_digest(canonical)
+    event_type = f"{event_name}.{RUNNER_ID}.{INSTANCE_ID}"
+    subject = f"crucible_rust.domain.acme.sandbox.deployment.{event_type}"
+    payload = {
+        "schema_version": 1,
+        "tenant_id": "acme",
+        "mode": "sandbox",
+        "runner_id": RUNNER_ID,
+        "deployment_instance_id": INSTANCE_ID,
+        "deployment_spec_id": SPEC_ID,
+        "deployment_spec_digest": digest,
+        "generation": 1,
+        "lifecycle_state": "running",
+        "deployment_spec": canonical,
+    }
+    if mutate_payload is not None:
+        mutate_payload(payload)
+    event = {
+        "schema_version": 2,
+        "event_id": "90000000-0000-4000-8000-000000000009",
+        "tenant_id": "acme",
+        "event_plane": {"kind": "mode", "trading_mode": "sandbox"},
+        "bounded_context": "deployment",
+        "aggregate_type": "deployment_instance",
+        "aggregate_id": INSTANCE_ID,
+        "aggregate_version": 1,
+        "event_type": event_type,
+        "payload": payload,
+        "correlation_id": "correlation-1",
+        "actor_assertion_jti": None,
+        "occurred_at": "2026-07-14T00:00:00.000000000Z",
+    }
+    event_bytes = json.dumps(event, separators=(",", ":")).encode()
+    subject_bytes = subject.encode()
+    framed = b"".join(
+        (
+            b"CRUCIBLE-DOMAIN-EVENT-V2\0",
+            len(subject_bytes).to_bytes(4, "big"),
+            subject_bytes,
+            len(event_bytes).to_bytes(8, "big"),
+            event_bytes,
+        )
+    )
+    def encode(value: bytes) -> str:
+        return base64.urlsafe_b64encode(value).rstrip(b"=").decode()
+    envelope = {
+        "schema_version": 2,
+        "signature_profile": "crucible-domain-event-v2-exact-bytes",
+        "event_encoding": "application/json;base64url",
+        "event_bytes": encode(event_bytes),
+        "signature_key_id": "domain-key-1",
+        "signature": encode(private_key.sign(framed)),
+    }
+    verifier = CrucibleDomainEventVerifier("domain-key-1", private_key.public_key())
+    return json.dumps(envelope).encode(), subject, verifier
 
-    assert event_id.version == 7
+
+@pytest.mark.parametrize(
+    "event_name",
+    ["DeploymentSpecReadyForRunner", "DeploymentInstanceDesiredStateChanged"],
+)
+def test_accepts_both_signed_desired_state_event_types(event_name: str) -> None:
+    data, subject, verifier = signed_command(event_name)
+    message = DeploymentMessage.parse(
+        data,
+        subject=subject,
+        expected_tenant_id="acme",
+        expected_runner_id=RUNNER_ID,
+        verifier=verifier,
+    )
+    assert message.spec.deployment_instance_id == UUID(INSTANCE_ID)
 
 
-def test_message_tenant_mismatch_is_rejected() -> None:
-    with pytest.raises(ValueError, match="tenant"):
-        DeploymentMessage.parse(_deployment_message().to_bytes(), expected_tenant_id="other")
+def test_rejects_signed_but_internally_inconsistent_digest() -> None:
+    data, subject, verifier = signed_command(
+        mutate_payload=lambda payload: payload.__setitem__("deployment_spec_digest", SHA_A)
+    )
+    with pytest.raises(ValueError, match="digest differs"):
+        DeploymentMessage.parse(
+            data,
+            subject=subject,
+            expected_tenant_id="acme",
+            expected_runner_id=RUNNER_ID,
+            verifier=verifier,
+        )
 
 
-def test_message_parse_validates_payload() -> None:
-    body = json.loads(_deployment_message().to_bytes())
-    body["payload"]["spec"]["generation"] = 0
-
-    with pytest.raises(ValidationError):
-        DeploymentMessage.parse(json.dumps(body).encode(), expected_tenant_id="acme")
-
-
-def test_message_round_trip_restores_subject_and_spec() -> None:
-    message = _deployment_message()
-
-    parsed = DeploymentMessage.parse(message.to_bytes(), expected_tenant_id="acme")
-
-    assert parsed.subject == message.subject
-    assert parsed.spec == message.spec
+@pytest.mark.parametrize("field", ["generation", "lifecycle_state"])
+def test_generation_and_lifecycle_are_required(field: str) -> None:
+    data, subject, verifier = signed_command(mutate_payload=lambda payload: payload.pop(field))
+    with pytest.raises(ValueError, match=field):
+        DeploymentMessage.parse(
+            data,
+            subject=subject,
+            expected_tenant_id="acme",
+            expected_runner_id=RUNNER_ID,
+            verifier=verifier,
+        )
 
 
-def test_public_hash_matches_internal_loader(tmp_path: Path) -> None:
-    strategy_dir = tmp_path / "strategy"
-    strategy_dir.mkdir()
-    (strategy_dir / "strategy.py").write_text("class Strategy:\n    pass\n")
+def test_digest_contract_is_versioned_and_does_not_mutate_input() -> None:
+    canonical = canonical_spec()
+    before = deepcopy(canonical)
+    assert DEPLOYMENT_SPEC_DIGEST_ALGORITHM == "sha256-canonical-json-v1"
+    assert len(canonical_deployment_spec_digest(canonical)) == 64
+    assert canonical == before
 
-    assert compute_strategy_code_hash(strategy_dir) == compute_strategy_dir_hash(strategy_dir)
+
+def test_checked_in_schema_matches_local_execution_model() -> None:
+    assert json.loads(SCHEMA.read_text()) == DeploymentSpec.model_json_schema()

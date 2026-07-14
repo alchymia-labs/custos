@@ -1,70 +1,28 @@
-# Custos 0.3.0 SuperTrend testnet example using the verified local image.
+# Custos 0.3.0 runner consuming Crucible-owned signed deployment commands.
 services:
-  nats:
-    image: nats:2.10-alpine
-    command: ["-js"]
-    ports:
-      - "4222:4222"
-
-  nats-bootstrap:
-    image: custos-runner:v0.3.0
-    pull_policy: never
-    depends_on:
-      nats:
-        condition: service_started
-    command:
-      - nats
-      - bootstrap
-      - --profile
-      - standalone
-      - --nats-url
-      - ${ARX_NATS_URL:-nats://nats:4222}
-      - --tenant-id
-      - ${ARX_TENANT_ID:-acme}
-
   runner:
     image: custos-runner:v0.3.0
     pull_policy: never
-    depends_on:
-      nats-bootstrap:
-        condition: service_completed_successfully
     environment:
       SOPS_AGE_KEY_FILE: /home/custos/.arx/age.key
+      CRUCIBLE_DOMAIN_EVENT_KEY_ID: ${CRUCIBLE_DOMAIN_EVENT_KEY_ID}
     volumes:
       - ./strategy:/opt/custos/strategies/supertrend:ro
       - ./runtime/.arx:/home/custos/.arx
     command:
       - start
       - --nats-url
-      - ${ARX_NATS_URL:-nats://nats:4222}
-      - --reconcile-strategy-id
-      - ${ARX_STRATEGY_ID:-supertrend-btcusdt}
+      - ${CRUCIBLE_NATS_URL:-nats://host.docker.internal:4222}
       - --engine
       - nautilus
       - --vault-dir
       - /home/custos/.arx/vault
+      - --crucible-domain-public-key
+      - /home/custos/.arx/crucible-domain-event.pub
+      - --crucible-domain-key-id
+      - ${CRUCIBLE_DOMAIN_EVENT_KEY_ID}
     healthcheck:
       test: ["CMD", "arx-runner", "health"]
       interval: 2s
       timeout: 2s
       retries: 15
-
-  spec-publisher:
-    image: custos-runner:v0.3.0
-    pull_policy: never
-    depends_on:
-      runner:
-        condition: service_healthy
-    volumes:
-      - ./spec-example.json:/specs/deployment.json:ro
-    command:
-      - deployment
-      - publish
-      - --spec-file
-      - /specs/deployment.json
-      - --tenant-id
-      - ${ARX_TENANT_ID:-acme}
-      - --strategy-id
-      - ${ARX_STRATEGY_ID:-supertrend-btcusdt}
-      - --nats-url
-      - ${ARX_NATS_URL:-nats://nats:4222}

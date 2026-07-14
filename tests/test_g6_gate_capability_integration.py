@@ -1,56 +1,49 @@
-"""G6 undeclared-capability rejection propagated through the reconciler layer.
-
-test_g6_gate_capability_e2e.py drives ``_check_g6_gate`` directly to isolate one
-gate layer. This file drives the *integration* layer — ``handle_spec`` — to prove
-the gate's structured rejection does not stop at the gate: it degrades the
-deployment (DeploymentStatus phase=degraded) without breaking the reconcile loop
-(the broad except is red-line-0.3 fail-safe: a rejected spec must not crash the
-loop that keeps other deployments alive).
-
-Two independently observable layers, each asserted (multi-layer fail-fast, lesson
-#22/#28): the inner gate layer emits ``g6_gate_live_capability_denied``; the outer
-reconciler wrapper emits ``deployment_reconcile_failed`` and publishes a degraded
-status. ``_CapabilityLessHost`` is the relaxed double — a host that never declared
-the capability contract — so a green result proves the reconciler-layer
-degradation is a live guard, not a dead branch.
-"""
+"""G6 rejection propagated through instance-keyed reconciliation."""
 
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
+from uuid import UUID
 
 import pytest
 import structlog
 
 from custos.core.deployment_reconciler import DeploymentReconciler
+from custos.core.runner_fact import RunnerFactAuthority
 from custos.engines.nautilus.strategy_loader import compute_strategy_dir_hash
+
+SHA = "a" * 64
+RUNNER_ID = UUID("10000000-0000-4000-8000-000000000001")
+INSTANCE_ID = UUID("20000000-0000-4000-8000-000000000002")
+SPEC_ID = UUID("30000000-0000-4000-8000-000000000003")
+STRATEGY_ID = UUID("40000000-0000-4000-8000-000000000004")
 
 
 class _CapabilityLessHost:
-    """Satisfies deploy/reconfigure/stop but never declared supports_live /
-    supports_venue — a third-party host that forgot the capability contract."""
-
     async def deploy(self, spec: dict, credential: dict) -> str:
-        return str(spec["spec_id"])
+        return str(spec["deployment_instance_id"])
 
     async def reconfigure(self, spec: dict) -> None:
         return None
 
-    async def stop(self, spec_id: str) -> None:
+    async def stop(self, deployment_instance_id: str) -> None:
         return None
 
 
 @pytest.fixture
 def strategy_dir(tmp_path):
-    d = tmp_path / "supertrend"
-    d.mkdir()
-    (d / "strategy.py").write_text("class SupertrendStrategy:\n    pass\n")
-    return d
+    directory = tmp_path / "supertrend"
+    directory.mkdir()
+    (directory / "strategy.py").write_text("class SupertrendStrategy:\n    pass\n")
+    return directory
 
 
 def _live_spec(strategy_dir) -> dict:
     return {
-        "spec_id": "live-int-1",
+        "spec_id": str(SPEC_ID),
+        "deployment_instance_id": str(INSTANCE_ID),
+        "deployment_spec_digest": SHA,
+        "strategy_id": str(STRATEGY_ID),
         "generation": 1,
         "trading_mode": "live",
         "lifecycle_state": "running",
@@ -58,44 +51,65 @@ def _live_spec(strategy_dir) -> dict:
         "pairs": ["BTC-USDT"],
         "leverage": 1,
         "strategy_path": str(strategy_dir / "strategy.py"),
+        "strategy_config": {},
         "code_hash": compute_strategy_dir_hash(strategy_dir),
         "provenance_ref": {"credential_id": "cred-live"},
+        "promotion_id": "50000000-0000-4000-8000-000000000005",
+        "promotion_evidence_digest": "b" * 64,
     }
 
 
-def _reconciler(host) -> tuple[DeploymentReconciler, MagicMock]:
-    nats_client = MagicMock()
-    nats_client.publish_deployment_status = AsyncMock()
+def _authority(value: dict, *, strategy_id: str) -> RunnerFactAuthority:
+    return RunnerFactAuthority(
+        tenant_id="acme",
+        trading_mode=value["trading_mode"],
+        runner_id=RUNNER_ID,
+        deployment_instance_id=UUID(value["deployment_instance_id"]),
+        deployment_spec_id=UUID(value["spec_id"]),
+        deployment_spec_digest=value["deployment_spec_digest"],
+        strategy_id=UUID(strategy_id),
+        capability_version_id=UUID("60000000-0000-4000-8000-000000000006"),
+        capability_version=1,
+        capability_manifest_digest=SHA,
+    )
+
+
+def _reconciler(host) -> tuple[DeploymentReconciler, MagicMock, MagicMock]:
     vault = MagicMock()
     vault.decrypt.return_value = {
         "api_key": "k",
         "api_secret": "s",
         "permission_scope": "trade_no_withdraw",
     }
-    reconciler = DeploymentReconciler(
-        nats_client=nats_client,
+    runtime_log = MagicMock()
+    runtime_log.authority_for_spec.side_effect = _authority
+    runtime_log.emit = AsyncMock()
+    lifecycle = MagicMock()
+    lifecycle.authority_for_spec.side_effect = _authority
+    lifecycle.emit_fact = AsyncMock()
+    subject = DeploymentReconciler(
+        nats_client=object(),  # type: ignore[arg-type]
         tenant_id="acme",
-        runner_id="runner-7",
+        runner_id=str(RUNNER_ID),
         execution_engine=host,
         credential_vault=vault,
+        runtime_log_emitter=runtime_log,
+        lifecycle_fact_emitter=lifecycle,
+        deployment_verifier=object(),  # type: ignore[arg-type]
     )
-    return reconciler, nats_client
+    return subject, runtime_log, lifecycle
 
 
-async def test_undeclared_host_at_reconciler_layer_degrades(strategy_dir) -> None:
-    reconciler, nats_client = _reconciler(_CapabilityLessHost())
+@pytest.mark.asyncio
+async def test_undeclared_host_degrades_without_emitting_applied_fact(strategy_dir) -> None:
+    reconciler, runtime_log, lifecycle = _reconciler(_CapabilityLessHost())
 
     with structlog.testing.capture_logs() as logs:
-        # Must not raise — the broad except keeps the reconcile loop alive.
-        await reconciler.handle_spec(_live_spec(strategy_dir))
+        applied = await reconciler.handle_spec(_live_spec(strategy_dir))
 
-    events = [e.get("event") for e in logs]
-    # Inner gate layer signalled the structured capability rejection...
+    assert applied is False
+    events = [entry.get("event") for entry in logs]
     assert "g6_gate_live_capability_denied" in events
-    # ...and the outer reconciler wrapper degraded rather than propagating.
     assert "deployment_reconcile_failed" in events
-
-    nats_client.publish_deployment_status.assert_awaited_once()
-    payload = nats_client.publish_deployment_status.call_args.kwargs["payload"]
-    assert payload["phase"] == "degraded"
-    assert payload["health"] == "unhealthy"
+    runtime_log.emit.assert_awaited_once()
+    lifecycle.emit_fact.assert_not_awaited()
