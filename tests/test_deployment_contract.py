@@ -117,8 +117,10 @@ def signed_command(
             event_bytes,
         )
     )
+
     def encode(value: bytes) -> str:
         return base64.urlsafe_b64encode(value).rstrip(b"=").decode()
+
     envelope = {
         "schema_version": 2,
         "signature_profile": "crucible-domain-event-v2-exact-bytes",

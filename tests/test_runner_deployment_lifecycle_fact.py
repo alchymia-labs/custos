@@ -30,14 +30,16 @@ class LifecycleCapability:
 @pytest.mark.asyncio
 async def test_lifecycle_fact_contains_complete_instance_authority() -> None:
     authority = RunnerFactAuthority(
-        tenant_id="acme", trading_mode="sandbox",
+        tenant_id="acme",
+        trading_mode="sandbox",
         runner_id=UUID("10000000-0000-4000-8000-000000000001"),
         deployment_instance_id=UUID("20000000-0000-4000-8000-000000000002"),
         deployment_spec_id=UUID("30000000-0000-4000-8000-000000000003"),
         deployment_spec_digest=SHA,
         strategy_id=UUID("40000000-0000-4000-8000-000000000004"),
         capability_version_id=UUID("50000000-0000-4000-8000-000000000005"),
-        capability_version=1, capability_manifest_digest=SHA,
+        capability_version=1,
+        capability_manifest_digest=SHA,
     )
     capture = CapturingEmitter()
     capability = LifecycleCapability()

@@ -180,7 +180,9 @@ class DeploymentReconciler:
         state = self._state.setdefault(instance_id, _ReconcileState())
         effective_strategy_id = strategy_id or str(validated.strategy_id)
         if state.strategy_id is not None and state.strategy_id != effective_strategy_id:
-            _log.error("deployment_spec_strategy_identity_changed", deployment_instance_id=instance_id)
+            _log.error(
+                "deployment_spec_strategy_identity_changed", deployment_instance_id=instance_id
+            )
             return False
         state.strategy_id = effective_strategy_id
         try:
@@ -199,7 +201,10 @@ class DeploymentReconciler:
                 error_type=type(exc).__name__,
             )
             return False
-        if state.fact_authority is not None and state.fact_authority.stream_key != authority.stream_key:
+        if (
+            state.fact_authority is not None
+            and state.fact_authority.stream_key != authority.stream_key
+        ):
             _log.error("deployment_fact_binding_changed", deployment_instance_id=instance_id)
             return False
         if runtime_log_authority.stream_key != authority.stream_key:

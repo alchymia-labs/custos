@@ -178,7 +178,9 @@ class CrucibleDomainEventVerifier:
             raw = bytes.fromhex(encoded) if len(encoded) == 64 else _decode_base64url(encoded)
             public_key = Ed25519PublicKey.from_public_bytes(raw)
         except (ValueError, TypeError) as exc:
-            raise ValueError("Crucible domain-event public key must encode 32 Ed25519 bytes") from exc
+            raise ValueError(
+                "Crucible domain-event public key must encode 32 Ed25519 bytes"
+            ) from exc
         return cls(key_id=key_id, public_key=public_key)
 
     def verify(self, *, subject: str, data: bytes) -> _DomainEventDocument:
@@ -298,7 +300,10 @@ class DeploymentMessage:
             generation=generation,
             lifecycle_state=lifecycle_state,
         )
-        return cls(subject=subject, event_id=event.event_id, occurred_at=event.occurred_at, spec=spec)
+        return cls(
+            subject=subject, event_id=event.event_id, occurred_at=event.occurred_at, spec=spec
+        )
+
 
 def _runtime_spec(
     *,
@@ -380,7 +385,9 @@ def canonical_deployment_spec_digest(canonical: dict[str, Any]) -> str:
     if fields != _CANONICAL_DEPLOYMENT_SPEC_FIELDS:
         missing = sorted(_CANONICAL_DEPLOYMENT_SPEC_FIELDS - fields)
         extra = sorted(fields - _CANONICAL_DEPLOYMENT_SPEC_FIELDS)
-        raise ValueError(f"canonical DeploymentSpec field set differs: missing={missing}, extra={extra}")
+        raise ValueError(
+            f"canonical DeploymentSpec field set differs: missing={missing}, extra={extra}"
+        )
     encoded = json.dumps(
         canonical,
         ensure_ascii=False,

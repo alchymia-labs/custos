@@ -58,17 +58,24 @@ class FakeEngine:
 
     def supports_venue(self, venue: str) -> bool:
         return True
+
     async def get_open_notional(self, deployment_instance_id: str) -> Decimal:
         return self.notionals.get(deployment_instance_id, Decimal("0"))
+
     async def check_engine_connected(self, deployment_instance_id: str) -> ConnectivityState:
         return ConnectivityState(data_connected=True, exec_connected=True)
+
     async def flatten_positions(self, deployment_instance_id: str, reason: str) -> None:
         self.flatten_calls.append(deployment_instance_id)
+
     async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus:
         return EngineStatus(
-            phase="running", position_count=0, order_count=0,
+            phase="running",
+            position_count=0,
+            order_count=0,
             open_notional=self.notionals.get(deployment_instance_id, Decimal("0")),
-            peak_equity=Decimal("100"), current_equity=Decimal("100"),
+            peak_equity=Decimal("100"),
+            current_equity=Decimal("100"),
             drawdown_pct=Decimal("0"),
         )
 
@@ -76,13 +83,18 @@ class FakeEngine:
 class FakeRuntimeLogEmitter:
     def authority_for_spec(self, value: dict, *, strategy_id: str) -> RunnerFactAuthority:
         return RunnerFactAuthority(
-            tenant_id="acme", trading_mode=value["trading_mode"], runner_id=RUNNER,
+            tenant_id="acme",
+            trading_mode=value["trading_mode"],
+            runner_id=RUNNER,
             deployment_instance_id=UUID(value["deployment_instance_id"]),
-            deployment_spec_id=UUID(value["spec_id"]), deployment_spec_digest=SHA,
+            deployment_spec_id=UUID(value["spec_id"]),
+            deployment_spec_digest=SHA,
             strategy_id=UUID(strategy_id),
             capability_version_id=UUID("50000000-0000-4000-8000-000000000005"),
-            capability_version=1, capability_manifest_digest=SHA,
+            capability_version=1,
+            capability_manifest_digest=SHA,
         )
+
     async def emit(self, *args, **kwargs):
         return None
 
@@ -109,10 +121,14 @@ class FakeVault:
 
 def reconciler(engine: FakeEngine, lifecycle: FakeLifecycleEmitter) -> DeploymentReconciler:
     return DeploymentReconciler(
-        nats_client=object(), tenant_id="acme", runner_id=str(RUNNER),
-        execution_engine=engine, credential_vault=FakeVault(),
+        nats_client=object(),
+        tenant_id="acme",
+        runner_id=str(RUNNER),
+        execution_engine=engine,
+        credential_vault=FakeVault(),
         runtime_log_emitter=FakeRuntimeLogEmitter(),
-        lifecycle_fact_emitter=lifecycle, deployment_verifier=object(),
+        lifecycle_fact_emitter=lifecycle,
+        deployment_verifier=object(),
     )
 
 

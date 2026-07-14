@@ -46,7 +46,9 @@ def _run_start(
         run_daemon(*args, **kwargs)
         return 0
 
-    monkeypatch.setattr(start_command.MachineCredentialVault, "load", mock.MagicMock(return_value=credential))
+    monkeypatch.setattr(
+        start_command.MachineCredentialVault, "load", mock.MagicMock(return_value=credential)
+    )
     monkeypatch.setattr("custos.cli._daemon.run_daemon", _fake)
     return main(["start", *argv]), run_daemon, credential
 

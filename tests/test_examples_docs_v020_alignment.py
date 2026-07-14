@@ -156,7 +156,9 @@ def test_testnet_env_contains_only_non_secret_runtime_keys() -> None:
         "CRUCIBLE_NATS_URL",
         "CRUCIBLE_DOMAIN_EVENT_KEY_ID",
     }
-    assert all("API_KEY" not in key and "SECRET" not in key and "TOKEN" not in key for key in values)
+    assert all(
+        "API_KEY" not in key and "SECRET" not in key and "TOKEN" not in key for key in values
+    )
 
 
 def test_testnet_vault_fixture_is_one_per_key_payload() -> None:

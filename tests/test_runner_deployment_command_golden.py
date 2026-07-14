@@ -86,9 +86,7 @@ def test_crucible_golden_commands_parse_through_real_signature_verifier(
 
     assert message.spec.generation == generation
     assert message.spec.lifecycle_state.value == lifecycle_state
-    assert str(message.spec.deployment_instance_id) == (
-        "20000000-0000-4000-8000-000000000002"
-    )
+    assert str(message.spec.deployment_instance_id) == ("20000000-0000-4000-8000-000000000002")
 
 
 def test_outer_trading_mode_alias_is_rejected_without_fallback() -> None:

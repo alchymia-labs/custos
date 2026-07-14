@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _FIXTURE_ROOT = _REPO_ROOT / "tests" / "fixtures" / "plan19"
 _BASELINE_PATH = _FIXTURE_ROOT / "runtime_gap_baseline.v1.json"

@@ -52,9 +52,6 @@ class CrucibleNatsClient:
         """Subscribe to initial and subsequent exact-runner desired-state events."""
         if self._js is None:
             raise RuntimeError("subscribe_deployment_spec called before connect()")
-        subject = (
-            f"crucible_rust.domain.{self.tenant_id}.*.deployment."
-            f"*.{self.runner_id}.*"
-        )
+        subject = f"crucible_rust.domain.{self.tenant_id}.*.deployment.*.{self.runner_id}.*"
         durable = f"custos-deployment-{self.runner_id}"
         return await self._js.subscribe(subject, durable=durable, manual_ack=True)

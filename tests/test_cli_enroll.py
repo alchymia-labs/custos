@@ -88,9 +88,7 @@ def test_enroll_persists_public_metadata_and_machine_principal(
     assert loaded.backend_url == _BACKEND
     assert loaded.credential_id == _CREDENTIAL_ID
     assert loaded.credential_version == 1
-    assert loaded.machine_vault_path == str(
-        tmp_path / "arx" / "vault" / "runner-machine.enc"
-    )
+    assert loaded.machine_vault_path == str(tmp_path / "arx" / "vault" / "runner-machine.enc")
     assert stat.S_IMODE(os.stat(runner_toml).st_mode) == 0o600
     assert stat.S_IMODE(os.stat(runner_toml.parent).st_mode) == 0o700
     assert post.call_count == 1
