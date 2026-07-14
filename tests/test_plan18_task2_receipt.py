@@ -143,9 +143,7 @@ def test_ready_receipt_rejects_missing_vendored_review(tmp_path: Path) -> None:
     _, profiles = _ready_tree(tmp_path)
     (tmp_path / VENDORED_PATHS["crucible_rust_plan_88"]).unlink()
 
-    assert any(
-        "missing crucible_rust_plan_88" in error for error in _errors(tmp_path, profiles)
-    )
+    assert any("missing crucible_rust_plan_88" in error for error in _errors(tmp_path, profiles))
 
 
 def test_ready_receipt_rejects_vendored_review_path_escape(tmp_path: Path) -> None:
@@ -234,6 +232,4 @@ def test_ready_receipt_rejects_missing_reviewed_schema_asset(tmp_path: Path) -> 
     ).hexdigest()
     _write_receipt(tmp_path, receipt)
 
-    assert any(
-        "schema asset digest set differs" in error for error in _errors(tmp_path, profiles)
-    )
+    assert any("schema asset digest set differs" in error for error in _errors(tmp_path, profiles))
