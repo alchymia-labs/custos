@@ -89,7 +89,9 @@ def test_exact_policy_bytes_are_verified_before_policy_parse() -> None:
         ("expired", ArtifactVerificationCode.POLICY_EXPIRED),
     ],
 )
-def test_policy_verification_fails_closed(case: str, expected_code: ArtifactVerificationCode) -> None:
+def test_policy_verification_fails_closed(
+    case: str, expected_code: ArtifactVerificationCode
+) -> None:
     now = datetime(2026, 7, 15, tzinfo=UTC)
     root = b"offline-sigstore-trusted-root"
     private_key = Ed25519PrivateKey.generate()

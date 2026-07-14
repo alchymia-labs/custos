@@ -107,7 +107,10 @@ def _validate_inventory(
                 ArtifactVerificationCode.ARCHIVE_LIMIT_EXCEEDED,
                 "archive exceeds the signed total uncompressed size limit",
             )
-        if info.file_size and info.file_size / max(info.compress_size, 1) > limits.max_compression_ratio:
+        if (
+            info.file_size
+            and info.file_size / max(info.compress_size, 1) > limits.max_compression_ratio
+        ):
             raise ArtifactVerificationError(
                 ArtifactVerificationCode.ARCHIVE_LIMIT_EXCEEDED,
                 "archive member exceeds the signed compression-ratio limit",

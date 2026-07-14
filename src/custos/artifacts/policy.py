@@ -98,11 +98,7 @@ def canonical_policy_bytes(policy: ReleaseTrustPolicyV1) -> bytes:
 
 
 def release_policy_signature_message(policy_bytes: bytes) -> bytes:
-    return (
-        RELEASE_POLICY_SIGNATURE_CONTEXT
-        + len(policy_bytes).to_bytes(8, "big")
-        + policy_bytes
-    )
+    return RELEASE_POLICY_SIGNATURE_CONTEXT + len(policy_bytes).to_bytes(8, "big") + policy_bytes
 
 
 def _decode_base64url(value: str, label: str) -> bytes:

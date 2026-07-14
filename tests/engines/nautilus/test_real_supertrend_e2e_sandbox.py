@@ -62,30 +62,31 @@ _SENTINEL_API_SECRET = "SENTINEL-SECRET-DO-NOT-LEAK-X9Y8Z7-CUSTOS-08-T5-1"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _cleanup_supertrend_registry():
-    """Drop the fixture-owned 'supertrend' registration at module teardown.
+def _cleanup_supertrend_registry(clear_strategy_module_cache):
+    """Drop the fixture registration and dynamic module cache at teardown.
 
     Loading ``tests/fixtures/real_supertrend/strategy.py`` fires its
     module-level ``register_strategy("supertrend", ...)`` and binds the
-    fixture's ``SuperTrendStrategy`` class into the shared ps registry. Left
-    in place, that entry blocks any downstream test module (e.g.
-    ``test_strategy_loader_registry_mode.py``) that loads the sibling ps repo's
-    ``SuperTrendStrategy`` — the registry is idempotent only when the same
-    class object re-registers, and the ps class object is not identity-equal to
-    the fixture's cached copy.
+    fixture's ``SuperTrendStrategy`` class into the shared ps registry. The
+    product loader also caches that dynamically executed module under a
+    deterministic name. Teardown must remove both pieces of test state: if it
+    only unregisters the class, a downstream load returns the cached module
+    without re-running its module-level registration.
 
     Both tests in this module can share one registration during the module's
     run (the fixture module is ``sys.modules``-cached; a second
     ``load_strategy_class`` call returns the cached module without re-running
     the top-level ``register_strategy`` call). Cleanup fires exactly once at
-    module teardown, restoring an empty registry slot for downstream test
-    modules.
+    module teardown, restoring an empty registry slot and an uncached module
+    for downstream test modules. The shared cleaner removes only this module's
+    exact key and namespaced child keys.
     """
     yield
     from custos_toolkit_nautilus.adapter import registry as ps_registry
 
     if ps_registry.is_registered("supertrend"):
         ps_registry.unregister_strategy("supertrend")
+    clear_strategy_module_cache(_REAL_SUPERTREND)
 
 
 def _load_strategy_config() -> dict:

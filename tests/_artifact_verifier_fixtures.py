@@ -65,10 +65,7 @@ def write_test_wheel(
         ),
         (
             regular_zip_info(f"{dist_info}/entry_points.txt", compress_type=compression),
-            (
-                f"[{entry_point_group}]\n"
-                f"supertrend = {entry_point}\n"
-            ).encode(),
+            (f"[{entry_point_group}]\nsupertrend = {entry_point}\n").encode(),
         ),
         (
             regular_zip_info(f"{dist_info}/WHEEL", compress_type=compression),

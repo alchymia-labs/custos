@@ -27,8 +27,7 @@ from custos.artifacts.verifier import DigestSubject, SigstoreVerificationRequest
 
 ISSUER = "https://token.actions.githubusercontent.com"
 WORKFLOW_IDENTITY = (
-    "https://github.com/alephain-guild/custos/"
-    ".github/workflows/release.yml@refs/heads/main"
+    "https://github.com/alephain-guild/custos/.github/workflows/release.yml@refs/heads/main"
 )
 SOURCE_REPOSITORY = "https://github.com/alephain-guild/custos"
 _GITHUB_REPOSITORY_COORDINATE = "alephain-guild/custos"
@@ -37,8 +36,7 @@ SUBJECT_SHA256 = "12" * 32
 
 DIFFERENT_ISSUER = "https://issuer.example.invalid"
 DIFFERENT_WORKFLOW_IDENTITY = (
-    "https://github.com/attacker/custos/"
-    ".github/workflows/release.yml@refs/heads/main"
+    "https://github.com/attacker/custos/.github/workflows/release.yml@refs/heads/main"
 )
 DIFFERENT_SUBJECT_SHA256 = "34" * 32
 
@@ -46,9 +44,7 @@ _OIDC_ISSUER_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.1")
 _GITHUB_REPOSITORY_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.5")
 _SCT_LIST_OID = ObjectIdentifier("1.3.6.1.4.1.11129.2.4.2")
 _DSSE_PAYLOAD_TYPE = "application/vnd.in-toto+json"
-_TRUSTED_ROOT_MEDIA_TYPE = (
-    "application/vnd.dev.sigstore.trustedroot+json;version=0.1"
-)
+_TRUSTED_ROOT_MEDIA_TYPE = "application/vnd.dev.sigstore.trustedroot+json;version=0.1"
 _BUNDLE_MEDIA_TYPE = "application/vnd.dev.sigstore.bundle.v0.3+json"
 
 
@@ -156,9 +152,7 @@ def _leaf_certificate(
     leaf_public_key = leaf_key.public_key()
     base_builder = (
         x509.CertificateBuilder()
-        .subject_name(
-            x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Custos release")])
-        )
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Custos release")]))
         .issuer_name(root_certificate.subject)
         .public_key(leaf_public_key)
         .serial_number(x509.random_serial_number())
@@ -200,9 +194,7 @@ def _leaf_certificate(
             critical=False,
         )
         .add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_public_key(
-                root_key.public_key()
-            ),
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(root_key.public_key()),
             critical=False,
         )
     )
@@ -210,19 +202,17 @@ def _leaf_certificate(
     ct_log_id = _key_id(ct_key.public_key())
     timestamp_ms = int(now.timestamp() * 1000)
     placeholder_signature = ct_key.sign(b"placeholder", ec.ECDSA(hashes.SHA256()))
-    placeholder_certificate = (
-        base_builder.add_extension(
-            x509.UnrecognizedExtension(
-                _SCT_LIST_OID,
-                _serialized_sct_list(
-                    log_id=ct_log_id,
-                    timestamp_ms=timestamp_ms,
-                    signature=placeholder_signature,
-                ),
+    placeholder_certificate = base_builder.add_extension(
+        x509.UnrecognizedExtension(
+            _SCT_LIST_OID,
+            _serialized_sct_list(
+                log_id=ct_log_id,
+                timestamp_ms=timestamp_ms,
+                signature=placeholder_signature,
             ),
-            critical=False,
-        ).sign(root_key, hashes.SHA256())
-    )
+        ),
+        critical=False,
+    ).sign(root_key, hashes.SHA256())
     placeholder_sct = placeholder_certificate.extensions.get_extension_for_class(
         x509.PrecertificateSignedCertificateTimestamps
     ).value[0]
@@ -233,19 +223,17 @@ def _leaf_certificate(
     )
     sct_signature = ct_key.sign(signed_sct_data, ec.ECDSA(hashes.SHA256()))
 
-    return (
-        base_builder.add_extension(
-            x509.UnrecognizedExtension(
-                _SCT_LIST_OID,
-                _serialized_sct_list(
-                    log_id=ct_log_id,
-                    timestamp_ms=timestamp_ms,
-                    signature=sct_signature,
-                ),
+    return base_builder.add_extension(
+        x509.UnrecognizedExtension(
+            _SCT_LIST_OID,
+            _serialized_sct_list(
+                log_id=ct_log_id,
+                timestamp_ms=timestamp_ms,
+                signature=sct_signature,
             ),
-            critical=False,
-        ).sign(root_key, hashes.SHA256())
-    )
+        ),
+        critical=False,
+    ).sign(root_key, hashes.SHA256())
 
 
 def _trust_log(
@@ -292,9 +280,7 @@ def _trusted_root_bytes(
         cert_chain=common_v1.X509CertificateChain(
             certificates=[
                 common_v1.X509Certificate(
-                    raw_bytes=root_certificate.public_bytes(
-                        serialization.Encoding.DER
-                    )
+                    raw_bytes=root_certificate.public_bytes(serialization.Encoding.DER)
                 )
             ]
         ),
@@ -434,9 +420,7 @@ def _bundle_bytes(
         log_id=common_v1.LogId(key_id=log_id),
         kind_version=rekor_v1.KindVersion(kind="dsse", version="0.0.1"),
         integrated_time=integrated_time,
-        inclusion_promise=rekor_v1.InclusionPromise(
-            signed_entry_timestamp=signed_entry_timestamp
-        ),
+        inclusion_promise=rekor_v1.InclusionPromise(signed_entry_timestamp=signed_entry_timestamp),
         inclusion_proof=rekor_v1.InclusionProof(
             log_index=log_index,
             root_hash=root_hash,
@@ -542,10 +526,6 @@ def tamper_bundle(
         signature = bundle["dsseEnvelope"]["signatures"][0]
         signature["sig"] = _flip_base64(signature["sig"])
     else:
-        inclusion = bundle["verificationMaterial"]["tlogEntries"][0][
-            "inclusionPromise"
-        ]
-        inclusion["signedEntryTimestamp"] = _flip_base64(
-            inclusion["signedEntryTimestamp"]
-        )
+        inclusion = bundle["verificationMaterial"]["tlogEntries"][0]["inclusionPromise"]
+        inclusion["signedEntryTimestamp"] = _flip_base64(inclusion["signedEntryTimestamp"])
     path.write_text(json.dumps(bundle, separators=(",", ":")))

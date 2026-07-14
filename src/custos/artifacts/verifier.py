@@ -193,12 +193,8 @@ class ArtifactVerifierKernel:
             member_paths=request.member_paths,
         )
         strategy_wheel = _only_member(verified_bom.members, ArtifactMemberRole.STRATEGY_WHEEL)
-        manifest_member = _only_member(
-            verified_bom.members, ArtifactMemberRole.STRATEGY_MANIFEST
-        )
-        bundle_member = _only_member(
-            verified_bom.members, ArtifactMemberRole.ATTESTATION_BUNDLE
-        )
+        manifest_member = _only_member(verified_bom.members, ArtifactMemberRole.STRATEGY_MANIFEST)
+        bundle_member = _only_member(verified_bom.members, ArtifactMemberRole.ATTESTATION_BUNDLE)
         manifest_bytes = _read_verified_member(manifest_member)
         try:
             manifest = StrategyManifestV1.model_validate_json(manifest_bytes)

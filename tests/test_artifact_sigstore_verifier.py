@@ -66,9 +66,12 @@ def test_real_trusted_root_and_invalid_bundle_reject_offline_without_network(
     tmp_path, monkeypatch
 ) -> None:
     assert TRUSTED_ROOT.is_file()
-    assert hashlib.sha256(TRUSTED_ROOT.read_bytes()).hexdigest() == (
-        FIXTURE_ROOT / "sigstore-production-trusted-root.json.sha256"
-    ).read_text(encoding="ascii").strip()
+    assert (
+        hashlib.sha256(TRUSTED_ROOT.read_bytes()).hexdigest()
+        == (FIXTURE_ROOT / "sigstore-production-trusted-root.json.sha256")
+        .read_text(encoding="ascii")
+        .strip()
+    )
 
     def forbid_network(*args, **kwargs):
         raise AssertionError("offline verifier attempted network access")
@@ -107,8 +110,14 @@ def test_in_toto_statement_requires_exact_sha256_subject_set() -> None:
         b'{"_type":"https://in-toto.io/Statement/v1","subject":[]}',
         b'{"_type":"wrong","subject":[{"name":"x","digest":{"sha256":"' + b"1" * 64 + b'"}}]}',
         b'{"_type":"https://in-toto.io/Statement/v1","subject":[{"name":"x","digest":{"sha256":"bad"}}]}',
-        b'{"_type":"https://in-toto.io/Statement/v1","subject":[{"name":"x","digest":{"sha256":"' + b"1" * 64 + b'"}},{"name":"x","digest":{"sha256":"' + b"1" * 64 + b'"}}]}',
-        b'{"_type":"https://in-toto.io/Statement/v1","_type":"https://in-toto.io/Statement/v1","subject":[{"name":"x","digest":{"sha256":"' + b"1" * 64 + b'"}}]}',
+        b'{"_type":"https://in-toto.io/Statement/v1","subject":[{"name":"x","digest":{"sha256":"'
+        + b"1" * 64
+        + b'"}},{"name":"x","digest":{"sha256":"'
+        + b"1" * 64
+        + b'"}}]}',
+        b'{"_type":"https://in-toto.io/Statement/v1","_type":"https://in-toto.io/Statement/v1","subject":[{"name":"x","digest":{"sha256":"'
+        + b"1" * 64
+        + b'"}}]}',
     ],
 )
 def test_in_toto_statement_rejects_ambiguous_or_invalid_subjects(payload: bytes) -> None:

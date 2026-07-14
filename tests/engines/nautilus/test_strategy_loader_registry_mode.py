@@ -16,7 +16,9 @@ uses.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -70,6 +72,42 @@ def test_registry_name_matches_loaded_class_accepted() -> None:
         expected_registry_name="supertrend",
     )
     assert cls.__name__ == "SuperTrendStrategy"
+
+
+def test_registry_binding_recovers_after_e2e_style_teardown(
+    clear_strategy_module_cache,
+) -> None:
+    """Registry teardown must evict only the matching dynamic module family."""
+    from custos_toolkit_nautilus.adapter import registry as ps_registry
+
+    first_class = load_strategy_class(
+        _REAL_SUPERTREND,
+        expected_code_hash=None,
+        expected_registry_name="supertrend",
+    )
+    module_name = first_class.__module__
+    child_name = f"{module_name}._test_child"
+    unrelated_name = f"{module_name}_unrelated"
+    sys.modules[child_name] = ModuleType(child_name)
+    sys.modules[unrelated_name] = ModuleType(unrelated_name)
+
+    try:
+        ps_registry.unregister_strategy("supertrend")
+        removed = clear_strategy_module_cache(_REAL_SUPERTREND)
+
+        assert set(removed) == {module_name, child_name}
+        assert unrelated_name in sys.modules
+
+        reloaded_class = load_strategy_class(
+            _REAL_SUPERTREND,
+            expected_code_hash=None,
+            expected_registry_name="supertrend",
+        )
+        assert reloaded_class is not first_class
+        assert ps_registry.get_strategy_info("supertrend")["strategy_class"] is reloaded_class
+    finally:
+        sys.modules.pop(child_name, None)
+        sys.modules.pop(unrelated_name, None)
 
 
 def test_registry_name_mismatch_rejected() -> None:

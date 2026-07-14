@@ -185,7 +185,9 @@ def _github_repository_coordinate(source_repository: str) -> str:
             "v1 Sigstore policy requires an exact HTTPS GitHub repository identity",
         )
     coordinate = parsed.path.strip("/")
-    if len(coordinate.split("/")) != 2 or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", coordinate):
+    if len(coordinate.split("/")) != 2 or not re.fullmatch(
+        r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", coordinate
+    ):
         raise ArtifactVerificationError(
             ArtifactVerificationCode.SIGSTORE_EVIDENCE_MISMATCH,
             "v1 Sigstore repository identity is not an owner/repository coordinate",
@@ -220,7 +222,9 @@ class ProductionSigstoreVerifier:
                 ArtifactVerificationCode.SIGSTORE_EVIDENCE_MISMATCH,
                 "Sigstore verification requires identities and exact subjects",
             )
-        expected_subjects = {(subject.name, subject.sha256) for subject in request.required_subjects}
+        expected_subjects = {
+            (subject.name, subject.sha256) for subject in request.required_subjects
+        }
         if len(expected_subjects) != len(request.required_subjects):
             raise ArtifactVerificationError(
                 ArtifactVerificationCode.SIGSTORE_EVIDENCE_MISMATCH,

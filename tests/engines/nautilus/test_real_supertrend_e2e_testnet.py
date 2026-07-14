@@ -69,19 +69,19 @@ _ENV_CREDENTIAL_ID = "CUSTOS_TESTNET_CREDENTIAL_ID"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _cleanup_supertrend_registry():
-    """Drop the fixture-owned 'supertrend' registration at module teardown.
+def _cleanup_supertrend_registry(clear_strategy_module_cache):
+    """Drop the fixture registration and dynamic module cache at teardown.
 
-    Same rationale as the sandbox test module's cleanup fixture: loading the
-    real-supertrend fixture strategy binds its ``SuperTrendStrategy`` class
-    into the shared ps registry, and leaving that entry blocks downstream
-    modules that load the ps repo's own strategy.
+    Same rationale as the sandbox test module's cleanup fixture: unregistering
+    without evicting the deterministic loader cache leaves downstream tests
+    with a cached module whose registration side effect cannot run again.
     """
     yield
     from custos_toolkit_nautilus.adapter import registry as ps_registry
 
     if ps_registry.is_registered("supertrend"):
         ps_registry.unregister_strategy("supertrend")
+    clear_strategy_module_cache(_REAL_SUPERTREND)
 
 
 def _load_strategy_config() -> dict:
