@@ -2,256 +2,428 @@
 
 > **Status**: ⏳ In progress
 > **Created**: 2026-07-14
+> **Revised**: 2026-07-14 after v1.team runtime review
 > **Project**: Custos
-> **Source**: Audit of pre-plan migration commit `324da6e` and PS Plan 53
+> **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
-> **Depends on**: Custos `324da6e`; clean landed Crucible producer receipt
-> **Soft depends on**: Custos Plan 18 `0.1.0rc1`; PS Plan 56 acceptance
+> **Immediately executable**: Task 1 verification floor only
+> **Hard gates**: clean Crucible command producer; signed runner-level cap policy for live
+> **Soft depends on**: Custos Plan 18 candidate; PS Plan 56 acceptance
+> **Original plan-first**: `3ce4048`; this live-plan revision supersedes its erroneous decisions
 
 ## 上下文 (Context)
 
-`324da6e` 已完成大规模迁移：
+`324da6e` 已把 Custos 从 standalone deployment authority 迁移为：
 
-- Custos 不再拥有 standalone deployment authority。
-- Crucible 发布 runner deployment command。
-- Custos 消费 command、执行本地策略并发布 signed RunnerFacts。
-- Crucible 验签、投影、结算。
+- Crucible 发布 signed runner deployment command；
+- Custos 消费 command、执行本地策略并发布 signed RunnerFacts；
+- Crucible 验签、投影和结算；
 - ARX 只负责授权，不恢复 telemetry gateway。
 
-迁移方向正确，但 current-main 尚存在以下缺口：
+方向正确，但 original Plan 19 存在五个架构错误：
 
-1. `make verify` 当前不绿，12 个文件未通过 format。
-2. `verify-runtime-existing` 指向已删除测试。
-3. `strategy_artifact_digest` 被错误映射为 source `code_hash`。
-4. parser 仍接受 legacy `parameters` fallback。
-5. reconcile state 只存在内存中，ACK 后进程重启会丢失 desired/applied state。
-6. host 在 NT node 真正 ready 前返回成功。
-7. top-level `gather(..., return_exceptions=True)` 吞掉长期任务失败。
-8. `Position.unrealized_pnl(price)` 被当属性读取，引发 `decimal.ConversionSyntax`。
-9. breaker equity 使用 open notional + unrealized 的代理值，不是真实账户 equity。
-10. `RunnerNotionalCap` 和 NT risk config 没有生产调用者。
-11. OrderDenied/Rejected 没有完整 signed operational fact 覆盖。
-12. authority gate 未扫描所有 active docs；旧 telemetry/status 叙述仍存。
-13. package 仍标记为 0.3.0，但 command/control-plane 已发生 breaking change。
+1. 计划新建第二套 `runner_fact_outbox`，与现有 SQLite `RunnerFactOutbox`
+   的 seq、dedup、签名和 PubAck 删除语义冲突。
+2. journal 以 `spec_id` 为中心，而 runtime address 必须是
+   `deployment_instance_id`。
+3. strict command/schema 被当作 Custos 单仓任务，但 Crucible 尚未生产完整字段。
+4. runner-wide cap 没有独立 authority，多实例下当前行为是最后一个 spec 覆盖。
+5. 计划缩减现有 engine protocol、删除已经描述 typed RunnerFact 的
+   `telemetry_actor.md`，并缺少 ACK deadline、poison message、restart budget
+   和 generation fingerprint。
 
-当前验证基线：
+本修订直接替换错误设计。不得通过兼容 fallback、第二个 database/outbox 或
+Custos-only fixture 修改绕过 producer 缺口。
 
-- `make check-authority`：PASS。
-- `uv run ruff check src/ tests/ scripts/`：PASS。
-- `uv run pytest tests/ -q`：382 passed、4 skipped、1 xfailed、1 warning。
-- `make verify`：FAIL，`ruff format --check` 报 12 个文件需要格式化。
-- `make -n verify-runtime-existing`：仍引用
-  `tests/integration/test_standalone_runtime.py`。
-- Custos/Crucible runner-command golden fixture 当前 byte-identical，SHA-256：
-  `12b2133822cc5b2608b326263e41cb7b8b34ea6cb5e16ab4973f1be6e41bb465`。
+## 当前验证基线
 
-权威参考：
+- `make check-authority`: PASS。
+- focused command/reconcile/lifecycle tests: 14 passed。
+- 当前测试未覆盖 single-transaction journal、same-generation conflict、
+  restart recovery、多实例 cap、ready lifecycle 或 DLQ。
+- Crucible clean HEAD `abbd3fc` 的 golden fixture 仍缺完整 versioned
+  runner-runtime/code-provenance producer contract。
 
-- Crucible runner command producer 和 golden fixture
-- Custos `docs/authority/ecosystem-authority.json`
-- Custos `docs/authority/runner-deployment-command-golden-v1.json`
-- Custos `docs/design/runtime_log_fact.md`
-- `.claude/rules/mandatory-rules.md`
-- `.claude/rules/verification.md`
-- `.claude/rules/deviation-protocol.md`
+Task 1 可立即执行。Task 2 以后受 cross-repo hard gates 约束。
 
 ## 目标 (Goal)
 
-把 `324da6e` 收敛成可恢复、可监督、fail-closed、具有真实本地风控和签名 RunnerFact
-观测面的 Custos 0.4 runtime，并用真实 Crucible command acceptance 证明它。
+把 current-main 收敛为可恢复、可监督、fail-closed 的 Custos runtime：
 
-## 架构 (Architecture)
+- exact signed Crucible command consumption；
+- applied state 与 lifecycle fact 的单事务提交；
+- 唯一 RunnerFact outbox、stream sequence 和 PubAck path；
+- additive engine readiness/terminal lifecycle；
+- 真实 Nautilus portfolio/equity；
+- signed canonical policy 的本地 mandatory enforcement；
+- 完整 RunnerFact/capability/projector receipts；
+- sandbox、testnet、live 的 mode/capability isolation。
 
-```text
-Crucible producer
-  │ signed/canonical runner command
-  ▼
-NATS JetStream consumer
-  │ strict schema + exact producer receipt
-  ▼
-DeploymentStateJournal (SQLite)
-  ├── desired command
-  ├── applied generation
-  ├── pending lifecycle fact
-  └── signed fact outbox
-  │
-  ▼
-DeploymentReconciler
-  │
-  ├── EngineReadyReceipt
-  ├── EngineTerminalEvent
-  └── bounded restart/reconcile policy
-  │
-  ▼
-NtTradingNodeHost
-  ├── exact artifact/source provenance
-  ├── NautilusPortfolioSnapshotProvider
-  ├── native per-order risk config
-  └── runner-wide aggregate cap
-  │
-  ▼
-signed RunnerFacts ──> Crucible verify/project/settle
-```
+Custos 不接管 StrategyRelease、DeploymentSpec authority、组合风险、审批、资本、
+canonical reconciliation 或结算。
 
-SQLite 只保存 command、状态与 signed fact outbox，不保存 API key/secret。
+## Authority Boundary
 
-## 关键设计决策 (Key Design Decisions)
-
-| 问题 | 决策 | 理由 |
+| Surface | Canonical owner | Custos responsibility |
 |---|---|---|
-| Migration history | `324da6e` 标记 PRE-PLAN | 不伪造 plan-first 历史 |
-| Producer authority | exact clean Crucible SHA | dirty checkout 不能作为 receipt |
-| Mode naming | outer `mode` / canonical `trading_mode` | 当前 golden 已一致 |
-| Runtime schema | `runner_runtime.schema_version == 1` strict | 删除 legacy fallback |
-| Artifact provenance | 三类 digest 独立 | 防止 wheel/source 混淆 |
-| Desired state | SQLite journal | ACK 后可恢复 |
-| ACK ordering | durable desired + ready + durable lifecycle outbox 后 ACK | 避免确认后丢状态 |
-| Deploy success | 返回 `EngineReadyReceipt` | create_task 不等于 ready |
-| Terminal failure | typed `EngineTerminalEvent` | reconciler 必须知道 node 已死 |
-| Supervision | structured concurrency | 不吞 top-level task 异常 |
-| Equity | `portfolio.equity(venue)` | 使用 NT 真实账户语义 |
-| Unrealized PnL | `position.unrealized_pnl(mark_price)` | NT 1.230.0 API |
-| Per-order limit | native `LiveRiskEngineConfig` | 使用公开 NT seam |
-| Aggregate cap | engine-boundary interception only | strategy hook 可被绕过 |
-| Unsupported cap | capability=false，live fail closed | 不虚假宣称安全能力 |
-| Risk telemetry | signed `RunnerRuntimeLogFact.v1` | 不在 Custos 发明 canonical fact |
-| Old telemetry | 不恢复 | RunnerFacts 是唯一输出面 |
-| Release | `0.4.0rc1` → `0.4.0` | breaking control-plane migration |
+| DeploymentSpec/Instance and command payload | Crucible | verify and execute exact signed command |
+| StrategyRelease/artifact selection/effective config | Crucible | execute exact bound artifact/config |
+| Runtime address | `deployment_instance_id` | key all desired/applied/runtime state |
+| Local credentials and venue interaction | Custos | keep secrets local and execute |
+| RunnerFact sequence/signing/outbox | Custos | existing SQLite deep module |
+| RunnerFact verification/projector/settlement | Crucible | provide compatibility receipt |
+| Runner-level cap policy | Crucible signed versioned policy | enforce locally without loosening |
+| Advisory strategy sizing | Toolkit/strategy | never substitutes mandatory safety |
+| Portfolio risk, approvals, capital, settlement | Crucible | out of scope |
 
-## 本地 provenance 模型
+## Single Durable State Deep Module
+
+Custos 已有 `RunnerFactOutbox`，负责：
+
+- per-stream sequence allocation；
+- event deduplication；
+- `facts[].seq` injection；
+- signed batch construction；
+- durable pending batches；
+- JetStream PubAck 后删除。
+
+Plan 19 禁止创建第二套 outbox。desired/applied journal tables 必须纳入同一
+SQLite deep module、connection 和 transaction boundary。实现可以内部重构文件，
+但 public surface 保持单一：
 
 ```python
-class StrategyExecutionProvenance(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class RunnerStateStore(Protocol):
+    def record_desired_command(
+        self,
+        command: VerifiedRunnerCommand,
+        command_fingerprint: str,
+    ) -> DesiredRecord: ...
 
-    strategy_artifact_digest: Sha256Hex
-    strategy_manifest_digest: Sha256Hex
-    source_code_hash: Sha256Hex | None = None
-    strategy_path: Path | None = None
+    def commit_applied_and_enqueue_lifecycle(
+        self,
+        *,
+        deployment_instance_id: UUID,
+        deployment_spec_id: UUID,
+        deployment_spec_digest: str,
+        generation: int,
+        command_fingerprint: str,
+        engine_handle: str,
+        lifecycle_fact: RunnerDeploymentLifecycleFact,
+    ) -> AppliedCommitResult: ...
 ```
 
-规则：
+`commit_applied_and_enqueue_lifecycle()` 必须在一个 SQLite transaction 中：
+
+1. 校验 desired instance/generation/fingerprint；
+2. 写 applied state；
+3. 使用现有 event dedup；
+4. 分配现有 stream sequence；
+5. 注入 `facts[].seq`；
+6. 构造并签名 batch；
+7. 写入现有 `runner_fact_outbox`；
+8. commit。
+
+禁止先提交 applied 再调用另一个 outbox transaction。
+
+最小 tables：
 
 ```text
-artifact mode:
-  require artifact digest + manifest digest
-  verify installed artifact and entry point
-  source_code_hash optional
+desired_deployments
+  deployment_instance_id PRIMARY KEY
+  deployment_spec_id
+  deployment_spec_digest
+  generation
+  command_fingerprint
+  canonical_command
+  desired_status
+  updated_at_ns
 
-source-path mode:
-  require artifact digest + manifest digest
-  require strategy_path + source_code_hash
-  verify directory with dir-hash-v1
+applied_deployments
+  deployment_instance_id PRIMARY KEY
+  deployment_spec_id
+  deployment_spec_digest
+  generation
+  command_fingerprint
+  engine_handle
+  observed_status
+  restart_count
+  quarantine_reason
+  updated_at_ns
 
-never:
-  artifact digest == source directory hash
+existing tables, retained as the only fact path
+  runner_fact_stream
+  runner_fact_seen_event
+  runner_fact_outbox
 ```
 
-## Runtime lifecycle interface
+`deployment_spec_id` 和 digest 是 provenance，不是 journal primary key。
+SQLite 不得保存 credential material。
+
+Lifecycle event ID 必须由 instance/spec/generation/state/fingerprint 的稳定输入
+确定生成，不能在 crash replay 时随机生成新 UUID。
+
+## Command Identity, ACK, and Poison Handling
+
+Command fingerprint 对 canonical signed command payload 计算：
+
+| Delivery | Behavior |
+|---|---|
+| same instance + generation + same fingerprint | idempotent replay |
+| same instance + generation + different fingerprint | terminal conflict, quarantine, no apply |
+| newer generation | apply after authority/mode/capability checks |
+| older generation | terminal stale command |
+| invalid signature/schema/version | terminal/DLQ poison message |
+| retryable local dependency failure | bounded NAK/backoff |
+| long deploy waiting for ready | periodic JetStream `in_progress()` |
+
+必须区分：
+
+- **Inbound command ACK**：Custos 对 Crucible command delivery 的
+  ACK/NAK/term/in-progress。
+- **Outbound fact PubAck**：JetStream 确认 signed RunnerFact batch 后，
+  existing outbox 才删除 pending batch。
+
+两者不能共享状态字段或被称为同一个 ACK。
+
+Consumer 必须显式配置 `ack_wait`、`max_deliver`、backoff 和 DLQ/quarantine
+策略。poison message 不得无限 NAK；等待 engine ready 不得静默超过 ack deadline。
+
+## Crucible Producer-First Contract
+
+Custos 不得自行修改 parser/golden 后宣称 strict command 完成。前置 producer slice
+必须由 Crucible 独立 plan-first 实现：
+
+1. 定义 public、versioned `runner_runtime` 和 `code_provenance` schema。
+2. CreateDeploymentSpec/control producer 从 typed model 生成 command。
+3. 分离 artifact digest、manifest digest 和 optional source hash。
+4. 生成新的 canonical golden fixture。
+5. 在 clean landed commit 上记录 repo、SHA、schema digest 和 fixture digest。
+6. Custos byte-identical 消费 fixture。
+7. 双仓 CI gate 同时检查 schema/digest compatibility。
+
+在 producer receipt 到达前：
+
+- Task 1 可执行；
+- journal/engine characterization tests 可起草；
+- 不得冻结 strict parser、发布 RC 或声称 runtime contract complete。
+
+## Additive Engine Lifecycle
+
+现有 engine protocol 的以下能力必须保留：
+
+- deploy；
+- reconfigure；
+- stop；
+- supports live/venue；
+- open notional；
+- connectivity state；
+- flatten；
+- positions/open orders/status snapshots。
+
+Plan 19 只做 additive extension：
 
 ```python
 @dataclass(frozen=True)
 class EngineReadyReceipt:
-    deployment_instance_id: str
-    spec_id: str
+    deployment_instance_id: UUID
+    deployment_spec_id: UUID
+    deployment_spec_digest: str
     generation: int
     ready_at_ns: int
 
 
 @dataclass(frozen=True)
 class EngineTerminalEvent:
-    deployment_instance_id: str
-    spec_id: str
+    deployment_instance_id: UUID
+    deployment_spec_id: UUID
     generation: int
-    reason: str
+    reason_code: str
     retryable: bool
-
-
-class ExecutionEngineProtocol(Protocol):
-    async def deploy(
-        self,
-        spec: dict[str, object],
-        credential: CredentialMaterial,
-    ) -> EngineReadyReceipt: ...
-
-    async def stop(self, deployment_instance_id: str) -> None: ...
-
-    async def terminal_events(self) -> AsyncIterator[EngineTerminalEvent]: ...
 ```
 
-## 承载决策 (Capability Hosting Decision)
+Readiness 至少证明：
 
-| 能力 | plan mode? | hook? | CLAUDE.md? | 现有 skill flag? | 新 skill? | 决策 |
-|---|---:|---:|---:|---:|---:|---|
-| Durable reconciliation | 否 | 否 | 否 | 否 | 否 | SQLite deep module |
-| NT portfolio snapshot | 否 | 否 | 否 | 否 | 否 | Nautilus adapter |
-| Runner-wide risk cap | 否 | 否 | 否 | 否 | 否 | Engine-boundary runtime seam |
-| RunnerFact parity | 否 | 否 | 否 | 否 | 否 | Existing signed fact producer |
-| Authority drift | 否 | CI/static gate | 否 | 否 | 否 | 扩展现有 authority checker |
+- node task alive；
+- required data connectivity ready；
+- required execution connectivity ready；
+- portfolio/account initialization complete；
+- reconciliation initialization complete；
+- strategy registered and accepting runtime lifecycle；
+- mode-specific mandatory capabilities active。
 
-## 文件清单 (File Inventory)
+`create_task()` 不等于 ready。长期 task 的异常必须传播到 supervisor。
+
+每个 instance 必须有 bounded restart budget、exponential backoff 和 quarantine。
+超过预算后发布 deterministic terminal lifecycle fact，不得无限 crash loop。
+
+## Nautilus Portfolio and Local Safety
+
+Portfolio snapshot 必须使用 NT 1.230.0 的真实 API：
+
+- `portfolio.equity(venue)`；
+- 每个 position 的可信 mark price；
+- `position.unrealized_pnl(mark_price)`；
+- 缺失数据时标记 unreliable，breaker fail closed；
+- EngineStatus、breaker、position/equity facts 使用同一个 snapshot provider。
+
+禁止用 open notional + unrealized PnL 冒充 equity。
+
+### Risk taxonomy
+
+| Layer | Meaning |
+|---|---|
+| Toolkit advisory sizing | strategy-local recommendation, non-authoritative |
+| Custos mandatory local safety | exact enforcement of signed policy |
+| Crucible canonical risk policy | portfolio/risk authority, approvals and limits |
+
+### Runner-level cap
+
+Final live architecture 必须消费 Crucible 独立、签名、版本化的 runner-level cap
+policy。不得从“最后收到的 deployment command”推断全 runner authority。
+
+在 producer policy 未完成前，唯一允许的临时行为是：
+
+- sandbox/testnet only；
+- effective cap 取所有 active desired instances 中最严格值；
+- capability 明确为 provisional/false for live；
+- live fail closed。
+
+Reservation contract：
+
+- key: `(deployment_instance_id, client_order_id)`；
+- 原子 reserve；
+- reject/cancel 释放全部 reservation；
+- replace 原子调整差额；
+- partial fill 将 reserved 转为 filled exposure；
+- fill/close 更新 exposure；
+- duplicate event 幂等；
+- restart 从 durable state 恢复，或从可信 engine/venue state 重建；
+- flatten、close 和 reduce-only exit 永远不得被 cap 阻止。
+
+必须在不可绕过的 engine/order-intent boundary 证明覆盖所有策略提交路径。
+禁止 monkey patch、SuperTrend-only hook 或 docs-only enforcement。
+
+## RunnerFact Compatibility
+
+现有 signed RunnerFact stream 是唯一 runtime output。不得恢复 unsigned
+telemetry/status uplink。
+
+新 lifecycle/log/fact type 必须同时具备：
+
+- capability manifest revision；
+- Custos schema/version registration；
+- Crucible verifier/projector compatibility；
+- onboarding/fixture receipt；
+- deterministic event identity；
+- redaction tests。
+
+在 Crucible 定义 canonical risk-decision fact 前，local deny/reject 使用已有
+`RunnerRuntimeLogFact.v1` 的 sanitized structured event，不新增 Custos-owned
+canonical business fact。
+
+`docs/design/telemetry_actor.md` 已描述 typed RunnerFact。应原子 rename 为
+`docs/design/runner_fact.md`，同步更新 CLAUDE、authority manifest/checker 和 active
+references；清晰标记的 historical plan references 可以保留。
+
+## Mode and Capability Isolation
+
+必须增加 negative tests：
+
+- sandbox credential/policy 不能启动 testnet/live；
+- source-path 不能启动 live；
+- missing signed cap policy 不能启动 live；
+- unsupported engine capability 不能被 spec 参数打开；
+- reduce-only/flatten 即使 cap exhausted 仍可执行；
+- mode mismatch、tenant mismatch、instance mismatch terminal reject；
+- secret/raw credential/full order payload 不进入 journal、facts 或 logs。
+
+## Architecture
+
+```text
+Crucible typed producer
+  │ signed canonical command + exact artifact/policy bindings
+  ▼
+JetStream command consumer
+  │ verify + fingerprint + term/NAK/in_progress policy
+  ▼
+single RunnerStateStore / SQLite transaction boundary
+  ├── desired_deployments
+  ├── applied_deployments
+  ├── existing stream sequence + event dedup
+  └── existing signed RunnerFact outbox
+  │
+  ▼
+DeploymentReconciler
+  ├── additive EngineReadyReceipt
+  ├── EngineTerminalEvent
+  ├── restart budget/backoff/quarantine
+  └── signed policy enforcement
+  │
+  ▼
+NtTradingNodeHost
+  ├── exact artifact verification
+  ├── reliable portfolio snapshot
+  ├── native per-order safety
+  └── runner-level cap at engine boundary
+  │
+  ▼
+signed RunnerFacts ──PubAck──> existing outbox deletion
+```
+
+## File Inventory
 
 | 文件路径 | 操作 | 描述 |
 |---|---|---|
-| `.forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md` | 新增 | 本计划 |
-| `.forge/README.md` | 修改 | 登记 Plan 19 |
-| `src/custos/contracts/deployment.py` | 修改 | Strict runtime/provenance |
-| `src/custos/core/deployment_reconciler.py` | 修改 | Durable reconcile |
-| `src/custos/core/deployment_state_journal.py` | 新增 | SQLite journal/outbox |
-| `src/custos/core/nats_client.py` | 修改 | ACK ordering |
-| `src/custos/core/engine_protocol.py` | 修改 | Ready/terminal contracts |
-| `src/custos/core/local_cap.py` | 修改 | Production runner cap |
-| `src/custos/core/runtime_log_fact.py` | 修改 | Risk operational facts |
-| `src/custos/core/runner_deployment_lifecycle_fact.py` | 修改 | Deterministic IDs |
-| `src/custos/cli/_daemon.py` | 修改 | Structured supervision |
-| `src/custos/engines/nautilus/host.py` | 修改 | Readiness/equity/risk |
-| `src/custos/engines/nautilus/risk.py` | 修改 | Native NT risk config |
-| `src/custos/engines/nautilus/portfolio_snapshot.py` | 新增 | Shared account snapshot |
-| `src/custos/engines/nautilus/strategy_loader.py` | 修改 | Provenance separation |
-| `tests/test_deployment_contract.py` | 修改 | Strict command tests |
-| `tests/test_deployment_reconciler.py` | 修改 | Journal/restart tests |
-| `tests/test_runner_deployment_command_golden.py` | 修改 | Producer receipt |
-| `tests/test_runner_fact_parity.py` | 新增 | Fact coverage matrix |
-| `tests/integration/test_crucible_runner_runtime.py` | 新增 | Current real acceptance |
-| `tests/integration/test_standalone_runtime.py` | 保持删除 | 不恢复旧 authority |
-| `docs/authority/**` | 修改 | Receipt/golden/gates |
-| `docs/design/00-overview.md` | 修改 | Current ownership |
-| `docs/design/01-architecture.md` | 修改 | 删除旧 telemetry/status |
-| `docs/design/telemetry_actor.md` | 删除 | Git history 已保留 |
-| `docs/ops/05-deployment.md` | 修改 | v0.4 runbook |
-| `Makefile` | 修改 | Current verification targets |
-| `pyproject.toml` | 修改 | 0.4 prerelease/final |
-| `.github/workflows/release.yml` | 修改 | PEP 440/Docker tag mapping |
+| `.forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md` | 修改 | 本 live-plan 修订 |
+| `.forge/README.md` | 修改 | 修订 hard gates 和说明 |
+| `src/custos/contracts/deployment.py` | 修改 | producer-backed strict contract |
+| `src/custos/core/runner_fact.py` | 修改/内部重构 | 唯一 state/outbox transaction boundary |
+| `src/custos/core/deployment_reconciler.py` | 修改 | fingerprint/durable reconcile/restart |
+| `src/custos/core/nats_client.py` | 修改 | ACK deadline, bounded retry, term/DLQ |
+| `src/custos/core/engine_protocol.py` | additive 修改 | ready/terminal without protocol shrink |
+| `src/custos/core/local_cap.py` | 修改 | signed policy/reservation semantics |
+| `src/custos/core/runner_deployment_lifecycle_fact.py` | 修改 | deterministic IDs |
+| `src/custos/core/runtime_log_fact.py` | 修改 | sanitized local safety events |
+| `src/custos/cli/_daemon.py` | 修改 | structured supervision |
+| `src/custos/engines/nautilus/host.py` | 修改 | readiness/equity/risk |
+| `src/custos/engines/nautilus/risk.py` | 修改 | native per-order config |
+| `src/custos/engines/nautilus/portfolio_snapshot.py` | 新增 | shared reliable snapshot |
+| `src/custos/engines/nautilus/strategy_loader.py` | 修改 | exact artifact provenance |
+| `tests/test_runner_fact_outbox.py` | 新增 | direct characterization + transaction tests |
+| `tests/test_deployment_contract.py` | 修改 | producer schema/fingerprint tests |
+| `tests/test_deployment_reconciler.py` | 修改 | restart/conflict/quarantine tests |
+| `tests/test_runner_deployment_command_golden.py` | 修改 | exact Crucible receipt |
+| `tests/test_runner_fact_parity.py` | 新增 | capability/projector matrix |
+| `tests/integration/test_crucible_runner_runtime.py` | 新增 | current real acceptance |
+| `docs/design/telemetry_actor.md` | rename | `docs/design/runner_fact.md` |
+| `docs/authority/**`, `CLAUDE.md` | 修改 | producer/projector receipts and active references |
+| `docs/ops/05-deployment.md` | 修改 | v0.4 mode/policy runbook |
+| `Makefile` | 修改 | current verification targets |
+| `pyproject.toml`, release workflow | 修改 | RC/final version and gates |
 
-## 实现任务 (Tasks)
+明确禁止新增第二个 `runner_fact_outbox` table 或独立 journal database。
 
-### Task 0: Plan-first 与 PRE-PLAN receipt
+## Tasks
 
-**Files**: 本计划、`.forge/README.md`。
+### Task 0: Repair the live plan
 
-1. 写入本计划并更新索引。
-2. 在偏离日志登记 `324da6e` 已先行实施。
-3. 不把该提交计为 Plan 19 实现 commit。
-4. 提交：
+1. 用本修订替换 second-outbox、spec-keyed journal、Custos-only schema、
+   last-command cap 和 protocol shrink。
+2. 更新 Custos index。
+3. 同步修订 PS Plan 53 的 T4、dependency graph 和 consumer requirements。
+4. 只 stage 计划和索引，提交：
 
 ```bash
-git commit -m "plan(custos): 19 — converge Crucible runner runtime"
+git commit -m "docs(custos): repair plan 19 runtime convergence design"
 ```
 
-### Task 1: 恢复 verification floor
+### Task 1: Restore verification floor
 
-**Files**: 12 个 format drift 文件、`Makefile`、current integration target。
+这是当前唯一无外部契约依赖、可立即执行的 implementation task。
 
-1. 固定当前失败：
-
-```bash
-make verify
-# expected before fix: 12 files would be reformatted
-```
-
-2. 对列出的 12 个文件运行项目 formatter；不得夹带语义修改。
-3. 更新 `verify-runtime-existing` 指向新的 current integration test，删除已不存在的
-   standalone runtime 引用。
+1. 固定当前 formatter/Makefile failure。
+2. 只做机械 formatting，不夹带语义修改。
+3. 把 `verify-runtime-existing` 改到 current integration target。
 4. 验证：
 
 ```bash
@@ -260,139 +432,72 @@ make verify-nt
 make -n verify-runtime-existing
 ```
 
-5. 提交：
+提交：
 
 ```bash
 git commit -m "style(custos): restore runtime verification floor"
 ```
 
-### Task 2: 锁定 producer receipt 和 strict command schema
+### Task 2: Land and consume the Crucible producer contract
 
-**Files**: deployment contract、golden fixture/receipt、parser tests。
+Hard gate：Crucible 独立 plan-first、typed producer、new golden、clean landed SHA。
 
-Hard gate：
+1. 在 Crucible 生成 versioned runner-runtime/code-provenance schema 和 golden。
+2. 记录 producer SHA、schema digest、fixture digest。
+3. Custos 先写 byte-identical、unknown version、missing field 和 digest mismatch tests。
+4. 删除 legacy `parameters`/`code_hash` fallback。
+5. 双仓 compatibility gate 必须从同一 fixture/schema 计算。
 
-- Crucible producer 必须 clean、landed。
-- 记录 repo、exact SHA、fixture SHA。
-- 当前 dirty `53adbca` 只能作审计证据。
-
-先写失败测试：
-
-```python
-def test_missing_runner_runtime_is_rejected() -> None:
-    command = golden_command()
-    del command["payload"]["deployment_spec"]["parameters"]["runner_runtime"]
-    with pytest.raises(ValueError, match="runner_runtime"):
-        DeploymentSpec.from_runner_command(command)
-
-
-def test_unknown_runner_runtime_field_is_rejected() -> None:
-    command = golden_command()
-    command["payload"]["deployment_spec"]["parameters"]["runner_runtime"]["legacy"] = True
-    with pytest.raises(ValueError):
-        DeploymentSpec.from_runner_command(command)
-```
-
-实现约束：
-
-- 要求 `runner_runtime.schema_version == 1`。
-- 删除 `parameters.get("runner_runtime", parameters)`。
-- 删除 `strategy_config` 回退到整个 parameters。
-- 冻结 outer `mode`、canonical `trading_mode`。
-- Golden fixture byte-for-byte match producer。
-
-验证并提交：
+Custos 提交：
 
 ```bash
-uv run pytest tests/test_deployment_contract.py \
-  tests/test_runner_deployment_command_golden.py -v
-git commit -m "feat(custos): enforce Crucible runner command v1"
+git commit -m "feat(custos): consume Crucible runner command contract"
 ```
 
-### Task 3: 拆分 artifact、manifest 与 source digest
+### Task 3: Implement command fingerprint and bounded ACK policy
 
-**Files**: deployment contract、G6、CLI、host、loader、相关 tests。
-
-1. 写失败测试，证明 artifact digest 不传给 directory verifier；source mode 缺 hash
-   时拒绝；artifact mode 不要求 source path；v0.4 拒绝 legacy `code_hash`。
-2. 一次原子迁移 `DeploymentSpec.code_hash` 到三个明确字段。
-3. 更新 loader、G6、CLI、golden tests；source-path producer 提供真实
-   `source_code_hash`，不留歧义 fallback。
-4. 验证：
-
-```bash
-uv run pytest tests/test_deployment_contract.py \
-  tests/test_strategy_loader.py \
-  tests/test_g6_gate_capability_e2e.py \
-  tests/test_nt_trading_node_host_integration.py -v
-```
-
-5. 提交：
-
-```bash
-git commit -m "refactor(custos): separate strategy provenance digests"
-```
-
-### Task 4: 实现 durable DeploymentStateJournal
-
-**Files**: journal、reconciler、NATS ACK path、journal/restart tests。
-
-SQLite schema 至少包含：
-
-```text
-desired_deployments
-  spec_id
-  generation
-  command_id
-  canonical_payload
-  desired_status
-  applied_instance_id
-  observed_status
-  updated_at_ns
-
-runner_fact_outbox
-  fact_id
-  spec_id
-  generation
-  fact_kind
-  signed_payload
-  delivery_status
-  created_at_ns
-```
-
-约束：
-
-- 不存 credential material。
-- desired command 在 apply 前提交。
-- lifecycle fact ID 由 command/spec/generation/status 确定生成。
-- ready 后在同一事务记录 applied state 和 pending fact。
-- pending fact durable enqueue 后才 ACK。
-- restart 恢复 non-terminal desired state 和 fact outbox。
-- duplicate delivery 幂等。
-
-失败测试模拟 journal 后崩溃、ready 后 publish 前崩溃、ACK 前重复 delivery、restart
-只产生一个 lifecycle fact ID。
+1. 写 same-generation/different-payload terminal conflict tests。
+2. 写 invalid signature/schema poison term/DLQ tests。
+3. 写 long readiness `in_progress()` 和 bounded retry tests。
+4. 显式配置 ack wait、max deliveries、backoff 和 quarantine。
+5. inbound ACK 状态不得与 outbound PubAck 混用。
 
 提交：
 
 ```bash
-git commit -m "feat(custos): persist deployment reconcile state"
+git commit -m "feat(custos): enforce command identity and delivery policy"
 ```
 
-### Task 5: 建立真实 engine readiness 与 terminal events
+### Task 4: Extend the existing RunnerFact SQLite deep module
 
-**Files**: engine protocol、NT host、reconciler、tests。
+先写 direct `RunnerFactOutbox` characterization tests，锁定 seq、dedup、sign、
+pending 和 PubAck deletion。
 
-失败测试：
+然后：
 
-- node task 尚未 ready 时 `deploy()` 不返回。
-- node task 在 ready 前退出时 deploy 失败。
-- ready 后 terminal exception 产生 `EngineTerminalEvent`。
-- terminal event 清除 active instance 并触发 reconcile。
-- stop 与自然退出幂等。
+1. 在同一 store/connection 增加 desired/applied tables。
+2. primary key 使用 `deployment_instance_id`。
+3. 实现 `commit_applied_and_enqueue_lifecycle()` 单事务接口。
+4. lifecycle event ID deterministic。
+5. 覆盖 desired 后 crash、ready 后 commit 前 crash、commit 后 publish 前 crash、
+   duplicate delivery 和 restart replay。
+6. 验证没有第二个 outbox/database。
 
-实现 bounded readiness timeout 和 typed terminal event stream；host callback 不再只记录
-日志，reconciler 不在 receipt 前写 applied/reported。
+提交：
+
+```bash
+git commit -m "feat(custos): persist reconcile state in runner fact store"
+```
+
+### Task 5: Add engine readiness, terminal lifecycle, and supervision
+
+1. characterization tests 锁定全部现有 engine protocol methods。
+2. additive 增加 ready/terminal APIs。
+3. readiness 覆盖 task/connectivity/portfolio/reconciliation/strategy/capabilities。
+4. 实现 timeout、restart budget、backoff 和 quarantine。
+5. daemon 任一长期 task 意外退出时取消 siblings 并返回非零。
+6. shutdown 顺序：停止 intake → stop deployments → flush fact outbox →
+   close NATS/store。
 
 提交：
 
@@ -400,58 +505,14 @@ git commit -m "feat(custos): persist deployment reconcile state"
 git commit -m "feat(custos): supervise engine readiness and termination"
 ```
 
-### Task 6: 改造 daemon structured concurrency
+### Task 6: Use reliable Nautilus portfolio semantics
 
-**Files**: `src/custos/cli/_daemon.py`、supervision tests。
-
-替换：
-
-```python
-await asyncio.gather(*tasks, return_exceptions=True)
-```
-
-为结构化监督：
-
-- 任一长期任务意外退出即取消 siblings。
-- 正常 stop event 有独立路径。
-- terminal exception 传播到 CLI exit code。
-- shutdown 顺序：停止 command intake → stop deployments → flush outbox → close NATS/journal。
-- 不留下 orphan tasks。
-
-验证并提交：
-
-```bash
-uv run pytest tests/test_cli_start.py tests/test_daemon_supervision.py -v
-git commit -m "refactor(custos): use structured daemon supervision"
-```
-
-### Task 7: 统一 Nautilus portfolio/equity snapshot
-
-**Files**: portfolio provider、host、breaker/status/fact adapters、tests。
-
-新增：
-
-```python
-@dataclass(frozen=True)
-class NautilusPortfolioSnapshot:
-    equity: Decimal | None
-    unrealized_pnl: Decimal | None
-    positions: tuple[PositionSnapshot, ...]
-    reliable: bool
-    failure_reason: str | None
-```
-
-Provider 必须：
-
-- 使用 `portfolio.equity(venue)`。
-- 获取每个 position 的 mark price。
-- 调用 `position.unrealized_pnl(mark_price)`。
-- 缺 mark/equity 时保留不可靠状态，breaker fail closed。
-- EngineStatus、breaker、position snapshot、RunnerFact 共用同一 provider。
-- 不再用 open notional + unrealized 冒充 equity。
-
-回归测试直接覆盖 NT 1.230.0 method shape，消除
-`[<class 'decimal.ConversionSyntax'>]`。
+1. 回归测试复现 `decimal.ConversionSyntax`。
+2. 实现单一 `NautilusPortfolioSnapshotProvider`。
+3. 使用 `portfolio.equity(venue)` 和
+   `position.unrealized_pnl(mark_price)`。
+4. 缺可信 mark/equity 时标记 unreliable，breaker fail closed。
+5. status、breaker 和 RunnerFacts 共用同一 snapshot。
 
 提交：
 
@@ -459,222 +520,151 @@ Provider 必须：
 git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 ```
 
-### Task 8: 接入 native per-order risk config
+### Task 7: Enforce signed local safety policy
 
-**Files**: NT risk config/builder/host、black-box tests。
+#### 7A Native per-order safety
 
-1. 用 characterization test 验证 NT 1.230.0 公开 API 支持
-   `LiveRiskEngineConfig.max_notional_per_order`。
-2. 将 signed deployment rule 转换为 Decimal 并接入 node/kernel。
-3. 缺失或非法值 fail closed；`build_nt_risk_engine_config` 必须出现生产调用者。
-4. 黑盒提交超过单笔上限订单，证明由 NT risk engine 拒绝。
-5. 提交：
+1. 从 signed Crucible policy 构建 NT public risk config。
+2. 黑盒证明超过单笔上限的 order intent 在 engine boundary 被拒。
+3. missing/invalid live policy fail closed。
 
-```bash
-git commit -m "feat(custos): enforce native per-order notional limits"
-```
+#### 7B Runner-level aggregate cap
 
-### Task 9: 实现 runner-wide aggregate cap
+Hard gate：Crucible signed versioned runner-level cap policy receipt。
 
-**Files**: local cap、受支持 NT engine seam、capability、concurrency tests。
+1. 覆盖多 active instances 和 policy revision。
+2. 实现 instance+client-order reservation contract。
+3. 覆盖 reject/cancel/replace/partial-fill/fill/close/restart。
+4. 证明 strategy direct submit 不能绕过。
+5. 证明 flatten/close/reduce-only 不被阻止。
+6. policy 未落地时仅 sandbox/testnet strictest-cap fallback；live capability=false。
 
-先建立 seam contract gate：
-
-- 必须拦截所有 NT order intents，包括策略直接调用 NT submit API。
-- 两笔单独合法、合计超限的订单必须拒绝第二笔。
-- cancel/fill/close 正确释放 reserved notional。
-- concurrency 下 reservation 原子。
-- config refresh 不清空已占用额度。
-- `RunnerNotionalCap.allows()` 必须有生产调用者。
-
-仅允许 NT 1.230.0 公开支持的 custom risk-engine/order-intent seam。禁止 monkey patch
-kernel、只改 SuperTrend base、可绕过的 context hook 或 docs-only enforcement。
-
-若无可证明的公开 seam：
-
-- capability 保持 false。
-- testnet/live deployment fail closed。
-- 记录 HIGH-RISK deviation。
-- Plan 19 不得 close-out，另起 NT upstream/adapter plan。
-
-有不可绕过证明后提交：
-
-```bash
-git commit -m "feat(custos): enforce runner-wide aggregate notional cap"
-```
-
-### Task 10: 完成 RunnerFact parity
-
-**Files**: RunnerFact bridge/runtime logs、parity matrix/tests、legacy residue。
-
-| Runtime event | 新输出 |
-|---|---|
-| Fill | RunnerFact Fill/ExecutionFill |
-| Fee | Fee fact |
-| Position closed | PositionClosed |
-| Equity/position snapshot | EquitySnapshot/PositionSnapshot |
-| Venue ledger | Manifest/Chunk |
-| Heartbeat | Heartbeat |
-| Deployment lifecycle | `RunnerDeploymentLifecycleFact.v1` |
-| Runtime warning/error | `RunnerRuntimeLogFact.v1` |
-| OrderDenied/Rejected | sanitized signed RuntimeLog fact |
-| Local cap rejection | sanitized signed RuntimeLog fact |
-
-约束：
-
-- 不新增 Custos-owned canonical `RunnerRiskDecisionFact`。
-- 不恢复 unsigned `telemetry_actor`、status publisher 或 ARX uplink。
-- Runtime logs 不含 secret、raw credential 或完整 order payload。
-- 删除或迁移 `tests/test_g6_gate.py` 中假的 `publish_deployment_status` residue。
-- 未来 canonical risk fact 由 Crucible 独立计划定义。
+如 NT 1.230.0 无公开不可绕过 seam，Plan 19 保持未完成并另起 upstream adapter
+实现；不得 monkey patch。
 
 提交：
 
 ```bash
-git commit -m "feat(custos): complete signed RunnerFact observability"
+git commit -m "feat(custos): enforce signed local notional policy"
 ```
 
-### Task 11: 扩大 authority drift gate 并删除冲突文档
+### Task 8: Complete RunnerFact and documentation compatibility
 
-**Files**: authority manifest/checker/tests、active design/ops docs。
+1. 建立 runtime-event → existing fact/log parity matrix。
+2. 新 fact/type 更新 capability manifest revision。
+3. 获得 Crucible verifier/projector/onboarding receipt。
+4. local deny/reject 使用 sanitized `RunnerRuntimeLogFact.v1`。
+5. 原子 rename `telemetry_actor.md` → `runner_fact.md`。
+6. 同步 CLAUDE、authority manifest/checker 和 active docs。
+7. 不恢复 unsigned telemetry/status。
 
-1. 从 `git ls-files` 获取 tracked source/config/docs；active scopes 默认全部检查。
-2. 历史快照必须位于明确 history 路径并显式 allowlist。
-3. 新增 sentinel，证明遗漏 active file 会失败。
-4. 更新 `docs/design/00-overview.md`、`01-architecture.md`、
-   `docs/ops/05-deployment.md`。
-5. 删除 `docs/design/telemetry_actor.md`，移除 standalone/status/telemetry active refs。
-6. 验证：
+提交：
 
 ```bash
-make check-authority
-uv run pytest tests/test_authority_runtime_alignment.py -v
+git commit -m "feat(custos): complete RunnerFact runtime compatibility"
 ```
 
-7. 提交：
+### Task 9: Publish and accept the RC
+
+前置：
+
+- producer contract receipt；
+- signed cap policy receipt；
+- Plan 18 exact candidate artifact；
+- capability/projector receipts；
+- all mode/capability negative tests。
+
+1. 发布 immutable `0.4.0rcN` wheel/image。
+2. 运行真实 Crucible command → Custos execute → RunnerFact projector acceptance。
+3. PS Plan 56 锁 exact image digest，运行 sandbox Docker smoke。
+4. 任一变更递增 RC 并重跑全部 receipts。
+
+### Task 10: Final release and close-out
+
+1. final artifact/image 重新构建、签名、锁 digest。
+2. 重新跑 Crucible、PS、Docker、mode/capability 和 recovery acceptance。
+3. 更新 docs、changelog、plan/index 和 exact receipts。
+4. 提交：
 
 ```bash
-git commit -m "docs(custos): align active authority with Crucible runtime"
-```
-
-### Task 12: 发布 0.4 RC 并跑真实 current integration
-
-**Files**: version/release workflow、current integration、runbook、receipt。
-
-版本映射：
-
-```text
-Python package: 0.4.0rc1
-Git/Docker tag: v0.4.0-rc.1
-Final:          0.4.0 / v0.4.0
-```
-
-要求：
-
-- 冻结 v0.3.0 历史 tag/digest，不重建。
-- release workflow 测试 PEP 440 ↔ OCI tag mapping。
-- 新增 `tests/integration/test_crucible_runner_runtime.py`。
-- 使用 exact Crucible producer fixture/receipt。
-- 真实启动 NATS/runner，发布 desired deployment，等待 ready lifecycle fact。
-- 证明 restart 后 reconcile 恢复、terminal node failure 被重新观测、RunnerFact 已签名。
-- 使用 Plan 18 candidate toolkit/artifact。
-- PS Plan 56 对 RC image 生成 real Docker receipt。
-- Final 重新构建、签名、锁定和验收。
-
-验证：
-
-```bash
-make verify
-make verify-nt
-make verify-runtime-existing
-```
-
-提交 RC：
-
-```bash
-git commit -m "release(custos): publish 0.4 runtime candidate"
-```
-
-Final receipt 后：
-
-```bash
-git commit -m "release(custos): publish 0.4.0"
-```
-
-### Task 13: 文档收尾 (close-out)
-
-**Files**: 本计划、`.forge/README.md`、ROADMAP（若有）、完成报告。
-
-1. Plan 顶部改为 ✅ Completed 并填写日期。
-2. 更新索引；ROADMAP 无对应项则 N/A。
-3. 完成报告记录 PRE-PLAN `324da6e`、exact producer SHA、golden SHA、journal/ACK
-   evidence、NT risk seam evidence、RunnerFact parity、0.4 RC/final digests 和 PS Plan 56
-   receipt。
-4. aggregate cap 尚未证明时不得 close-out。
-5. 提交：
-
-```bash
-git add .forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md \
-  .forge/README.md
 git commit -m "docs(custos): mark plan 19 as completed"
 ```
 
-## 验证清单 (Verification)
+## Verification
 
-- [ ] `make verify`：PASS
-- [ ] `make verify-nt`：PASS
-- [ ] `make check-authority`：PASS
-- [ ] Current runtime integration：PASS
-- [ ] Exact clean Crucible producer receipt
-- [ ] Golden fixture byte-identical
-- [ ] 无 legacy runtime parsing fallback
-- [ ] 无 legacy `code_hash`
-- [ ] Artifact/manifest/source digest 分离
-- [ ] Desired state restart 后恢复
-- [ ] ACK ordering 有 crash tests
-- [ ] lifecycle fact ID 幂等
-- [ ] deploy 等待真实 ready
-- [ ] terminal task failure 可观测
-- [ ] daemon 不吞异常
-- [ ] equity 使用 `portfolio.equity`
-- [ ] `unrealized_pnl(mark_price)` 正确调用
-- [ ] breaker unreliable snapshot fail closed
-- [ ] native per-order limit 有黑盒证明
-- [ ] aggregate cap 有不可绕过证明
-- [ ] OrderDenied/Rejected 有 signed operational fact
-- [ ] 无 unsigned telemetry/status 恢复
-- [ ] authority gate 扫描全部 active files
-- [ ] v0.3 历史 artifacts 未被覆盖
-- [ ] `0.4.0rc1` 和 `0.4.0` 均重新构建、签名、验证
+- [ ] verification floor 全绿
+- [ ] command schema 来自 clean landed Crucible producer
+- [ ] schema/golden/digest 双仓 compatibility gate
+- [ ] same generation + different fingerprint terminal reject
+- [ ] poison message term/DLQ，不无限 NAK
+- [ ] long deploy 使用 `in_progress()`
+- [ ] desired/applied primary key 为 `deployment_instance_id`
+- [ ] 只有一个 SQLite state/outbox deep module
+- [ ] applied state 与 lifecycle batch 单事务提交
+- [ ] existing seq/dedup/sign/PubAck semantics 保持
+- [ ] lifecycle event ID deterministic
+- [ ] engine protocol 只 additive、不 shrink
+- [ ] readiness 覆盖 task/connectivity/portfolio/reconciliation/strategy
+- [ ] restart budget/backoff/quarantine
+- [ ] equity/unrealized 使用真实 NT API
+- [ ] runner cap 来自 signed versioned Crucible policy
+- [ ] multi-instance reservation/release/recovery semantics 完整
+- [ ] flatten/close/reduce-only 不被 cap 阻止
+- [ ] unsupported live capability fail closed
+- [ ] RunnerFact capability revision + Crucible projector receipt
+- [ ] `telemetry_actor.md` 原子 rename，不删除 typed RunnerFact authority
+- [ ] sandbox/testnet/live negative matrix
+- [ ] journal/facts/logs 无 credential 或 secret
+- [ ] RC/final 均运行真实 cross-repo acceptance
 
-## 进度追踪 (Progress)
+## Progress
 
 | Task | Status | Completed | Notes |
 |---|---|---|---|
-| T0 Plan-first | [x] | 2026-07-14 | plan-first commit containing this plan; `324da6e` remains PRE-PLAN |
-| T1 Verification floor | [ ] | — | 当前 format gate 失败 |
-| T2 Strict command | [ ] | — | 等 clean Crucible SHA |
-| T3 Provenance digests | [ ] | — | |
-| T4 Durable journal | [ ] | — | |
-| T5 Engine lifecycle | [ ] | — | |
-| T6 Daemon supervision | [ ] | — | |
-| T7 Portfolio/equity | [ ] | — | |
-| T8 Native per-order risk | [ ] | — | |
-| T9 Aggregate cap | [ ] | — | hard live gate |
-| T10 RunnerFact parity | [ ] | — | |
-| T11 Authority/docs | [ ] | — | |
-| T12 0.4 integration/release | [ ] | — | |
-| T13 Close-out | [ ] | — | |
+| T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `3ce4048` |
+| T1 Verification floor | [ ] | — | immediately executable |
+| T2 Crucible producer | [ ] | — | hard external gate |
+| T3 Fingerprint/ACK | [ ] | — | after producer contract |
+| T4 Single durable store | [ ] | — | characterize existing outbox first |
+| T5 Engine lifecycle | [ ] | — | additive protocol |
+| T6 Portfolio/equity | [ ] | — | NT 1.230.0 regression |
+| T7 Signed local safety | [ ] | — | live blocked on runner policy |
+| T8 RunnerFact/docs | [ ] | — | projector receipt required |
+| T9 RC acceptance | [ ] | — | exact artifacts and policies |
+| T10 Final/close-out | [ ] | — | |
 
-## 偏离与改进日志 (Deviations & Improvements)
+## Deviations and Improvements
 
-| 类型 | 位置 | 描述 | 已批准 |
+| 类型 | 位置 | 描述 | 状态 |
 |---|---|---|---|
-| PRE-PLAN | `324da6e` | 大规模 authority migration 先于 Plan 19 | Yes, 2026-07-14 |
-| CORRECTION | mode | outer `mode` 与 canonical `trading_mode` 均正确 | Yes, 2026-07-14 |
-| BUG | provenance | artifact digest 被误当 source hash | Yes, 2026-07-14 |
-| BUG | equity | NT method 当属性读取且 equity 语义错误 | Yes, 2026-07-14 |
-| SAFETY | aggregate cap | 无不可绕过生产 seam 前 capability=false | Yes, 2026-07-14 |
-| AUTHORITY | telemetry | 删除旧 standalone telemetry/status，不恢复 | Yes, 2026-07-14 |
-| RELEASE | SemVer | breaking migration 发布为 0.4 | Yes, 2026-07-14 |
-| HARD-GATE | Crucible receipt | dirty producer checkout 不可充当 authority | Yes, 2026-07-14 |
+| PRE-PLAN | `324da6e` | authority migration landed before Plan 19 | Recorded |
+| PLAN-REPAIR | Durable store | 撤回第二套 outbox；journal 合入 existing RunnerFact SQLite deep module | Accepted 2026-07-14 |
+| IDENTITY | Journal | primary key 改为 `deployment_instance_id`；spec/digest 只作 provenance | Accepted 2026-07-14 |
+| CONTRACT | Command | Custos-only schema freeze 改为 Crucible producer-first | Accepted 2026-07-14 |
+| SAFETY | Runner cap | last-command overwrite 改为 signed runner-level policy | Accepted 2026-07-14 |
+| LIFECYCLE | Engine | 保留全部 protocol，ready/terminal additive | Accepted 2026-07-14 |
+| DOCUMENTATION | RunnerFact | `telemetry_actor.md` 改为 atomic rename，不直接删除 | Accepted 2026-07-14 |
+| HISTORY | `3ce4048` | 保留为 original plan-first，不再代表有效 runtime design approval | Recorded |
+
+## v1.team Scope
+
+| v1.team capability | Plan 19 coverage |
+|---|---|
+| A2/A3 deploy/reconcile | core scope |
+| B3 health/status | ready/terminal/lifecycle facts |
+| C1-C3 reconciliation | Custos emits facts; Crucible remains canonical |
+| D1 local pre-trade safety | exact signed policy enforcement |
+| D2-D4 portfolio risk | out of scope; Crucible-owned |
+| E1/E2 buffering/retry/seq | existing RunnerFactOutbox, extended transactionally |
+| H1/H2 mode/credential isolation | negative acceptance matrix |
+| I1/I2 runner trust boundary | signed command and runtime acceptance |
+| A4, G1/G2/G4, J1-J6 | out of scope; Crucible/ARX-owned |
+
+## Quantitative Summary
+
+- Durable stores/outboxes: exactly 1
+- Runtime primary key: `deployment_instance_id`
+- External producer gates: command schema and runner-level cap policy
+- Engine change: additive lifecycle only
+- Implementation tasks: 10 after live-plan repair
+- Release acceptance: Crucible producer/projector + PS Docker consumer

@@ -1,12 +1,15 @@
-# 18 - Publish typed toolkit and strategy contracts
+# 18 - Publish typed toolkit and strategy execution contracts
 
 > **Status**: ⏳ In progress
 > **Created**: 2026-07-14
+> **Revised**: 2026-07-14 after v1.team authority review
 > **Project**: Custos
-> **Source**: PS Plan 53 strategy/toolkit convergence roadmap
+> **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
-> **Depends on**: Custos baseline `324da6e`; approved PS Plan 53 amendment
-> **Soft depends on**: PS Plan 54, Speculum Plan 01, Custos Plan 19 consumer receipts
+> **Depends on**: revised PS Plan 53 authority boundary
+> **Hard gates**: cross-repo requirements review before schema freeze; Crucible StrategyRelease receipt before final release
+> **Soft depends on**: PS Plan 54, Speculum Plan 01, Custos Plan 19 integration receipt
+> **Original plan-first**: `b898ee1`; this live-plan revision supersedes its erroneous decisions
 
 ## 上下文 (Context)
 
@@ -18,158 +21,77 @@ src/custos/engines/nautilus/toolkit/
 └── vendor/pandas_ta/   299 files
 ```
 
-当前问题：
+当前实现通过 `sys.path` 暴露顶层 `shared.*`，注册伪造的 `pkg_resources`
+distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Custos
+存在公共实现权威漂移，Speculum 还通过 sibling PS checkout 动态加载策略。
 
-- `toolkit/__init__.py` 修改 `sys.path`，暴露顶层 `shared.*`。
-- 它还注册伪造的 `pkg_resources` distribution。
-- vendored pandas-ta 暴露顶层 `pandas_ta`。
-- Toolkit 与 `custos-runner` wheel、runner lifecycle 和控制面耦合。
-- PS 与 Custos 存在公共实现权威漂移。
-- Speculum 通过 sibling PS checkout 动态导入策略。
-- Custos 使用 NT 1.230.0，PS 1.228.0，Speculum 1.221/1.222。
-- PS `shared/` mypy 问题已经正式递延给 PS Plan 54；本计划不得通过 blanket ignore
-  制造假绿。
+原 Plan 18 的方向正确，但审查确认以下设计不能执行：
 
-权威参考：
+1. `deployment_id: str` 与现有 runtime authority 冲突。
+2. Plan 自行冻结 `strategy_key/version/ArtifactRef`，形成第二套 StrategyRelease
+   authority。
+3. 根 package Python 基线被错误提升到 3.12。
+4. source-path 与 production wheel 混成同一发布模型。
+5. attestation 缺少 issuer、workflow、bundle 和 trust-policy binding。
+6. 459 个 donor/vendor 文件、契约、发布、四仓切换被当作单次原子任务。
 
-- PS Plan 53
-- Custos `TOOLKIT_PROVENANCE.md`
-- Custos Plans 06/07/17
-- `.claude/rules/mandatory-rules.md`
-- `.claude/rules/verification.md`
-- `.claude/rules/historical-lessons.md`
+本修订直接替换错误决策。旧文本只由 Git history 保留，不作为兼容契约。
 
 ## 目标 (Goal)
 
-发布独立、typed、不可变的 `custos-strategy-toolkit` distribution，并冻结
-`StrategyManifestV1`、`StrategyArtifactRefV1` 和 `StrategyRuntimeV1`，供 Custos、
-Philosophers-Stone 与 Speculum 使用。
+发布独立、typed、不可变的 `custos-strategy-toolkit` distribution，并提供：
 
-## 架构 (Architecture)
+- Custos-owned strategy execution ABI；
+- Custos-owned artifact schema 与本地 fail-closed verifier；
+- Nautilus toolkit 的单一 canonical implementation；
+- 对现有 NT 策略业务源码的 zero-rewrite 迁移；
+- Crucible StrategyRelease authority 下的 exact artifact execution；
+- PS、Speculum、Crucible 和 Custos 的 producer/consumer receipts。
 
-```text
-packages/custos-strategy-toolkit/
-└── src/custos_toolkit/
-    ├── contracts/       # lightweight Pydantic models + JSON Schema
-    ├── strategy/        # runtime protocol and entry-point loader
-    ├── config/
-    ├── filters/
-    ├── indicators/
-    ├── risk/
-    ├── nautilus/        # NT-specific implementation
-    └── _vendor/
-        └── pandas_ta/   # private implementation detail
+本计划不拥有 StrategyRelease、artifact selection、最终 effective config、部署审批、
+组合风控、资本分配或结算。
 
-PS strategy wheel ──depends──> custos-strategy-toolkit
-Speculum backend  ──depends──> contracts/toolkit wheel
-Custos runner     ──depends──> toolkit wheel
-```
+## Authority Boundary
 
-Contracts import 不得加载 NautilusTrader、修改 `sys.path` 或执行策略代码。
-
-## 关键设计决策 (Key Design Decisions)
-
-| 问题 | 决策 | 理由 |
+| 能力 | Canonical owner | Plan 18 职责 |
 |---|---|---|
-| Distribution | `custos-strategy-toolkit` | Consumer 不安装完整 runner |
-| Import namespace | `custos_toolkit.*` | 消除裸 `shared` 冲突 |
-| Python | `>=3.12` | 与目标运行栈一致 |
-| NautilusTrader | exact `1.230.0` | 当前 Custos 已安装且行为已核验 |
-| Candidate | `0.1.0rc1` | 供三仓验收 |
-| Final | `0.1.0` | receipt 后重新构建发布 |
-| Catalog identity | `strategy_key` SafeId | 不复用 Crucible UUID `strategy_id` |
-| Manifest | wheel 内无 digest | 避免自引用 |
-| ArtifactRef | wheel 外 detached sidecar | 绑定 wheel、manifest、runtime artifacts |
-| Source hash | optional | 只用于 source-path execution |
-| Runtime discovery | fixed entry-point group | 禁止任意 import string |
-| pandas-ta | `custos_toolkit._vendor.pandas_ta` | 不暴露第二个顶层包 |
-| Hummingbot glue | PS-owned | 不污染 Nautilus toolkit |
-| Compatibility | 静态 re-export，禁止 path mutation | 支持受控迁移 |
-| Typing | package strict mypy=0 + `py.typed` | 不继承 PS 当前 mypy 债务 |
-| Release | source SHA + wheel SHA + Sigstore | candidate/final 都不可覆盖 |
+| Strategy source and build input | Philosophers-Stone | 消费 build receipt，不接管策略研究源码 |
+| Execution ABI and toolkit implementation | Custos | 定义、实现并版本化 |
+| Artifact schema and local verifier | Custos | 生产 schema/receipt，验证 exact bytes、attestation 和 compatibility |
+| StrategyRelease lifecycle | Crucible | 消费 Custos schema receipt，生产 released artifact binding |
+| Artifact selection and manifest digest | Crucible | 不根据 `strategy_key` 自行选择 artifact |
+| Final effective config | Crucible | ABI 仅接收已签名命令绑定的 config |
+| Backtest catalog and policy | Speculum | 提供只读 manifest/artifact consumer contract |
+| Advisory strategy sizing | Toolkit/strategy | 非授权建议，不可放宽 mandatory safety |
+| Mandatory local safety | Custos runtime | Plan 19 执行 signed policy |
+| Canonical portfolio/risk policy | Crucible | Plan 18 不实现 D2-D4 |
 
-## 冻结接口
+`strategy_key` 只能是作者侧 catalog alias。它不是授权 ID、release ID、runtime
+address 或幂等 key。
+
+## Runtime Identity
+
+`deployment_instance_id` 是唯一 runtime address。`deployment_spec_id`、
+`deployment_spec_digest` 和 `generation` 只提供 provenance/ordering：
 
 ```python
-from __future__ import annotations
-
-from collections.abc import Mapping
 from typing import Annotated, Literal, Protocol
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SafeId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,63}$")]
 Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 
-class StrictModel(BaseModel):
+class StrategyExecutionContextV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-
-class StrategyDisplayV1(StrictModel):
-    name: str
-    description: str
-    category: SafeId
-    tags: tuple[SafeId, ...] = ()
-
-
-class ToolkitRequirementV1(StrictModel):
-    interface: Literal["custos_toolkit.strategy.v1"]
-    distribution: Literal["custos-strategy-toolkit"]
-    version: str
-
-
-class EngineRuntimeV1(StrictModel):
-    entry_point: SafeId
-    python_requires: str
-    runtime_requires: tuple[str, ...]
-    config_schema: dict[str, object]
-    default_config: dict[str, object]
-
-
-class StrategyManifestV1(StrictModel):
-    schema_: Literal["urn:alephain:strategy-manifest:v1"] = Field(alias="$schema")
-    schema_version: Literal[1]
-    strategy_key: SafeId
-    strategy_version: str
-    display: StrategyDisplayV1
-    toolkit: ToolkitRequirementV1
-    engines: dict[SafeId, EngineRuntimeV1]
-
-
-class ArtifactPayloadV1(StrictModel):
-    distribution: SafeId
-    version: str
-    filename: str
-    media_type: Literal["application/vnd.python.wheel"]
-    sha256: Sha256Hex
-    size_bytes: Annotated[int, Field(gt=0)]
-    manifest_path: str
-    manifest_sha256: Sha256Hex
-    payload_root: str
-    source_code_hash: Sha256Hex | None = None
-
-
-class RuntimeArtifactV1(StrictModel):
-    role: SafeId
-    distribution: SafeId
-    version: str
-    filename: str
-    sha256: Sha256Hex
-
-
-class StrategyArtifactRefV1(StrictModel):
-    schema_: Literal["urn:alephain:strategy-artifact-ref:v1"] = Field(alias="$schema")
-    schema_version: Literal[1]
-    artifact: ArtifactPayloadV1
-    runtime_artifacts: tuple[RuntimeArtifactV1, ...]
-
-
-class StrategyExecutionContextV1(StrictModel):
     engine: Literal["nautilus"]
     trading_mode: Literal["sandbox", "testnet", "live"]
-    deployment_id: str
-    strategy_key: SafeId
+    deployment_instance_id: UUID
+    deployment_spec_id: UUID
+    deployment_spec_digest: Sha256Hex
+    generation: Annotated[int, Field(ge=1)]
 
 
 class StrategyRuntimeV1(Protocol):
@@ -177,10 +99,17 @@ class StrategyRuntimeV1(Protocol):
 
     def build_config(
         self,
-        effective_config: Mapping[str, object],
+        effective_config: dict[str, object],
         execution_context: StrategyExecutionContextV1,
     ) -> object: ...
 ```
+
+约束：
+
+- strict model 必须拒绝 legacy `deployment_id`。
+- ABI 不得把 `strategy_key` 用作 runtime identity。
+- effective config 只能来自已验证的 signed Crucible command。
+- ABI 不宣称建立安全边界；mandatory order enforcement 属于 Plan 19。
 
 固定 entry-point group：
 
@@ -188,362 +117,297 @@ class StrategyRuntimeV1(Protocol):
 alephain.strategy_runtime.v1
 ```
 
-`StrategyExecutionContextV1` 不宣称提供安全边界。真正的 runner-wide order enforcement
-属于 Custos Plan 19。
+## Contract Freeze Rules
 
-## 承载决策 (Capability Hosting Decision)
+本计划不在 plan 文本中提前冻结未经 producer/consumer requirements review 的完整
+`StrategyManifestV1` 或 `StrategyArtifactRefV1` 字段表。Task 2 由 Custos 生产
+versioned JSON Schema；Crucible、PS 和 Speculum 必须先确认 requirements。随后
+Crucible Plan 88 消费 exact schema bytes/hash，并拥有 StrategyRelease business binding。
 
-| 能力 | plan mode? | hook? | CLAUDE.md? | 现有 skill flag? | 新 skill? | 决策 |
-|---|---:|---:|---:|---:|---:|---|
-| Typed toolkit | 否 | 否 | 否 | 否 | 否 | 独立 Python distribution |
-| Manifest/ArtifactRef | 否 | 否 | 否 | 否 | 否 | `custos_toolkit.contracts` |
-| Runtime discovery | 否 | 否 | 否 | 否 | 否 | fixed entry-point API |
-| Namespace/release gates | 否 | CI 二次 gate | 否 | 否 | 否 | pytest + release workflow |
+不可降级要求：
 
-## 文件清单 (File Inventory)
+- Manifest 是 artifact 内的语义/compatibility metadata，不是 release authority。
+- ArtifactRef 绑定 exact artifact bytes、manifest bytes 和 required runtime artifacts。
+- Crucible StrategyRelease 绑定 canonical artifact digest、manifest digest 和
+  DeploymentSpec provenance。
+- Custos 只执行 signed command 绑定的 exact artifact/digests。
+- unknown fields 和 unknown schema versions fail closed。
+- live/testnet production path 只接受签名 wheel/artifact。
+- source-path 仅允许 sandbox development，必须携带 source hash，并明确
+  non-promotable、non-live。
+- artifact digest、manifest digest、source hash 不得互相代用。
+
+Attestation 至少绑定：
+
+- artifact digest、manifest digest 和 bundle digest；
+- source repository 和 exact commit；
+- expected issuer、workflow identity/subject；
+- trust-policy identifier、version 和 digest；
+- build inputs、Python version 和 exact engine/toolkit versions。
+
+验证必须在 unpack/import 前完成。安全解包拒绝绝对路径、`..`、symlink escape
+和 artifact/manifest mismatch。
+
+## Python and Runtime Baseline
+
+| Surface | Baseline |
+|---|---|
+| Root Custos and lightweight contracts | Python `>=3.11` |
+| `custos_toolkit` platform-neutral modules | Python `>=3.11` |
+| Nautilus implementation extra | Python `>=3.12`, exact NT `1.230.0` |
+| PS/Speculum Nautilus acceptance | Python 3.12, exact NT `1.230.0` |
+
+Importing `custos_toolkit.contracts` on Python 3.11 must not load NautilusTrader,
+modify `sys.path` or execute strategy code.
+
+## Zero-Rewrite Acceptance
+
+迁移必须证明现有 NT 策略的业务信号、indicator、position sizing 和 order intent
+源码无需重写。允许的变更仅限：
+
+- package/import namespace；
+- manifest/build metadata；
+- entry-point wrapper；
+- thin engine adapter；
+- 因公开 ABI 引入的类型适配。
+
+验收必须包含：
+
+1. 迁移前后的 strategy business-source semantic diff。
+2. 固定输入下的 signal/order-intent characterization parity。
+3. clean venv wheel-only import。
+4. 不依赖 sibling checkout 或顶层 `shared`/`pandas_ta`。
+
+如业务逻辑必须改变，必须移出本计划并由 PS 独立 strategy change plan 审批。
+
+## Architecture
+
+```text
+packages/custos-strategy-toolkit/
+└── src/custos_toolkit/
+    ├── contracts/       # lightweight models + generated JSON Schema
+    ├── strategy/        # execution ABI and fixed entry-point loader
+    ├── config/
+    ├── filters/
+    ├── indicators/
+    ├── advisory_risk/   # strategy advisory helpers, never canonical policy
+    ├── nautilus/        # Python >=3.12 / NT-specific implementation
+    └── _vendor/
+        └── pandas_ta/   # private implementation detail
+
+PS build ───────────────> signed strategy artifact
+Crucible StrategyRelease ─> exact selected artifact/digests/effective config
+Custos verifier ─────────> verify then load fixed entry point
+Speculum ─────────────────> verified artifact backtest consumer
+```
+
+## File Inventory
 
 | 文件路径 | 操作 | 描述 |
 |---|---|---|
-| `.forge/plans/2026-07/18-typed-toolkit-strategy-contracts.md` | 新增 | 本计划 |
-| `.forge/README.md` | 修改 | 登记 Plan 18 |
-| `pyproject.toml` | 修改 | uv workspace、开发依赖 |
-| `uv.lock` | 修改 | 锁 toolkit/NT 依赖 |
-| `packages/custos-strategy-toolkit/pyproject.toml` | 新增 | 独立 distribution |
-| `packages/custos-strategy-toolkit/src/custos_toolkit/**` | 新增/迁移 | Canonical toolkit |
-| `packages/custos-strategy-toolkit/src/custos_toolkit/py.typed` | 新增 | PEP 561 |
-| `packages/custos-strategy-toolkit/tests/**` | 新增 | Unit/type/contract tests |
-| `src/custos/engines/nautilus/toolkit/**` | 迁移/最终删除 | 移除旧 vendored authority |
-| `tests/test_toolkit_distribution.py` | 新增 | Wheel/namespace/import gate |
-| `tests/test_toolkit_consumer_receipts.py` | 新增 | Exact downstream receipts |
-| `.github/workflows/release-toolkit.yml` | 新增 | Candidate/final build/sign |
-| `docs/design/strategy-toolkit.md` | 新增 | 权威边界 |
-| `CHANGELOG.md` | 修改 | Toolkit release notes |
+| `.forge/plans/2026-07/18-typed-toolkit-strategy-contracts.md` | 修改 | 本 live-plan 修订 |
+| `.forge/README.md` | 修改 | 修订依赖和说明 |
+| `docs/design/strategy-toolkit.md` | 新增 | authority、ABI、risk taxonomy |
+| `packages/custos-strategy-toolkit/**` | 新增 | 独立 distribution |
+| `src/custos/engines/nautilus/toolkit/**` | 最终删除 | 完成 consumer cutover 后移除旧 authority |
+| `tests/test_toolkit_distribution.py` | 新增 | namespace/import/wheel gates |
+| `tests/test_toolkit_contracts.py` | 新增 | schema/runtime identity gates |
+| `tests/test_toolkit_zero_rewrite.py` | 新增 | semantic/behavior parity |
+| `tests/test_toolkit_consumer_receipts.py` | 新增 | 四仓 exact receipts |
+| `.github/workflows/release-toolkit.yml` | 新增 | reproducible build/sign/release |
+| `pyproject.toml`, `uv.lock` | 修改 | workspace 与 conditional runtime extras |
+| `CHANGELOG.md` | 修改 | candidate/final release notes |
 
-## 实现任务 (Tasks)
+## Tasks
 
-### Task 0: Plan-first
+### Task 0: Repair the live plan
 
-**Files**: 本计划、`.forge/README.md`。
-
-1. 写入本计划并更新索引为 ⏳。
-2. 确认只 stage 计划和索引。
-3. 提交：
+1. 用本修订替换错误 schema、identity、authority 和 Python 决策。
+2. 更新 Custos index。
+3. 同步修订 PS Plan 53，不把旧 `b898ee1` 当作最终 contract approval。
+4. 只 stage 计划和索引，提交：
 
 ```bash
-git commit -m "plan(custos): 18 — typed toolkit and strategy contracts"
+git commit -m "docs(custos): repair plan 18 authority and execution contracts"
 ```
 
-### Task 1: 冻结 migration inventory 与边界
+### Task 1: Freeze read-only migration inventory and ownership
 
-**Files**: `docs/design/strategy-toolkit.md`、migration inventory、
-`tests/test_toolkit_distribution.py`。
+1. 为 459 个 donor/vendor 文件生成 machine-readable inventory。
+2. 分类为 platform-neutral、Nautilus-specific、private vendor、PS-owned strategy、
+   PS-owned Hummingbot 或 delete。
+3. 写失败测试，拒绝顶层 `shared`/`pandas_ta`、path mutation 和双 canonical source。
+4. 写 `docs/design/strategy-toolkit.md` authority/risk taxonomy。
+5. 此任务不得移动或重写生产源码。
 
-1. 写失败测试，要求每个旧 toolkit 文件都有目标分类，且 Hummingbot glue、PS strategy
-   source 不进入 toolkit。
-2. 要求 `shared`、`pandas_ta` 不得成为最终顶层包，canonical source 只能位于新 package。
-3. 运行并确认失败：
+提交：
 
 ```bash
-uv run pytest tests/test_toolkit_distribution.py -v
+git commit -m "docs(toolkit): freeze extraction inventory and authority"
 ```
 
-4. 写权威边界文档和 machine-readable inventory。
-5. 重跑通过并提交：
+### Task 2: Coordinate and freeze versioned contracts
+
+Hard gate：Crucible、PS 和 Speculum 必须分别确认 producer/consumer requirements。
+Custos 是 execution ABI/artifact schema producer；本 Task 的 receipt 是 Crucible
+Plan 88 的输入，而不是反向依赖 Plan 88 完成。
+
+1. 先写 runtime identity、unknown-field、legacy `deployment_id` 和 Python 3.11
+   lightweight-import 失败测试。
+2. 定义 execution ABI、Manifest 和 ArtifactRef requirements。
+3. 生成 versioned JSON Schema；schema 与实现来自同一 source model。
+4. 记录 Custos producer SHA、schema digest 和三方 requirements-review receipts。
+5. 明确 schema 不授予 release/selection authority。
+
+提交：
 
 ```bash
-git commit -m "docs(toolkit): freeze extraction boundaries"
+git commit -m "feat(toolkit): define coordinated strategy execution contracts"
 ```
 
-### Task 2: 建立 uv workspace 和最小 wheel
+### Task 3: Build the minimal distribution
 
-**Files**: root/package `pyproject.toml`、`uv.lock`、package skeleton、distribution test。
+1. 建立 uv workspace 和 `custos-strategy-toolkit` package。
+2. platform-neutral/contracts 支持 Python 3.11。
+3. Nautilus extra 仅在 Python 3.12+ 安装并 pin NT 1.230.0。
+4. 添加 `py.typed`、strict package mypy 和 clean-wheel import tests。
+5. 不迁移 donor implementation。
 
-1. 写失败测试：
-
-```python
-def test_contract_import_is_lightweight() -> None:
-    before = tuple(sys.path)
-    import custos_toolkit.contracts  # noqa: PLC0415
-    assert tuple(sys.path) == before
-    assert "nautilus_trader" not in sys.modules
-```
-
-2. 创建独立 distribution，Python `>=3.12`，基础 contracts 不依赖 NT；
-   `nautilus` extra 精确锁定 `nautilus-trader==1.230.0`，添加 `py.typed`。
-3. 验证：
+提交：
 
 ```bash
-uv build --package custos-strategy-toolkit
-uv run pytest tests/test_toolkit_distribution.py -v
+git commit -m "feat(toolkit): create typed strategy toolkit distribution"
 ```
 
+### Task 4: Extract toolkit with zero-rewrite proof
+
+按 inventory 分批迁移：
+
+1. config/protocol/filter/indicator/platform-neutral helpers；
+2. Nautilus-specific adapters；
+3. private `pandas_ta` vendor；
+4. advisory sizing/risk helpers。
+
+每批必须：
+
+- 先写 characterization/typing tests；
+- 保持 strategy business source unchanged；
+- 禁止 `sys.path` mutation 和 fake distribution；
+- 记录 semantic diff 与 fixed-input behavior parity；
+- 独立提交，避免 459 文件一次性不可审查迁移。
+
+### Task 5: Implement artifact verifier and attestation policy
+
+1. 写失败测试覆盖 forged issuer、wrong workflow、wrong trust policy、digest mismatch、
+   unsafe archive、entry-point escape 和 source-path live execution。
+2. 实现 attestation-before-unpack verifier。
+3. production 只接受 signed wheel；source-path 只允许 sandbox/non-promotable。
+4. verifier 输出 typed receipt，不选择 StrategyRelease。
+
+提交：
+
+```bash
+git commit -m "feat(toolkit): verify signed strategy artifacts"
+```
+
+### Task 6: Publish immutable candidate
+
+1. reproducible build 两次并比较 wheel bytes/digest。
+2. 发布不可覆盖的 `0.1.0rcN` candidate。
+3. 记录 source SHA、wheel SHA、schema digest、attestation bundle 和 SBOM。
+4. candidate 失败时递增 rc，不覆盖旧制品。
+
+提交：
+
+```bash
+git commit -m "build(toolkit): publish strategy toolkit candidate"
+```
+
+### Task 7: Collect four-party receipts
+
+必须全部指向 exact candidate digest：
+
+- Crucible：StrategyRelease selection、manifest digest、DeploymentSpec provenance producer；
+- PS：existing strategy zero-rewrite build/consumer；
+- Speculum：verified discovery and backtest；
+- Custos Plan 19：signed command exact-artifact runner integration。
+
+任一 candidate 变化使全部 receipt 失效。
+
+### Task 8: Final release and consumer cutover
+
+1. 构建 final version，重新执行完整 receipts，不继承 RC PASS。
+2. PS/Speculum/Custos 锁定 exact final digest。
+3. 确认无 active consumer 后删除旧 vendored toolkit 和 compatibility adapter。
+4. 禁止重建或重指向历史 Custos image/tag。
+
+提交：
+
+```bash
+git commit -m "release(toolkit): publish verified strategy toolkit"
+```
+
+### Task 9: Close out
+
+1. 运行全部 package、typing、wheel、attestation、zero-rewrite 和 consumer gates。
+2. 回填 exact commits/digests/receipts。
+3. 更新状态和 index。
 4. 提交：
 
 ```bash
-git commit -m "build(toolkit): create typed workspace distribution"
-```
-
-### Task 3: 实现 StrategyManifestV1
-
-**Files**: contracts models/schema/tests。
-
-1. 写失败测试覆盖 `strategy_key` SafeId、unknown fields、UUID identity 分离、
-   schema/model round-trip 和 discovery 不执行 entry point。
-2. 实现冻结接口并导出 JSON Schema。
-3. 验证：
-
-```bash
-uv run pytest packages/custos-strategy-toolkit/tests/test_manifest.py -v
-```
-
-4. 提交：
-
-```bash
-git commit -m "feat(toolkit): add strategy manifest v1"
-```
-
-### Task 4: 实现 StrategyArtifactRefV1 和 verifier
-
-**Files**: artifact models/verifier/schema/tests。
-
-1. 写失败测试覆盖 attestation-before-unpack、size/SHA mismatch、absolute path、`..`、
-   symlink escape、manifest digest、runtime digest 和 source-mode hash requirement。
-2. 实现 detached ArtifactRef；禁止自包含 digest/signature。
-3. 验证：
-
-```bash
-uv run pytest packages/custos-strategy-toolkit/tests/test_artifact_ref.py -v
-```
-
-4. 提交：
-
-```bash
-git commit -m "feat(toolkit): verify detached strategy artifacts"
-```
-
-### Task 5: 实现 StrategyRuntimeV1 与固定 entry-point loader
-
-**Files**: strategy protocol/loader/tests。
-
-1. 写失败测试，要求只接受 `alephain.strategy_runtime.v1`，entry point 属于已验证
-   distribution，拒绝 name hijack，discovery 不 load，import 前后 `sys.path` 不变。
-2. 实现最小 protocol 和 loader。
-3. 验证：
-
-```bash
-uv run pytest packages/custos-strategy-toolkit/tests/test_runtime_entrypoint.py -v
-```
-
-4. 提交：
-
-```bash
-git commit -m "feat(toolkit): define strategy runtime v1"
-```
-
-### Task 6: 迁移 platform-neutral 模块
-
-**Files**: config/protocols/signals/warmup/position modules、compatibility tests。
-
-1. 建立 public-symbol identity tests。
-2. 使用 `git mv` 迁入 `custos_toolkit.*`。
-3. 旧路径只保留静态 compatibility import：不复制实现、不修改 `sys.path`、不注册伪
-   distribution，并发出 deprecation warning。
-4. 验证 `old_symbol is new_symbol`。
-5. 提交：
-
-```bash
-git commit -m "refactor(toolkit): move platform-neutral strategy modules"
-```
-
-### Task 7: 迁移 filters、indicators 与 risk domain
-
-**Files**: filters/indicators/sizing/risk/equity/order modules and tests。
-
-1. 为 public symbols 建 behavior characterization tests。
-2. 迁移实现，禁止带入 runner lifecycle、vault、NATS 或 Hummingbot glue。
-3. 运行 package tests 和 root no-regression tests。
-4. 提交：
-
-```bash
-git commit -m "refactor(toolkit): migrate strategy risk and indicator modules"
-```
-
-### Task 8: 迁移 Nautilus-specific toolkit
-
-**Files**: Nautilus config/coordinators/registry/strategy base/execution helpers。
-
-1. 为 NT 1.230.0 API 建 characterization tests。
-2. 迁移实现；contracts-only import 仍不得加载 NT。
-3. 禁止把 Custos daemon/reconciler 放入 toolkit。
-4. 验证：
-
-```bash
-uv run --extra nautilus pytest packages/custos-strategy-toolkit/tests/nautilus -v
-```
-
-5. 提交：
-
-```bash
-git commit -m "refactor(toolkit): migrate Nautilus strategy runtime"
-```
-
-### Task 9: 私有化 pandas-ta vendor
-
-**Files**: `custos_toolkit/_vendor/pandas_ta/**`、license/provenance、tests。
-
-1. 写 wheel-content 和 indicator parity 失败测试。
-2. 迁移并重写所有 vendor absolute imports。
-3. 删除顶层 `pandas_ta` 暴露，保留 license/provenance。
-4. 验证常用 indicators 与迁移前输出一致，wheel 无顶层 `pandas_ta/__init__.py`。
-5. 提交：
-
-```bash
-git commit -m "refactor(toolkit): namespace private pandas-ta vendor"
-```
-
-### Task 10: 建立 strict typing 与 packaging gates
-
-**Files**: typing config、distribution tests、CI。
-
-1. 新增 clean-venv wheel-only gate，验证 `py.typed`、无顶层 `shared`/`pandas_ta`、
-   无 sibling checkout、import 不修改 `sys.path`。
-2. 运行：
-
-```bash
-uv run ruff check packages/custos-strategy-toolkit
-uv run ruff format --check packages/custos-strategy-toolkit
-uv run mypy --strict \
-  packages/custos-strategy-toolkit/src \
-  packages/custos-strategy-toolkit/tests
-uv build --package custos-strategy-toolkit
-uv run pytest tests/test_toolkit_distribution.py -v
-```
-
-3. 所有 gate 必须真实 PASS，不加 blanket waiver。
-4. 提交：
-
-```bash
-git commit -m "test(toolkit): gate typing and wheel isolation"
-```
-
-### Task 11: 发布不可变 0.1.0rc1
-
-**Files**: `.github/workflows/release-toolkit.yml`、release tests、CHANGELOG。
-
-1. 写失败 contract tests，要求 reproducible wheel、SHA256SUMS、Sigstore bundle、source
-   SHA、Python 3.12、NT 1.230.0 和 schema hashes。
-2. 实现 dedicated workflow；candidate 不可覆盖。
-3. 本地验证：
-
-```bash
-uv build --package custos-strategy-toolkit
-uv run pytest tests/test_toolkit_release_contract.py -v
-```
-
-4. 提交：
-
-```bash
-git commit -m "build(toolkit): publish immutable release candidate"
-```
-
-### Task 12: 收集三方 candidate receipts
-
-**Files**: receipt fixtures/tests。
-
-Receipt 必须记录 toolkit version、Custos source commit、wheel SHA、Sigstore bundle SHA、
-Python、NT、consumer repo/commit 和 PASS command。
-
-强制 consumer：
-
-- PS Plan 54：artifact build + strategy runtime。
-- Speculum Plan 01：manifest discovery + real backtest + Docker。
-- Custos Plan 19：runner integration。
-
-任一新 RC 使旧 receipts 全部失效。验证 exact match 后提交：
-
-```bash
-git commit -m "docs(toolkit): record candidate consumer receipts"
-```
-
-### Task 13: 切换 runner 并发布 0.1.0
-
-**Files**: Custos runner dependency/imports、旧 toolkit tree、release metadata。
-
-仅在三方 receipts 通过后：
-
-1. Runner 锁 toolkit final。
-2. 删除旧 `src/custos/engines/nautilus/toolkit/` compatibility tree。
-3. 删除 sys.path/pkg_resources hacks。
-4. 重新构建 final，不复用 RC wheel。
-5. 重跑 clean-wheel、NT 和 consumer gates并发布新签名。
-6. 提交：
-
-```bash
-git commit -m "release(toolkit): publish 0.1.0"
-```
-
-### Task 14: 文档收尾 (close-out)
-
-**Files**: 本计划、`.forge/README.md`、ROADMAP（若有）、完成报告。
-
-1. Plan 状态改为 ✅ Completed 并填写日期。
-2. 更新索引；ROADMAP 无对应项则记录 N/A。
-3. 完成报告记录 candidate/final SHA、三方 receipts、删除的 compatibility path。
-4. 验证没有 blanket typing waiver。
-5. 提交：
-
-```bash
-git add .forge/plans/2026-07/18-typed-toolkit-strategy-contracts.md .forge/README.md
 git commit -m "docs(custos): mark plan 18 as completed"
 ```
 
-## 验证清单 (Verification)
+## Verification
 
-- [ ] Toolkit strict mypy：0 errors
-- [ ] Toolkit ruff check/format：PASS
-- [ ] Toolkit unit tests：PASS
-- [ ] `py.typed` 存在
-- [ ] Python exact baseline：3.12
-- [ ] NautilusTrader exact baseline：1.230.0
-- [ ] wheel 无顶层 `shared`
-- [ ] wheel 无顶层 `pandas_ta`
-- [ ] contracts import 不加载 NT
-- [ ] import 不改变 `sys.path`
-- [ ] Manifest discovery 不执行策略 Python
-- [ ] Artifact validation fail closed
-- [ ] RC/final 均有 source SHA、wheel SHA、signature
-- [ ] PS/Speculum/Custos 三方 receipts
-- [ ] Final 重新构建和重测
-- [ ] `make verify`：PASS
-- [ ] `make verify-nt`：PASS
+- [ ] Legacy `deployment_id` 被拒绝
+- [ ] `deployment_instance_id` 是唯一 runtime address
+- [ ] StrategyRelease/artifact selection/effective config 仍由 Crucible 拥有
+- [ ] `strategy_key` 仅是 catalog alias
+- [ ] Root/contracts 保持 Python >=3.11
+- [ ] Nautilus extra 使用 Python >=3.12 和 exact NT 1.230.0
+- [ ] production 只接受 signed wheel
+- [ ] source-path 仅 sandbox、non-promotable、non-live
+- [ ] attestation 绑定 issuer/workflow/bundle/trust policy
+- [ ] schema 由 source model 生成并经四方 review
+- [ ] wheel 不提供顶层 `shared` 或 `pandas_ta`
+- [ ] import 不修改 `sys.path`
+- [ ] existing NT strategy business source zero-rewrite
+- [ ] Crucible、PS、Speculum、Custos receipts 指向 exact digest
+- [ ] toolkit advisory risk 不冒充 Custos/Crucible authority
+- [ ] final 重新锁定并重新验证
 
-## 进度追踪 (Progress)
+## Progress
 
 | Task | Status | Completed | Notes |
 |---|---|---|---|
-| T0 Plan-first | [x] | 2026-07-14 | plan-first commit containing this plan |
-| T1 Boundary inventory | [ ] | — | |
-| T2 Workspace distribution | [ ] | — | |
-| T3 ManifestV1 | [ ] | — | |
-| T4 ArtifactRefV1 | [ ] | — | |
-| T5 RuntimeV1 | [ ] | — | |
-| T6 Neutral modules | [ ] | — | |
-| T7 Risk/indicator modules | [ ] | — | |
-| T8 Nautilus runtime | [ ] | — | |
-| T9 pandas-ta vendor | [ ] | — | |
-| T10 Type/wheel gates | [ ] | — | |
-| T11 Candidate | [ ] | — | |
-| T12 Consumer receipts | [ ] | — | |
-| T13 Final/cutover | [ ] | — | |
-| T14 Close-out | [ ] | — | |
+| T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `b898ee1` |
+| T1 Inventory/authority | [ ] | — | only immediately executable implementation task |
+| T2 Coordinated contracts | [ ] | — | Custos producer; needs cross-repo requirements review |
+| T3 Minimal distribution | [ ] | — | after T2 interface boundary |
+| T4 Zero-rewrite extraction | [ ] | — | batch commits required |
+| T5 Verifier/attestation | [ ] | — | production wheel only |
+| T6 Candidate | [ ] | — | immutable rc |
+| T7 Receipts | [ ] | — | four parties |
+| T8 Final/cutover | [ ] | — | all receipts rerun |
+| T9 Close-out | [ ] | — | |
 
-## 偏离与改进日志 (Deviations & Improvements)
+## Deviations and Improvements
 
-| 类型 | 位置 | 描述 | 已批准 |
+| 类型 | 位置 | 描述 | 状态 |
 |---|---|---|---|
-| ARCHITECTURE | Distribution | Toolkit 从 runner wheel 拆为独立 distribution | Yes, 2026-07-14 |
-| BREAKING | Namespace | `shared.*` → `custos_toolkit.*` | Yes, 2026-07-14 |
-| COMPATIBILITY | Old toolkit path | 临时静态 re-export，receipts 后删除 | Yes, 2026-07-14 |
-| VERSION | NautilusTrader | 三仓目标锁定 1.230.0 | Yes, 2026-07-14 |
-| OUT-OF-SCOPE | Hummingbot | 继续由 PS Plan 54 拥有 | N/A |
-| OUT-OF-SCOPE | Runner safety | 由 Custos Plan 19 实现 | N/A |
+| PLAN-REPAIR | Original interface | 撤回 `deployment_id: str`，改用 UUID instance/spec identity | Accepted 2026-07-14 |
+| AUTHORITY | StrategyRelease | 撤回 Custos-owned selection/release implication，恢复 Crucible authority | Accepted 2026-07-14 |
+| BASELINE | Python | 撤回全 package >=3.12；contracts/core >=3.11，NT extra >=3.12 | Accepted 2026-07-14 |
+| SECURITY | Artifact mode | production signed wheel 与 sandbox source-path 分离 | Accepted 2026-07-14 |
+| SCOPE | Migration | 459-file migration 改为 inventory-backed reviewable batches | Accepted 2026-07-14 |
+| HISTORY | `b898ee1` | 保留为原 plan-first 历史，不再代表有效 schema approval | Recorded |
+
+## Quantitative Summary
+
+- Production packages: 1 new independent distribution
+- Runtime identities: 1 address + 3 provenance/ordering fields
+- Migration batches: at least 4
+- Required external receipts: Crucible, PS, Speculum, Custos
+- Release stages: immutable RC and independently reverified final
+- Out of scope: StrategyRelease, approvals, portfolio risk, capital, settlement
