@@ -16,7 +16,13 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _FIXTURE_ROOT = _REPO_ROOT / "tests" / "fixtures" / "plan19"
 _BASELINE_PATH = _FIXTURE_ROOT / "runtime_gap_baseline.v1.json"
-_RECEIPT_PATH = _FIXTURE_ROOT / "t1-characterization-receipt.pending.json"
+_RECEIPT_PATH = (
+    _REPO_ROOT
+    / "docs"
+    / "authority"
+    / "receipts"
+    / "custos-plan-19-task-1-characterization-receipt.json"
+)
 
 
 def _load_json(path: Path) -> dict:
@@ -62,11 +68,14 @@ def test_recorded_gap_evidence_matches_current_runtime_shape(gap: dict) -> None:
             assert marker not in source, f"{gap['gap_id']} may have closed: {marker}"
 
 
-def test_characterization_receipt_remains_pending_without_fresh_verification() -> None:
+def test_characterization_receipt_is_ready_without_claiming_runtime_readiness() -> None:
     assert _RECEIPT["schema_version"] == 1
     assert _RECEIPT["receipt_id"] == "R-C19-T1-CHARACTERIZATION"
     assert _RECEIPT["baseline_id"] == _BASELINE["baseline_id"]
-    assert _RECEIPT["status"] == "PENDING"
+    assert _RECEIPT["status"] == "READY_CHARACTERIZATION"
     assert _RECEIPT["scope"]["production_behavior_changed"] is False
-    assert _RECEIPT["verification"]["executed"] is False
-    assert _RECEIPT["verification"]["evidence"] == []
+    assert _RECEIPT["verification"]["executed"] is True
+    assert _RECEIPT["verification"]["evidence"]
+    assert _RECEIPT["scope"]["t2_ready"] is False
+    assert _RECEIPT["readiness"]["runtime_activation_ready"] is False
+    assert _RECEIPT["readiness"]["production_ready"] is False
