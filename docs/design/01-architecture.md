@@ -1,6 +1,11 @@
 # 01 — 架构与信任边界
 
 > 从 `../domain.md` §0-§2 提炼的**架构视角**: 6 BC 边界 + Non-Custodial 分层信任边界的技术兑现.
+>
+> **v2 canonical boundary**：ARX 只认证/授权；Crucible Rust 是
+> DeploymentSpec/DeploymentInstance 与业务投影 owner；Custos 持凭据和执行，
+> 产生 exact-instance signed RunnerFacts（含 venue fee/funding evidence）。
+> mode 仅 sandbox/testnet/live，Python 无 production fallback。
 
 ## 1. 上下游图
 
@@ -31,7 +36,7 @@
                      └────────────────────────────┘
 ```
 
-- **控制面** (arx / Crucible): 只发 spec + 收摘要, 从不持 Key 明文
+- **控制面**：ARX 提供 ActorAssertion；Crucible Rust 持 immutable spec、mode-local instance 并验收 signed facts；二者从不持 Key 明文
 - **数据面** (custos + NT): 持 Key + 跑策略 + 直连交易所
 
 ## 2. 数据面 vs 控制面切分 (Non-Custodial 承重墙)
@@ -58,7 +63,7 @@
 
 Live venue 部署前必须过 `NtTradingNodeHost` 的 G6 gate:
 
-- `NoopHost` 只允许 `paper` / `sandbox` (paper mode 默认 true)
+- `NoopHost` 只允许 `sandbox` / `testnet`
 - 真 `NtTradingNodeHost` 才可申请 `live` capability
 - `LIVE_MODE=true` env 独立开关, 与 spec 中 `trading_mode=live` 双守
 - G6 gate deny → 上报 `FailureEvent(reason_code=g6_gate_denied)`
@@ -70,7 +75,7 @@ Plan 00c 是 G6 gate 逐级放行的正式落地 plan.
 Level-triggered reconcile 的核心不变量:
 
 - **reconcile loop 失去云端**: 按上次缓存的 `DeploymentSpec` 继续跑 NT
-- **本地 fallback breaker 独立守护**: 每策略 / 每账户 drawdown breaker + 结构性
+- **本地 safety breaker 独立守护**: 每策略 / 每账户 drawdown breaker + 结构性
   `max_notional_per_runner` cap 在本地判断, 不依赖云端
 - **云端 outage 生存期**: 数天 (Spec 有 TTL, 但 Key + NT 本地)
 - **重新连上后**: `observed_generation` 单调对齐, 无跳跃

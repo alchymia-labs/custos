@@ -2,6 +2,11 @@
 
 `.forge/` 目录是 custos 独立仓库的 forge 工作流物件根. 包含 plan 目录 + Agent Teams 配置.
 
+> **Authority note (2026-07-13)**：计划标题与 close-out 可保留历史
+> `paper`/fallback 文字，但它们不是新实现规范。Custos 仅持本地凭据/执行并产生
+> signed RunnerFacts/venue fee facts；Crucible Rust 验签投影与结算；ARX 只授权。
+> 新契约 mode 仅 sandbox/testnet/live。
+
 ## 目录约定
 
 ```

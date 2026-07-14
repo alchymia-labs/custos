@@ -30,9 +30,8 @@ spec validation, Vault, NATS topology, transport, and engine wiring.
 
 - Docker with Compose v2 for the recommended path.
 - A JetStream-enabled NATS endpoint reachable from the runner.
-- A runner identity in `~/.arx/runner.toml`: production uses
-  `arx-runner enroll`; standalone sandbox/testnet may use the sanctioned
-  manual record in the examples.
+- A nonce-bound Runner machine identity created only by `arx-runner enroll`.
+  Manual `runner.toml` records are not supported in any mode.
 - An age identity at `~/.arx/age.key`, mode `0600`.
 - One sops-encrypted file per credential under `~/.arx/vault/`, each limited
   to `trade_no_withdraw`.
@@ -68,17 +67,8 @@ the explicit bootstrap command.
 
 ## Identity and Vault provisioning
 
-Production enrollment writes the long-term record at mode `0600`:
-
-```bash
-arx-runner enroll \
-  --token <one-time-enrollment-token> \
-  --backend https://arx.internal:8000 \
-  --tenant-id acme \
-  --runner-id runner-7
-```
-
-Generate one local age identity and add each venue credential independently:
+Generate the age identity first. Enrollment then writes an encrypted machine
+principal plus non-secret `runner.toml` metadata:
 
 ```bash
 mkdir -p "$HOME/.arx/vault" "$HOME/.arx/state"
@@ -87,6 +77,17 @@ age-keygen -o "$HOME/.arx/age.key"
 chmod 600 "$HOME/.arx/age.key"
 
 export SOPS_AGE_RECIPIENT='<age1-public-key>'
+export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
+
+arx-runner enroll \
+  --token '<one-time-enrollment-token>' \
+  --backend https://arx.internal:8000 \
+  --tenant-id acme \
+  --runner-id 018f8b5f-6f7d-7e23-8c31-bd34ab9d0d41
+
+arx-runner credential verify
+arx-runner onboard --manifest runner-capability.json
+
 printf '%s\n' '<venue-api-secret>' | arx-runner vault put \
   --key-id binance-testnet \
   --tenant-id acme \
@@ -94,7 +95,6 @@ printf '%s\n' '<venue-api-secret>' | arx-runner vault put \
   --api-secret-stdin \
   --permission-scope trade_no_withdraw
 
-export SOPS_AGE_KEY_FILE="$HOME/.arx/age.key"
 arx-runner vault verify --key-id binance-testnet --tenant-id acme
 ```
 
@@ -172,8 +172,9 @@ RestartSec=5s
 WantedBy=multi-user.target
 ```
 
-`tenant_id`, `runner_id`, and the long-term credential come from
-`runner.toml`; they are not start-command flags.
+`tenant_id`, `runner_id`, credential ID/version/expiry, key ID, and the
+encrypted-vault reference come from `runner.toml`; the opaque credential and
+private key are decrypted only in memory from `runner-machine.enc`.
 
 ## DeploymentSpec publication
 
@@ -206,8 +207,9 @@ misclassifying it as a trading mode.
 arx-runner health
 ```
 
-Exit 0 means the deployment subscription is established. A missing, stale, or
-invalid ready file exits non-zero. Subscription failures clear readiness and
+Exit 0 means machine authority is active and the deployment subscription is
+established. Missing, expired, revoked, binding-mismatched, stale, or invalid
+authority exits non-zero before the execution loop starts. Subscription failures clear readiness and
 retry with bounded exponential backoff while local safety guards continue to
 tick.
 

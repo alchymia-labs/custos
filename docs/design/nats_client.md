@@ -5,8 +5,8 @@
 ## 模块职责
 
 `nats_client` 是 Custos 出网的**唯一传输层**：封装 NATS JetStream client + 统一的
-transport envelope 模型 + subject 命名规则。所有 phone-home（heartbeat / telemetry /
-deployment status / enrollment / recon_result）都经这里序列化上行到 arx 协调层。
+transport envelope 模型 + subject 命名规则。heartbeat / telemetry / deployment status
+经这里传输；enrollment 只走 ARX typed HTTPS proxy，不存在 NATS enrollment。
 
 统一 transport envelope（每条 NATS 消息）：
 
@@ -18,7 +18,8 @@ deployment status / enrollment / recon_result）都经这里序列化上行到 a
   "occurred_at": "<RFC3339 nanoseconds>",
   "payload_schema_version": 1,
   "payload": { ... },
-  "ordering": { "session_id": "<uuid>", "seq": <int> }
+  "ordering": { "session_id": "<uuid>", "seq": <int> },
+  "machine_authority": { "credential_id": "<uuid>", "signature_base64": "..." }
 }
 ```
 
@@ -66,7 +67,7 @@ Custos stream topology、transport wrapper 或派生 runtime image。
 | `NatsEnvelope` | `@dataclass`（`event_id`/`tenant_id`/`occurred_at`/`payload`/`envelope_version=1`/`payload_schema_version=1`/`ordering=None`）+ `to_bytes()` | 传输 envelope；单向序列化，无 `from_bytes` |
 | `DeploymentMessage` | `create(tenant_id, strategy_id, spec)` / `parse(data, expected_tenant_id)` / `to_bytes()` | DeploymentSpec 唯一 producer/consumer seam；wrapper payload 恢复 subject，parse 验证 UUIDv7、版本、tenant 与 strict spec |
 | `OrderingMeta` | `@dataclass(frozen=True)`（`session_id`, `seq`），`seq >= 0` | telemetry-only 排序；跨 session 不可比 |
-| `ArxNatsClient` | `async connect()` / `async close()` / `async publish_heartbeat(...)` / `async publish_fire_and_forget(subject, payload)` / `async publish_telemetry_envelope(...)` / `async publish_deployment_status(...)` / `async publish_enrollment(*, payload)` | JetStream client |
+| `ArxNatsClient` | `async connect()` / `async close()` / `async publish_heartbeat(...)` / `async publish_fire_and_forget(subject, payload)` / `async publish_telemetry_envelope(...)` / `async publish_deployment_status(...)` | machine-signed JetStream client |
 | `build_subject` | `build_subject(tenant, kind, *path_parts) -> str` | plan-index §6 subject builder；空 token 抛错 |
 | `build_heartbeat_envelope` / `heartbeat_subject` | 构造 heartbeat envelope / subject | payload 四字段 pin（runner_id / uptime_secs / active_deployments / health） |
 
@@ -89,7 +90,7 @@ characters of SHA-256 over the validated tenant id:
 | Stream suffix | Subjects | Managed limits |
 |---|---|---|
 | `DEPLOYMENT` | `arx.<tenant>.deployment_spec.>` | `max_msgs_per_subject=1` |
-| `OBSERVED` | `deployment_status`, `heartbeat`, `telemetry`, `snapshot`, `pre_trade_reject`, and `enrollment` tenant subjects | default retention limits |
+| `OBSERVED` | `deployment_status`, `heartbeat`, `telemetry`, `snapshot`, and `pre_trade_reject` tenant subjects | default retention limits |
 
 Both streams carry `owner=custos`, `profile=standalone`, and `tenant_hash` metadata. Missing
 streams are created and owned-stream drift is updated. Bootstrap does not enumerate or delete
@@ -108,6 +109,12 @@ ownership metadata.
   tenant、routing wrapper 与 DeploymentSpec，失败不会触达 Vault/G6/host。
 - **at-most-once heartbeat**：heartbeat fire-and-forget，不阻塞 ack、不 WAL 补发，
   过期心跳无意义（plan-index §6）。
+- **machine authority**：每条 machine-originated envelope 带 tenant/runner/credential
+  ID+version/key ID/correlation/exact deployment fields/payload digest 与 Ed25519 signature；
+  plaintext credential/private key 不上 NATS。
+- **Runner runtime logs**：`RunnerRuntimeLogFact.v1` 不走上述通用 envelope，而是现有
+  canonical RunnerFactBatch 的严格 redacted variant；见
+  [`runtime_log_fact.md`](runtime_log_fact.md)。
 
 ## 相关 gate
 

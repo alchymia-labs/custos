@@ -18,30 +18,21 @@
 
 ---
 
-## 2. 子系统边界 (custos ↔ arx / Crucible)
+## 2. 子系统边界 (Custos / ARX / Crucible Rust)
 
-```
-用户机器 (audit-able, 开源)          云端 (闭源生态)
-┌─────────────────────┐             ┌─────────────────────┐
-│  custos daemon      │  NATS/HTTP  │  arx (gateway)      │
-│  - credential_vault │◄───────────►│  - CustosGateway    │
-│  - NT TradingNode   │  DeployStat │  - tenancy gate     │
-│  - telemetry actor  │  telemetry  │                     │
-│  - reconcile loop   │  heartbeat  │        ↕            │
-└─────────────────────┘             │  Crucible           │
-        │                            │  (execution record) │
-    交易所 (Binance/OKX)             └─────────────────────┘
-        ↑
-    API key 只在用户机器
-```
-
-- **custos → arx**: pull `DeploymentSpec` + push 遥测/heartbeat/reconcile status
-- **custos ↛ Crucible**: 从不直接对话, arx 中介
-- **单一外部入口**: 所有外部访问 custos 状态必须经 arx 的 `gatekeeper` 与 `CustosGateway`
-- **契约 v1 冻结于 `docs/gateway-contract/v1/`** (Plan 12 close-out 落地) — 四个
-  payload (enrollment / deployment_status / telemetry_snapshot / heartbeat)
-  的 JSON Schema + backward-compat golden gate. Breaking change 走
-  `docs/gateway-contract/v2/`.
+- **Custos owns** local credentials, strategy process execution, venue
+  interaction, local safety enforcement, and signed RunnerFacts.
+- **Crucible Rust owns** DeploymentSpec, DeploymentInstance and every cloud
+  business projection/state machine. It validates signed execution, venue and
+  fee facts before projecting or settling them.
+- **ARX owns** identity/tenant/RBAC/TOTP/resource policy and ActorAssertion. It
+  authorizes typed control calls but is not a RunnerFact relay authority or
+  business-state fallback.
+- Transport may use authorized HTTP and JetStream subjects. Transport topology
+  never changes ownership; every fact carries tenant, exact
+  `deployment_instance_id`, spec id/digest, correlation and signature.
+- Gateway contracts are versioned under `docs/gateway-contract/`; accepted mode
+  values are only `sandbox`, `testnet`, and `live`.
 
 详见 [`README.md#Contract with Arx`](README.md) + [`docs/domain.md`](docs/domain.md) §分层信任边界.
 
@@ -51,11 +42,11 @@
 
 | 模块 | 职责 | 设计文档 | 承担红线 |
 |------|------|---------|---------|
-| **enrollment** | 一次性 `EnrollmentToken` 配对; `runner_id`; `paper_only` 默认 | [`docs/design/enrollment.md`](docs/design/enrollment.md) | Token 一次性 |
+| **enrollment** | nonce-bound Ed25519 PoP; encrypted `rkc2` credential; rotate/revoke | [`docs/design/enrollment.md`](docs/design/enrollment.md) | 私钥不出机 + startup fail closed |
 | **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [`docs/design/reconcile.md`](docs/design/reconcile.md) | 失联≠停止 (红线 0.3) |
 | **nautilus_host** | NT 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | [`docs/design/nautilus_host.md`](docs/design/nautilus_host.md) | **G6 不绕过 (红线 0.2)** |
 | **telemetry_actor** | NT MessageBus → 白名单 + 脱敏 + 版本化 NATS uplink | [`docs/design/telemetry_actor.md`](docs/design/telemetry_actor.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
-| **credential_vault** | sops+age 本地 KEK vault; `trade_no_withdraw` scope | [`docs/design/credential_vault.md`](docs/design/credential_vault.md) | KEK 不出进程 (红线 0.1) |
+| **credential_vault** | sops+age exchange key + machine principal vault | [`docs/design/credential_vault.md`](docs/design/credential_vault.md) | KEK/机器私钥不出进程 (红线 0.1) |
 | **nats_client** | JetStream client + envelope schema + subject naming | [`docs/design/nats_client.md`](docs/design/nats_client.md) | schema 版本化 |
 
 顶层 domain 词汇: [`docs/domain.md`](docs/domain.md).
@@ -77,11 +68,16 @@
 以下四条**不可绕过**, 违反 = CRITICAL. 详见 [`.claude/rules/mandatory-rules.md`](.claude/rules/mandatory-rules.md) §0:
 
 1. **Key / KEK 永不出进程** — 禁 log / publish / send raw key material; 禁 cloud SDK
-2. **G6 host gate 不绕过** — live venue 必须过 `NtTradingNodeHost` G6 gate; `NoopHost` 只允许 paper/sim
-3. **Reconcile 失联 ≠ 停止** — 云端断线时本地 fallback breaker + `max_notional_per_runner` cap 继续守护
+2. **G6 host gate 不绕过** — live venue 必须过 `NtTradingNodeHost` G6 gate; `NoopHost` 只允许 sandbox/testnet
+3. **Reconcile 失联 ≠ 停止** — 云端断线时本地 safety breaker + `max_notional_per_runner` cap 继续守护
 4. **Money math 用 `Decimal`, wire 用 `str`** — 禁 `float()` 参与 money 路径
 
-紧急预案是**降级到 paper**, 不是绕过红线. 见 [`.claude/rules/deviation-protocol.md`](.claude/rules/deviation-protocol.md) §紧急偏离.
+Signed runtime observability uses `RunnerRuntimeLogFact.v1` inside the existing
+RunnerFact stream. It must use explicit structured events and
+[`docs/design/runtime_log_fact.md`](docs/design/runtime_log_fact.md) redaction;
+tailing stdout or forwarding raw exception text is forbidden.
+
+紧急预案是**停止新建 live instance，并使用 sandbox/testnet**, 不是绕过红线. 见 [`.claude/rules/deviation-protocol.md`](.claude/rules/deviation-protocol.md) §紧急偏离.
 
 ---
 

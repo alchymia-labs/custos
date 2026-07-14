@@ -106,12 +106,15 @@ uv sync --extra dev
 `python -m custos` 已 `sys.exit(2)`):
 
 ```bash
-# 一次性: enroll → 落 ~/.arx/runner.toml (mode 0600)
+# 一次性: age identity + nonce-bound PoP → encrypted machine principal
+export SOPS_AGE_KEY_FILE=~/.arx/age.key
+export SOPS_AGE_RECIPIENT=age1...
 arx-runner enroll --token <one-time-token> --backend https://arx.internal:8000 \
-                  --tenant-id acme --runner-id runner-7
+                  --tenant-id acme \
+                  --runner-id 018f8b5f-6f7d-7e23-8c31-bd34ab9d0d41
+arx-runner credential verify
 
 # 一次性 (每 credential): sops+age encrypt → ~/.arx/vault/<key-id>.enc
-export SOPS_AGE_RECIPIENT=age1...
 arx-runner vault put --key-id binance-paper --api-key-stdin --api-secret-stdin
 
 # 日常启动 (读 ~/.arx/runner.toml + ~/.arx/vault/*.enc)
@@ -123,7 +126,8 @@ arx-runner start --nats-url nats://localhost:4222
 - `--nats-url` — arx NATS endpoint (默认 `nats://localhost:4222`)
 - `--wal-path` — telemetry WAL 路径 (默认 `~/.arx/state/telemetry-wal.db`)
 - `--engine` — 引擎选择 (默认 `nautilus`, 未来 `hummingbot` / `athanor` 等接入槽已预留)
-- `tenant_id` / `runner_id` / `long_term_credential` 从 `~/.arx/runner.toml` 读, 不再走 CLI flag
+- `runner.toml` 只含 public binding metadata；opaque credential + Ed25519 private key
+  只从 sops+age `runner-machine.enc` 解密到内存
 
 ### 跑测试
 

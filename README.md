@@ -5,8 +5,9 @@ runner of [The Alephain Guild](https://github.com/the-alephain-guild)
 ecosystem. It is the daemon an operator installs on their own infrastructure
 to run backtested NautilusTrader strategies against live venues — holding
 their own API keys in a local vault, never surrendering them to any cloud
-product. Custos pairs with **arx** (the ecosystem's coordination gateway),
-pulling its desired deployment state and phoning execution telemetry home.
+product. Custos consumes authorized immutable deployment intent backed by
+**Crucible Rust**, while **ARX** supplies identity/RBAC assertions. It reports
+signed execution, venue and fee facts keyed to the exact deployment instance.
 
 ## Why Public Open Source
 
@@ -24,8 +25,10 @@ operator can audit line by line. (See
 
 The trust boundary of the whole ecosystem is *the Custos line*:
 
-- **Keys and strategy logic never leave the operator's machine.** The only
-  data leaving Custos is execution telemetry and status reports.
+- **Keys and strategy logic never leave the operator's machine.** Data leaving
+  Custos is limited to signed whitelisted RunnerFacts: execution telemetry,
+  status, reconciliation evidence, exact venue fee/funding facts, and strictly
+  redacted `RunnerRuntimeLogFact.v1` records. Custos never forwards stdout.
 - **Control is declarative, not imperative.** Custos *pulls* the desired
   deployment state and reconciles the local NautilusTrader process to match
   it — the product plane writes desired state, it never `docker run`s into
@@ -43,11 +46,11 @@ Custos is organized as six core modules, each documented under `docs/`:
 
 | Module | Responsibility | Design doc |
 |--------|----------------|------------|
-| **enrollment** | One-time EnrollmentToken pairing; `runner_id` persistence; `paper_only` default | [docs/design/enrollment.md](docs/design/enrollment.md) |
+| **enrollment** | Nonce-bound Ed25519 PoP; encrypted machine credential; rotate/revoke/fail-closed startup | [docs/design/enrollment.md](docs/design/enrollment.md) |
 | **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | [docs/design/reconcile.md](docs/design/reconcile.md) |
 | **nautilus_host** | NautilusTrader process supervision + `ExecutionEngineAdapter` (CEX/NT) + G6 host gate | [docs/design/nautilus_host.md](docs/design/nautilus_host.md) |
 | **telemetry_actor** | NT MessageBus → whitelisted, buffered NATS uplink with schema versioning | [docs/design/telemetry_actor.md](docs/design/telemetry_actor.md) |
-| **credential_vault** | sops+age local key vault; KEK never leaves the box; `trade_no_withdraw` scope | [docs/design/credential_vault.md](docs/design/credential_vault.md) |
+| **credential_vault** | sops+age exchange-key and machine-principal vault; KEK never leaves the box | [docs/design/credential_vault.md](docs/design/credential_vault.md) |
 | **nats_client** | NATS JetStream client + transport envelope schema + subject naming | [docs/design/nats_client.md](docs/design/nats_client.md) |
 
 The domain vocabulary shared across these modules is described in
@@ -104,6 +107,10 @@ Enrollment and per-key vault provisioning happen before `start`; see the
 [deployment runbook](docs/ops/05-deployment.md) and the runnable
 [testnet Compose example](examples/supertrend-testnet/).
 
+Startup is fail closed: the local machine credential must be present,
+unexpired, exactly bound to `runner.toml`, active at the Crucible authority,
+and backed by the same validated capability key used for RunnerFacts.
+
 Source development uses `uv sync --extra dev --extra nautilus`. The dev-only
 base contract intentionally remains lightweight and is verified separately by
 `make verify-base-clean`.
@@ -136,12 +143,9 @@ must run through the following steps once:
 2. The `python -m custos ...` / `custos ...` entry points are **removed**
    — they now exit code 2 with a pointer to `arx-runner start`. Use the
    subcommand dispatcher instead.
-3. Move persisted state from `~/.custos/` to `~/.arx/`:
-   ```bash
-   mv ~/.custos/enrollment.json ~/.arx/enrollment.json
-   mv ~/.custos/state ~/.arx/state
-   # (assumes bash / zsh; on POSIX `sh` run the two mv statements verbatim)
-   ```
+3. Do not migrate old `enrollment.json`, plaintext `long_term_credential`, or
+   `runner-fact-key.json` files. Remove them and re-enroll into the v2
+   sops+age machine vault; no compatibility reader exists.
 4. The legacy `SopsAgeVault` multi-credential-in-one-JSON sops file is
    removed. Decrypt any old vault manually with `sops --decrypt <path>`
    and re-add each key via `arx-runner vault put` (per-key `.enc` model).
@@ -158,11 +162,12 @@ dual-namespace drift.
 Custos does **not** expose any API directly to end users, API clients, or
 dashboards. Its direct counterparty is **arx**, the coordination gateway:
 
-- Custos reports `heartbeat` / execution telemetry / reconcile status to arx
-  over NATS/HTTP, and pulls its `DeploymentSpec` from arx.
-- arx, in turn, aligns with **Crucible** (the ecosystem's production
-  execution-of-record) on the operator's behalf. Custos never talks to
-  Crucible directly — arx mediates.
+- Custos uses ARX public typed HTTP URLs for enrollment, credential lifecycle,
+  and authorized control calls. ARX supplies access control but owns no Runner
+  business state.
+- Signed RunnerFacts publish to the canonical Crucible JetStream subject;
+  Crucible verifies the machine key, exact deployment/capability binding,
+  sequence, and deduplication before append-only projection.
 - The contract is maintained as a versioned API (OpenAPI / JSON Schema)
   against arx's `ExecutionEngineAdapter` protocol.
 
@@ -192,10 +197,5 @@ The remaining follow-ups tracked here:
   decides the GitHub repository and GHCR namespace, the cosign identity and
   tag ownership, and the PyPI trusted publisher identity, then promotes one
   digest-tested artifact without rebuilding it.
-- **Telemetry uplink bridge** — the NT `MessageBus` → arx telemetry actor is
-  not wired yet, so per-order execution events (fills / `OrderDenied`) are
-  observable only in the runner's local logs, not uplinked to the cloud.
-- **1.0.0 promote** — the `CustosGatewayImpl` on the arx side ships as a
-  wired-later stub; `docs/upgrade-path.md` documents the promote judgment:
-  arx-side wire ready + three consecutive minor releases without breaking
-  changes + gateway-contract v1 100% covered.
+- **1.0.0 promote** — requires three consecutive compatible minor releases,
+  completed machine-credential v2 rollout, and gateway-contract coverage.

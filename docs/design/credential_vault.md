@@ -5,13 +5,19 @@
 
 ## 模块职责
 
-`credential_vault` 是 Custos 持有 operator 交易所凭证的本地金库。它把加密的凭证在
+`credential_vault` 是 Custos 持有 operator 交易所凭证和 Runner machine principal 的本地金库。它把加密的凭证在
 runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**KEK（age 私钥）永不
 出主机，云端产品面 schema 永不持有 key**。这是 CLAUDE.md「Key/策略逻辑只在 runner
 本地」红线的工程兑现点，也是 custos 必须开源的根本原因：operator 能审计这段代码，才
 敢把 key 交给 daemon。
 
 0.2.0+ 实现（clean-break，CEO 2026-07-10 directive）：
+
+- **`MachineCredentialVault`（生产身份根）** —
+  `src/custos/core/machine_credential_vault.py`：单一
+  `~/.arx/vault/runner-machine.enc` 同时加密 Ed25519 私钥与 tenant-bearing opaque
+  `rkc2` credential。`runner.toml` 只保存 credential ID/version/expiry/key ID 与 vault
+  引用，不含 plaintext。enroll/rotate 是唯一写路径；startup/onboard/RunnerFact 是读路径。
 
 - **`PerKeyVault`（生产 runtime reader）** — `src/custos/core/per_key_vault.py`：
   每个凭证独立一个 `~/.arx/vault/<key-id>.enc` 文件（sops+age 加密），reconciler
@@ -96,6 +102,11 @@ safe-ID 规则一致，保证来自 NATS 的 desired state 不能通过路径分
 
 - **KEK 不出本地**：age 私钥 / Vault token 永不离开 runner 主机；云端 schema 永不
   持有 key。
+- **机器私钥单一来源**：enrollment PoP、machine HTTP/NATS auth、RunnerFact 与
+  `RunnerRuntimeLogFact.v1` 复用同一 Ed25519 identity；禁止另建明文
+  `runner-fact-key.json`。
+- **无 unsigned bootstrap**：缺失、过期、revoked 或 binding mismatch 时 startup 与
+  readiness fail closed；不存在 sandbox/testnet 手工 `runner.toml` 例外。
 - **`permission_scope = trade_no_withdraw` 强制**：金库拒收任何允许提币的凭证
   （`_verify_permission_scope`），从 key 权限层堵死资金外流。
 - **每次 decrypt 必发审计事件**：`CredentialDecrypted` 审计事件供下游 audit writer

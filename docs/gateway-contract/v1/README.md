@@ -6,7 +6,7 @@ flow between the `custos-runner` daemon and the arx-side coordination service:
 
 | Schema | Payload |
 | ------ | ------- |
-| [`enrollment.schema.json`](enrollment.schema.json) | `validate_enrollment` request body — one-shot pairing at daemon startup |
+| [`enrollment.schema.json`](enrollment.schema.json) | Historical v1 enrollment shape retained for LTS readers; production enrollment uses the v2 nonce-PoP typed HTTP contract |
 | [`deployment_status.schema.json`](deployment_status.schema.json) | `record_deployment_status` observation body — reconciler heartbeat of what the runner actually has running |
 | [`telemetry_snapshot.schema.json`](telemetry_snapshot.schema.json) | `ingest_telemetry` snapshot body — engine-status telemetry from the telemetry actor |
 | [`heartbeat.schema.json`](heartbeat.schema.json) | `handle_heartbeat` payload — at-most-once liveness ping |
@@ -92,6 +92,7 @@ four `async fn` methods:
 - `handle_heartbeat(&self, tenant: &TenantId, runner_id: &str)` →
   `heartbeat.schema.json`
 
-`tenant_id` is intentionally NOT part of the payload — arx resolves it
-server-side from the OIDC / token boundary, so putting it in the wire
-body would create a source-of-truth conflict.
+The production v2 client sends a claimed `tenant_id` only as part of its
+nonce-bound proof. Crucible resolves the authoritative tenant from the
+one-time token and rejects any mismatch; ARX does not become a tenant source
+of truth. See [`../../design/enrollment.md`](../../design/enrollment.md).

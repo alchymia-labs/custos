@@ -92,14 +92,12 @@ authority；代码与本文冲突时按 `.claude/rules/authority-docs.md` 处理
 | 实体 | 关键字段 | 不变量 |
 |------|---------|-------|
 | **Runner** | `runner_id` (UUIDv7) · `tenant_id` · `enrollment_id` · `host_identity_id` · `agent_version` · `capabilities`(JSON: engines/features/OS/arch) · `trust_boundary`(managed/self-hosted) · `status`(online/draining/offline) · `last_heartbeat_at` · `enrolled_at` | 一 `runner_id` 至多一个 `tenant_id`；`trust_boundary=self-hosted` 时 KEK 材料不可导出；`agent_version` 与发布签名一致 |
-| **EnrollmentToken** | `token_id` · `tenant_id` · `token_hash`(sha256, 明文只在配对时可见一次) · `scope_bitmap` · `paper_only`(bool) · `issued_by` · `expires_at` · `used_at` · `revoked_at` | 一次性使用；`used_at` 后置立即失效；`paper_only=true` 的 token 配对出的 Runner 永远不发放 live scope |
-| **HostIdentity** | `host_identity_id` · `runner_id` · `pubkey`(ed25519, 本地生成) · `hardware_fingerprint`(可选, 用户可关) · `created_at` | `pubkey` 私钥永远不出本地；配对协议基于此 pubkey 建立 mTLS 或 NATS auth |
+| **EnrollmentToken** | `token_id` · `tenant_id` · Argon2id verifier · `scope_bitmap` · `paper_only` · `issued_by` · `expires_at` · `used_at` · `revoked_at` | Crucible owns token state；一次性消费；客户端不做 SHA/hash lookup；ARX 只做 typed auth proxy |
+| **RunnerMachineCredential** | `credential_id` · `tenant_id` · `runner_id` · `credential_version` · `machine_key_id` · Ed25519 public evidence · `valid_until` · `rotated_from` · `revoked_at` | Custos private key + opaque `rkc2` credential only in sops+age；enroll nonce PoP；rotate 必须 old-key PoP + new public key；revoked/expired/binding mismatch fail closed |
 
-**Sandbox/testnet operational path**：无真实 enrollment backend 时，可手工构造字段完整的
-`~/.arx/runner.toml` 作为受支持的本地非 live 启动路径。该例外不产生 EnrollmentToken、
-不授予 live scope，并保留目录 `0700` / 文件 `0600` 权限约束；进入 live mode 必须改走正式
-的一次性 token enrollment。字段与生成约束以
-[`docs/design/enrollment.md`](design/enrollment.md) 的 sanctioned pattern 为准。
+所有 mode 共用正式 machine authority。不存在 sandbox/testnet 手工 `runner.toml`、默认 tenant、
+unsigned NATS enrollment 或明文 identity fallback。详见
+[`docs/design/enrollment.md`](design/enrollment.md)。
 
 ### 1.2 声明式 reconcile（Spec / Status / Loop）
 
@@ -129,10 +127,9 @@ authority；代码与本文冲突时按 `.claude/rules/authority-docs.md` 处理
 
 | 实体 | 关键字段 | 不变量 |
 |------|---------|-------|
-| **VaultNamespace** | `namespace_id` · `tenant_id` · `vault_path`(fs) · `created_at` · `algorithm`(argon2id + aes-256-gcm) | 一 tenant 一 namespace；跨 namespace 无法解密；`vault_path` 权限 0600 |
-| **EncryptedKey** | `key_id` · `namespace_id` · `resource_type`(exchange_credential/api_token/session_key) · `resource_ref` · `ciphertext` · `nonce` · `wrapped_by_kek_id` · `created_at` · `last_accessed_at` | 密文永不解密到磁盘；解密只在 request-scoped 内存；`last_accessed_at` 更新触发 AuditLog |
-| **MasterKey**（进程内瞬态）| `derived_at` · `expires_at`(TTL 短) · `source`(user_prompt/HSM/keyring) | 永不落盘；进程重启需重新派生；空闲超时清零 |
-| **KEK**（Key Encryption Key）| `kek_id` · `namespace_id` · `wrapped_by_master_key`(密文) · `algorithm` · `rotated_at` · `previous_kek_ids[]`(用于 rotate 期间解密旧数据) | KEK 只在内存解密；rotate 后旧 KEK 保留过渡期 |
+| **MachineCredentialVault** | `runner-machine.enc` · tenant/runner/credential ID/version/expiry/key ID · opaque credential · Ed25519 private key | sops+age；identity + credential 单一原子文档；私钥/credential 不进 `runner.toml` |
+| **PerKeyVault** | `<credential-id>.enc` · tenant · venue API key/secret · `permission_scope` | sops+age；每 credential 单文件；runtime 只接受 `trade_no_withdraw` |
+| **AgeIdentity** | `SOPS_AGE_KEY_FILE` 指向的本地私钥 | mode 0600；永不发送/日志；不存在 cloud recovery fallback |
 
 **红线**：
 - **ExchangeCredential 明文永不离开 custos 进程内存**——即使给 Crucible 上报 `AlertEvent` 或 `AuditLog`，敏感值必脱敏（如 `api_key=<sha256_first_8>...`）
