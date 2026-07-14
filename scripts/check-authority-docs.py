@@ -915,6 +915,23 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "ready_receipt_published": False,
         },
         {
+            "role": "toolkit_rc_authority_receipt_schema_v1",
+            "path": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+            "contract_only": True,
+            "stable_ready_path": (
+                "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
+            ),
+            "receipt_present": False,
+            "receipt_status": "PENDING_T6E_EXTERNAL_RELEASE",
+            "ready_receipt_published": False,
+        },
+        {
+            "role": "toolkit_rc_t6e_promotion_runner",
+            "path": "scripts/toolkit_rc_promote.py",
+            "contract_only": True,
+            "ready_receipt_published": False,
+        },
+        {
             "role": "toolkit_rc_t6d_release_readiness_runner",
             "path": "scripts/toolkit_rc_release_readiness.py",
             "contract_only": True,
@@ -985,6 +1002,8 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "sigstore sign --bundle",
             "sigstore verify identity",
             "--production-release-runner",
+            "group: toolkit-rc-${{ inputs.candidate_version }}",
+            "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}",
         )
         for phrase in required_phrases:
             if phrase not in workflow:
@@ -999,8 +1018,58 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             if forbidden in workflow:
                 errors.append(f"T6d production workflow contains forbidden {forbidden!r}")
 
-    if resolve("docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json").exists():
-        errors.append("T6d readiness must not publish a READY toolkit RC receipt")
+    verify_plan_18_task_6_release_authority(manifest, errors)
+
+
+def verify_plan_18_task_6_release_authority(manifest: dict[str, object], errors: list[str]) -> None:
+    ready_path = resolve("docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json")
+    ecosystem_path = resolve("docs/authority/ecosystem-authority.json")
+    ecosystem = load_json(ecosystem_path) if ecosystem_path.is_file() else {}
+    release = ecosystem.get("toolkit_rc_release", {})
+    if not isinstance(release, dict):
+        errors.append("ecosystem authority lacks toolkit_rc_release state")
+        return
+    if not ready_path.exists():
+        if (
+            release.get("receipt_status") != "PENDING_T6E_EXTERNAL_RELEASE"
+            or release.get("receipt_present") is not False
+            or release.get("handoff_ready") is not False
+        ):
+            errors.append("T6e manifest/ecosystem PENDING state differs")
+        return
+    ready = load_json(ready_path)
+    required_ready = {
+        "status": "READY_TOOLKIT_RC",
+        "ready": True,
+        "handoff_ready": True,
+        "production_credentials_used": True,
+        "production_signature_verified": True,
+        "remote_publication_verified": True,
+        "authority_registered": True,
+        "runtime_ready": False,
+        "production_ready": False,
+        "strategy_release_bom_created": False,
+    }
+    for name, value in required_ready.items():
+        if ready.get(name) != value:
+            errors.append(f"T6e READY authority differs for {name}")
+    if ready.get("final_blockers") != []:
+        errors.append("T6e READY authority retains final blockers")
+    ready_sha256 = hashlib.sha256(ready_path.read_bytes()).hexdigest()
+    ready_entries = [
+        entry
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role") == "plan_18_task_6_toolkit_rc_ready_receipt"
+    ]
+    if len(ready_entries) != 1 or ready_entries[0].get("sha256") != ready_sha256:
+        errors.append("T6e READY receipt manifest registration differs")
+    if (
+        release.get("receipt_status") != "READY_TOOLKIT_RC"
+        or release.get("receipt_present") is not True
+        or release.get("handoff_ready") is not True
+        or release.get("receipt_sha256") != ready_sha256
+    ):
+        errors.append("T6e READY receipt ecosystem registration differs")
 
 
 def main() -> int:

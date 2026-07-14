@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,7 @@ from urllib.request import Request, urlopen
 from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
     ToolkitRcMemberV1,
+    ToolkitRcPublicationReceiptV1,
     ToolkitRcReceiptManifestV1,
 )
 from packaging.requirements import InvalidRequirement, Requirement
@@ -83,6 +85,16 @@ class PendingPublicationEvidence:
     manifest_sha256: str
     build_manifest_sha256: str
     pending_receipt_path: Path
+    status: str
+    durable_receipt_url: str
+    durable_receipt_sha256: str
+    durable_receipt_size_bytes: int
+
+
+@dataclass(frozen=True, slots=True)
+class PublicationReservation:
+    transaction_id: str
+    publication_id: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +104,8 @@ class ProductionArtifactServiceAuthorization:
     release_environment: str
     oidc_request_url: str
     oidc_request_token: str
+    workflow_run_id: int
+    workflow_run_attempt: int
 
     def __post_init__(self) -> None:
         if (
@@ -100,10 +114,24 @@ class ProductionArtifactServiceAuthorization:
             or self.release_environment != "toolkit-rc-release"
             or not self.oidc_request_url.startswith("https://")
             or not self.oidc_request_token
+            or self.workflow_run_id <= 0
+            or self.workflow_run_attempt <= 0
         ):
             raise ArtifactPublicationError(
                 "production artifact-service authorization context differs"
             )
+
+    def receipt_context(self) -> dict[str, object]:
+        return {
+            "workflow_ref": self.workflow_ref,
+            "workflow_identity": PRODUCTION_WORKFLOW_IDENTITY,
+            "oidc_issuer": PRODUCTION_OIDC_ISSUER,
+            "release_environment": self.release_environment,
+            "workflow_run_id": self.workflow_run_id,
+            "workflow_run_attempt": self.workflow_run_attempt,
+            "production_credentials_used": True,
+            "production_signature_verified": True,
+        }
 
 
 def _sha256(value: bytes) -> str:
@@ -334,11 +362,13 @@ class _ArtifactServiceClient:
         self,
         base_url: str,
         authorization: ProductionArtifactServiceAuthorization | None,
+        read_bearer_token: str | None = None,
     ) -> None:
         parsed = urlparse(base_url)
         is_loopback = parsed.scheme == "http" and parsed.hostname in LOOPBACK_HOSTS
+        is_authenticated_reader = parsed.scheme == "https" and bool(read_bearer_token)
         is_production = parsed.scheme == "https" and authorization is not None
-        if not is_loopback and not is_production:
+        if not is_loopback and not is_production and not is_authenticated_reader:
             raise ArtifactPublicationError(
                 "T6c requires loopback HTTP or an authorized production HTTPS endpoint"
             )
@@ -350,6 +380,7 @@ class _ArtifactServiceClient:
             raise ArtifactPublicationError("artifact service URL must contain only its origin")
         self._base_url = base_url.rstrip("/")
         self._authorization = authorization
+        self._read_bearer_token = read_bearer_token
 
     def _request(
         self,
@@ -364,6 +395,8 @@ class _ArtifactServiceClient:
         headers = {} if content_type is None else {"Content-Type": content_type}
         if self._authorization is not None:
             headers["Authorization"] = f"Bearer {self._authorization.bearer_token}"
+        elif self._read_bearer_token:
+            headers["Authorization"] = f"Bearer {self._read_bearer_token}"
         request = Request(
             f"{self._base_url}{path}",
             data=content,
@@ -412,19 +445,44 @@ class _ArtifactServiceClient:
                 f"immutable coordinate already exists: {artifact.coordinate}"
             )
 
-    def begin(self, candidate_version: str, objects: list[PublicationObject]) -> str:
+    def begin(
+        self,
+        candidate_version: str,
+        source_commit: str,
+        source_date_epoch: int,
+        objects: list[PublicationObject],
+    ) -> PublicationReservation:
+        object_matrix = [
+            {
+                "coordinate": artifact.coordinate,
+                "object_id": artifact.object_id,
+                "sha256": artifact.sha256,
+                "size_bytes": artifact.size_bytes,
+            }
+            for artifact in objects
+        ]
+        publication_request_id = _sha256(
+            _canonical_json(
+                {
+                    "candidate_version": candidate_version,
+                    "source_commit": source_commit,
+                    "objects": object_matrix,
+                }
+            )
+        )
         request = _canonical_json(
             {
                 "candidate_version": candidate_version,
-                "objects": [
-                    {
-                        "coordinate": artifact.coordinate,
-                        "object_id": artifact.object_id,
-                        "sha256": artifact.sha256,
-                        "size_bytes": artifact.size_bytes,
-                    }
-                    for artifact in objects
-                ],
+                "source_repository": "https://github.com/alchymia-labs/custos",
+                "source_commit": source_commit,
+                "source_date_epoch": source_date_epoch,
+                "publication_request_id": publication_request_id,
+                "production_context": (
+                    self._authorization.receipt_context()
+                    if self._authorization is not None
+                    else None
+                ),
+                "objects": object_matrix,
             }
         )
         _, body = self._request(
@@ -437,16 +495,19 @@ class _ArtifactServiceClient:
         )
         response = self._document(body, "begin")
         transaction_id = response.get("transaction_id")
+        publication_id = response.get("publication_id")
         if (
             response.get("accepted") is not True
             or response.get("atomic") is not True
             or not isinstance(transaction_id, str)
             or not transaction_id
+            or not isinstance(publication_id, str)
+            or not publication_id
         ):
             raise ArtifactPublicationError(
                 "artifact service did not accept an atomic publication transaction"
             )
-        return transaction_id
+        return PublicationReservation(transaction_id, publication_id)
 
     def stage(self, transaction_id: str, artifact: PublicationObject) -> None:
         _, body = self._request(
@@ -469,15 +530,23 @@ class _ArtifactServiceClient:
                 f"artifact service stage ACK differs for {artifact.label}"
             )
 
-    def commit(self, transaction_id: str, objects: list[PublicationObject]) -> str:
-        _, body = self._request(
-            "POST",
-            f"/v1/publications/{quote(transaction_id, safe='')}/commit",
-            operation="commit",
-            expected_statuses={200},
-            content=_canonical_json({"commit": True}),
-            content_type="application/json",
-        )
+    def commit(self, reservation: PublicationReservation, objects: list[PublicationObject]) -> str:
+        try:
+            _, body = self._request(
+                "POST",
+                f"/v1/publications/{quote(reservation.transaction_id, safe='')}/commit",
+                operation="commit",
+                expected_statuses={200},
+                content=_canonical_json({"commit": True}),
+                content_type="application/json",
+            )
+        except ArtifactPublicationError as error:
+            recovered = self.get_publication_receipt(reservation.publication_id, required=False)
+            if recovered is None:
+                raise ArtifactPublicationError(
+                    "artifact service commit outcome is unknown and has no durable receipt"
+                ) from error
+            return reservation.publication_id
         response = self._document(body, "commit")
         publication_id = response.get("publication_id")
         expected_objects = {
@@ -490,12 +559,43 @@ class _ArtifactServiceClient:
         }
         if (
             response.get("puback") is not True
-            or not isinstance(publication_id, str)
-            or not publication_id
+            or publication_id != reservation.publication_id
             or actual_objects != expected_objects
         ):
             raise ArtifactPublicationError("artifact service commit returned no complete PubAck")
         return publication_id
+
+    def publication_receipt_url(self, publication_id: str) -> str:
+        return f"{self._base_url}/v1/publications/{quote(publication_id, safe='')}/receipt"
+
+    def get_publication_receipt(
+        self, publication_id: str, *, required: bool = True
+    ) -> tuple[bytes, ToolkitRcPublicationReceiptV1] | None:
+        status, body = self._request(
+            "GET",
+            f"/v1/publications/{quote(publication_id, safe='')}/receipt",
+            operation="publication receipt readback",
+            expected_statuses={200} if required else {200, 404},
+        )
+        if status == 404:
+            return None
+        document = self._document(body, "publication receipt readback")
+        try:
+            receipt = ToolkitRcPublicationReceiptV1.model_validate(document)
+        except ValueError as exc:
+            raise ArtifactPublicationError(
+                f"artifact service publication receipt contract differs: {exc}"
+            ) from exc
+        return body, receipt
+
+    def read_artifact(self, object_id: str) -> bytes:
+        _, content = self._request(
+            "GET",
+            f"/v1/artifacts/{object_id}",
+            operation="promotion object readback",
+            expected_statuses={200},
+        )
+        return content
 
     def require_exact_readback(self, artifact: PublicationObject) -> None:
         _, content = self._request(
@@ -576,17 +676,62 @@ def publish_toolkit_rc_candidate(
 
     for artifact in objects:
         client.require_absent(artifact)
-    transaction_id = client.begin(manifest.candidate_version, objects)
+    reservation = client.begin(
+        manifest.candidate_version,
+        str(build_document["source_commit"]),
+        int(build_document["source_date_epoch"]),
+        objects,
+    )
     for artifact in objects:
-        client.stage(transaction_id, artifact)
-    publication_id = client.commit(transaction_id, objects)
+        client.stage(reservation.transaction_id, artifact)
+    publication_id = client.commit(reservation, objects)
+    print(
+        json.dumps(
+            {
+                "publication_id": publication_id,
+                "durable_receipt_url": client.publication_receipt_url(publication_id),
+                "status": "COMMIT_ACKNOWLEDGED",
+            },
+            sort_keys=True,
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
+    durable = client.get_publication_receipt(publication_id)
+    assert durable is not None
+    durable_receipt_content, durable_receipt = durable
+    expected_objects = {
+        (artifact.coordinate, artifact.object_id, artifact.sha256, artifact.size_bytes)
+        for artifact in objects
+    }
+    actual_objects = {
+        (item.coordinate, item.object_id, item.sha256, item.size_bytes)
+        for item in durable_receipt.objects
+    }
+    if (
+        durable_receipt.publication_id != publication_id
+        or durable_receipt.transaction_id != reservation.transaction_id
+        or durable_receipt.candidate_version != manifest.candidate_version
+        or durable_receipt.source_commit != build_document["source_commit"]
+        or durable_receipt.source_date_epoch != build_document["source_date_epoch"]
+        or actual_objects != expected_objects
+        or durable_receipt.production_credentials_used != (production_authorization is not None)
+        or durable_receipt.production_signature_verified != production_attestation_verified
+    ):
+        raise ArtifactPublicationError("durable publication receipt differs from exact release")
     for artifact in objects:
         client.require_exact_readback(artifact)
 
+    status = (
+        "PENDING_T6E_AUTHORITY_REGISTRATION"
+        if production_authorization is not None
+        else "PENDING_T6D_RELEASE_RUNNER"
+    )
     pending_document = {
         "schema_version": "alephain.custos.toolkit-rc-publication-pending.v1",
-        "status": "PENDING_T6D_RELEASE_RUNNER",
+        "status": status,
         "ready": False,
+        "handoff_ready": False,
         "candidate_version": manifest.candidate_version,
         "publication_id": publication_id,
         "manifest_sha256": _sha256(manifest_content),
@@ -598,6 +743,10 @@ def publish_toolkit_rc_candidate(
         "readback_verified": True,
         "production_credentials_used": production_authorization is not None,
         "production_attestation_verified": production_attestation_verified,
+        "authority_registered": False,
+        "durable_receipt_url": client.publication_receipt_url(publication_id),
+        "durable_receipt_sha256": _sha256(durable_receipt_content),
+        "durable_receipt_size_bytes": len(durable_receipt_content),
         "objects": [
             {
                 "coordinate": artifact.coordinate,
@@ -629,6 +778,10 @@ def publish_toolkit_rc_candidate(
         manifest_sha256=_sha256(manifest_content),
         build_manifest_sha256=_sha256(build_content),
         pending_receipt_path=pending_receipt_path,
+        status=status,
+        durable_receipt_url=client.publication_receipt_url(publication_id),
+        durable_receipt_sha256=_sha256(durable_receipt_content),
+        durable_receipt_size_bytes=len(durable_receipt_content),
     )
 
 
@@ -660,12 +813,19 @@ def _parser() -> argparse.ArgumentParser:
 def _production_authorization_from_environment() -> ProductionArtifactServiceAuthorization:
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise ArtifactPublicationError("production publication is restricted to GitHub Actions")
+    try:
+        workflow_run_id = int(os.environ.get("GITHUB_RUN_ID", ""))
+        workflow_run_attempt = int(os.environ.get("GITHUB_RUN_ATTEMPT", ""))
+    except ValueError as exc:
+        raise ArtifactPublicationError("production workflow run identity is invalid") from exc
     return ProductionArtifactServiceAuthorization(
         bearer_token=os.environ.get("CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN", ""),
         workflow_ref=os.environ.get("GITHUB_WORKFLOW_REF", ""),
         release_environment=os.environ.get("CUSTOS_TOOLKIT_RELEASE_ENVIRONMENT", ""),
         oidc_request_url=os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL", ""),
         oidc_request_token=os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", ""),
+        workflow_run_id=workflow_run_id,
+        workflow_run_attempt=workflow_run_attempt,
     )
 
 
@@ -694,17 +854,20 @@ def main(argv: list[str] | None = None) -> int:
             else None
         ),
     )
-    print(
-        json.dumps(
-            {
-                "candidate_version": evidence.candidate_version,
-                "pending_receipt_path": str(evidence.pending_receipt_path),
-                "publication_id": evidence.publication_id,
-                "status": "PENDING_T6D_RELEASE_RUNNER",
-            },
-            sort_keys=True,
-        )
-    )
+    result = {
+        "candidate_version": evidence.candidate_version,
+        "pending_receipt_path": str(evidence.pending_receipt_path),
+        "publication_id": evidence.publication_id,
+        "durable_receipt_url": evidence.durable_receipt_url,
+        "durable_receipt_sha256": evidence.durable_receipt_sha256,
+        "durable_receipt_size_bytes": evidence.durable_receipt_size_bytes,
+        "status": evidence.status,
+    }
+    print(json.dumps(result, sort_keys=True))
+    if arguments.production_release_runner and os.environ.get("GITHUB_OUTPUT"):
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+            for name in ("publication_id", "durable_receipt_url", "durable_receipt_sha256"):
+                output.write(f"{name}={result[name]}\n")
     return 0
 
 
@@ -713,6 +876,7 @@ __all__ = [
     "ArtifactPublicationError",
     "PendingPublicationEvidence",
     "ProductionArtifactServiceAuthorization",
+    "PublicationReservation",
     "publish_toolkit_rc_candidate",
 ]
 

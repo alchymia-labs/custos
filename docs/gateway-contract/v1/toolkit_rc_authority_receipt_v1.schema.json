@@ -1,0 +1,776 @@
+{
+  "$defs": {
+    "ImmutableToolkitArtifactBindingV1": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate": {
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "coordinate",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "ImmutableToolkitArtifactBindingV1",
+      "type": "object"
+    },
+    "LockedToolkitDependencyV1": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "requirement": {
+          "minLength": 1,
+          "title": "Requirement",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+!-]*$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "requirement"
+      ],
+      "title": "LockedToolkitDependencyV1",
+      "type": "object"
+    },
+    "ToolkitRcAuthorityPendingReceiptV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_registered": {
+          "const": false,
+          "title": "Authority Registered",
+          "type": "boolean"
+        },
+        "contract_version": {
+          "const": "alephain.custos.toolkit-rc-authority-receipt.v1",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "final_blockers": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Final Blockers",
+          "type": "array"
+        },
+        "handoff_ready": {
+          "const": false,
+          "title": "Handoff Ready",
+          "type": "boolean"
+        },
+        "production_credentials_used": {
+          "const": true,
+          "title": "Production Credentials Used",
+          "type": "boolean"
+        },
+        "production_ready": {
+          "const": false,
+          "title": "Production Ready",
+          "type": "boolean"
+        },
+        "production_signature_verified": {
+          "const": true,
+          "title": "Production Signature Verified",
+          "type": "boolean"
+        },
+        "publication_receipt": {
+          "$ref": "#/$defs/ToolkitRcPublicationReceiptV1"
+        },
+        "publication_receipt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Publication Receipt Sha256",
+          "type": "string"
+        },
+        "publication_receipt_size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Publication Receipt Size Bytes",
+          "type": "integer"
+        },
+        "publication_receipt_url": {
+          "minLength": 1,
+          "title": "Publication Receipt Url",
+          "type": "string"
+        },
+        "ready": {
+          "const": false,
+          "title": "Ready",
+          "type": "boolean"
+        },
+        "receipt_schema_version": {
+          "const": 1,
+          "title": "Receipt Schema Version",
+          "type": "integer"
+        },
+        "remote_publication_verified": {
+          "const": true,
+          "title": "Remote Publication Verified",
+          "type": "boolean"
+        },
+        "runtime_ready": {
+          "const": false,
+          "title": "Runtime Ready",
+          "type": "boolean"
+        },
+        "scope_ceiling": {
+          "const": "Custos base and Nautilus toolkit RC only; no strategy artifact, StrategyRelease, engine, or runtime readiness",
+          "title": "Scope Ceiling",
+          "type": "string"
+        },
+        "stable_ready_receipt_path": {
+          "const": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
+          "title": "Stable Ready Receipt Path",
+          "type": "string"
+        },
+        "status": {
+          "const": "PENDING_T6E_AUTHORITY_REGISTRATION",
+          "title": "Status",
+          "type": "string"
+        },
+        "strategy_release_bom_created": {
+          "const": false,
+          "title": "Strategy Release Bom Created",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "receipt_schema_version",
+        "contract_version",
+        "status",
+        "ready",
+        "handoff_ready",
+        "publication_receipt_url",
+        "publication_receipt_sha256",
+        "publication_receipt_size_bytes",
+        "publication_receipt",
+        "stable_ready_receipt_path",
+        "production_credentials_used",
+        "production_signature_verified",
+        "remote_publication_verified",
+        "authority_registered",
+        "runtime_ready",
+        "production_ready",
+        "strategy_release_bom_created",
+        "final_blockers",
+        "scope_ceiling"
+      ],
+      "title": "ToolkitRcAuthorityPendingReceiptV1",
+      "type": "object"
+    },
+    "ToolkitRcAuthorityReadyReceiptV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_registered": {
+          "const": true,
+          "title": "Authority Registered",
+          "type": "boolean"
+        },
+        "build_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Build Manifest Sha256",
+          "type": "string"
+        },
+        "candidate_version": {
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+rc[1-9][0-9]*$",
+          "title": "Candidate Version",
+          "type": "string"
+        },
+        "contract_version": {
+          "const": "alephain.custos.toolkit-rc-authority-receipt.v1",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "engine_ready": {
+          "const": false,
+          "title": "Engine Ready",
+          "type": "boolean"
+        },
+        "final_blockers": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 0,
+          "title": "Final Blockers",
+          "type": "array"
+        },
+        "handoff_ready": {
+          "const": true,
+          "title": "Handoff Ready",
+          "type": "boolean"
+        },
+        "handoff_scope": {
+          "const": "Custos base and Nautilus toolkit RC only",
+          "title": "Handoff Scope",
+          "type": "string"
+        },
+        "loaded": {
+          "const": false,
+          "title": "Loaded",
+          "type": "boolean"
+        },
+        "predecessor_pending_receipt": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "production_credentials_used": {
+          "const": true,
+          "title": "Production Credentials Used",
+          "type": "boolean"
+        },
+        "production_ready": {
+          "const": false,
+          "title": "Production Ready",
+          "type": "boolean"
+        },
+        "production_signature_verified": {
+          "const": true,
+          "title": "Production Signature Verified",
+          "type": "boolean"
+        },
+        "publication_receipt": {
+          "$ref": "#/$defs/ToolkitRcPublicationReceiptV1"
+        },
+        "publication_receipt_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Publication Receipt Sha256",
+          "type": "string"
+        },
+        "publication_receipt_size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Publication Receipt Size Bytes",
+          "type": "integer"
+        },
+        "publication_receipt_url": {
+          "minLength": 1,
+          "title": "Publication Receipt Url",
+          "type": "string"
+        },
+        "ready": {
+          "const": true,
+          "title": "Ready",
+          "type": "boolean"
+        },
+        "receipt_schema_version": {
+          "const": 1,
+          "title": "Receipt Schema Version",
+          "type": "integer"
+        },
+        "remote_publication_verified": {
+          "const": true,
+          "title": "Remote Publication Verified",
+          "type": "boolean"
+        },
+        "runtime_ready": {
+          "const": false,
+          "title": "Runtime Ready",
+          "type": "boolean"
+        },
+        "source_commit": {
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+          "title": "Source Commit",
+          "type": "string"
+        },
+        "source_date_epoch": {
+          "minimum": 315532800,
+          "title": "Source Date Epoch",
+          "type": "integer"
+        },
+        "source_repository": {
+          "const": "https://github.com/alchymia-labs/custos",
+          "title": "Source Repository",
+          "type": "string"
+        },
+        "status": {
+          "const": "READY_TOOLKIT_RC",
+          "title": "Status",
+          "type": "string"
+        },
+        "strategy_release_bom_created": {
+          "const": false,
+          "title": "Strategy Release Bom Created",
+          "type": "boolean"
+        },
+        "toolkit_manifest": {
+          "$ref": "#/$defs/ToolkitRcReceiptManifestV1"
+        },
+        "toolkit_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Toolkit Manifest Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "receipt_schema_version",
+        "contract_version",
+        "status",
+        "ready",
+        "handoff_ready",
+        "candidate_version",
+        "source_repository",
+        "source_commit",
+        "source_date_epoch",
+        "publication_receipt_url",
+        "publication_receipt_sha256",
+        "publication_receipt_size_bytes",
+        "publication_receipt",
+        "toolkit_manifest",
+        "toolkit_manifest_sha256",
+        "build_manifest_sha256",
+        "predecessor_pending_receipt",
+        "production_credentials_used",
+        "production_signature_verified",
+        "remote_publication_verified",
+        "authority_registered",
+        "final_blockers",
+        "handoff_scope",
+        "loaded",
+        "engine_ready",
+        "runtime_ready",
+        "production_ready",
+        "strategy_release_bom_created"
+      ],
+      "title": "ToolkitRcAuthorityReadyReceiptV1",
+      "type": "object"
+    },
+    "ToolkitRcMemberRole": {
+      "enum": [
+        "base_contracts_wheel",
+        "nautilus_wheel"
+      ],
+      "title": "ToolkitRcMemberRole",
+      "type": "string"
+    },
+    "ToolkitRcMemberV1": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_asset_index": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "contract_schema": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "dependencies": {
+          "items": {
+            "$ref": "#/$defs/LockedToolkitDependencyV1"
+          },
+          "minItems": 1,
+          "title": "Dependencies",
+          "type": "array"
+        },
+        "dependency_lock_evidence": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "distribution_name": {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Distribution Name",
+          "type": "string"
+        },
+        "nautilus_version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Nautilus Version"
+        },
+        "python_requires": {
+          "minLength": 1,
+          "title": "Python Requires",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ToolkitRcMemberRole"
+        },
+        "sbom": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "sigstore_attestation": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "slsa_provenance": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "source_commit": {
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+          "title": "Source Commit",
+          "type": "string"
+        },
+        "source_repository": {
+          "minLength": 1,
+          "title": "Source Repository",
+          "type": "string"
+        },
+        "t4_zero_rewrite_receipt": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "t4b_typing_closure_receipt": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "t5_pre_import_verifier_receipt": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
+        "top_level_modules": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Top Level Modules",
+          "type": "array"
+        },
+        "version": {
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+rc[1-9][0-9]*$",
+          "title": "Version",
+          "type": "string"
+        },
+        "wheel": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        }
+      },
+      "required": [
+        "role",
+        "distribution_name",
+        "version",
+        "python_requires",
+        "nautilus_version",
+        "top_level_modules",
+        "dependencies",
+        "wheel",
+        "sbom",
+        "contract_schema",
+        "contract_asset_index",
+        "dependency_lock_evidence",
+        "slsa_provenance",
+        "sigstore_attestation",
+        "source_repository",
+        "source_commit",
+        "t4_zero_rewrite_receipt",
+        "t4b_typing_closure_receipt",
+        "t5_pre_import_verifier_receipt"
+      ],
+      "title": "ToolkitRcMemberV1",
+      "type": "object"
+    },
+    "ToolkitRcPublicationObjectV1": {
+      "additionalProperties": false,
+      "properties": {
+        "coordinate": {
+          "minLength": 1,
+          "title": "Coordinate",
+          "type": "string"
+        },
+        "object_id": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Object Id",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "coordinate",
+        "object_id",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "ToolkitRcPublicationObjectV1",
+      "type": "object"
+    },
+    "ToolkitRcPublicationReceiptV1": {
+      "additionalProperties": false,
+      "description": "Immutable artifact-service receipt, before Custos authority registration.",
+      "properties": {
+        "authority_registered": {
+          "const": false,
+          "title": "Authority Registered",
+          "type": "boolean"
+        },
+        "candidate_version": {
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+rc[1-9][0-9]*$",
+          "title": "Candidate Version",
+          "type": "string"
+        },
+        "handoff_ready": {
+          "const": false,
+          "title": "Handoff Ready",
+          "type": "boolean"
+        },
+        "objects": {
+          "items": {
+            "$ref": "#/$defs/ToolkitRcPublicationObjectV1"
+          },
+          "minItems": 1,
+          "title": "Objects",
+          "type": "array"
+        },
+        "oidc_issuer": {
+          "anyOf": [
+            {
+              "const": "https://token.actions.githubusercontent.com",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oidc Issuer"
+        },
+        "production_credentials_used": {
+          "title": "Production Credentials Used",
+          "type": "boolean"
+        },
+        "production_signature_verified": {
+          "title": "Production Signature Verified",
+          "type": "boolean"
+        },
+        "puback_verified": {
+          "const": true,
+          "title": "Puback Verified",
+          "type": "boolean"
+        },
+        "publication_atomic": {
+          "const": true,
+          "title": "Publication Atomic",
+          "type": "boolean"
+        },
+        "publication_id": {
+          "minLength": 1,
+          "title": "Publication Id",
+          "type": "string"
+        },
+        "readback_verified": {
+          "const": true,
+          "title": "Readback Verified",
+          "type": "boolean"
+        },
+        "ready": {
+          "const": false,
+          "title": "Ready",
+          "type": "boolean"
+        },
+        "release_environment": {
+          "anyOf": [
+            {
+              "const": "toolkit-rc-release",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Release Environment"
+        },
+        "schema_version": {
+          "const": "alephain.custos.toolkit-rc-publication-receipt.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_commit": {
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+          "title": "Source Commit",
+          "type": "string"
+        },
+        "source_date_epoch": {
+          "minimum": 315532800,
+          "title": "Source Date Epoch",
+          "type": "integer"
+        },
+        "source_repository": {
+          "const": "https://github.com/alchymia-labs/custos",
+          "title": "Source Repository",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PENDING_T6C_PUBLICATION_VERIFIED",
+            "PENDING_T6E_AUTHORITY_REGISTRATION"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "transaction_id": {
+          "minLength": 1,
+          "title": "Transaction Id",
+          "type": "string"
+        },
+        "workflow_identity": {
+          "anyOf": [
+            {
+              "const": "https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Workflow Identity"
+        },
+        "workflow_ref": {
+          "anyOf": [
+            {
+              "const": "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Workflow Ref"
+        },
+        "workflow_run_attempt": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workflow Run Attempt"
+        },
+        "workflow_run_id": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workflow Run Id"
+        }
+      },
+      "required": [
+        "schema_version",
+        "status",
+        "ready",
+        "handoff_ready",
+        "candidate_version",
+        "source_repository",
+        "source_commit",
+        "source_date_epoch",
+        "publication_id",
+        "transaction_id",
+        "publication_atomic",
+        "puback_verified",
+        "readback_verified",
+        "production_credentials_used",
+        "production_signature_verified",
+        "workflow_ref",
+        "workflow_identity",
+        "oidc_issuer",
+        "release_environment",
+        "objects",
+        "authority_registered"
+      ],
+      "title": "ToolkitRcPublicationReceiptV1",
+      "type": "object"
+    },
+    "ToolkitRcReceiptManifestV1": {
+      "$id": "https://custos.the-alephain-guild/contracts/toolkit-rc-receipt-manifest-v1.schema.json",
+      "additionalProperties": false,
+      "description": "Schema-only foundation for a future immutable toolkit RC receipt.",
+      "properties": {
+        "candidate_version": {
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+rc[1-9][0-9]*$",
+          "title": "Candidate Version",
+          "type": "string"
+        },
+        "contract_version": {
+          "const": "alephain.custos.toolkit-rc-receipt-manifest.v1",
+          "default": "alephain.custos.toolkit-rc-receipt-manifest.v1",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "immutable": {
+          "const": true,
+          "default": true,
+          "title": "Immutable",
+          "type": "boolean"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/ToolkitRcMemberV1"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Members",
+          "type": "array"
+        },
+        "overwrite_allowed": {
+          "const": false,
+          "default": false,
+          "title": "Overwrite Allowed",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "candidate_version",
+        "members"
+      ],
+      "title": "ToolkitRcReceiptManifestV1",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "PENDING_T6E_AUTHORITY_REGISTRATION": "#/$defs/ToolkitRcAuthorityPendingReceiptV1",
+      "READY_TOOLKIT_RC": "#/$defs/ToolkitRcAuthorityReadyReceiptV1"
+    },
+    "propertyName": "status"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ToolkitRcAuthorityPendingReceiptV1"
+    },
+    {
+      "$ref": "#/$defs/ToolkitRcAuthorityReadyReceiptV1"
+    }
+  ],
+  "title": "ToolkitRcAuthorityReceiptV1"
+}

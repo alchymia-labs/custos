@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from enum import StrEnum
 from typing import Annotated, Literal, Self
@@ -10,6 +11,8 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    RootModel,
+    StrictBool,
     StrictInt,
     StringConstraints,
     field_validator,
@@ -227,6 +230,211 @@ class ToolkitRcT6dPendingReceiptV1(_StrictFrozenModel):
         return self
 
 
+class ToolkitRcPublicationObjectV1(_StrictFrozenModel):
+    coordinate: NonEmptyString
+    object_id: Sha256Hex
+    sha256: Sha256Hex
+    size_bytes: StrictInt = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_object_identity(self) -> Self:
+        if hashlib.sha256(self.coordinate.encode()).hexdigest() != self.object_id:
+            raise ValueError("publication object_id must be the coordinate SHA-256")
+        return self
+
+
+class ToolkitRcPublicationReceiptV1(_StrictFrozenModel):
+    """Immutable artifact-service receipt, before Custos authority registration."""
+
+    schema_version: Literal["alephain.custos.toolkit-rc-publication-receipt.v1"]
+    status: Literal[
+        "PENDING_T6C_PUBLICATION_VERIFIED",
+        "PENDING_T6E_AUTHORITY_REGISTRATION",
+    ]
+    ready: Literal[False]
+    handoff_ready: Literal[False]
+    candidate_version: RcVersion
+    source_repository: Literal["https://github.com/alchymia-labs/custos"]
+    source_commit: SourceCommit
+    source_date_epoch: StrictInt = Field(ge=315_532_800)
+    publication_id: NonEmptyString
+    transaction_id: NonEmptyString
+    publication_atomic: Literal[True]
+    puback_verified: Literal[True]
+    readback_verified: Literal[True]
+    production_credentials_used: StrictBool
+    production_signature_verified: StrictBool
+    workflow_ref: (
+        Literal["alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"]
+        | None
+    )
+    workflow_identity: (
+        Literal[
+            "https://github.com/alchymia-labs/custos/.github/workflows/"
+            "release-toolkit-rc.yml@refs/heads/main"
+        ]
+        | None
+    )
+    oidc_issuer: Literal["https://token.actions.githubusercontent.com"] | None
+    release_environment: Literal["toolkit-rc-release"] | None
+    workflow_run_id: StrictInt | None = Field(default=None, gt=0)
+    workflow_run_attempt: StrictInt | None = Field(default=None, gt=0)
+    objects: tuple[ToolkitRcPublicationObjectV1, ...] = Field(min_length=1)
+    authority_registered: Literal[False]
+
+    @model_validator(mode="after")
+    def validate_publication_state(self) -> Self:
+        identities = (
+            self.workflow_ref,
+            self.workflow_identity,
+            self.oidc_issuer,
+            self.release_environment,
+            self.workflow_run_id,
+            self.workflow_run_attempt,
+        )
+        if self.production_credentials_used:
+            if (
+                self.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
+                or not self.production_signature_verified
+                or any(value is None for value in identities)
+            ):
+                raise ValueError("production publication receipt lacks exact workflow evidence")
+        elif (
+            self.status != "PENDING_T6C_PUBLICATION_VERIFIED"
+            or self.production_signature_verified
+            or any(value is not None for value in identities)
+        ):
+            raise ValueError("local publication receipt must not claim production evidence")
+        coordinates = [item.coordinate for item in self.objects]
+        object_ids = [item.object_id for item in self.objects]
+        if len(coordinates) != len(set(coordinates)) or len(object_ids) != len(set(object_ids)):
+            raise ValueError("publication receipt objects must be unique")
+        if any(self.candidate_version not in item.coordinate for item in self.objects):
+            raise ValueError("publication receipt object coordinate lacks candidate version")
+        return self
+
+
+class ToolkitRcAuthorityPendingReceiptV1(_StrictFrozenModel):
+    receipt_schema_version: Literal[1]
+    contract_version: Literal["alephain.custos.toolkit-rc-authority-receipt.v1"]
+    status: Literal["PENDING_T6E_AUTHORITY_REGISTRATION"]
+    ready: Literal[False]
+    handoff_ready: Literal[False]
+    publication_receipt_url: NonEmptyString
+    publication_receipt_sha256: Sha256Hex
+    publication_receipt_size_bytes: StrictInt = Field(gt=0)
+    publication_receipt: ToolkitRcPublicationReceiptV1
+    stable_ready_receipt_path: Literal[
+        "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
+    ]
+    production_credentials_used: Literal[True]
+    production_signature_verified: Literal[True]
+    remote_publication_verified: Literal[True]
+    authority_registered: Literal[False]
+    runtime_ready: Literal[False]
+    production_ready: Literal[False]
+    strategy_release_bom_created: Literal[False]
+    final_blockers: tuple[NonEmptyString, ...] = Field(min_length=1, max_length=1)
+    scope_ceiling: Literal[
+        "Custos base and Nautilus toolkit RC only; no strategy artifact, "
+        "StrategyRelease, engine, or runtime readiness"
+    ]
+
+    @model_validator(mode="after")
+    def validate_pending_blockers(self) -> Self:
+        if self.final_blockers != (
+            "verified READY candidate is registered by an independent authority commit",
+        ) or (
+            self.publication_receipt.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
+            or not self.publication_receipt.production_credentials_used
+            or not self.publication_receipt.production_signature_verified
+        ):
+            raise ValueError("pending toolkit authority blockers differ")
+        return self
+
+
+class ToolkitRcAuthorityReadyReceiptV1(_StrictFrozenModel):
+    receipt_schema_version: Literal[1]
+    contract_version: Literal["alephain.custos.toolkit-rc-authority-receipt.v1"]
+    status: Literal["READY_TOOLKIT_RC"]
+    ready: Literal[True]
+    handoff_ready: Literal[True]
+    candidate_version: RcVersion
+    source_repository: Literal["https://github.com/alchymia-labs/custos"]
+    source_commit: SourceCommit
+    source_date_epoch: StrictInt = Field(ge=315_532_800)
+    publication_receipt_url: NonEmptyString
+    publication_receipt_sha256: Sha256Hex
+    publication_receipt_size_bytes: StrictInt = Field(gt=0)
+    publication_receipt: ToolkitRcPublicationReceiptV1
+    toolkit_manifest: ToolkitRcReceiptManifestV1
+    toolkit_manifest_sha256: Sha256Hex
+    build_manifest_sha256: Sha256Hex
+    predecessor_pending_receipt: ImmutableToolkitArtifactBindingV1
+    production_credentials_used: Literal[True]
+    production_signature_verified: Literal[True]
+    remote_publication_verified: Literal[True]
+    authority_registered: Literal[True]
+    final_blockers: tuple[NonEmptyString, ...] = Field(max_length=0)
+    handoff_scope: Literal["Custos base and Nautilus toolkit RC only"]
+    loaded: Literal[False]
+    engine_ready: Literal[False]
+    runtime_ready: Literal[False]
+    production_ready: Literal[False]
+    strategy_release_bom_created: Literal[False]
+
+    @model_validator(mode="after")
+    def validate_ready_cross_bindings(self) -> Self:
+        publication = self.publication_receipt
+        if (
+            publication.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
+            or not publication.production_credentials_used
+            or not publication.production_signature_verified
+            or publication.candidate_version != self.candidate_version
+            or publication.source_commit != self.source_commit
+            or publication.source_date_epoch != self.source_date_epoch
+            or self.toolkit_manifest.candidate_version != self.candidate_version
+        ):
+            raise ValueError("READY toolkit receipt production evidence differs")
+        if any(
+            member.source_repository != self.source_repository
+            or member.source_commit != self.source_commit
+            for member in self.toolkit_manifest.members
+        ):
+            raise ValueError("READY toolkit manifest source authority differs")
+        published_coordinates = {item.coordinate for item in publication.objects}
+        required_coordinates = {
+            binding.coordinate
+            for member in self.toolkit_manifest.members
+            for binding in (
+                member.wheel,
+                member.sbom,
+                member.contract_schema,
+                member.contract_asset_index,
+                member.dependency_lock_evidence,
+                member.slsa_provenance,
+                member.sigstore_attestation,
+                member.t4_zero_rewrite_receipt,
+                member.t4b_typing_closure_receipt,
+                member.t5_pre_import_verifier_receipt,
+            )
+        }
+        if not required_coordinates.issubset(published_coordinates):
+            raise ValueError("READY toolkit receipt omits manifest-bound remote objects")
+        return self
+
+
+class ToolkitRcAuthorityReceiptV1(
+    RootModel[
+        Annotated[
+            ToolkitRcAuthorityPendingReceiptV1 | ToolkitRcAuthorityReadyReceiptV1,
+            Field(discriminator="status"),
+        ]
+    ]
+):
+    model_config = ConfigDict(frozen=True, title="ToolkitRcAuthorityReceiptV1")
+
+
 __all__ = [
     "ImmutableToolkitArtifactBindingV1",
     "LockedToolkitDependencyV1",
@@ -235,4 +443,9 @@ __all__ = [
     "ToolkitRcReceiptManifestV1",
     "ToolkitRcCycloneDxSbomV1",
     "ToolkitRcT6dPendingReceiptV1",
+    "ToolkitRcPublicationObjectV1",
+    "ToolkitRcPublicationReceiptV1",
+    "ToolkitRcAuthorityPendingReceiptV1",
+    "ToolkitRcAuthorityReadyReceiptV1",
+    "ToolkitRcAuthorityReceiptV1",
 ]

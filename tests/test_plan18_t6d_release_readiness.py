@@ -334,6 +334,8 @@ def test_dedicated_production_workflow_is_manual_oidc_and_fail_closed() -> None:
     assert "python scripts/toolkit_rc_release_readiness.py assemble" in source
     assert "python scripts/toolkit_rc_publish.py" in source
     assert "--production-release-runner" in source
+    assert "group: toolkit-rc-${{ inputs.candidate_version }}" in source
+    assert "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}" in source
     assert "CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL" in source
     assert "CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN" in source
     assert "actions/upload-artifact" not in source

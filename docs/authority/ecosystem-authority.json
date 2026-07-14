@@ -103,6 +103,25 @@
       "Custos Plan 18 Task 5"
     ]
   },
+  "toolkit_rc_release": {
+    "owner": "custos",
+    "authority_schema": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+    "stable_ready_receipt": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
+    "receipt_status": "PENDING_T6E_EXTERNAL_RELEASE",
+    "receipt_present": false,
+    "handoff_ready": false,
+    "durable_receipt_endpoint_template": "/v1/publications/{publication_id}/receipt",
+    "release_environment": "toolkit-rc-release",
+    "workflow_identity": "https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
+    "open_blockers": [
+      "external artifact service implements immutable publication receipts",
+      "protected production release runner completes with durable evidence",
+      "verified READY candidate is registered by an independent authority commit"
+    ],
+    "strategy_release_bom_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
   "migration_heads": {
     "arx": "0068",
     "crucible_control": "0026",

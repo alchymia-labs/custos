@@ -675,6 +675,27 @@ T6 remains open and no toolkit RC READY claim is allowed.
 
 #### T6 local readiness checkpoint
 
+#### T6e: Durable publication recovery and authority promotion
+
+T6e corrects the external-operator gap discovered before the first production run. The
+artifact-service contract now reserves a publication identity before commit and exposes an
+authenticated immutable `GET /v1/publications/{publication_id}/receipt` endpoint. A lost
+commit response is recoverable only from that exact durable receipt. Receipt bytes bind the
+candidate, source, workflow run, complete object matrix, atomic PubAck and readback state;
+the workflow reports the locator and SHA-256 without using GitHub Release or upload-artifact.
+
+The authority state is monotonic. Existing `PENDING_T6D_RELEASE_RUNNER` evidence remains
+pre-production readiness only. A successful protected run produces
+`PENDING_T6E_AUTHORITY_REGISTRATION`; only `scripts/toolkit_rc_promote.py` may download the
+receipt and every object, recompute size/digest, reverify Sigstore identity, provenance,
+manifest, T4, T4b and T5 bindings, and emit a `READY_TOOLKIT_RC` candidate outside the stable
+authority path. Registration remains a separate reviewed commit. No fixture, local fake,
+main-worktree test result or missing remote evidence can create the committed READY receipt.
+
+The remaining T6 blockers are now explicit: the external service must deploy the immutable
+receipt endpoint, the protected workflow must run once with production credentials, and the
+verified READY candidate must be registered by an independent authority commit.
+
 Local T6a-T6d implementation readiness is frozen at verification HEAD
 `b5f0449df04ffb74192e65346127e9abf7463d0f`. A clean full `make verify` passed with
 `550 passed, 4 skipped, 1 xfailed`; all `177` Python files were formatted, Ruff,
@@ -790,7 +811,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
 | T6c Atomic publication protocol | [x] | 2026-07-15 | Local-only artifact-service contract validates exact T6a/T6b/object bytes, preflights every immutable rcN coordinate, requires atomic staging ACK + complete PubAck + digest readback, and emits PENDING-only evidence; fake HTTP failure/retry matrix passes, while production service/credentials/signatures/SBOM/final receipt remain T6d |
 | T6d Production runner readiness | [x] | 2026-07-15 | Local T6a-T6d readiness verified at `b5f0449df04ffb74192e65346127e9abf7463d0f`: full `make verify` 550 passed/4 skipped/1 xfailed, 177 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote/signature/binary execution |
-| T6 Toolkit candidate | [ ] | — | Local readiness complete, but exactly one external gate remains: execute the protected production release runner with real credentials and production Sigstore, verify remote immutable digest readback, and register its READY receipt; T7-T9 and Plan 18 remain uncompleted |
+| T6e Durable evidence/promotion | [x] | 2026-07-15 | Local contract and recovery implementation only: immutable publication receipt endpoint, commit-unknown recovery, strict PENDING/READY schema, fail-closed promotion candidate CLI, authority gates and workflow concurrency; no remote call or READY receipt |
+| T6 Toolkit candidate | [ ] | — | External artifact service support, one protected production run, exact durable receipt/object verification, and an independent READY promotion commit remain required; T7-T9 and Plan 18 remain uncompleted |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
@@ -821,6 +843,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | CONTRACT | T4/T4b receipt naming | Corrected unpublished `t4b_zero_rewrite_receipt` to `t4_zero_rewrite_receipt`; T4b remains typing closure only and no alias is retained | Accepted 2026-07-15 |
 | IDENTITY | T6 GitHub/OIDC authority | Pinned source and workflow identity to actual `alchymia-labs/custos` protected main; stale guild fallback and workspace-logical repository names are forbidden | Accepted 2026-07-15 |
 | READINESS | T6d final blocker | Formal SBOM, exact locks, provenance, workflow, Sigstore verification and authority gates are complete; only real protected-runner execution plus verified remote receipt registration remains | Accepted 2026-07-15 |
+| RECOVERY | T6e durable receipt | A production publication must remain recoverable after commit-response loss; workflow-local `$RUNNER_TEMP` evidence cannot authorize READY | Accepted 2026-07-15 |
 
 ## Slice 18a handoff and Task 2 READY provenance
 

@@ -12,6 +12,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: toolkit-rc-${{ inputs.candidate_version }}
+  cancel-in-progress: false
+
 jobs:
   release-candidate:
     if: github.repository == 'alchymia-labs/custos' && github.ref == 'refs/heads/main'
@@ -91,6 +95,7 @@ jobs:
             --output-root "$RUNNER_TEMP/toolkit-rc-publication-inputs"
 
       - name: Atomically publish and verify remote digest readback
+        id: publish
         shell: bash
         run: |
           set -euo pipefail
@@ -102,3 +107,11 @@ jobs:
             --pending-receipt "$RUNNER_TEMP/toolkit-rc-remote-publication-pending.json" \
             --production-release-runner
           sha256sum "$RUNNER_TEMP/toolkit-rc-remote-publication-pending.json"
+
+      - name: Report durable publication receipt handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "publication_id=${{ steps.publish.outputs.publication_id }}"
+          printf '%s\n' "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}"
+          printf '%s\n' "durable_receipt_sha256=${{ steps.publish.outputs.durable_receipt_sha256 }}"

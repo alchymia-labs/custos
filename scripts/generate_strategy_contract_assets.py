@@ -29,6 +29,7 @@ from custos_toolkit.contracts.strategy_execution import (
     canonical_model_digest,
 )
 from custos_toolkit.contracts.toolkit_rc import (
+    ToolkitRcAuthorityReceiptV1,
     ToolkitRcReceiptManifestV1,
     ToolkitRcT6dPendingReceiptV1,
 )
@@ -61,6 +62,9 @@ V1_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.
 TOOLKIT_RC_SCHEMA_PATH = "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
 TOOLKIT_RC_T6D_PENDING_SCHEMA_PATH = (
     "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
+)
+TOOLKIT_RC_AUTHORITY_SCHEMA_PATH = (
+    "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
 )
 V2_PRODUCER_COMMIT = "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2"
 V2_CANDIDATE_RECEIPT_SHA256 = "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
@@ -548,6 +552,9 @@ def build_toolkit_rc_foundation_assets() -> dict[str, bytes]:
         ),
         TOOLKIT_RC_T6D_PENDING_SCHEMA_PATH: json_bytes(
             ToolkitRcT6dPendingReceiptV1.model_json_schema(mode="validation")
+        ),
+        TOOLKIT_RC_AUTHORITY_SCHEMA_PATH: json_bytes(
+            ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
         ),
     }
 

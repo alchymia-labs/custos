@@ -206,6 +206,9 @@ class FakeArtifactState:
     fail_put_at: int | None = None
     omit_puback: bool = False
     drift_readback: bool = False
+    drop_commit_response: bool = False
+    drift_receipt: bool = False
+    receipts: dict[str, bytes] = field(default_factory=dict)
 
 
 class FakeArtifactHandler(BaseHTTPRequestHandler):
@@ -233,6 +236,22 @@ class FakeArtifactHandler(BaseHTTPRequestHandler):
         self._response(200 if object_id in self.server.state.objects else 404)
 
     def do_GET(self) -> None:  # noqa: N802
+        parts = self.path.strip("/").split("/")
+        if len(parts) == 4 and parts[:2] == ["v1", "publications"] and parts[3] == "receipt":
+            content = self.server.state.receipts.get(parts[2])
+            if content is None:
+                self._response(404)
+                return
+            if self.server.state.drift_receipt:
+                document = json.loads(content)
+                document["source_commit"] = "0" * 40
+                content = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+            return
         object_id = self.path.rsplit("/", 1)[-1]
         stored = self.server.state.objects.get(object_id)
         if stored is None:
@@ -250,9 +269,12 @@ class FakeArtifactHandler(BaseHTTPRequestHandler):
             request = self._json_body()
             state.transaction_count += 1
             transaction_id = f"tx-{state.transaction_count}"
+            publication_id = f"publication-{transaction_id}"
             state.transactions[transaction_id] = {
                 "expected": {item["object_id"]: item for item in request["objects"]},
                 "staged": {},
+                "request": request,
+                "publication_id": publication_id,
             }
             self._response(
                 201,
@@ -260,6 +282,7 @@ class FakeArtifactHandler(BaseHTTPRequestHandler):
                     "accepted": True,
                     "atomic": True,
                     "transaction_id": transaction_id,
+                    "publication_id": publication_id,
                 },
             )
             return
@@ -282,11 +305,54 @@ class FakeArtifactHandler(BaseHTTPRequestHandler):
                 for object_id, (coordinate, digest, _) in sorted(transaction["staged"].items())
             ]
             response: dict[str, Any] = {
-                "publication_id": f"publication-{transaction_id}",
+                "publication_id": transaction["publication_id"],
                 "objects": objects,
             }
             if not state.omit_puback:
                 response["puback"] = True
+            request = transaction["request"]
+            context = request["production_context"]
+            receipt = {
+                "schema_version": "alephain.custos.toolkit-rc-publication-receipt.v1",
+                "status": (
+                    "PENDING_T6E_AUTHORITY_REGISTRATION"
+                    if context is not None
+                    else "PENDING_T6C_PUBLICATION_VERIFIED"
+                ),
+                "ready": False,
+                "handoff_ready": False,
+                "candidate_version": request["candidate_version"],
+                "source_repository": request["source_repository"],
+                "source_commit": request["source_commit"],
+                "source_date_epoch": request["source_date_epoch"],
+                "publication_id": transaction["publication_id"],
+                "transaction_id": transaction_id,
+                "publication_atomic": True,
+                "puback_verified": True,
+                "readback_verified": True,
+                "production_credentials_used": context is not None,
+                "production_signature_verified": context is not None,
+                "workflow_ref": None if context is None else context["workflow_ref"],
+                "workflow_identity": None if context is None else context["workflow_identity"],
+                "oidc_issuer": None if context is None else context["oidc_issuer"],
+                "release_environment": None if context is None else context["release_environment"],
+                "workflow_run_id": None if context is None else context["workflow_run_id"],
+                "workflow_run_attempt": (
+                    None if context is None else context["workflow_run_attempt"]
+                ),
+                "objects": [
+                    {**item, "size_bytes": transaction["expected"][item["object_id"]]["size_bytes"]}
+                    for item in objects
+                ],
+                "authority_registered": False,
+            }
+            state.receipts[transaction["publication_id"]] = (
+                json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+            ).encode()
+            if state.drop_commit_response:
+                state.drop_commit_response = False
+                self.close_connection = True
+                return
             self._response(200, response)
             return
         self._response(404)
@@ -377,6 +443,12 @@ def test_atomic_publication_is_pending_only_and_rc_coordinate_cannot_overwrite(
         assert document["readback_verified"] is True
         assert document["production_credentials_used"] is False
         assert document["production_attestation_verified"] is False
+        assert document["durable_receipt_url"].endswith(
+            f"/v1/publications/{evidence.publication_id}/receipt"
+        )
+        assert document["durable_receipt_sha256"] == _sha256(
+            state.receipts[evidence.publication_id]
+        )
         assert state.objects
 
         with pytest.raises(ArtifactCoordinateExistsError):
@@ -436,3 +508,23 @@ def test_contract_cli_is_local_only(tmp_path: Path) -> None:
             "https://registry.example.invalid",
             tmp_path / "must-not-exist.json",
         )
+
+
+def test_commit_unknown_recovers_from_immutable_publication_receipt(tmp_path: Path) -> None:
+    inputs = _candidate_inputs(tmp_path / "inputs", "0.1.0rc1")
+    state = FakeArtifactState(drop_commit_response=True)
+    with _artifact_service(state) as (service_url, _):
+        pending = tmp_path / "recovered.json"
+        evidence = _publish(inputs, service_url, pending)
+    assert pending.is_file()
+    assert evidence.publication_id in state.receipts
+
+
+def test_durable_receipt_drift_fails_before_pending_evidence(tmp_path: Path) -> None:
+    inputs = _candidate_inputs(tmp_path / "inputs", "0.1.0rc1")
+    state = FakeArtifactState(drift_receipt=True)
+    pending = tmp_path / "must-not-exist.json"
+    with _artifact_service(state) as (service_url, _):
+        with pytest.raises(ArtifactPublicationError, match="durable publication receipt"):
+            _publish(inputs, service_url, pending)
+    assert not pending.exists()
