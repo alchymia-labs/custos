@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — Task 1-2 static assets implemented; receipts and verification pending
+> **Status**: ⏳ In progress — Slice 18a / Tasks 1-2 completed; Task 2 receipt READY; Tasks 3-9 remain open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-14 after v1.team authority and execution-readiness review
+> **Revised**: 2026-07-15 after Task 2 READY handoff
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -474,31 +474,31 @@ git commit -m "docs(custos): mark plan 18 as completed"
 
 ## Verification
 
-- [ ] Legacy `deployment_id` 被拒绝
-- [ ] `deployment_instance_id` 是唯一 runtime address
-- [ ] StrategyRelease 独立于 DeploymentSpec；Spec 只引用 release
-- [ ] ArtifactRef → release → spec → command → verifier receipt 无损 mapping PASS
-- [ ] StrategyRelease/artifact selection/effective config 仍由 Crucible 拥有
-- [ ] `strategy_key` 仅是 catalog alias
-- [ ] Root/contracts 保持 Python >=3.11
+- [x] Legacy `deployment_id` 被拒绝
+- [x] `deployment_instance_id` 是唯一 runtime address
+- [x] StrategyRelease 独立于 DeploymentSpec；Spec 只引用 release
+- [x] ArtifactRef → release → spec → command → verifier receipt 无损 mapping PASS
+- [x] StrategyRelease/artifact selection/effective config 仍由 Crucible 拥有
+- [x] `strategy_key` 仅是 catalog alias
+- [x] Root/contracts 保持 Python >=3.11
 - [ ] 独立 Nautilus distribution 使用 Python >=3.12,<3.13 和 exact NT 1.230.0
 - [ ] Python 3.11 安装 Nautilus distribution fail closed，不静默跳过 NT
-- [ ] effective config 是 recursive typed/deep-frozen JSON 并匹配 signed digest
+- [x] effective config 是 recursive typed/deep-frozen JSON 并匹配 signed digest
 - [ ] production 只接受 signed wheel
-- [ ] source-path 仅 sandbox、non-promotable、non-live
-- [ ] attestation 绑定 issuer/workflow/bundle/trust policy
+- [x] source-path contract 仅允许 sandbox、non-promotable、non-live
+- [x] attestation schema 绑定 issuer/workflow/bundle/trust policy
 - [ ] trust roots/policy 只来自 runner-local signed release configuration
 - [ ] candidate/final receipts 绑定 release BOM 和全部 member digests
-- [ ] schema 由 source model 生成并经 Crucible/PS requirements review
+- [x] schema 由 source model 生成并经 Crucible/PS requirements review
 - [ ] wheel 不提供顶层 `shared` 或 `pandas_ta`
-- [ ] import 不修改 `sys.path`
+- [x] lightweight contracts import 不修改 `sys.path`
 - [ ] existing NT strategy business source zero-rewrite
 - [ ] PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime receipts 指向 exact BOM/member digests
-- [ ] Speculum 不属于 START/STOP、candidate/final acceptance 或 close-out gate
-- [ ] PS legacy `build-image.sh` -> Crucible Python image 链保留为独立 compatibility lane，且不作为 team fallback 或验收证据
-- [ ] toolkit advisory risk 不冒充 Custos/Crucible authority
+- [x] Speculum 不属于 START/STOP、candidate/final acceptance 或 close-out gate
+- [x] PS legacy `build-image.sh` -> Crucible Python image 链保留为独立 compatibility lane，且不作为 team fallback 或验收证据
+- [x] toolkit advisory risk 不冒充 Custos/Crucible authority
 - [ ] final 重新锁定并重新验证
-- [ ] `make check-authority` 覆盖并通过 toolkit schema/BOM/ownership drift
+- [x] `make check-authority` 覆盖并通过 toolkit schema/BOM/ownership drift
 - [ ] 18a-d 每个 slice 有独立 DoD、stop gate 和 handoff packet
 
 ## Progress
@@ -507,8 +507,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 |---|---|---|---|
 | T0 Live-plan repair | [x] | 2026-07-14 | `aa843f0` superseded erroneous decisions in `b898ee1` |
 | T0R Execution-readiness correction | [x] | 2026-07-14 | `cccf8b2`, `ad49872`, and `bdd516c` corrected review topology, removed the Speculum gate, and reconciled the 241-input baseline |
-| T1 Inventory/authority | [~] | — | inventory, authority docs, generator and focused inventory tests landed in `877a52a`; target-namespace/dual-authority failure gates and the 18a handoff remain |
-| T2 Coordinated contracts | [~] | — | source model, schemas, asset index, lifecycle golden, tests and pending receipt landed in `877a52a`; exact requirements reviews, producer evidence, fresh verification and READY transition remain |
+| T1 Inventory/authority | [x] | 2026-07-14 | inventory/authority baseline landed in `877a52a`; current reviewed candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` passed focused and full authority gates |
+| T2 Coordinated contracts | [x] | 2026-07-14 | READY receipt pins candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`, source `71990c6a...`, index `d87d6fc2...`, both exact requirements reviews, and clean verification checkout `f6406ea1...` |
 | T3 Minimal distribution | [ ] | — | after T2 interface boundary |
 | T4 Zero-rewrite extraction | [ ] | — | batch commits required |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
@@ -533,6 +533,19 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | HISTORY | `b898ee1` | 保留为原 plan-first 历史，不再代表有效 schema approval | Recorded |
 | DEPENDENCY | Task 2 READY topology | 将 PS Plan 54 final producer receipt 和 Crucible Plan 88 completion 从 Task 2 READY 前置中移除；两者消费 READY schema receipt，Task 2 只要求各仓 exact requirements-review receipt | Accepted 2026-07-15 |
 | PROGRESS | 18a implementation baseline | `877a52a` 已落 T1/T2 static assets，但 failure gates、外部 reviews、fresh verification、READY receipt 和 handoff 尚未完成，因此 T1/T2 统一标记 partial | Recorded 2026-07-15 |
+| PROVENANCE | Task 2 candidate refresh | 格式化后的 source/index 以 `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` 重新冻结，并由 Crucible `9085d8d...` 与 PS `7f07c09...` exact-byte requirements reviews 重新接受 | Closed 2026-07-15 |
+| SCOPE | Task 2 READY ceiling | READY 仅证明 execution ABI/schema/inventory/golden handoff；不证明 toolkit wheel、BOM、OIDC/signing、runtime verifier、Plan 88 completion 或 production readiness | Recorded 2026-07-15 |
+
+## Slice 18a handoff and Task 2 READY provenance
+
+- Producer candidate and published contract commit: `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`.
+- Producer source SHA-256: `71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3`.
+- Contract asset-index SHA-256: `d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07`.
+- Crucible requirements review: source commit `9085d8deb8e78cc17a57c20ae244b48ede08799c`, vendored receipt SHA-256 `09bff539edafa818d1f15b866ae3626600ced90f613da68dd4e14a9385935095`.
+- Philosophers-Stone requirements review: source commit `7f07c090ce6d6dd4f2e11986680009a61af0934b`, vendored receipt SHA-256 `0a4d48c9bd1849b8a04b9a72ef6fb97942e0f66bc21b6d7916c2d5eb21650319`.
+- Clean verification checkout: `f6406ea1e5f9a902f0c9226e3db78eebc88bcd65` at `2026-07-14T17:17:49Z`.
+- Fresh evidence: focused Plan 18 suite `52 passed`; generated-asset drift gate PASS; authority gate PASS; `make verify` PASS with fmt/lint and `443 passed, 4 skipped, 1 xfailed, 1 warning`.
+- Scope ceiling: Tasks 3-9 remain open. No toolkit wheel, immutable BOM, OIDC/signature, real artifact/runtime verification, Plan 88 completion, consumer cutover, or production-readiness claim is made by this receipt.
 
 ## Quantitative Summary
 
