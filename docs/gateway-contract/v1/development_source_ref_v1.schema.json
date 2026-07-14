@@ -1,0 +1,41 @@
+{
+  "$id": "https://custos.the-alephain-guild/contracts/development-source-ref-v1.schema.json",
+  "additionalProperties": false,
+  "description": "Explicit non-promotable source reference for sandbox development only.",
+  "properties": {
+    "promotable": {
+      "const": false,
+      "default": false,
+      "title": "Promotable",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source_path": {
+      "minLength": 1,
+      "title": "Source Path",
+      "type": "string"
+    },
+    "source_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Sha256",
+      "type": "string"
+    },
+    "trading_mode": {
+      "const": "sandbox",
+      "title": "Trading Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_path",
+    "source_sha256",
+    "trading_mode"
+  ],
+  "title": "DevelopmentSourceRefV1",
+  "type": "object"
+}

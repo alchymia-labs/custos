@@ -1,0 +1,63 @@
+{
+  "$id": "https://custos.the-alephain-guild/contracts/strategy-execution-context-v1.schema.json",
+  "additionalProperties": false,
+  "description": "Identity and provenance presented to a strategy runtime adapter.",
+  "properties": {
+    "deployment_instance_id": {
+      "format": "uuid",
+      "title": "Deployment Instance Id",
+      "type": "string"
+    },
+    "deployment_spec_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Deployment Spec Digest",
+      "type": "string"
+    },
+    "deployment_spec_id": {
+      "format": "uuid",
+      "title": "Deployment Spec Id",
+      "type": "string"
+    },
+    "effective_config_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Effective Config Digest",
+      "type": "string"
+    },
+    "engine": {
+      "const": "nautilus",
+      "title": "Engine",
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 1,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "trading_mode": {
+      "enum": [
+        "sandbox",
+        "testnet",
+        "live"
+      ],
+      "title": "Trading Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "engine",
+    "trading_mode",
+    "deployment_instance_id",
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "effective_config_digest",
+    "generation"
+  ],
+  "title": "StrategyExecutionContextV1",
+  "type": "object"
+}

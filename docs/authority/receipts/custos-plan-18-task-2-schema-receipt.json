@@ -1,0 +1,39 @@
+{
+  "receipt_schema_version": 1,
+  "canonical_name": "Custos Plan 18 Task 2 schema receipt",
+  "receipt_status": "PENDING_REQUIREMENTS_AND_VERIFICATION",
+  "handoff_ready": false,
+  "producer": {
+    "repository": "tesseract-trading/custos",
+    "source": "src/custos/contracts/strategy_execution.py",
+    "commit": null,
+    "worktree_clean": null
+  },
+  "contract_asset_index": {
+    "path": "docs/authority/strategy-contract-assets-v1.json",
+    "sha256": null
+  },
+  "requirements_reviews": {
+    "crucible_rust_plan_88": {
+      "status": "PENDING_EXACT_CONSUMER_RECEIPT",
+      "receipt": null
+    },
+    "philosophers_stone_plan_54": {
+      "status": "PENDING_EXACT_PRODUCER_RECEIPT",
+      "receipt": null
+    }
+  },
+  "verification": {
+    "command": "make check-authority",
+    "status": "NOT_RUN",
+    "executed_at": null,
+    "environment": null
+  },
+  "ownership_assertions": {
+    "execution_abi_owner": "custos",
+    "artifact_schema_owner": "custos",
+    "canonical_release_bom_producer": "philosophers-stone",
+    "strategy_release_owner": "crucible-rust",
+    "legacy_python_lane": "independent and non-gating"
+  }
+}

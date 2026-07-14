@@ -42,6 +42,20 @@
     "canonical_spec_mode_field": "trading_mode",
     "event_plane_mode_field": "trading_mode"
   },
+  "strategy_execution_contract": {
+    "execution_abi_owner": "custos",
+    "artifact_schema_owner": "custos",
+    "strategy_source_and_canonical_bom_producer": "philosophers-stone",
+    "strategy_release_owner": "crucible-rust",
+    "runtime_identity": "deployment_instance_id",
+    "entry_point_group": "alephain.strategy_runtime.v1",
+    "base_contracts_python": ">=3.11",
+    "nautilus_distribution_python": ">=3.12,<3.13",
+    "nautilus_trader": "1.230.0",
+    "asset_index": "docs/authority/strategy-contract-assets-v1.json",
+    "task_2_receipt": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+    "legacy_python_lane": "independently supported, non-gating, and never a v1.team fallback"
+  },
   "migration_heads": {
     "arx": "0068",
     "crucible_control": "0026",

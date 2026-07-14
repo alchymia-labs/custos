@@ -3,7 +3,7 @@
 # Standalone open-source repository entrypoint. Standardized validation targets
 # keep shell execution deterministic and avoid permission drift from ad-hoc commands.
 
-.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
+.PHONY: help install install-nt install-lts fmt fmt-check lint check test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check strategy-contract-assets check-strategy-contract-assets dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
 
 # Default target: help
 .DEFAULT_GOAL := help
@@ -169,6 +169,12 @@ toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ opt
 	fi; \
 	if [ -n "$$PS_DIFFSTAT" ]; then exit 1; else exit 0; fi
 
+strategy-contract-assets:  ## Generate Plan 18 execution schemas, inventory, and lifecycle golden
+	uv run python scripts/generate_strategy_contract_assets.py
+
+check-strategy-contract-assets:  ## Fail when generated Plan 18 contract assets drift
+	uv run python scripts/generate_strategy_contract_assets.py --check
+
 # ---- Future targets (pending plan rollout) ----
 # typecheck:  ## pyright type checks (integrate in Plan 02+)
 # 	uv run pyright src/ tests/
@@ -178,7 +184,7 @@ toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ opt
 
 # Architecture authority and document drift gate.
 .PHONY: check-authority
-check-authority:
+check-authority: check-strategy-contract-assets
 	@/usr/bin/python3 scripts/check-authority-docs.py
 
 verify: check-authority

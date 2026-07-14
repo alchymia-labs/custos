@@ -7,6 +7,16 @@
     {"role": "local_domain", "path": "docs/domain.md"},
     {"role": "local_reconciliation", "path": "docs/design/reconcile.md"},
     {"role": "local_engine_protocol", "path": "docs/design/engine_protocol.md"},
+    {"role": "strategy_toolkit_authority", "path": "docs/design/strategy-toolkit.md"},
+    {"role": "strategy_toolkit_inventory", "path": "docs/authority/strategy-toolkit-inventory-v1.json"},
+    {"role": "strategy_contract_asset_index", "path": "docs/authority/strategy-contract-assets-v1.json"},
+    {"role": "strategy_artifact_lifecycle_golden", "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"},
+    {"role": "plan_18_task_2_receipt", "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"},
+    {"role": "strategy_execution_context_schema", "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json"},
+    {"role": "strategy_manifest_schema", "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json"},
+    {"role": "strategy_artifact_ref_schema", "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"},
+    {"role": "strategy_execution_command_binding_schema", "path": "docs/gateway-contract/v1/strategy_execution_command_binding_v1.schema.json"},
+    {"role": "strategy_artifact_verification_receipt_schema", "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json"},
     {"role": "local_telemetry", "path": "docs/design/telemetry_actor.md"},
     {"role": "local_nats_contract", "path": "docs/design/nats_client.md"}
   ],
@@ -21,6 +31,7 @@
       "docs/gateway-contract/v1/README.md",
       "docs/gateway-contract/v1/deployment_spec.schema.json",
       "src/custos/contracts/deployment.py",
+      "src/custos/contracts/strategy_execution.py",
       "src/custos/core/nats_client.py",
       "src/custos/core/deployment_reconciler.py",
       "src/custos/core/runner_deployment_lifecycle_fact.py",
@@ -29,6 +40,9 @@
       "tests/test_deployment_contract.py",
       "tests/test_deployment_reconciler.py",
       "tests/test_runner_deployment_command_golden.py",
+      "tests/test_toolkit_contracts.py",
+      "tests/test_toolkit_inventory.py",
+      "scripts/generate_strategy_contract_assets.py",
       "scripts/check-authority-docs.py"
     ],
     "forbidden_regex": [
@@ -45,6 +59,8 @@
     {"path": "docs/authority/ecosystem-authority.json", "must_contain": ["deployment_instance_id", "sha256-canonical-json-v1", "RunnerDeploymentLifecycleFact.v1", "facts[].seq"]},
     {"path": "docs/authority/runner-deployment-command-golden-v1.json", "must_contain": ["DeploymentSpecReadyForRunner", "DeploymentInstanceDesiredStateChanged", "\"mode\": \"sandbox\""]},
     {"path": "docs/domain.md", "must_contain": ["DeploymentSpec", "DeploymentInstance", "RunnerFact"]},
-    {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]}
+    {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]},
+    {"path": "docs/design/strategy-toolkit.md", "must_contain": ["deployment_instance_id", "StrategyReleaseBomV1", "custos-strategy-toolkit-nautilus", "independent compatibility lane"]},
+    {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "PENDING_REQUIREMENTS_AND_VERIFICATION", "philosophers-stone", "crucible-rust"]}
   ]
 }

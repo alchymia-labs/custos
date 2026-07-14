@@ -1,0 +1,146 @@
+{
+  "$defs": {
+    "ArtifactMemberRole": {
+      "enum": [
+        "base_contracts_wheel",
+        "nautilus_wheel",
+        "strategy_wheel",
+        "strategy_manifest",
+        "runtime_artifact",
+        "attestation_bundle",
+        "sbom",
+        "contract_schema",
+        "source_tree"
+      ],
+      "title": "ArtifactMemberRole",
+      "type": "string"
+    },
+    "ArtifactMemberV1": {
+      "additionalProperties": false,
+      "properties": {
+        "media_type": {
+          "minLength": 1,
+          "title": "Media Type",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ArtifactMemberRole"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "role",
+        "name",
+        "media_type",
+        "size_bytes",
+        "sha256"
+      ],
+      "title": "ArtifactMemberV1",
+      "type": "object"
+    }
+  },
+  "$id": "https://custos.the-alephain-guild/contracts/strategy-manifest-v1.schema.json",
+  "additionalProperties": false,
+  "description": "Artifact-local compatibility metadata, never release authority.",
+  "properties": {
+    "base_contracts_version": {
+      "minLength": 1,
+      "title": "Base Contracts Version",
+      "type": "string"
+    },
+    "catalog_alias": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Catalog Alias"
+    },
+    "config_schema_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Config Schema Sha256",
+      "type": "string"
+    },
+    "engine": {
+      "const": "nautilus",
+      "title": "Engine",
+      "type": "string"
+    },
+    "engine_toolkit_version": {
+      "minLength": 1,
+      "title": "Engine Toolkit Version",
+      "type": "string"
+    },
+    "engine_version": {
+      "const": "1.230.0",
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "entry_point": {
+      "minLength": 1,
+      "title": "Entry Point",
+      "type": "string"
+    },
+    "entry_point_group": {
+      "const": "alephain.strategy_runtime.v1",
+      "title": "Entry Point Group",
+      "type": "string"
+    },
+    "execution_abi": {
+      "const": "alephain.strategy_runtime.v1",
+      "title": "Execution Abi",
+      "type": "string"
+    },
+    "requires_python": {
+      "const": ">=3.12,<3.13",
+      "title": "Requires Python",
+      "type": "string"
+    },
+    "runtime_artifacts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactMemberV1"
+      },
+      "title": "Runtime Artifacts",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "execution_abi",
+    "entry_point_group",
+    "entry_point",
+    "engine",
+    "engine_version",
+    "requires_python",
+    "base_contracts_version",
+    "engine_toolkit_version",
+    "config_schema_sha256"
+  ],
+  "title": "StrategyManifestV1",
+  "type": "object"
+}

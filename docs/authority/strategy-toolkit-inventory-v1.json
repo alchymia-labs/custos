@@ -1,0 +1,2196 @@
+{
+  "category_counts": {
+    "delete": 0,
+    "nautilus_specific": 55,
+    "platform_neutral": 36,
+    "private_vendor": 150,
+    "ps_owned_hummingbot": 0,
+    "ps_owned_strategy": 0
+  },
+  "current_canonical_source": "legacy Custos vendored snapshot until Plan 18 consumer cutover",
+  "cutover_rule": "each file has one target authority; legacy source is removed only after receipt-backed cutover",
+  "file_count": 241,
+  "files": [
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/config/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/base_config.yaml",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/config/base_config.yaml"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/loader.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/config/loader.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/validator.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/config/validator.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/adx.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/adx.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/base.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/base.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/cooldown.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/cooldown.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/momentum.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/momentum.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/mtf.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/mtf.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/regime.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/regime.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/registry.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/registry.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/time_filter.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/time_filter.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/volatility.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/volatility.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/volume.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/filters/volume.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/indicators/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/indicators/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/capital_allocator.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/capital_allocator.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/allocation.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/allocation.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/backtesting.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/backtesting.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/filters.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/filters.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/platforms.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/platforms.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/position.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/position.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/risk.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/risk.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/signal.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/signal.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/snapshot.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/snapshot.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/trading.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/config/trading.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/config_summary_logger.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/config_summary_logger.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/equity_provider.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/equity_provider.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/execution.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/execution.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/filter.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/filter.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/order_reconciler.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/pair_context.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/pair_context.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/risk_control.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/risk_control.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/signal_execution.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/sizing.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/sizing.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/sltp.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/snapshot.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/snapshot.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/startup_validator.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/startup_validator.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/trade_event_handler.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/warmup.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/event_publisher.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/event_publisher.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/execution.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/execution.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filter_manager.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filter_manager.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/adx.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/adx.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/momentum.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/momentum.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/regime.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/regime.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/volatility.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/volatility.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/volume.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/volume.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/adx.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/adx.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/atr.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/atr.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/macd.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/macd.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/rsi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/rsi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/supertrend.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/orders.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/orders.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/pair_context.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/pair_context.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/registry.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/registry.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/signal_processor.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/signal_processor.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/sizing.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/sizing.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/sltp_mode.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/sltp_mode.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/state_persistence.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/state_persistence.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/strategy_core.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/strategy_core.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/tick_monitor.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/tick_monitor.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/trading_config.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/trading_config.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/trading_strategy.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/trading_strategy.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/utils.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/utils.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "nautilus_specific",
+      "classification_reason": "imports or implements Nautilus-specific behavior",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/warmup_manager.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/adapter/warmup_manager.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/position/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/position/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/position/sizer.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/position/sizer.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/position/tracker.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/position/tracker.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/protocols/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/protocols/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/protocols/bar.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/protocols/bar.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/protocols/filter.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/protocols/filter.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/risk/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/controller.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/risk/controller.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/equity.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/risk/equity.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/exchange_errors.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/risk/exchange_errors.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/manager.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/risk/manager.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/orders.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/risk/orders.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/signals/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/signals/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/signals/resolver.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/signals/resolver.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/signals/types.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/signals/types.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/warmup/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/exceptions.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/warmup/exceptions.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/protocol.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/warmup/protocol.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/snapshot.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/warmup/snapshot.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "platform_neutral",
+      "classification_reason": "engine-neutral contract or strategy helper",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/warmer.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit",
+      "target_path": "custos_toolkit/warmup/warmer.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/LICENSE",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/LICENSE"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/cdl_doji.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/cdl_doji.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/cdl_inside.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/cdl_inside.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/ha.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/ha.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/core.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/core.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/cycles/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/cycles/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/cycles/ebsw.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/cycles/ebsw.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/ao.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/ao.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/apo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/apo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/bias.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/bias.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/bop.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/bop.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/brar.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/brar.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cci.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cci.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cfo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cfo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cg.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cg.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cmo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cmo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/coppock.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/coppock.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/er.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/er.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/eri.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/eri.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/fisher.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/fisher.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/inertia.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/inertia.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/kdj.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/kdj.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/kst.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/kst.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/macd.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/macd.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/mom.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/mom.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/pgo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/pgo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/ppo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/ppo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/psl.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/psl.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/pvo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/pvo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/qqe.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/qqe.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/roc.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/roc.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/rsi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/rsi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/rsx.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/rsx.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/rvgi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/rvgi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/slope.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/slope.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/smi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/smi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/squeeze.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/squeeze.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/stoch.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/stoch.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/stochrsi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/stochrsi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/td_seq.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/td_seq.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/trix.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/trix.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/tsi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/tsi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/uo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/uo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/willr.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/willr.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/alma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/alma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/dema.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/dema.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ema.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ema.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/fwma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/fwma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hilo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hilo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hl2.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hl2.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hlc3.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hlc3.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hwma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hwma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ichimoku.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ichimoku.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/kama.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/kama.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/linreg.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/linreg.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/mcgd.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/mcgd.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/midpoint.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/midpoint.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/midprice.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/midprice.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ohlc4.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ohlc4.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/pwma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/pwma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/rma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/rma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/sinwma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/sinwma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/sma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/sma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ssf.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ssf.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/supertrend.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/supertrend.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/swma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/swma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/t3.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/t3.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/tema.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/tema.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/trima.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/trima.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/vidya.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/vidya.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/vwap.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/vwap.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/vwma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/vwma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/wcp.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/wcp.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/wma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/wma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/zlma.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/zlma.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/drawdown.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/drawdown.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/log_return.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/log_return.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/percent_return.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/percent_return.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/trend_return.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/trend_return.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/entropy.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/entropy.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/kurtosis.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/kurtosis.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/mad.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/mad.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/median.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/median.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/quantile.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/quantile.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/skew.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/skew.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/stdev.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/stdev.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/variance.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/variance.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/zscore.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/zscore.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/adx.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/adx.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/amat.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/amat.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/aroon.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/aroon.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/chop.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/chop.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/cksp.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/cksp.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/decay.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/decay.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/decreasing.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/decreasing.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/dpo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/dpo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/increasing.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/increasing.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/long_run.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/long_run.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/psar.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/psar.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/qstick.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/qstick.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/short_run.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/short_run.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/ttm_trend.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/ttm_trend.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/vortex.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/vortex.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_candles.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_candles.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_core.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_core.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_data.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_data.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_math.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_math.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_metrics.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_metrics.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_signals.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_signals.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_time.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_time.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/aberration.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/aberration.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/accbands.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/accbands.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/atr.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/atr.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/bbands.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/bbands.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/donchian.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/donchian.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/hwc.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/hwc.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/kc.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/kc.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/massi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/massi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/natr.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/natr.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/pdist.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/pdist.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/rvi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/rvi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/thermo.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/thermo.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/true_range.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/true_range.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/ui.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/ui.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/__init__.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/__init__.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/ad.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/ad.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/adosc.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/adosc.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/aobv.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/aobv.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/cmf.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/cmf.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/efi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/efi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/eom.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/eom.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/mfi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/mfi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/nvi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/nvi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/obv.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/obv.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvi.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvi.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvol.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvol.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvr.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvr.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvt.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvt.py"
+    },
+    {
+      "canonical_owner_after_cutover": "custos",
+      "category": "private_vendor",
+      "classification_reason": "third-party engine dependency remains private",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/vp.py",
+      "migration_action": "extract_zero_rewrite",
+      "target_distribution": "custos-strategy-toolkit-nautilus",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/vp.py"
+    }
+  ],
+  "forbidden_migration_mechanisms": [
+    "sys.path mutation",
+    "fake pkg_resources distribution",
+    "two writable canonical copies"
+  ],
+  "inventory_schema_version": 1,
+  "legacy_aliases_must_retire": [
+    "shared",
+    "pandas_ta"
+  ],
+  "source_root": "src/custos/engines/nautilus/toolkit",
+  "tracked_source_semantics": "all deterministic source inputs below shared/ and vendor/"
+}

@@ -28,6 +28,63 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def verify_strategy_contract_assets(errors: list[str]) -> None:
+    index_path = resolve("docs/authority/strategy-contract-assets-v1.json")
+    if not index_path.is_file():
+        errors.append(f"missing strategy contract asset index: {index_path}")
+        return
+    index = load_json(index_path)
+    for entry in index.get("assets", []):
+        path = resolve(str(entry.get("path") or ""))
+        if not path.is_file():
+            errors.append(f"missing generated strategy contract asset: {path}")
+            continue
+        actual_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual_digest != entry.get("sha256"):
+            errors.append(f"strategy contract asset digest differs: {path}")
+        if path.stat().st_size != entry.get("size_bytes"):
+            errors.append(f"strategy contract asset size differs: {path}")
+
+
+def verify_plan_18_task_2_receipt(errors: list[str]) -> None:
+    receipt_path = resolve("docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json")
+    if not receipt_path.is_file():
+        errors.append(f"missing Plan 18 Task 2 receipt: {receipt_path}")
+        return
+    receipt = load_json(receipt_path)
+    status = receipt.get("receipt_status")
+    if status == "PENDING_REQUIREMENTS_AND_VERIFICATION":
+        if receipt.get("handoff_ready") is not False:
+            errors.append("pending Plan 18 Task 2 receipt must not be handoff-ready")
+        return
+    if status != "READY":
+        errors.append("Plan 18 Task 2 receipt status must be pending or READY")
+        return
+    producer = receipt.get("producer", {})
+    if not re.fullmatch(r"[0-9a-f]{40}", str(producer.get("commit") or "")):
+        errors.append("ready Plan 18 Task 2 receipt requires an exact producer commit")
+    if producer.get("worktree_clean") is not True:
+        errors.append("ready Plan 18 Task 2 receipt requires clean-worktree evidence")
+    reviews = receipt.get("requirements_reviews", {})
+    expected_reviews = {
+        "crucible_rust_plan_88": "ACCEPTED",
+        "philosophers_stone_plan_54": "ACCEPTED",
+    }
+    for name, expected in expected_reviews.items():
+        review = reviews.get(name, {})
+        if review.get("status") != expected or not review.get("receipt"):
+            errors.append(f"ready Plan 18 Task 2 receipt lacks accepted {name} evidence")
+    verification = receipt.get("verification", {})
+    if verification.get("status") != "PASS" or not verification.get("executed_at"):
+        errors.append("ready Plan 18 Task 2 receipt requires fresh authority verification")
+    asset_ref = receipt.get("contract_asset_index", {})
+    asset_path = resolve(str(asset_ref.get("path") or ""))
+    if not asset_path.is_file():
+        errors.append("ready Plan 18 Task 2 receipt references a missing asset index")
+    elif hashlib.sha256(asset_path.read_bytes()).hexdigest() != asset_ref.get("sha256"):
+        errors.append("ready Plan 18 Task 2 receipt asset-index digest differs")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -67,6 +124,8 @@ def main() -> int:
                         errors.append(
                             f"runner command golden differs from optional sibling: {sibling_path}"
                         )
+    verify_strategy_contract_assets(errors)
+    verify_plan_18_task_2_receipt(errors)
     for entry in manifest.get("external_optional_documents", []):
         path = resolve(entry["path"])
         if not path.is_file():
