@@ -12,10 +12,80 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "authority-manifest.json"
+TASK_2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
+EXPECTED_PRODUCER = {
+    "repository": "tesseract-trading/custos",
+    "commit": "877a52a59c43ec20d1c9cda1bf309644726d5ee9",
+    "source_path": "src/custos/contracts/strategy_execution.py",
+    "source_sha256": "6da97b9369cf92e42b9dfcf5b5771fe78491cab4c40459127d08ab4fd3740551",
+    "asset_index_path": "docs/authority/strategy-contract-assets-v1.json",
+    "asset_index_sha256": "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302",
+}
+EXPECTED_CONTRACT_SUMMARY = {
+    "canonicalization": "sha256-canonical-json-v1",
+    "execution_abi": "alephain.strategy_runtime.v1",
+    "execution_abi_version": 1,
+    "contract_schema_version": 1,
+    "entry_point_group": "alephain.strategy_runtime.v1",
+}
+REVIEW_PROFILES: dict[str, dict[str, Any]] = {
+    "crucible_rust_plan_88": {
+        "canonical_name": (
+            "Crucible Plan 88 Custos Plan 18 Task 2 requirements-only consumer review"
+        ),
+        "source_repository": "tesseract-trading/crucible-rust",
+        "source_path": (
+            "docs/authority/receipts/"
+            "crucible-plan-88-custos-task-2-consumer-review.json"
+        ),
+        "source_commit": "91863e22202f21faa4038441d4c43d5d2c4a8317",
+        "sha256": "7e26b0f371324512f6f57830b235a34f5512d5acb4bdf1f27f5f737a25548370",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/"
+            "crucible-plan-88-custos-task-2-requirements-review.json"
+        ),
+        "decision_path": ("consumer_review_status",),
+        "review_schema_path": ("contract_requirements", "schema_version"),
+        "review_schema_value": 1,
+        "producer_path": ("producer_snapshot",),
+        "canonicalization_path": (
+            "contract_requirements",
+            "canonicalization",
+            "identifier",
+        ),
+        "execution_abi_path": ("contract_requirements", "execution_abi"),
+        "entry_point_group_path": ("contract_requirements", "entry_point", "group"),
+        "assets_path": ("reviewed_assets",),
+    },
+    "philosophers_stone_plan_54": {
+        "canonical_name": (
+            "Philosophers-Stone Plan 54 Custos Plan 18 Task 2 requirements review"
+        ),
+        "source_repository": "alchymia-labs/philosophers-stone",
+        "source_path": (
+            "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json"
+        ),
+        "source_commit": "f0de58e895ffad90071be8033e9178010a9c46b0",
+        "sha256": "3a7fe62661f80bb525108dfb5c26dc2af800bb2e85d8e371109f3a36f48e48af",
+        "vendored_path": (
+            "docs/authority/receipts/vendor/"
+            "ps-plan-54-custos-task-2-requirements-review.json"
+        ),
+        "decision_path": ("review_status",),
+        "review_schema_path": ("schema_version",),
+        "review_schema_value": "alephain.ps-plan-54-custos-task-2-requirements-review.v1",
+        "producer_path": ("custos_producer_pin",),
+        "canonicalization_path": ("canonicalization_contract", "identifier"),
+        "execution_abi_path": ("execution_abi_contract", "identifier"),
+        "entry_point_group_path": ("execution_abi_contract", "entry_point_group"),
+        "assets_path": ("contract_assets",),
+    },
+}
 
 
-def resolve(path: str) -> Path:
-    return (ROOT / path).resolve()
+def resolve(path: str, *, root: Path = ROOT) -> Path:
+    return (root / path).resolve()
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -26,6 +96,184 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise SystemExit(f"authority JSON must be an object: {path}")
     return value
+
+
+def _nested(value: object, path: tuple[str, ...]) -> object:
+    current = value
+    for part in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+    return current
+
+
+def _load_gate_json(path: Path, *, label: str, errors: list[str]) -> dict[str, Any] | None:
+    try:
+        return load_json(path)
+    except SystemExit as exc:
+        errors.append(f"{label} is not valid JSON: {exc}")
+        return None
+
+
+def _resolve_local_file(
+    value: object,
+    *,
+    label: str,
+    root: Path,
+    errors: list[str],
+    required_parent: str | None = None,
+) -> Path | None:
+    if not isinstance(value, str) or not value:
+        errors.append(f"{label} requires a non-empty repository-relative path")
+        return None
+    relative = Path(value)
+    if relative.is_absolute():
+        errors.append(f"{label} must be repository-relative")
+        return None
+    repository_root = root.resolve()
+    path = (repository_root / relative).resolve()
+    if not path.is_relative_to(repository_root):
+        errors.append(f"{label} escapes the repository root")
+        return None
+    if required_parent is not None:
+        parent = (repository_root / required_parent).resolve()
+        if not path.is_relative_to(parent):
+            errors.append(f"{label} must stay under {required_parent}")
+            return None
+    if not path.is_file():
+        errors.append(f"missing {label}: {path}")
+        return None
+    return path
+
+
+def _asset_table(
+    entries: object, *, label: str, errors: list[str]
+) -> dict[str, tuple[str, int]] | None:
+    if not isinstance(entries, list):
+        errors.append(f"{label} must be an asset list")
+        return None
+    result: dict[str, tuple[str, int]] = {}
+    valid = True
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append(f"{label} contains a non-object asset")
+            valid = False
+            continue
+        path = entry.get("path")
+        digest = entry.get("sha256")
+        size = entry.get("size_bytes")
+        if not isinstance(path, str) or not re.fullmatch(r"[0-9a-f]{64}", str(digest or "")):
+            errors.append(f"{label} contains an invalid path or SHA-256")
+            valid = False
+            continue
+        if type(size) is not int or size < 0:
+            errors.append(f"{label} contains an invalid size for {path}")
+            valid = False
+            continue
+        if path in result:
+            errors.append(f"{label} contains duplicate asset path {path}")
+            valid = False
+            continue
+        result[path] = (str(digest), size)
+    return result if valid else None
+
+
+def _validate_contract_summary(receipt: dict[str, Any], errors: list[str]) -> None:
+    summary = receipt.get("contract_summary")
+    if not isinstance(summary, dict):
+        errors.append("Plan 18 Task 2 receipt lacks a structured contract summary")
+        return
+    for field, expected in EXPECTED_CONTRACT_SUMMARY.items():
+        if summary.get(field) != expected:
+            errors.append(f"Plan 18 Task 2 contract summary {field} differs")
+
+
+def _validate_requirement_review(
+    name: str,
+    slot: object,
+    *,
+    receipt: dict[str, Any],
+    asset_table: dict[str, tuple[str, int]],
+    root: Path,
+    errors: list[str],
+) -> None:
+    profile = REVIEW_PROFILES[name]
+    if not isinstance(slot, dict):
+        errors.append(f"{name} requirements review must be a structured object")
+        return
+    if slot.get("status") != "ACCEPTED_REQUIREMENTS_REVIEW":
+        errors.append(f"{name} requirements review decision is not accepted")
+        return
+    if slot.get("required_receipt_name") != profile["canonical_name"]:
+        errors.append(f"{name} requirements review canonical name differs")
+    evidence = slot.get("receipt")
+    if not isinstance(evidence, dict):
+        errors.append(f"{name} review evidence must be a structured receipt object")
+        return
+    for field in ("source_repository", "source_path", "source_commit", "sha256", "vendored_path"):
+        if evidence.get(field) != profile[field]:
+            errors.append(f"{name} review evidence {field} differs")
+    vendored_path = _resolve_local_file(
+        evidence.get("vendored_path"),
+        label=f"{name} vendored requirements review",
+        root=root,
+        errors=errors,
+        required_parent=REVIEW_VENDOR_ROOT,
+    )
+    if vendored_path is None:
+        return
+    actual_digest = hashlib.sha256(vendored_path.read_bytes()).hexdigest()
+    if actual_digest != evidence.get("sha256"):
+        errors.append(f"{name} vendored requirements review byte digest differs")
+    review = _load_gate_json(vendored_path, label=f"{name} vendored review", errors=errors)
+    if review is None:
+        return
+    if _nested(review, profile["decision_path"]) != "ACCEPTED_REQUIREMENTS_REVIEW":
+        errors.append(f"{name} vendored review decision is not ACCEPTED_REQUIREMENTS_REVIEW")
+    if _nested(review, profile["review_schema_path"]) != profile["review_schema_value"]:
+        errors.append(f"{name} vendored review schema version differs")
+
+    producer = receipt.get("producer")
+    asset_ref = receipt.get("contract_asset_index")
+    if not isinstance(producer, dict) or not isinstance(asset_ref, dict):
+        errors.append(f"{name} cannot bind an invalid producer receipt")
+        return
+    reviewed_producer = _nested(review, profile["producer_path"])
+    if not isinstance(reviewed_producer, dict):
+        errors.append(f"{name} vendored review lacks a producer snapshot")
+        return
+    expected_commit = producer.get("commit") or producer.get("candidate_commit")
+    if reviewed_producer.get("repository") != producer.get("repository"):
+        errors.append(f"{name} reviewed producer repository differs")
+    if reviewed_producer.get("commit") != expected_commit:
+        errors.append(f"{name} reviewed producer commit differs")
+    reviewed_source = reviewed_producer.get("source")
+    if not isinstance(reviewed_source, dict) or reviewed_source != {
+        "path": producer.get("source"),
+        "sha256": producer.get("source_sha256"),
+    }:
+        errors.append(f"{name} reviewed producer source differs")
+    reviewed_index = reviewed_producer.get("contract_asset_index")
+    if not isinstance(reviewed_index, dict) or reviewed_index != {
+        "path": asset_ref.get("path"),
+        "sha256": asset_ref.get("sha256"),
+    }:
+        errors.append(f"{name} reviewed asset index differs")
+
+    summary = receipt.get("contract_summary", {})
+    if _nested(review, profile["canonicalization_path"]) != summary.get("canonicalization"):
+        errors.append(f"{name} reviewed canonicalization differs")
+    if _nested(review, profile["execution_abi_path"]) != summary.get("execution_abi"):
+        errors.append(f"{name} reviewed execution ABI differs")
+    if _nested(review, profile["entry_point_group_path"]) != summary.get("entry_point_group"):
+        errors.append(f"{name} reviewed entry-point group differs")
+    reviewed_assets = _asset_table(
+        _nested(review, profile["assets_path"]),
+        label=f"{name} reviewed assets",
+        errors=errors,
+    )
+    if reviewed_assets is not None and reviewed_assets != asset_table:
+        errors.append(f"{name} reviewed schema asset digest set differs")
 
 
 def verify_strategy_contract_assets(errors: list[str]) -> None:
@@ -46,43 +294,108 @@ def verify_strategy_contract_assets(errors: list[str]) -> None:
             errors.append(f"strategy contract asset size differs: {path}")
 
 
-def verify_plan_18_task_2_receipt(errors: list[str]) -> None:
-    receipt_path = resolve("docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json")
+def verify_plan_18_task_2_receipt(errors: list[str], *, root: Path = ROOT) -> None:
+    receipt_path = resolve(TASK_2_RECEIPT_PATH, root=root)
     if not receipt_path.is_file():
         errors.append(f"missing Plan 18 Task 2 receipt: {receipt_path}")
         return
     receipt = load_json(receipt_path)
+    if receipt.get("receipt_schema_version") != 1:
+        errors.append("Plan 18 Task 2 receipt schema version must be 1")
+    if receipt.get("canonical_name") != "Custos Plan 18 Task 2 schema receipt":
+        errors.append("Plan 18 Task 2 receipt canonical name differs")
+    _validate_contract_summary(receipt, errors)
     status = receipt.get("receipt_status")
     if status == "PENDING_REQUIREMENTS_AND_VERIFICATION":
         if receipt.get("handoff_ready") is not False:
             errors.append("pending Plan 18 Task 2 receipt must not be handoff-ready")
-        return
-    if status != "READY":
+    elif status == "READY":
+        if receipt.get("handoff_ready") is not True:
+            errors.append("ready Plan 18 Task 2 receipt must be handoff-ready")
+    else:
         errors.append("Plan 18 Task 2 receipt status must be pending or READY")
         return
+
     producer = receipt.get("producer", {})
-    if not re.fullmatch(r"[0-9a-f]{40}", str(producer.get("commit") or "")):
-        errors.append("ready Plan 18 Task 2 receipt requires an exact producer commit")
-    if producer.get("worktree_clean") is not True:
-        errors.append("ready Plan 18 Task 2 receipt requires clean-worktree evidence")
-    reviews = receipt.get("requirements_reviews", {})
-    expected_reviews = {
-        "crucible_rust_plan_88": "ACCEPTED",
-        "philosophers_stone_plan_54": "ACCEPTED",
-    }
-    for name, expected in expected_reviews.items():
-        review = reviews.get(name, {})
-        if review.get("status") != expected or not review.get("receipt"):
-            errors.append(f"ready Plan 18 Task 2 receipt lacks accepted {name} evidence")
-    verification = receipt.get("verification", {})
-    if verification.get("status") != "PASS" or not verification.get("executed_at"):
-        errors.append("ready Plan 18 Task 2 receipt requires fresh authority verification")
+    if not isinstance(producer, dict):
+        errors.append("Plan 18 Task 2 receipt producer must be an object")
+        return
+    if producer.get("repository") != EXPECTED_PRODUCER["repository"]:
+        errors.append("Plan 18 Task 2 producer repository differs")
+    if producer.get("candidate_commit") != EXPECTED_PRODUCER["commit"]:
+        errors.append("Plan 18 Task 2 producer candidate commit differs")
+    if producer.get("source") != EXPECTED_PRODUCER["source_path"]:
+        errors.append("Plan 18 Task 2 producer source path differs")
+    if producer.get("source_sha256") != EXPECTED_PRODUCER["source_sha256"]:
+        errors.append("Plan 18 Task 2 producer source digest differs")
+    source_path = _resolve_local_file(
+        producer.get("source"),
+        label="Plan 18 Task 2 producer source",
+        root=root,
+        errors=errors,
+    )
+    if source_path is not None:
+        source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+        if source_digest != producer.get("source_sha256"):
+            errors.append("Plan 18 Task 2 producer source bytes differ")
+
     asset_ref = receipt.get("contract_asset_index", {})
-    asset_path = resolve(str(asset_ref.get("path") or ""))
-    if not asset_path.is_file():
-        errors.append("ready Plan 18 Task 2 receipt references a missing asset index")
-    elif hashlib.sha256(asset_path.read_bytes()).hexdigest() != asset_ref.get("sha256"):
-        errors.append("ready Plan 18 Task 2 receipt asset-index digest differs")
+    if not isinstance(asset_ref, dict):
+        errors.append("Plan 18 Task 2 contract asset index must be an object")
+        return
+    if asset_ref.get("path") != EXPECTED_PRODUCER["asset_index_path"]:
+        errors.append("Plan 18 Task 2 asset-index path differs")
+    if asset_ref.get("sha256") != EXPECTED_PRODUCER["asset_index_sha256"]:
+        errors.append("Plan 18 Task 2 asset-index pinned digest differs")
+    asset_path = _resolve_local_file(
+        asset_ref.get("path"),
+        label="Plan 18 Task 2 contract asset index",
+        root=root,
+        errors=errors,
+    )
+    asset_table: dict[str, tuple[str, int]] | None = None
+    if asset_path is not None:
+        asset_digest = hashlib.sha256(asset_path.read_bytes()).hexdigest()
+        if asset_digest != asset_ref.get("sha256"):
+            errors.append("Plan 18 Task 2 receipt asset-index digest differs")
+        index = _load_gate_json(asset_path, label="Plan 18 Task 2 asset index", errors=errors)
+        if index is not None:
+            asset_table = _asset_table(
+                index.get("assets"),
+                label="Plan 18 Task 2 asset index",
+                errors=errors,
+            )
+
+    reviews = receipt.get("requirements_reviews")
+    if not isinstance(reviews, dict):
+        errors.append("Plan 18 Task 2 requirements reviews must be an object")
+    elif asset_table is not None:
+        for name in REVIEW_PROFILES:
+            slot = reviews.get(name)
+            if status == "READY" or (
+                isinstance(slot, dict) and slot.get("status") == "ACCEPTED_REQUIREMENTS_REVIEW"
+            ):
+                _validate_requirement_review(
+                    name,
+                    slot,
+                    receipt=receipt,
+                    asset_table=asset_table,
+                    root=root,
+                    errors=errors,
+                )
+
+    if status == "READY":
+        if not re.fullmatch(r"[0-9a-f]{40}", str(producer.get("commit") or "")):
+            errors.append("ready Plan 18 Task 2 receipt requires an exact producer commit")
+        elif producer.get("commit") != producer.get("candidate_commit"):
+            errors.append("ready Plan 18 Task 2 producer commit differs from reviewed candidate")
+        if producer.get("worktree_clean") is not True:
+            errors.append("ready Plan 18 Task 2 receipt requires clean-worktree evidence")
+        verification = receipt.get("verification", {})
+        if not isinstance(verification, dict) or verification.get("status") != "PASS":
+            errors.append("ready Plan 18 Task 2 receipt requires successful verification")
+        elif not verification.get("executed_at") or not verification.get("environment"):
+            errors.append("ready Plan 18 Task 2 receipt requires fresh verification metadata")
 
 
 def main() -> int:

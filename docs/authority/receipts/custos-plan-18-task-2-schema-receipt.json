@@ -24,25 +24,25 @@
   },
   "requirements_reviews": {
     "crucible_rust_plan_88": {
-      "required_receipt_name": "Crucible Plan 88 Custos Plan 18 Task 2 consumer requirements review",
-      "status": "PENDING_EXACT_REQUIREMENTS_REVIEW",
+      "required_receipt_name": "Crucible Plan 88 Custos Plan 18 Task 2 requirements-only consumer review",
+      "status": "ACCEPTED_REQUIREMENTS_REVIEW",
       "receipt": {
         "source_repository": "tesseract-trading/crucible-rust",
         "source_path": "docs/authority/receipts/crucible-plan-88-custos-task-2-consumer-review.json",
-        "source_commit": null,
-        "sha256": null,
-        "vendored_path": null
+        "source_commit": "91863e22202f21faa4038441d4c43d5d2c4a8317",
+        "sha256": "7e26b0f371324512f6f57830b235a34f5512d5acb4bdf1f27f5f737a25548370",
+        "vendored_path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"
       }
     },
     "philosophers_stone_plan_54": {
-      "required_receipt_name": "Philosophers-Stone Plan 54 Custos Plan 18 Task 2 producer requirements review",
-      "status": "PENDING_EXACT_REQUIREMENTS_REVIEW",
+      "required_receipt_name": "Philosophers-Stone Plan 54 Custos Plan 18 Task 2 requirements review",
+      "status": "ACCEPTED_REQUIREMENTS_REVIEW",
       "receipt": {
         "source_repository": "alchymia-labs/philosophers-stone",
         "source_path": "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json",
-        "source_commit": null,
-        "sha256": null,
-        "vendored_path": null
+        "source_commit": "f0de58e895ffad90071be8033e9178010a9c46b0",
+        "sha256": "3a7fe62661f80bb525108dfb5c26dc2af800bb2e85d8e371109f3a36f48e48af",
+        "vendored_path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"
       }
     }
   },

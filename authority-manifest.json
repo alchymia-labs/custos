@@ -12,6 +12,8 @@
     {"role": "strategy_contract_asset_index", "path": "docs/authority/strategy-contract-assets-v1.json"},
     {"role": "strategy_artifact_lifecycle_golden", "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"},
     {"role": "plan_18_task_2_receipt", "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"},
+    {"role": "plan_18_task_2_crucible_requirements_review", "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"},
+    {"role": "plan_18_task_2_ps_requirements_review", "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"},
     {"role": "strategy_execution_context_schema", "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json"},
     {"role": "strategy_manifest_schema", "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json"},
     {"role": "strategy_artifact_ref_schema", "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"},
@@ -80,6 +82,8 @@
     {"path": "docs/domain.md", "must_contain": ["DeploymentSpec", "DeploymentInstance", "RunnerFact"]},
     {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]},
     {"path": "docs/design/strategy-toolkit.md", "must_contain": ["deployment_instance_id", "StrategyReleaseBomV1", "custos-strategy-toolkit-nautilus", "independent compatibility lane"]},
-    {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]}
+    {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]},
+    {"path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "877a52a59c43ec20d1c9cda1bf309644726d5ee9", "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"]},
+    {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "877a52a59c43ec20d1c9cda1bf309644726d5ee9", "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"]}
   ]
 }
