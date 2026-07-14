@@ -7,8 +7,8 @@
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
 > **Immediately executable**: Task 1 verification floor only
-> **Hard gates**: clean Crucible command producer; signed runner-level cap policy for live
-> **Soft depends on**: Custos Plan 18 candidate; PS Plan 56 acceptance
+> **Hard gates**: Crucible Plan 89 signed command producer; Crucible Plan 90 schema/golden compatibility receipt; Crucible Plan 99 runner-safety-policy-authority; Custos Plan 18 staged candidate
+> **Final gates**: Custos Plan 18 exact final; Crucible Plan 90 real runtime round-trip receipt; PS Plan 56 acceptance
 > **Original plan-first**: `3ce4048`; this live-plan revision supersedes its erroneous decisions
 
 ## 上下文 (Context)
@@ -51,8 +51,10 @@ Task 1 可立即执行。Task 2 以后受 cross-repo hard gates 约束。
 把 current-main 收敛为可恢复、可监督、fail-closed 的 Custos runtime：
 
 - exact signed Crucible command consumption；
+- success/conflict/stale/retry-exhausted/invalid-command outcome 在 ACK/TERM 前 durable；
 - applied state 与 lifecycle fact 的单事务提交；
 - 唯一 RunnerFact outbox、stream sequence 和 PubAck path；
+- 所有 deployment-scoped RunnerFact 受 signed generation fencing；
 - additive engine readiness/terminal lifecycle；
 - 真实 Nautilus portfolio/equity；
 - signed canonical policy 的本地 mandatory enforcement；
@@ -70,9 +72,9 @@ canonical reconciliation 或结算。
 | StrategyRelease/artifact selection/effective config | Crucible | execute exact bound artifact/config |
 | Runtime address | `deployment_instance_id` | key all desired/applied/runtime state |
 | Local credentials and venue interaction | Custos | keep secrets local and execute |
-| RunnerFact sequence/signing/outbox | Custos | existing SQLite deep module |
+| RunnerFact sequence/signing/outbox/generation fence | Custos | existing SQLite deep module；generation 进入 signed header，但不切分 stream |
 | RunnerFact verification/projector/settlement | Crucible | provide compatibility receipt |
-| Runner-level cap policy | Crucible signed versioned policy | enforce locally without loosening |
+| Runner-level cap policy | Crucible Plan 99 signed versioned policy | enforce locally without loosening；不得内嵌到某个 DeploymentSpec |
 | Advisory strategy sizing | Toolkit/strategy | never substitutes mandatory safety |
 | Portfolio risk, approvals, capital, settlement | Crucible | out of scope |
 
@@ -97,9 +99,10 @@ class RunnerStateStore(Protocol):
         self,
         command: VerifiedRunnerCommand,
         command_fingerprint: str,
+        verification_receipt: CommandVerificationReceipt,
     ) -> DesiredRecord: ...
 
-    def commit_applied_and_enqueue_lifecycle(
+    def commit_verified_command_outcome_and_enqueue_fact(
         self,
         *,
         deployment_instance_id: UUID,
@@ -107,33 +110,59 @@ class RunnerStateStore(Protocol):
         deployment_spec_digest: str,
         generation: int,
         command_fingerprint: str,
-        engine_handle: str,
-        lifecycle_fact: RunnerDeploymentLifecycleFact,
-    ) -> AppliedCommitResult: ...
+        outcome: Literal["applied", "conflict", "stale", "retry_exhausted"],
+        engine_handle: str | None,
+        outcome_fact: RunnerFact,
+    ) -> CommandOutcomeCommitResult: ...
+
+    def commit_untrusted_command_rejection(
+        self,
+        *,
+        delivery_id: str,
+        exact_subject: str,
+        raw_envelope_digest: str,
+        reason_code: Literal["invalid_signature", "invalid_schema", "unsupported_version"],
+    ) -> UntrustedCommandRejectionResult: ...
 ```
 
-`commit_applied_and_enqueue_lifecycle()` 必须在一个 SQLite transaction 中：
+`commit_applied_and_enqueue_lifecycle()` 保留为
+`commit_verified_command_outcome_and_enqueue_fact(outcome="applied")` 的 typed wrapper。
+verified command 的四种 terminal/success outcome 必须在一个 SQLite transaction 中：
 
 1. 校验 desired instance/generation/fingerprint；
 2. 写 applied state；
-3. 使用现有 event dedup；
-4. 分配现有 stream sequence；
-5. 注入 `facts[].seq`；
-6. 构造并签名 batch；
-7. 写入现有 `runner_fact_outbox`；
-8. commit。
+3. 写 immutable command outcome；
+4. 使用现有 event dedup；
+5. 分配现有 stream sequence；
+6. 注入 `facts[].seq`；
+7. 构造并签名 batch；
+8. 写入现有 `runner_fact_outbox`；
+9. commit。
 
 禁止先提交 applied 再调用另一个 outbox transaction。
+invalid signature/schema/version 无法建立可信 instance authority，因此不得伪造 lifecycle
+fact；`commit_untrusted_command_rejection()` 必须先把 runner-scoped security/DLQ receipt
+durably 写入同一 SQLite deep module，再允许 consumer `term()`。如果任何 durable commit
+失败，只能 NAK，不得 ACK/TERM。
 
 最小 tables：
 
 ```text
 desired_deployments
   deployment_instance_id PRIMARY KEY
+  tenant_id
+  trading_mode
+  runner_id
   deployment_spec_id
   deployment_spec_digest
   generation
+  command_event_id
+  exact_subject
   command_fingerprint
+  verified_event_bytes_digest
+  signer_key_id
+  signature_profile
+  verification_receipt
   canonical_command
   desired_status
   updated_at_ns
@@ -150,6 +179,45 @@ applied_deployments
   quarantine_reason
   updated_at_ns
 
+command_outcomes
+  outcome_id PRIMARY KEY
+  delivery_id
+  deployment_instance_id NULLABLE
+  generation NULLABLE
+  command_fingerprint NULLABLE
+  outcome
+  reason_code
+  durable_disposition
+  recorded_at_ns
+
+runner_cap_policy
+  policy_id PRIMARY KEY
+  policy_revision
+  policy_digest
+  tenant_scope
+  trading_mode
+  max_notional
+  effective_at_ns
+  expires_at_ns
+  signer_key_id
+  signed_policy
+
+order_reservation
+  deployment_instance_id
+  client_order_id
+  policy_id
+  reserved_notional
+  filled_exposure
+  state
+  updated_at_ns
+  PRIMARY KEY (deployment_instance_id, client_order_id)
+
+runner_exposure_checkpoint
+  policy_id PRIMARY KEY
+  open_exposure
+  reconstructed_at_ns
+  source_digest
+
 existing tables, retained as the only fact path
   runner_fact_stream
   runner_fact_seen_event
@@ -162,9 +230,27 @@ SQLite 不得保存 credential material。
 Lifecycle event ID 必须由 instance/spec/generation/state/fingerprint 的稳定输入
 确定生成，不能在 crash replay 时随机生成新 UUID。
 
+`RunnerFactAuthority` 与 signed batch header 必须增加 `generation`。generation 不得进入
+`stream_key`、NATS subject 或 sequence allocator key；同一 instance/spec stream 在 generation
+变化时继续单调递增。fill/order/position/equity/log/lifecycle 等所有 deployment-scoped fact
+都必须带当前 generation，Crucible projector 必须拒绝或隔离旧 generation fact。
+
 ## Command Identity, ACK, and Poison Handling
 
-Command fingerprint 对 canonical signed command payload 计算：
+Command fingerprint 冻结为：
+
+```text
+SHA256(
+  b"CRUCIBLE-RUNNER-COMMAND-FINGERPRINT-V1\0" ||
+  u32be(len(exact_subject_utf8)) || exact_subject_utf8 ||
+  u64be(len(verified_exact_event_bytes)) || verified_exact_event_bytes
+)
+```
+
+`verified_exact_event_bytes` 是通过 Crucible signature 验证的原始 event bytes，不是重编码
+JSON。fingerprint 明确排除外层 signature bytes，避免同一 event 合法重签/换钥产生 false
+conflict；signer key id、signature profile 和 verification receipt 必须单独持久化。subject
+属于 fingerprint，因为它属于签名 authority binding。
 
 | Delivery | Behavior |
 |---|---|
@@ -188,10 +274,25 @@ Command fingerprint 对 canonical signed command payload 计算：
 Consumer 必须显式配置 `ack_wait`、`max_deliver`、backoff 和 DLQ/quarantine
 策略。poison message 不得无限 NAK；等待 engine ready 不得静默超过 ack deadline。
 
+Disposition 时序固定如下：
+
+| Outcome | Durable boundary | Delivery disposition |
+|---|---|---|
+| applied | applied state + signed lifecycle batch 同事务 commit | ACK |
+| verified conflict/stale | immutable outcome + signed terminal fact 同事务 commit | TERM/ACK per producer contract |
+| retryable local failure | desired record 已 durable；未写 terminal outcome | bounded NAK/backoff |
+| retry budget exhausted | terminal outcome + signed terminal fact 同事务 commit | TERM |
+| invalid signature/schema/version | untrusted rejection + pending security/DLQ receipt commit | TERM |
+| durable commit failure | none | NAK；禁止 ACK/TERM |
+
+Outbound fact publisher 只有收到 PubAck 才删除 existing outbox row。Inbound disposition 与
+outbound PubAck 不能复用字段、watermark 或状态枚举。
+
 ## Crucible Producer-First Contract
 
 Custos 不得自行修改 parser/golden 后宣称 strict command 完成。前置 producer slice
-必须由 Crucible 独立 plan-first 实现：
+必须由 **Crucible Plan 89** 独立 plan-first 实现；**Crucible Plan 90** 在 Custos RC 前
+提供 schema/golden compatibility receipt，在 Custos RC 后提供 real runtime round-trip receipt：
 
 1. 定义 public、versioned `runner_runtime` 和 `code_provenance` schema。
 2. CreateDeploymentSpec/control producer 从 typed model 生成 command。
@@ -199,7 +300,8 @@ Custos 不得自行修改 parser/golden 后宣称 strict command 完成。前置
 4. 生成新的 canonical golden fixture。
 5. 在 clean landed commit 上记录 repo、SHA、schema digest 和 fixture digest。
 6. Custos byte-identical 消费 fixture。
-7. 双仓 CI gate 同时检查 schema/digest compatibility。
+7. Crucible Plan 90 pre-RC receipt 证明双仓 schema/digest compatibility。
+8. Crucible Plan 90 post-RC receipt 证明真实 command → execution → RunnerFact projector round trip。
 
 在 producer receipt 到达前：
 
@@ -278,8 +380,9 @@ Portfolio snapshot 必须使用 NT 1.230.0 的真实 API：
 
 ### Runner-level cap
 
-Final live architecture 必须消费 Crucible 独立、签名、版本化的 runner-level cap
-policy。不得从“最后收到的 deployment command”推断全 runner authority。
+Final live architecture 必须消费 **Crucible Plan 99 runner-safety-policy-authority** 生产的
+独立、签名、版本化 runner-level cap policy。不得从“最后收到的 deployment command”推断
+全 runner authority，也不得把 runner policy 塞回某个 DeploymentSpec 的 `risk_config`。
 
 在 producer policy 未完成前，唯一允许的临时行为是：
 
@@ -297,7 +400,9 @@ Reservation contract：
 - partial fill 将 reserved 转为 filled exposure；
 - fill/close 更新 exposure；
 - duplicate event 幂等；
-- restart 从 durable state 恢复，或从可信 engine/venue state 重建；
+- policy revision、reservation 和 exposure checkpoint 与 desired/applied state 使用同一
+  SQLite deep module；
+- restart 从 durable reservation/checkpoint 恢复，并用可信 engine/venue state 对账重建；
 - flatten、close 和 reduce-only exit 永远不得被 cap 阻止。
 
 必须在不可绕过的 engine/order-intent boundary 证明覆盖所有策略提交路径。
@@ -403,6 +508,36 @@ signed RunnerFacts ──PubAck──> existing outbox deletion
 
 明确禁止新增第二个 `runner_fact_outbox` table 或独立 journal database。
 
+## Canonical Slices and Stop Gates
+
+Plan 19 是 `multi_session_scope: true`，只允许按以下四个 slice 顺序推进。每个 STOP gate
+未满足时不得进入下一 slice，不得用本地 fixture 或 provisional capability 宣称完成。
+
+| Slice | Tasks | START gate | STOP gate |
+|---|---|---|---|
+| **19a command/provenance** | T1-T3 | T1 可立即执行；T2/T3 等 Crucible Plan 89 clean landed producer | exact producer SHA/schema/golden；冻结 fingerprint；所有 command outcomes commit-before-ACK/TERM |
+| **19b durable reconcile/lifecycle** | T4-T5 | 19a STOP | 单一 SQLite deep module；success/terminal outcome 原子；RunnerFact signed generation fence；additive engine readiness/restart/quarantine |
+| **19c portfolio/local safety** | T6-T7 | 19b STOP；Plan 99 policy schema 可用 | reliable portfolio；signed policy + durable reservation/exposure recovery；live non-bypass proof |
+| **19d facts/release acceptance** | T8-T10 | 19c STOP；Plan 18 staged candidate；Plan 90 pre-RC compatibility receipt | RC 后 Plan 90 real round trip；Plan 18 exact final；PS Plan 56 exact image acceptance；final 重建重验 |
+
+无环 release graph：
+
+```text
+Custos Plan 18 Task 2 schema
+  -> Crucible Plan 88 StrategyRelease mapping
+  -> Crucible Plan 89 signed command producer
+  -> Crucible Plan 90 schema/golden compatibility receipt
+  -> Custos Plan 19a -> 19b
+  -> Crucible Plan 99 runner-safety-policy-authority
+  -> Custos Plan 19c
+  -> Custos Plan 18 staged candidate
+  -> Custos Plan 19 runtime RC
+  -> Crucible Plan 90 real runtime round-trip receipt
+  -> Custos Plan 18 exact final
+  -> Custos Plan 19 final
+  -> PS Plan 56 exact-image acceptance
+```
+
 ## Tasks
 
 ### Task 0: Repair the live plan
@@ -438,9 +573,10 @@ make -n verify-runtime-existing
 git commit -m "style(custos): restore runtime verification floor"
 ```
 
-### Task 2: Land and consume the Crucible producer contract
+### Task 2: Land and consume the Crucible Plan 89 producer contract
 
-Hard gate：Crucible 独立 plan-first、typed producer、new golden、clean landed SHA。
+Hard gate：Crucible Plan 89 独立 plan-first、typed producer、new golden、clean landed SHA；
+Crucible Plan 90 预先登记 schema/golden compatibility receipt owner。
 
 1. 在 Crucible 生成 versioned runner-runtime/code-provenance schema 和 golden。
 2. 记录 producer SHA、schema digest、fixture digest。
@@ -456,11 +592,13 @@ git commit -m "feat(custos): consume Crucible runner command contract"
 
 ### Task 3: Implement command fingerprint and bounded ACK policy
 
-1. 写 same-generation/different-payload terminal conflict tests。
-2. 写 invalid signature/schema poison term/DLQ tests。
-3. 写 long readiness `in_progress()` 和 bounded retry tests。
-4. 显式配置 ack wait、max deliveries、backoff 和 quarantine。
-5. inbound ACK 状态不得与 outbound PubAck 混用。
+1. 按冻结的 domain+subject+exact-event-bytes 算法写 cross-language vectors。
+2. 写 same-generation/different-payload terminal conflict tests。
+3. 写 invalid signature/schema poison durable-rejection-before-term tests。
+4. 写 stale/retry-exhausted durable terminal outcome tests。
+5. 写 long readiness `in_progress()` 和 bounded retry tests。
+6. 显式配置 ack wait、max deliveries、backoff 和 quarantine。
+7. inbound ACK 状态不得与 outbound PubAck 混用。
 
 提交：
 
@@ -477,11 +615,14 @@ pending 和 PubAck deletion。
 
 1. 在同一 store/connection 增加 desired/applied tables。
 2. primary key 使用 `deployment_instance_id`。
-3. 实现 `commit_applied_and_enqueue_lifecycle()` 单事务接口。
-4. lifecycle event ID deterministic。
-5. 覆盖 desired 后 crash、ready 后 commit 前 crash、commit 后 publish 前 crash、
+3. 增加 command outcome、runner policy、reservation 和 exposure checkpoint tables。
+4. 实现 verified/untrusted durable outcome APIs；`commit_applied_and_enqueue_lifecycle()`
+   作为 success typed wrapper。
+5. `RunnerFactAuthority`/signed header 增加 generation，但 stream key/sequence 不变。
+6. lifecycle event ID deterministic。
+7. 覆盖 desired 后 crash、ready 后 commit 前 crash、commit 后 publish 前 crash、
    duplicate delivery 和 restart replay。
-6. 验证没有第二个 outbox/database。
+8. 验证没有第二个 outbox/database。
 
 提交：
 
@@ -530,14 +671,15 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 
 #### 7B Runner-level aggregate cap
 
-Hard gate：Crucible signed versioned runner-level cap policy receipt。
+Hard gate：Crucible Plan 99 runner-safety-policy-authority 的 clean landed signed policy receipt。
 
 1. 覆盖多 active instances 和 policy revision。
-2. 实现 instance+client-order reservation contract。
-3. 覆盖 reject/cancel/replace/partial-fill/fill/close/restart。
-4. 证明 strategy direct submit 不能绕过。
-5. 证明 flatten/close/reduce-only 不被阻止。
-6. policy 未落地时仅 sandbox/testnet strictest-cap fallback；live capability=false。
+2. 独立验证并 durable 保存 policy；禁止从 DeploymentSpec `risk_config` 派生正式 runner cap。
+3. 实现 instance+client-order durable reservation contract。
+4. 覆盖 reject/cancel/replace/partial-fill/fill/close/restart/reconciliation rebuild。
+5. 证明 strategy direct submit 不能绕过。
+6. 证明 flatten/close/reduce-only 不被阻止。
+7. policy 未落地时仅 sandbox/testnet strictest-cap fallback；live capability=false。
 
 如 NT 1.230.0 无公开不可绕过 seam，Plan 19 保持未完成并另起 upstream adapter
 实现；不得 monkey patch。
@@ -552,7 +694,7 @@ git commit -m "feat(custos): enforce signed local notional policy"
 
 1. 建立 runtime-event → existing fact/log parity matrix。
 2. 新 fact/type 更新 capability manifest revision。
-3. 获得 Crucible verifier/projector/onboarding receipt。
+3. 在 RC 前获得 Crucible Plan 90 schema/golden verifier/projector compatibility receipt。
 4. local deny/reject 使用 sanitized `RunnerRuntimeLogFact.v1`。
 5. 原子 rename `telemetry_actor.md` → `runner_fact.md`。
 6. 同步 CLAUDE、authority manifest/checker 和 active docs。
@@ -568,23 +710,27 @@ git commit -m "feat(custos): complete RunnerFact runtime compatibility"
 
 前置：
 
-- producer contract receipt；
-- signed cap policy receipt；
-- Plan 18 exact candidate artifact；
-- capability/projector receipts；
+- Crucible Plan 89 producer contract receipt；
+- Crucible Plan 99 signed cap policy receipt；
+- Plan 18 exact staged candidate artifact；
+- Crucible Plan 90 schema/golden compatibility receipt；
 - all mode/capability negative tests。
 
 1. 发布 immutable `0.4.0rcN` wheel/image。
 2. 运行真实 Crucible command → Custos execute → RunnerFact projector acceptance。
-3. PS Plan 56 锁 exact image digest，运行 sandbox Docker smoke。
+3. 把 exact RC digest 交给 Crucible Plan 90，取得 post-RC real runtime round-trip receipt。
 4. 任一变更递增 RC 并重跑全部 receipts。
 
 ### Task 10: Final release and close-out
 
+Hard gate：Custos Plan 18 exact final digest + Crucible Plan 90 post-RC real runtime
+round-trip receipt。RC/candidate receipt 不得替代 final acceptance。
+
 1. final artifact/image 重新构建、签名、锁 digest。
-2. 重新跑 Crucible、PS、Docker、mode/capability 和 recovery acceptance。
-3. 更新 docs、changelog、plan/index 和 exact receipts。
-4. 提交：
+2. 用 Plan 18 exact final 重新跑 Crucible、Docker、mode/capability 和 recovery acceptance。
+3. PS Plan 56 锁 exact final image digest并运行 acceptance。
+4. 更新 docs、changelog、plan/index 和 exact receipts。
+5. 提交：
 
 ```bash
 git commit -m "docs(custos): mark plan 19 as completed"
@@ -596,18 +742,24 @@ git commit -m "docs(custos): mark plan 19 as completed"
 - [ ] command schema 来自 clean landed Crucible producer
 - [ ] schema/golden/digest 双仓 compatibility gate
 - [ ] same generation + different fingerprint terminal reject
+- [ ] fingerprint 与 domain+exact subject+verified exact event bytes cross-language vector 一致
+- [ ] signer/profile/verification receipt durable；signature bytes 不进入 fingerprint
 - [ ] poison message term/DLQ，不无限 NAK
+- [ ] success/conflict/stale/retry-exhausted/invalid command 均 commit-before-ACK/TERM
 - [ ] long deploy 使用 `in_progress()`
 - [ ] desired/applied primary key 为 `deployment_instance_id`
 - [ ] 只有一个 SQLite state/outbox deep module
 - [ ] applied state 与 lifecycle batch 单事务提交
 - [ ] existing seq/dedup/sign/PubAck semantics 保持
 - [ ] lifecycle event ID deterministic
+- [ ] signed RunnerFact header 带 generation，stream key/sequence 不按 generation 重置
+- [ ] Crucible projector 拒绝或隔离 old-generation facts
 - [ ] engine protocol 只 additive、不 shrink
 - [ ] readiness 覆盖 task/connectivity/portfolio/reconciliation/strategy
 - [ ] restart budget/backoff/quarantine
 - [ ] equity/unrealized 使用真实 NT API
-- [ ] runner cap 来自 signed versioned Crucible policy
+- [ ] runner cap 来自 Crucible Plan 99 signed versioned policy，且不在 DeploymentSpec 内
+- [ ] policy/reservation/exposure checkpoint durable 并可 restart reconcile
 - [ ] multi-instance reservation/release/recovery semantics 完整
 - [ ] flatten/close/reduce-only 不被 cap 阻止
 - [ ] unsupported live capability fail closed
@@ -615,7 +767,9 @@ git commit -m "docs(custos): mark plan 19 as completed"
 - [ ] `telemetry_actor.md` 原子 rename，不删除 typed RunnerFact authority
 - [ ] sandbox/testnet/live negative matrix
 - [ ] journal/facts/logs 无 credential 或 secret
-- [ ] RC/final 均运行真实 cross-repo acceptance
+- [ ] RC 前已有 Plan 90 schema/golden compatibility receipt
+- [ ] RC 后已有 Plan 90 real runtime round-trip receipt
+- [ ] final 锁 Plan 18 exact final 与 PS Plan 56 exact image
 
 ## Progress
 
@@ -623,15 +777,15 @@ git commit -m "docs(custos): mark plan 19 as completed"
 |---|---|---|---|
 | T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `3ce4048` |
 | T1 Verification floor | [ ] | — | immediately executable |
-| T2 Crucible producer | [ ] | — | hard external gate |
-| T3 Fingerprint/ACK | [ ] | — | after producer contract |
-| T4 Single durable store | [ ] | — | characterize existing outbox first |
+| T2 Crucible producer | [ ] | — | Plan 89 producer + Plan 90 pre-RC schema receipt |
+| T3 Fingerprint/ACK | [ ] | — | frozen algorithm + durable outcomes |
+| T4 Single durable store | [ ] | — | outcomes, generation fence, cap/reservation tables |
 | T5 Engine lifecycle | [ ] | — | additive protocol |
 | T6 Portfolio/equity | [ ] | — | NT 1.230.0 regression |
-| T7 Signed local safety | [ ] | — | live blocked on runner policy |
-| T8 RunnerFact/docs | [ ] | — | projector receipt required |
-| T9 RC acceptance | [ ] | — | exact artifacts and policies |
-| T10 Final/close-out | [ ] | — | |
+| T7 Signed local safety | [ ] | — | live blocked on Crucible Plan 99 |
+| T8 RunnerFact/docs | [ ] | — | Plan 90 pre-RC compatibility receipt |
+| T9 RC acceptance | [ ] | — | Plan 18 candidate + Plan 89/90/99 receipts |
+| T10 Final/close-out | [ ] | — | Plan 18 final + Plan 90 round trip + PS 56 |
 
 ## Deviations and Improvements
 
@@ -644,6 +798,11 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | SAFETY | Runner cap | last-command overwrite 改为 signed runner-level policy | Accepted 2026-07-14 |
 | LIFECYCLE | Engine | 保留全部 protocol，ready/terminal additive | Accepted 2026-07-14 |
 | DOCUMENTATION | RunnerFact | `telemetry_actor.md` 改为 atomic rename，不直接删除 | Accepted 2026-07-14 |
+| DURABILITY | Command outcomes | success/terminal/untrusted paths 全部改为 commit-before-ACK/TERM | Accepted 2026-07-14 |
+| FINGERPRINT | Command | 冻结 domain+subject+exact-event-bytes，排除 signature bytes | Accepted 2026-07-14 |
+| FENCING | RunnerFact | generation 进入 signed header，但不改变 stream key/sequence | Accepted 2026-07-14 |
+| POLICY | Runner cap | owner 锁定 Crucible Plan 99；policy/reservation/exposure durable | Accepted 2026-07-14 |
+| DAG | Cross-repo release | Plan 90 拆 pre-RC compatibility 与 post-RC real round trip | Accepted 2026-07-14 |
 | HISTORY | `3ce4048` | 保留为 original plan-first，不再代表有效 runtime design approval | Recorded |
 
 ## v1.team Scope
@@ -664,7 +823,8 @@ git commit -m "docs(custos): mark plan 19 as completed"
 
 - Durable stores/outboxes: exactly 1
 - Runtime primary key: `deployment_instance_id`
-- External producer gates: command schema and runner-level cap policy
+- Canonical slices: 19a command/provenance → 19b durable lifecycle → 19c safety → 19d release
+- External producer gates: Crucible Plan 89 command schema + Plan 90 receipts + Plan 99 runner policy
 - Engine change: additive lifecycle only
 - Implementation tasks: 10 after live-plan repair
 - Release acceptance: Crucible producer/projector + PS Docker consumer

@@ -1,15 +1,17 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress
+> **Status**: ⏳ In progress — plan repaired; implementation not started
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-14 after v1.team authority review
+> **Revised**: 2026-07-14 after v1.team authority and execution-readiness review
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
-> **For Claude**: Use `/forge:execute` to implement this plan.
+> **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
+> **multi_session_scope**: `true`
 > **Depends on**: revised PS Plan 53 authority boundary
 > **Hard gates**: cross-repo requirements review before schema freeze; Crucible StrategyRelease receipt before final release
 > **Soft depends on**: PS Plan 54, Speculum Plan 01, Custos Plan 19 integration receipt
 > **Original plan-first**: `b898ee1`; this live-plan revision supersedes its erroneous decisions
+> **Cross-repo dependency name**: external plans must depend on `Custos Plan 18 Task 2 schema receipt`, never on an internal `18a` slice alias
 
 ## 上下文 (Context)
 
@@ -39,8 +41,10 @@ distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Cu
 
 ## 目标 (Goal)
 
-发布独立、typed、不可变的 `custos-strategy-toolkit` distribution，并提供：
+发布两个独立、typed、不可变且 Python baseline 清晰分离的 distributions，并提供：
 
+- Python 3.11 compatible `custos-strategy-toolkit` base/contracts distribution；
+- Python 3.12-only `custos-strategy-toolkit-nautilus` engine distribution；
 - Custos-owned strategy execution ABI；
 - Custos-owned artifact schema 与本地 fail-closed verifier；
 - Nautilus toolkit 的单一 canonical implementation；
@@ -75,12 +79,19 @@ address 或幂等 key。
 `deployment_spec_digest` 和 `generation` 只提供 provenance/ordering：
 
 ```python
-from typing import Annotated, Literal, Protocol
+from collections.abc import Mapping
+from decimal import Decimal
+from typing import Annotated, Literal, Protocol, TypeAlias, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+JsonScalar: TypeAlias = None | bool | int | Decimal | str
+JsonValue: TypeAlias = JsonScalar | tuple["JsonValue", ...] | Mapping[str, "JsonValue"]
+FrozenJsonObject: TypeAlias = Mapping[str, JsonValue]
+ConfigT = TypeVar("ConfigT")
+StrategyT_co = TypeVar("StrategyT_co", covariant=True)
 
 
 class StrategyExecutionContextV1(BaseModel):
@@ -91,24 +102,29 @@ class StrategyExecutionContextV1(BaseModel):
     deployment_instance_id: UUID
     deployment_spec_id: UUID
     deployment_spec_digest: Sha256Hex
+    effective_config_digest: Sha256Hex
     generation: Annotated[int, Field(ge=1)]
 
 
-class StrategyRuntimeV1(Protocol):
-    strategy_class: type
-
+class StrategyRuntimeAdapterV1(Protocol[ConfigT, StrategyT_co]):
     def build_config(
         self,
-        effective_config: dict[str, object],
+        effective_config: FrozenJsonObject,
         execution_context: StrategyExecutionContextV1,
-    ) -> object: ...
+    ) -> ConfigT: ...
+
+    def build_strategy(self, config: ConfigT) -> StrategyT_co: ...
 ```
 
 约束：
 
 - strict model 必须拒绝 legacy `deployment_id`。
 - ABI 不得把 `strategy_key` 用作 runtime identity。
-- effective config 只能来自已验证的 signed Crucible command。
+- effective config 只能来自已验证的 signed Crucible command；JSON number 使用
+  `Decimal` 解析，object/list 递归冻结为 read-only mapping/tuple，禁止把 mutable
+  `dict`/`list` 或任意 Python object 交给 strategy。
+- runner 必须在调用 adapter 前重算 canonical JSON digest 并匹配
+  `effective_config_digest`；adapter 不得重新 merge defaults 或改变已签名 config。
 - ABI 不宣称建立安全边界；mandatory order enforcement 属于 Plan 19。
 
 固定 entry-point group：
@@ -127,10 +143,16 @@ Crucible Plan 88 消费 exact schema bytes/hash，并拥有 StrategyRelease busi
 不可降级要求：
 
 - Manifest 是 artifact 内的语义/compatibility metadata，不是 release authority。
-- ArtifactRef 绑定 exact artifact bytes、manifest bytes 和 required runtime artifacts。
-- Crucible StrategyRelease 绑定 canonical artifact digest、manifest digest 和
-  DeploymentSpec provenance。
-- Custos 只执行 signed command 绑定的 exact artifact/digests。
+- Custos `ArtifactRef` 只描述 exact artifact bytes、manifest bytes、required runtime
+  artifacts 和 attestation evidence；它不包含 release/spec business state。
+- Crucible `StrategyRelease` 消费 ArtifactRef，独立绑定 immutable release BOM；它不
+  绑定、创建或依赖任何 `DeploymentSpec`。
+- Crucible `DeploymentSpec` 引用 `strategy_release_id`，并独立绑定 effective config、
+  config digest 和 canonical policy references。
+- signed runner command 绑定 `deployment_instance_id`、spec id/digest、generation、
+  `strategy_release_id`、release BOM digest 和 effective config digest。
+- Custos verifier receipt 必须无损回显 command 中的 identity/digests，并证明本地
+  loaded bytes 与 release BOM 每个成员一致；不得只验证一个笼统 artifact digest。
 - unknown fields 和 unknown schema versions fail closed。
 - live/testnet production path 只接受签名 wheel/artifact。
 - source-path 仅允许 sandbox development，必须携带 source hash，并明确
@@ -145,8 +167,30 @@ Attestation 至少绑定：
 - trust-policy identifier、version 和 digest；
 - build inputs、Python version 和 exact engine/toolkit versions。
 
+Expected trust roots、issuer、workflow identity 和 trust-policy version/digest 必须来自
+runner-local、签名验证通过且 immutable 的 Custos release configuration。Artifact、
+manifest 或 Crucible command 只能引用该本地 policy digest，不得提供、替换或选择
+trust root。Runner 必须先验证 local release configuration，再读取 artifact metadata。
+
 验证必须在 unpack/import 前完成。安全解包拒绝绝对路径、`..`、symlink escape
 和 artifact/manifest mismatch。
+
+### Release BOM and digest semantics
+
+Candidate/final receipts 绑定 canonical `StrategyReleaseBomV1`，至少包含：
+
+- base/contracts wheel SHA-256；
+- Nautilus wheel SHA-256；
+- strategy wheel SHA-256；
+- strategy manifest SHA-256；
+- 每个 runtime artifact 的 role、size 和 SHA-256；
+- attestation bundle、SBOM 和 contract schema SHA-256；
+- PS source repository、exact commit 和 normalized source-tree digest。
+
+`release_bom_digest` 是 canonical BOM bytes 的 SHA-256，只用于完整性索引，不能代替
+成员 digest。所有 receipt 必须同时记录 BOM digest 和完整成员表；任一 wheel、manifest、
+runtime artifact、attestation、SBOM、schema 或 source revision 改变都会产生新 BOM 并使旧
+receipts 失效。禁止使用“一个 candidate digest”代表多制品 release。
 
 ## Python and Runtime Baseline
 
@@ -154,11 +198,18 @@ Attestation 至少绑定：
 |---|---|
 | Root Custos and lightweight contracts | Python `>=3.11` |
 | `custos_toolkit` platform-neutral modules | Python `>=3.11` |
-| Nautilus implementation extra | Python `>=3.12`, exact NT `1.230.0` |
+| `custos-strategy-toolkit` base/contracts distribution | Python `>=3.11` |
+| `custos-strategy-toolkit-nautilus` distribution | Python `>=3.12,<3.13`, exact NT `==1.230.0` |
 | PS/Speculum Nautilus acceptance | Python 3.12, exact NT `1.230.0` |
 
 Importing `custos_toolkit.contracts` on Python 3.11 must not load NautilusTrader,
 modify `sys.path` or execute strategy code.
+
+Python packaging cannot express an extra-specific `Requires-Python` constraint safely.
+Therefore Nautilus is a separate distribution, not a conditional extra. It must declare
+`requires-python = ">=3.12,<3.13"`, depend on an exact compatible base/contracts version and
+pin `nautilus-trader==1.230.0` without a `python_version` marker. Installing the Nautilus
+distribution on Python 3.11 must fail dependency resolution; silently skipping NT is forbidden.
 
 ## Zero-Rewrite Acceptance
 
@@ -191,7 +242,10 @@ packages/custos-strategy-toolkit/
     ├── filters/
     ├── indicators/
     ├── advisory_risk/   # strategy advisory helpers, never canonical policy
-    ├── nautilus/        # Python >=3.12 / NT-specific implementation
+
+packages/custos-strategy-toolkit-nautilus/
+└── src/custos_toolkit_nautilus/
+    ├── adapter/         # Python >=3.12,<3.13 / NT ==1.230.0
     └── _vendor/
         └── pandas_ta/   # private implementation detail
 
@@ -209,14 +263,41 @@ Speculum ─────────────────> verified artifact 
 | `.forge/README.md` | 修改 | 修订依赖和说明 |
 | `docs/design/strategy-toolkit.md` | 新增 | authority、ABI、risk taxonomy |
 | `packages/custos-strategy-toolkit/**` | 新增 | 独立 distribution |
+| `packages/custos-strategy-toolkit-nautilus/**` | 新增 | 独立 Python 3.12 NT distribution |
 | `src/custos/engines/nautilus/toolkit/**` | 最终删除 | 完成 consumer cutover 后移除旧 authority |
 | `tests/test_toolkit_distribution.py` | 新增 | namespace/import/wheel gates |
 | `tests/test_toolkit_contracts.py` | 新增 | schema/runtime identity gates |
 | `tests/test_toolkit_zero_rewrite.py` | 新增 | semantic/behavior parity |
 | `tests/test_toolkit_consumer_receipts.py` | 新增 | 四仓 exact receipts |
 | `.github/workflows/release-toolkit.yml` | 新增 | reproducible build/sign/release |
-| `pyproject.toml`, `uv.lock` | 修改 | workspace 与 conditional runtime extras |
+| `pyproject.toml`, `uv.lock` | 修改 | workspace 与两个 distribution 的 disjoint Python baselines |
 | `CHANGELOG.md` | 修改 | candidate/final release notes |
+| `docs/authority/ecosystem-authority.json` | 修改 | 记录 execution ABI/artifact schema authority 和 lifecycle chain |
+| `authority-manifest.json` | 修改 | 纳入 toolkit authority/schema artifacts 和 drift inputs |
+| `.claude/rules/authority-docs.md` | 修改 | 记录 Task 2 schema receipt 与 precedence |
+| `Makefile` / authority checker inputs | 修改 | `make check-authority` 覆盖 schema/BOM/authority drift |
+
+## Canonical Multi-session Slices
+
+本 Plan 是 `multi_session_scope: true`。内部 slice 名只用于 Custos 执行和 handoff；任何
+跨仓 plan 必须引用 `Custos Plan 18 Task 2 schema receipt`，不得依赖 `18a` 名称。
+
+| Slice | Tasks | 独立 DoD | Stop gate |
+|---|---|---|---|
+| 18a Contract authority | T1-T2 | inventory、authority docs、source-generated schemas、lossless lifecycle mapping、Task 2 receipt 和 `make check-authority` 全部 PASS | schema/receipt commit 与 handoff packet 未记录前不得开始 18b |
+| 18b Extraction and verification | T3-T5 | 两个 distributions 可独立构建；3.11 negative install、zero-rewrite、deep-frozen config、attestation-before-import gates PASS | 18a exact Task 2 receipt 未锁定，或任一 migration batch 未有 parity evidence 时停止 |
+| 18c Immutable RC | T6 | reproducible RC、完整 release BOM、签名、SBOM、local trust-policy binding PASS | RC BOM/成员 digests 未固定前不得请求 consumer receipt |
+| 18d Consumer cutover | T7-T9 | 四方 candidate/final receipts、final BOM、旧 authority 删除、close-out gates PASS | 任一 BOM 成员变化或 receipt 不匹配立即停止并发布新 RC |
+
+每个 session 只能推进一个 slice。每个 slice 结束必须提交 handoff packet，至少记录：
+
+1. start base、landed commit 和 touched files；
+2. 执行的 exact commands、PASS/FAIL/skip 与环境版本；
+3. schema、wheel、BOM、attestation、SBOM 和 source digests；
+4. deviations、剩余 blockers 和下一 slice 的 immutable inputs；
+5. authority drift 检查结果。
+
+Slice 可独立 close out，但不能把 slice PASS 冒充整个 Plan 18 Completed。
 
 ## Tasks
 
@@ -238,7 +319,8 @@ git commit -m "docs(custos): repair plan 18 authority and execution contracts"
    PS-owned Hummingbot 或 delete。
 3. 写失败测试，拒绝顶层 `shared`/`pandas_ta`、path mutation 和双 canonical source。
 4. 写 `docs/design/strategy-toolkit.md` authority/risk taxonomy。
-5. 此任务不得移动或重写生产源码。
+5. 更新 authority snapshot、manifest、precedence 和 drift-check inputs。
+6. 此任务不得移动或重写生产源码。
 
 提交：
 
@@ -254,10 +336,15 @@ Plan 88 的输入，而不是反向依赖 Plan 88 完成。
 
 1. 先写 runtime identity、unknown-field、legacy `deployment_id` 和 Python 3.11
    lightweight-import 失败测试。
-2. 定义 execution ABI、Manifest 和 ArtifactRef requirements。
+2. 定义 recursive JsonValue、deep-freeze/canonical digest、typed runtime adapter、
+   Manifest、ArtifactRef 和 `StrategyReleaseBomV1` requirements。
 3. 生成 versioned JSON Schema；schema 与实现来自同一 source model。
-4. 记录 Custos producer SHA、schema digest 和三方 requirements-review receipts。
-5. 明确 schema 不授予 release/selection authority。
+4. 生成 lossless mapping golden：ArtifactRef → StrategyRelease → DeploymentSpec →
+   signed command → Custos verifier receipt；明确 release 独立于 spec。
+5. 记录 Custos producer SHA、schema digest 和三方 requirements-review receipts；该
+   artifact 的 canonical 名称是 `Custos Plan 18 Task 2 schema receipt`。
+6. 运行 `make check-authority` 并记录 PASS。
+7. 明确 schema 不授予 release/selection authority。
 
 提交：
 
@@ -267,10 +354,13 @@ git commit -m "feat(toolkit): define coordinated strategy execution contracts"
 
 ### Task 3: Build the minimal distribution
 
-1. 建立 uv workspace 和 `custos-strategy-toolkit` package。
-2. platform-neutral/contracts 支持 Python 3.11。
-3. Nautilus extra 仅在 Python 3.12+ 安装并 pin NT 1.230.0。
-4. 添加 `py.typed`、strict package mypy 和 clean-wheel import tests。
+1. 建立 uv workspace、Python >=3.11 `custos-strategy-toolkit` 和
+   Python >=3.12,<3.13 `custos-strategy-toolkit-nautilus` 两个 distributions。
+2. platform-neutral/contracts 支持 Python 3.11，Nautilus distribution 依赖 exact
+   base version 和 `nautilus-trader==1.230.0`。
+3. 禁止用 `python_version` marker 静默跳过 NT；添加 Python 3.11 安装 Nautilus
+   distribution 必须失败的 negative integration test。
+4. 添加 `py.typed`、strict package mypy、clean-wheel import 和 two-wheel isolation tests。
 5. 不迁移 donor implementation。
 
 提交：
@@ -300,9 +390,11 @@ git commit -m "feat(toolkit): create typed strategy toolkit distribution"
 
 1. 写失败测试覆盖 forged issuer、wrong workflow、wrong trust policy、digest mismatch、
    unsafe archive、entry-point escape 和 source-path live execution。
-2. 实现 attestation-before-unpack verifier。
+2. 从 runner-local signed release configuration 加载 trust roots/policy，先验签该配置，
+   再实现 attestation-before-unpack verifier；拒绝 artifact/manifest/command 自选 trust root。
 3. production 只接受 signed wheel；source-path 只允许 sandbox/non-promotable。
-4. verifier 输出 typed receipt，不选择 StrategyRelease。
+4. verifier 输入完整 release BOM，逐成员验证并输出无损 typed receipt，不选择
+   StrategyRelease，不接受单一 artifact/candidate digest shortcut。
 
 提交：
 
@@ -314,7 +406,8 @@ git commit -m "feat(toolkit): verify signed strategy artifacts"
 
 1. reproducible build 两次并比较 wheel bytes/digest。
 2. 发布不可覆盖的 `0.1.0rcN` candidate。
-3. 记录 source SHA、wheel SHA、schema digest、attestation bundle 和 SBOM。
+3. 生成并签名完整 `StrategyReleaseBomV1`，记录各 wheel、strategy、manifest、runtime
+   artifact、schema、attestation、SBOM 和 source digests；不得只记录一个 candidate digest。
 4. candidate 失败时递增 rc，不覆盖旧制品。
 
 提交：
@@ -325,19 +418,19 @@ git commit -m "build(toolkit): publish strategy toolkit candidate"
 
 ### Task 7: Collect four-party receipts
 
-必须全部指向 exact candidate digest：
+必须全部指向 exact candidate release BOM digest 和完整 BOM member digests：
 
 - Crucible：StrategyRelease selection、manifest digest、DeploymentSpec provenance producer；
 - PS：existing strategy zero-rewrite build/consumer；
 - Speculum：verified discovery and backtest；
 - Custos Plan 19：signed command exact-artifact runner integration。
 
-任一 candidate 变化使全部 receipt 失效。
+任一 BOM member 或 canonical BOM bytes 变化使全部 receipt 失效。
 
 ### Task 8: Final release and consumer cutover
 
-1. 构建 final version，重新执行完整 receipts，不继承 RC PASS。
-2. PS/Speculum/Custos 锁定 exact final digest。
+1. 构建 final version 和全新 final release BOM，重新执行完整 receipts，不继承 RC PASS。
+2. Crucible/PS/Speculum/Custos 锁定 exact final BOM 和全部 member digests。
 3. 确认无 active consumer 后删除旧 vendored toolkit 和 compatibility adapter。
 4. 禁止重建或重指向历史 Custos image/tag。
 
@@ -362,13 +455,19 @@ git commit -m "docs(custos): mark plan 18 as completed"
 
 - [ ] Legacy `deployment_id` 被拒绝
 - [ ] `deployment_instance_id` 是唯一 runtime address
+- [ ] StrategyRelease 独立于 DeploymentSpec；Spec 只引用 release
+- [ ] ArtifactRef → release → spec → command → verifier receipt 无损 mapping PASS
 - [ ] StrategyRelease/artifact selection/effective config 仍由 Crucible 拥有
 - [ ] `strategy_key` 仅是 catalog alias
 - [ ] Root/contracts 保持 Python >=3.11
-- [ ] Nautilus extra 使用 Python >=3.12 和 exact NT 1.230.0
+- [ ] 独立 Nautilus distribution 使用 Python >=3.12,<3.13 和 exact NT 1.230.0
+- [ ] Python 3.11 安装 Nautilus distribution fail closed，不静默跳过 NT
+- [ ] effective config 是 recursive typed/deep-frozen JSON 并匹配 signed digest
 - [ ] production 只接受 signed wheel
 - [ ] source-path 仅 sandbox、non-promotable、non-live
 - [ ] attestation 绑定 issuer/workflow/bundle/trust policy
+- [ ] trust roots/policy 只来自 runner-local signed release configuration
+- [ ] candidate/final receipts 绑定 release BOM 和全部 member digests
 - [ ] schema 由 source model 生成并经四方 review
 - [ ] wheel 不提供顶层 `shared` 或 `pandas_ta`
 - [ ] import 不修改 `sys.path`
@@ -376,12 +475,15 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [ ] Crucible、PS、Speculum、Custos receipts 指向 exact digest
 - [ ] toolkit advisory risk 不冒充 Custos/Crucible authority
 - [ ] final 重新锁定并重新验证
+- [ ] `make check-authority` 覆盖并通过 toolkit schema/BOM/ownership drift
+- [ ] 18a-d 每个 slice 有独立 DoD、stop gate 和 handoff packet
 
 ## Progress
 
 | Task | Status | Completed | Notes |
 |---|---|---|---|
-| T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `b898ee1` |
+| T0 Live-plan repair | [x] | 2026-07-14 | `aa843f0` superseded erroneous decisions in `b898ee1` |
+| T0R Execution-readiness correction | [~] | — | current plan-only revision; record commit before 18a starts |
 | T1 Inventory/authority | [ ] | — | only immediately executable implementation task |
 | T2 Coordinated contracts | [ ] | — | Custos producer; needs cross-repo requirements review |
 | T3 Minimal distribution | [ ] | — | after T2 interface boundary |
@@ -401,13 +503,18 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | BASELINE | Python | 撤回全 package >=3.12；contracts/core >=3.11，NT extra >=3.12 | Accepted 2026-07-14 |
 | SECURITY | Artifact mode | production signed wheel 与 sandbox source-path 分离 | Accepted 2026-07-14 |
 | SCOPE | Migration | 459-file migration 改为 inventory-backed reviewable batches | Accepted 2026-07-14 |
+| LIFECYCLE | Release/spec | StrategyRelease 独立于 DeploymentSpec；command 才聚合 runtime provenance | Accepted 2026-07-14 |
+| PACKAGING | Python split | extra-specific Requires-Python 不可安全表达，改为两个 distributions | Accepted 2026-07-14 |
+| SECURITY | Config/trust | effective config deep-freeze；trust root 只来自 local signed release config | Accepted 2026-07-14 |
+| EXECUTION | Multi-session | 正式拆为 18a-d canonical slices，逐 slice handoff/stop gate | Accepted 2026-07-14 |
 | HISTORY | `b898ee1` | 保留为原 plan-first 历史，不再代表有效 schema approval | Recorded |
 
 ## Quantitative Summary
 
-- Production packages: 1 new independent distribution
+- Production packages: 2 independent distributions with disjoint Python baselines
 - Runtime identities: 1 address + 3 provenance/ordering fields
-- Migration batches: at least 4
+- Canonical execution slices: 4; migration batches inside 18b: at least 4
 - Required external receipts: Crucible, PS, Speculum, Custos
+- Release integrity: canonical BOM digest plus every member digest; no single candidate digest
 - Release stages: immutable RC and independently reverified final
 - Out of scope: StrategyRelease, approvals, portfolio risk, capital, settlement
