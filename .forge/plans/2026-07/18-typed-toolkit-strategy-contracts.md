@@ -568,6 +568,53 @@ T6b creates no committed wheel, registry access, upload, READY toolkit receipt,
 Sigstore bundle, final SBOM, strategy artifact, `StrategyReleaseBomV1`, runtime claim or
 production authority. Those remain in the open T6 release slices.
 
+#### T6c: Immutable artifact-service publication protocol
+
+T6c adds a dedicated local-only HTTP artifact-service contract and CLI. It accepts only
+a valid T6a `ToolkitRcReceiptManifestV1`, the matching T6b reproducible-build manifest,
+and the exact local bytes for every digest-pinned binding. It cross-checks candidate
+version, source commit, both build records, wheel digest/size, semantic Python
+specifier equivalence, top-level modules, and resolved exact dependency locks against
+the T6b wheel requirements before any service call.
+
+Every manifest, build-evidence, wheel, SBOM, schema/index, attestation, and prerequisite
+receipt object receives a stable coordinate identity. All coordinates must contain the
+exact `0.1.0rcN` version. The client first requires every coordinate to be absent, then
+opens one atomic transaction, requires an exact per-object staging ACK, requires one
+complete commit PubAck for the entire object set, and reads every object back to compare
+exact bytes and SHA-256. Existing coordinates fail closed; a partial staging failure is
+not globally visible and the same candidate can be retried. Once a candidate commits,
+the only allowed path is a new `rcN` coordinate.
+
+Successful T6c execution may write only an immutable ephemeral
+`PENDING_T6D_RELEASE_RUNNER` evidence file with `ready=false`,
+`production_credentials_used=false`, and
+`production_attestation_verified=false`. Missing attestation bytes, a partial staging
+failure, missing/incomplete PubAck, readback drift, non-loopback endpoint, or existing
+coordinate writes no PENDING or READY file. The root `custos-runner` release authority
+and T6b build-only workflow are not reused.
+
+RED -> GREEN evidence:
+
+- RED: focused collection failed because the dedicated
+  `scripts/toolkit_rc_publish.py` contract did not exist.
+- RED: the first implementation exposed a representation-only mismatch between T6a
+  `>=3.12,<3.13` and normalized wheel METADATA `<3.13,>=3.12`; the protocol now compares
+  `SpecifierSet` semantics instead of fragile strings.
+- GREEN: the local HTTP fake artifact service suite is `6 passed in 2.38s`, covering
+  existing coordinate, partial failure, invisible retry, missing PubAck, missing
+  attestation, digest drift, `rcN` increment and loopback-only enforcement. The combined
+  T6a-T6c focused suite is `15 passed in 4.07s`; Ruff format/lint, generated-contract
+  drift, extraction `241/241`, T4b strict-zero and `make check-authority` PASS.
+
+T6c does not access a remote service, commit binaries, create test signatures, claim a
+production attestation, or register a receipt. T6d remains the hard final gate for a
+credentialed production runner, an artifact service with equivalent atomic/PubAck
+semantics, deterministic final SPDX or CycloneDX SBOMs, production Sigstore provenance
+that binds the staged metadata transform/source/epoch/digests, remote digest readback,
+resolved exact dependency evidence, and final authority receipt registration. Two
+independent PyPI uploads alone do not satisfy this atomic contract.
+
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
 2. 发布不可覆盖的 toolkit `0.1.0rcN` artifacts；失败时递增 rc，不覆盖旧制品。
@@ -667,6 +714,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T5 Verifier/attestation | [x] | 2026-07-15 | Scoped `READY_PRE_IMPORT_VERIFIER`: producer `f3adde2...`, index `6fd49708...`, schema `d6e21b0a...`, Crucible review `3f41f32...`, PS review `267e23b...`, implementation `560e9f5...`, and exact verification HEAD `a856455...` (528 passed/4 skipped/1 xfailed; all authority/typing/extraction gates PASS); handoff covers schema + verifier library only, while loaded/engine/runtime/production remain false and runtime invocation stays Plan19 |
 | T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
+| T6c Atomic publication protocol | [x] | 2026-07-15 | Local-only artifact-service contract validates exact T6a/T6b/object bytes, preflights every immutable rcN coordinate, requires atomic staging ACK + complete PubAck + digest readback, and emits PENDING-only evidence; fake HTTP failure/retry matrix passes, while production service/credentials/signatures/SBOM/final receipt remain T6d |
 | T6 Toolkit candidate | [ ] | — | START gate open; Custos-owned immutable base/Nautilus toolkit RC receipt only; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not START gates |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
@@ -694,6 +742,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | AUTHORITY | T4 canonical move | 241 个 canonical implementations 必须 move 到新 distributions；旧树只能临时保留无实现 shim，并在 T8 删除 | Accepted 2026-07-15 |
 | SAFETY | T5 scoped handoff | Exact reviews, implementation and clean full verification advance only schema + production verifier library to `READY_PRE_IMPORT_VERIFIER`; loaded/engine/runtime/production remain false, while Plan19 runtime invocation does not block T6 | Closed 2026-07-15 |
 | OWNERSHIP | T6 toolkit RC | Custos publishes only the immutable toolkit RC receipt; PS54 owns strategy artifact/manifest/full `StrategyReleaseBomV1`, PS56 is not a T6 START gate, and the legacy Python lane is unchanged | Accepted 2026-07-15 |
+| SAFETY | T6c publication ceiling | Local transaction/PubAck/readback proof may emit PENDING-only evidence; only T6d production runner, credentials, final SBOM, Sigstore provenance and remote readback may create the final authority receipt | Accepted 2026-07-15 |
 
 ## Slice 18a handoff and Task 2 READY provenance
 
