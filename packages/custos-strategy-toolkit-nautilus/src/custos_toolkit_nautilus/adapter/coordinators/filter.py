@@ -16,7 +16,9 @@ from typing import TYPE_CHECKING
 from custos_toolkit_nautilus.adapter.filter_manager import FilterManager
 
 if TYPE_CHECKING:
-    from nautilus_trader.model.data import Bar
+    from custos_toolkit.signals.types import SignalDirection
+    from nautilus_trader.model.data import Bar, BarType
+
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
     from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
 
@@ -69,12 +71,16 @@ class FilterCoordinator:
                 f"[{ctx.pair}] Per-pair FilterManager: {ctx.filter_manager.filter_count} filters"
             )
 
-    def _parse_bar_type_string(self, bar_type_str: str):
+    def _parse_bar_type_string(self, bar_type_str: "str | BarType") -> "BarType | None":
         """Parse bar type string to BarType object."""
         try:
             from nautilus_trader.model.data import BarType
 
-            return BarType.from_str(bar_type_str)
+            return (
+                bar_type_str
+                if isinstance(bar_type_str, BarType)
+                else BarType.from_str(bar_type_str)
+            )
         except Exception as exc:
             # A parse failure returns None for the caller to degrade gracefully, so a
             # single bad config string can't abort startup.
@@ -112,7 +118,7 @@ class FilterCoordinator:
         if ctx.filter_manager:
             ctx.filter_manager.update(bar)
 
-    def check_global(self, bar: "Bar", direction=None) -> bool:
+    def check_global(self, bar: "Bar", direction: "SignalDirection | None" = None) -> bool:
         """Gate an entry on global filters (direction forwarded to direction-aware
         ones). Entry-only: exits and position management never reach this.
 
@@ -138,7 +144,12 @@ class FilterCoordinator:
             s.log.debug(f"Global filters failed: {result.failed_filters}")
         return result.passed
 
-    def check_pair(self, ctx: "PairContext", bar: "Bar", direction=None) -> bool:
+    def check_pair(
+        self,
+        ctx: "PairContext",
+        bar: "Bar",
+        direction: "SignalDirection | None" = None,
+    ) -> bool:
         """Gate an entry on per-pair filters for a context. State is updated
         separately in ``update_pair`` (every bar); this only checks (entry-only)."""
         s = self._strategy

@@ -6,14 +6,12 @@ and exposure monitoring across multiple trading pairs.
 """
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from nautilus_trader.model.identifiers import InstrumentId
 
-if TYPE_CHECKING:
-    from nautilus_trader.cache import Cache
-
 from custos_toolkit_nautilus.adapter.config.allocation import AllocationConfig
+
+from .runtime_types import Cache
 
 
 class CapitalAllocator:
@@ -31,8 +29,8 @@ class CapitalAllocator:
         self,
         config: AllocationConfig,
         initial_capital: Decimal,
-        cache: "Cache",
-    ):
+        cache: Cache,
+    ) -> None:
         self._config = config
         self._tiers: dict[str, float] = dict(config.tiers) if config.tiers else {}
         self._initial_capital: Decimal = initial_capital
@@ -101,7 +99,7 @@ class CapitalAllocator:
             return Decimal(0)
 
         position = self._cache.position(instrument_id)
-        if position is None or position.quantity == 0:
+        if position is None or position.quantity.as_decimal() == 0:
             return Decimal(0)
 
         quantity = abs(position.quantity.as_decimal())

@@ -20,6 +20,6 @@ packages = ["src/custos_toolkit_nautilus"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
-mypy_path = "src"
+mypy_path = "packages/custos-strategy-toolkit-nautilus/typings:packages/custos-strategy-toolkit-nautilus/src"
 files = ["src/custos_toolkit_nautilus"]
 exclude = ["src/custos_toolkit_nautilus/_vendor/"]

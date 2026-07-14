@@ -27,7 +27,10 @@ import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from nautilus_trader.config import StrategyConfig
+from nautilus_trader.model.data import Bar, QuoteTick, TradeTick
 from nautilus_trader.trading.strategy import Strategy
+
 from custos_toolkit_nautilus.adapter.state_persistence import (
     build_snapshot,
     decode_snapshot,
@@ -88,7 +91,7 @@ class NautilusStrategyCore(Strategy, ABC):
     # ---- Required extension methods ----
 
     @abstractmethod
-    def get_indicator_history(self) -> dict:
+    def get_indicator_history(self) -> dict[str, object]:
         """
         Return indicator history data for backtest visualization.
 
@@ -124,7 +127,7 @@ class NautilusStrategyCore(Strategy, ABC):
 
     # ---- Optional extension methods (with default implementations) ----
 
-    def get_snapshot_state(self) -> dict:
+    def get_snapshot_state(self) -> dict[str, object]:
         """
         Return strategy-specific state for snapshot persistence.
 
@@ -142,7 +145,7 @@ class NautilusStrategyCore(Strategy, ABC):
         """
         return {}
 
-    def get_snapshot_indicators(self) -> dict:
+    def get_snapshot_indicators(self) -> dict[str, object]:
         """
         Return indicators for snapshot persistence.
 
@@ -160,7 +163,7 @@ class NautilusStrategyCore(Strategy, ABC):
         """
         return {}
 
-    def restore_from_snapshot(self, snapshot: dict) -> bool:
+    def restore_from_snapshot(self, snapshot: dict[str, object]) -> bool:
         """
         Restore strategy state from a snapshot.
 
@@ -196,7 +199,7 @@ class NautilusStrategyCore(Strategy, ABC):
 
     _TEMPLATE_METHODS = frozenset({"on_bar", "on_trade_tick", "on_quote_tick"})
 
-    def __init_subclass__(cls, **kw):
+    def __init_subclass__(cls, **kw: object) -> None:
         super().__init_subclass__(**kw)
         for m in cls._TEMPLATE_METHODS:
             if m in cls.__dict__:
@@ -204,7 +207,7 @@ class NautilusStrategyCore(Strategy, ABC):
                     f"{cls.__name__} must not override {m}; override on_core_{m[3:]} instead"
                 )
 
-    def __init__(self, config) -> None:
+    def __init__(self, config: StrategyConfig) -> None:
         super().__init__(config)
         self._paused: bool = False
         self._ready: bool = False
@@ -250,7 +253,7 @@ class NautilusStrategyCore(Strategy, ABC):
     # exceptions — an uncaught error here exits the strategy process and can strand
     # an open position. The three callbacks below swallow, log, and skip the current
     # bar/tick so the engine keeps delivering the next one.
-    def on_bar(self, bar) -> None:
+    def on_bar(self, bar: Bar) -> None:
         try:
             self._on_bar_risk_hygiene(bar)
             if self._paused:
@@ -259,7 +262,7 @@ class NautilusStrategyCore(Strategy, ABC):
         except Exception as exc:
             self._log_error(f"on_bar: {type(exc).__name__}: {exc}")
 
-    def on_trade_tick(self, tick) -> None:
+    def on_trade_tick(self, tick: TradeTick) -> None:
         try:
             if self._paused:
                 return
@@ -267,7 +270,7 @@ class NautilusStrategyCore(Strategy, ABC):
         except Exception as exc:
             self._log_error(f"on_trade_tick: {type(exc).__name__}: {exc}")
 
-    def on_quote_tick(self, tick) -> None:
+    def on_quote_tick(self, tick: QuoteTick) -> None:
         try:
             if self._paused:
                 return
@@ -275,13 +278,13 @@ class NautilusStrategyCore(Strategy, ABC):
         except Exception as exc:
             self._log_error(f"on_quote_tick: {type(exc).__name__}: {exc}")
 
-    def on_core_bar(self, bar) -> None: ...
+    def on_core_bar(self, bar: Bar) -> None: ...
 
-    def on_core_trade_tick(self, tick) -> None: ...
+    def on_core_trade_tick(self, tick: TradeTick) -> None: ...
 
-    def on_core_quote_tick(self, tick) -> None: ...
+    def on_core_quote_tick(self, tick: QuoteTick) -> None: ...
 
-    def _on_bar_risk_hygiene(self, bar) -> None: ...
+    def _on_bar_risk_hygiene(self, bar: Bar) -> None: ...
 
     # ---- Framework state persistence (native on_save/on_load) ----
 

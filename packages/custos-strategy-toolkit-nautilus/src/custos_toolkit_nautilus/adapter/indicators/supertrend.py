@@ -7,11 +7,13 @@ for indicator warmup alignment.
 
 import logging
 from collections import deque
+from typing import cast
 
 import pandas as pd
-from custos_toolkit_nautilus._vendor import pandas_ta as ta
 from nautilus_trader.indicators.base import Indicator
 from nautilus_trader.model.data import Bar
+
+from ._pandas_ta import ta
 
 # Module-level logger for indicator errors
 _logger = logging.getLogger(__name__)
@@ -141,9 +143,9 @@ class SuperTrend(Indicator):
             The bar to process
         """
         self.update_raw(
-            high=float(bar.high),
-            low=float(bar.low),
-            close=float(bar.close),
+            high=bar.high.as_double(),
+            low=bar.low.as_double(),
+            close=bar.close.as_double(),
         )
 
     def update_raw(
@@ -315,7 +317,7 @@ class SuperTrend(Indicator):
         """Return snapshot format version for compatibility checking."""
         return self.SNAPSHOT_VERSION
 
-    def to_snapshot(self) -> dict:
+    def to_snapshot(self) -> dict[str, object]:
         """
         Export complete indicator state for persistence.
 
@@ -350,7 +352,7 @@ class SuperTrend(Indicator):
             },
         }
 
-    def from_snapshot(self, snapshot: dict) -> None:
+    def from_snapshot(self, snapshot: dict[str, object]) -> None:
         """
         Restore indicator state from a complete snapshot.
 
@@ -375,7 +377,7 @@ class SuperTrend(Indicator):
             )
 
         # Parameter validation
-        params = snapshot.get("params", {})
+        params = cast(dict[str, object], snapshot.get("params", {}))
         if params.get("length") != self.length:
             raise ValueError(
                 f"Snapshot length mismatch: got {params.get('length')}, expected {self.length}"
@@ -387,24 +389,24 @@ class SuperTrend(Indicator):
             )
 
         # Restore data window
-        data = snapshot.get("data", {})
+        data = cast(dict[str, object], snapshot.get("data", {}))
         self._highs.clear()
         self._lows.clear()
         self._closes.clear()
 
-        for h in data.get("highs", []):
+        for h in cast(list[float], data.get("highs", [])):
             self._highs.append(h)
-        for low in data.get("lows", []):
+        for low in cast(list[float], data.get("lows", [])):
             self._lows.append(low)
-        for c in data.get("closes", []):
+        for c in cast(list[float], data.get("closes", [])):
             self._closes.append(c)
 
         # Restore state
-        state = snapshot.get("state", {})
-        self._trend = state.get("trend", 0)
-        self._supertrend = state.get("supertrend", 0.0)
-        self._upper_band = state.get("upper_band", 0.0)
-        self._lower_band = state.get("lower_band", 0.0)
+        state = cast(dict[str, object], snapshot.get("state", {}))
+        self._trend = cast(int, state.get("trend", 0))
+        self._supertrend = cast(float, state.get("supertrend", 0.0))
+        self._upper_band = cast(float, state.get("upper_band", 0.0))
+        self._lower_band = cast(float, state.get("lower_band", 0.0))
 
         # Mark as restored from snapshot
         self._from_snapshot = True

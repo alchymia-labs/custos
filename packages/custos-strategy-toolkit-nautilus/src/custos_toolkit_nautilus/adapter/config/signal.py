@@ -6,6 +6,8 @@ Provides configuration for external signal processing and OKX Signal Bot integra
 
 import msgspec
 
+from ._input import section, value
+
 
 class OkxConfig(msgspec.Struct, frozen=True):
     """OKX Signal Bot configuration."""
@@ -28,10 +30,13 @@ class SignalConfig(msgspec.Struct, frozen=True):
 
     okx: OkxConfig = OkxConfig()
     defaults: SignalDefaultsConfig = SignalDefaultsConfig()
-    raw: dict | None = None
+    raw: dict[str, object] | None = None
 
 
-def build_signal_config(signal_dict: dict | None, raw_dict: dict | None = None) -> SignalConfig:
+def build_signal_config(
+    signal_dict: dict[str, object] | None,
+    raw_dict: dict[str, object] | None = None,
+) -> SignalConfig:
     """
     Build SignalConfig from dictionary.
 
@@ -45,19 +50,19 @@ def build_signal_config(signal_dict: dict | None, raw_dict: dict | None = None) 
         return SignalConfig()
 
     # Build OKX config
-    okx_dict = signal_dict.get("okx", {})
+    okx_dict = section(signal_dict, "okx")
     okx_config = OkxConfig(
-        signal_token=okx_dict.get("signal_token", ""),
-        instrument_format=okx_dict.get("instrument_format", "okx"),
-        max_lag=okx_dict.get("max_lag", 60),
+        signal_token=value(okx_dict, "signal_token", ""),
+        instrument_format=value(okx_dict, "instrument_format", "okx"),
+        max_lag=value(okx_dict, "max_lag", 60),
     )
 
     # Build defaults config
-    defaults_dict = signal_dict.get("defaults", {})
+    defaults_dict = section(signal_dict, "defaults")
     defaults_config = SignalDefaultsConfig(
-        order_type=defaults_dict.get("order_type", "market"),
-        order_price_offset=defaults_dict.get("order_price_offset", 0.1),
-        investment_type=defaults_dict.get("investment_type", "percentage_investment"),
+        order_type=value(defaults_dict, "order_type", "market"),
+        order_price_offset=value(defaults_dict, "order_price_offset", 0.1),
+        investment_type=value(defaults_dict, "investment_type", "percentage_investment"),
     )
 
     return SignalConfig(

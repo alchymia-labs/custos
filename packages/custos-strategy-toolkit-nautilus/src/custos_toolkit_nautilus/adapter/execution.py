@@ -7,11 +7,15 @@ strategy implementation.
 """
 
 from decimal import ROUND_DOWN, ROUND_UP, Decimal
+from typing import cast
 
+from custos_toolkit.signals.types import Signal, SignalDirection
+from nautilus_trader.model.data import Bar
 from nautilus_trader.model.enums import OrderSide, TimeInForce
 from nautilus_trader.model.identifiers import InstrumentId
 from nautilus_trader.model.objects import Price
-from custos_toolkit.signals.types import Signal, SignalDirection
+
+from .runtime_types import Cache, Logger, Order, OrderFactory
 
 
 def align_to_tick_size(price: Decimal, tick_size: Decimal, side: OrderSide) -> Decimal:
@@ -50,7 +54,7 @@ class ExecutionManager:
         _log: Logger for error/info messages
     """
 
-    def __init__(self, order_factory, cache, log):
+    def __init__(self, order_factory: OrderFactory, cache: Cache, log: Logger) -> None:
         """
         Initialize with Nautilus components.
 
@@ -68,12 +72,12 @@ class ExecutionManager:
         instrument_id: InstrumentId,
         signal: Signal,
         size: Decimal,
-        bar,
+        bar: Bar,
         order_type: str = "market",
         slippage_tolerance: Decimal = Decimal("0.001"),
         price_offset: Decimal | None = None,
         tags: list[str] | None = None,
-    ) -> object | None:
+    ) -> Order | None:
         """
         Create entry order based on signal.
 
@@ -154,7 +158,7 @@ class ExecutionManager:
                 instrument_id=instrument_id,
                 order_side=side,
                 quantity=quantity,
-                price=Price(aligned_price, instrument.price_precision),
+                price=Price(cast(float, aligned_price), instrument.price_precision),
                 time_in_force=TimeInForce.GTC,
                 tags=tags,
             )
@@ -166,7 +170,7 @@ class ExecutionManager:
         instrument_id: InstrumentId,
         signal: Signal,
         size: Decimal,
-    ) -> object | None:
+    ) -> Order | None:
         """
         Create exit order (always market, reduce-only).
 

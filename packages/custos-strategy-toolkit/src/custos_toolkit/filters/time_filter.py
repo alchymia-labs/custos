@@ -9,7 +9,9 @@ Keeps the ``_filter`` suffix (rest of the package uses bare names): a bare
 """
 
 from datetime import UTC, datetime
+from typing import cast
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -67,12 +69,12 @@ class TimeFilter(BaseFilter):
     def name(self) -> str:
         return "time"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.trading_hours = config.get("trading_hours", _FULL_DAY)
-        self.excluded_days = set(config.get("excluded_days") or [])
-        self.excluded_dates = set(config.get("excluded_dates") or [])
+        self.enabled = config_value(config, "enabled", True)
+        self.trading_hours = config_value(config, "trading_hours", _FULL_DAY)
+        self.excluded_days = set(cast(list[int], config.get("excluded_days") or []))
+        self.excluded_dates = set(cast(list[str], config.get("excluded_dates") or []))
         # Parse eagerly so a malformed window fails fast at construction rather than
         # silently allowing every trade at runtime. None means "all day, no gating".
         if self.trading_hours == _FULL_DAY:

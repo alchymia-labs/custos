@@ -10,15 +10,16 @@ SnapshotCoordinator.apply_loaded_snapshot.
 """
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
+from custos_toolkit.warmup.exceptions import CheckpointValidationError
+from custos_toolkit.warmup.snapshot import Checkpoint, PriceSnapshot, WarmupConfig
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.model.data import Bar
-from custos_toolkit.warmup.exceptions import CheckpointValidationError
-from custos_toolkit.warmup.snapshot import Checkpoint, PriceSnapshot
 
 if TYPE_CHECKING:
     from nautilus_trader.model.identifiers import InstrumentId
+
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
 
 
@@ -30,17 +31,29 @@ class WarmupStrategyCallbacks(Protocol):
     Strategies using WarmupManager must implement these methods.
     """
 
-    def get_snapshot_indicators(self) -> dict:
+    def get_snapshot_indicators(self) -> dict[str, object]:
         """Return indicators to include in snapshots."""
         ...
 
-    def get_snapshot_state(self) -> dict:
+    def get_snapshot_state(self) -> dict[str, object]:
         """Return additional state to include in snapshots."""
         ...
 
-    def restore_from_snapshot(self, snapshot: dict) -> bool:
+    def restore_from_snapshot(self, snapshot: dict[str, object]) -> bool:
         """Restore strategy state from snapshot. Return True if successful."""
         ...
+
+
+class _IndicatorValue(Protocol):
+    @property
+    def value(self) -> float: ...
+
+
+class _Logger(Protocol):
+    def debug(self, message: str, *, color: object = ...) -> None: ...
+    def error(self, message: str, *, color: object = ...) -> None: ...
+    def info(self, message: str, *, color: object = ...) -> None: ...
+    def warning(self, message: str, *, color: object = ...) -> None: ...
 
 
 class WarmupManager:
@@ -62,12 +75,12 @@ class WarmupManager:
 
     def __init__(
         self,
-        warmup_config,
+        warmup_config: WarmupConfig | None,
         strategy_callbacks: WarmupStrategyCallbacks,
-        logger,
+        logger: _Logger,
         strategy_id: str,
         contexts: dict["InstrumentId", "PairContext"] | None = None,
-    ):
+    ) -> None:
         self._warmup_config = warmup_config
         self._callbacks = strategy_callbacks
         self._log = logger
@@ -103,7 +116,7 @@ class WarmupManager:
 
     # CHECKPOINT VALIDATION
 
-    def validate_on_bar(self, bar: Bar, indicators: dict) -> None:
+    def validate_on_bar(self, bar: Bar, indicators: dict[str, object]) -> None:
         """
         Validate checkpoints on each bar after snapshot restore.
 
@@ -146,7 +159,7 @@ class WarmupManager:
         self,
         bar: Bar,
         checkpoint: Checkpoint,
-        indicators: dict,
+        indicators: dict[str, object],
     ) -> None:
         """
         Validate a single checkpoint against actual indicator values.
@@ -159,7 +172,10 @@ class WarmupManager:
         Raises:
             CheckpointValidationError: If validation fails
         """
-        config = self._warmup_config.checkpoints
+        warmup_config = self._warmup_config
+        assert warmup_config is not None
+        config = warmup_config.checkpoints
+        assert config is not None
 
         # 1. Validate bar time
         bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=UTC)
@@ -179,7 +195,7 @@ class WarmupManager:
                     f"Indicator '{name}' not found for checkpoint validation"
                 )
 
-            actual_value = indicator.value
+            actual_value = cast(_IndicatorValue, indicator).value
             if expected.value == 0:
                 raise CheckpointValidationError(
                     f"Indicator '{name}' checkpoint value is zero (invalid)"
@@ -240,7 +256,7 @@ class WarmupManager:
 
     # HISTORICAL BAR CHECKPOINT VALIDATION
 
-    def validate_on_historical_bar(self, bar: Bar, indicators: dict) -> None:
+    def validate_on_historical_bar(self, bar: Bar, indicators: dict[str, object]) -> None:
         """
         Validate checkpoints during historical bar replay.
 
@@ -287,7 +303,7 @@ class WarmupManager:
         self,
         bar: Bar,
         checkpoint: Checkpoint,
-        indicators: dict,
+        indicators: dict[str, object],
     ) -> None:
         """
         Validate indicator values at checkpoint (without time validation).
@@ -300,7 +316,10 @@ class WarmupManager:
         Raises:
             CheckpointValidationError: If validation fails
         """
-        config = self._warmup_config.checkpoints
+        warmup_config = self._warmup_config
+        assert warmup_config is not None
+        config = warmup_config.checkpoints
+        assert config is not None
         bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=UTC)
 
         # Validate price if checkpoint contains price data
@@ -314,7 +333,7 @@ class WarmupManager:
                     f"Indicator '{name}' not found for checkpoint validation"
                 )
 
-            actual_value = indicator.value
+            actual_value = cast(_IndicatorValue, indicator).value
             if expected.value == 0:
                 raise CheckpointValidationError(
                     f"Indicator '{name}' checkpoint value is zero (invalid)"
@@ -363,15 +382,15 @@ class WarmupManager:
             CheckpointValidationError: If price validation fails
         """
         price_checks = [
-            ("open", float(bar.open), expected.open),
-            ("high", float(bar.high), expected.high),
-            ("low", float(bar.low), expected.low),
-            ("close", float(bar.close), expected.close),
+            ("open", bar.open.as_double(), expected.open),
+            ("high", bar.high.as_double(), expected.high),
+            ("low", bar.low.as_double(), expected.low),
+            ("close", bar.close.as_double(), expected.close),
         ]
 
         # Volume validation is optional
         if expected.volume is not None:
-            price_checks.append(("volume", float(bar.volume), expected.volume))
+            price_checks.append(("volume", bar.volume.as_double(), expected.volume))
 
         for name, actual, exp in price_checks:
             if exp == 0:

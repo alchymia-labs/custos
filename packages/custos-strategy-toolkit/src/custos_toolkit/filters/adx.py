@@ -6,7 +6,9 @@ Filters trades based on ADX (Average Directional Index) trend strength.
 """
 
 from collections import deque
+from typing import cast
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -32,11 +34,11 @@ class AdxFilter(BaseFilter):
     def name(self) -> str:
         return "adx"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.period = config.get("period", 14)
-        self.threshold = config.get("threshold", 25.0)
+        self.enabled = config_value(config, "enabled", True)
+        self.period = config_value(config, "period", 14)
+        self.threshold = config_value(config, "threshold", 25.0)
 
         # State for ADX calculation
         self._prev_close: float | None = None
@@ -162,10 +164,14 @@ class AdxFilter(BaseFilter):
             # Subsequent calculations: Wilder's smoothing
             self._smoothed_tr = self._smoothed_tr - (self._smoothed_tr / self.period) + tr
             self._smoothed_plus_dm = (
-                self._smoothed_plus_dm - (self._smoothed_plus_dm / self.period) + plus_dm
+                cast(float, self._smoothed_plus_dm)
+                - (cast(float, self._smoothed_plus_dm) / self.period)
+                + plus_dm
             )
             self._smoothed_minus_dm = (
-                self._smoothed_minus_dm - (self._smoothed_minus_dm / self.period) + minus_dm
+                cast(float, self._smoothed_minus_dm)
+                - (cast(float, self._smoothed_minus_dm) / self.period)
+                + minus_dm
             )
 
         # Calculate +DI and -DI

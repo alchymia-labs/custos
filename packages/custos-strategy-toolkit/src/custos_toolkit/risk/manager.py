@@ -7,7 +7,9 @@ and trailing stop functionality.
 
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import cast
 
+from ..config._values import config_value
 from ..signals.types import SignalDirection
 
 
@@ -34,12 +36,12 @@ class TrailingStopConfig:
             self.trailing_pct = Decimal(str(self.trailing_pct))
 
     @classmethod
-    def from_dict(cls, data: dict) -> "TrailingStopConfig":
+    def from_dict(cls, data: dict[str, object]) -> "TrailingStopConfig":
         """Create config from dictionary."""
         return cls(
-            enabled=data.get("enabled", False),
-            activation_pct=data.get("activation_pct", 0.02),
-            trailing_pct=data.get("trailing_pct", 0.01),
+            enabled=config_value(data, "enabled", False),
+            activation_pct=config_value(data, "activation_pct", 0.02),
+            trailing_pct=config_value(data, "trailing_pct", 0.01),
         )
 
 
@@ -78,18 +80,18 @@ class RiskConfig:
             self.max_loss_per_trade_pct = Decimal(str(self.max_loss_per_trade_pct))
 
     @classmethod
-    def from_dict(cls, data: dict) -> "RiskConfig":
+    def from_dict(cls, data: dict[str, object]) -> "RiskConfig":
         """Create config from dictionary."""
-        trailing_data = data.get("trailing_stop")
+        trailing_data = cast(dict[str, object] | None, data.get("trailing_stop"))
         trailing = TrailingStopConfig.from_dict(trailing_data) if trailing_data else None
 
         return cls(
-            stop_loss_atr_multiplier=data.get("stop_loss_atr_multiplier", 2.0),
-            take_profit_atr_multiplier=data.get("take_profit_atr_multiplier", 4.0),
-            stop_loss_pct=data.get("stop_loss_pct"),
-            take_profit_pct=data.get("take_profit_pct"),
+            stop_loss_atr_multiplier=config_value(data, "stop_loss_atr_multiplier", 2.0),
+            take_profit_atr_multiplier=config_value(data, "take_profit_atr_multiplier", 4.0),
+            stop_loss_pct=cast(Decimal | float | None, data.get("stop_loss_pct")),
+            take_profit_pct=cast(Decimal | float | None, data.get("take_profit_pct")),
             trailing_stop=trailing,
-            max_loss_per_trade_pct=data.get("max_loss_per_trade_pct", 0.02),
+            max_loss_per_trade_pct=config_value(data, "max_loss_per_trade_pct", 0.02),
         )
 
 
@@ -101,7 +103,7 @@ class RiskManager:
     based on ATR or percentage configurations.
     """
 
-    def __init__(self, config: RiskConfig | dict) -> None:
+    def __init__(self, config: RiskConfig | dict[str, object]) -> None:
         """
         Initialize risk manager.
 
@@ -134,9 +136,9 @@ class RiskManager:
 
         # Calculate distance
         if self.config.stop_loss_pct is not None:
-            distance = entry * self.config.stop_loss_pct
+            distance = entry * Decimal(str(self.config.stop_loss_pct))
         else:
-            distance = atr_value * self.config.stop_loss_atr_multiplier
+            distance = atr_value * Decimal(str(self.config.stop_loss_atr_multiplier))
 
         # Apply direction
         if direction in (SignalDirection.ENTER_LONG, SignalDirection.EXIT_SHORT):
@@ -168,9 +170,9 @@ class RiskManager:
 
         # Calculate distance
         if self.config.take_profit_pct is not None:
-            distance = entry * self.config.take_profit_pct
+            distance = entry * Decimal(str(self.config.take_profit_pct))
         else:
-            distance = atr_value * self.config.take_profit_atr_multiplier
+            distance = atr_value * Decimal(str(self.config.take_profit_atr_multiplier))
 
         # Apply direction
         if direction in (SignalDirection.ENTER_LONG, SignalDirection.EXIT_SHORT):
@@ -215,7 +217,7 @@ class RiskManager:
             profit_pct = (current - entry) / entry
             if profit_pct >= activation_pct:
                 # Calculate new trailing stop
-                new_stop = current * (1 - trailing_pct)
+                new_stop = current * (Decimal(1) - Decimal(str(trailing_pct)))
                 # Only move stop up, never down
                 return max(stop, new_stop)
 
@@ -224,7 +226,7 @@ class RiskManager:
             profit_pct = (entry - current) / entry
             if profit_pct >= activation_pct:
                 # Calculate new trailing stop
-                new_stop = current * (1 + trailing_pct)
+                new_stop = current * (Decimal(1) + Decimal(str(trailing_pct)))
                 # Only move stop down, never up
                 return min(stop, new_stop)
 

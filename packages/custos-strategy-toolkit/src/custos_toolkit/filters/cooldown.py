@@ -1,10 +1,10 @@
 # shared/filters/cooldown.py
 """
 Cooldown period filter.
-
 Enforces minimum time between trades after exits.
 """
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -27,15 +27,15 @@ class CooldownFilter(BaseFilter):
     def name(self) -> str:
         return "cooldown"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.after_exit = config.get("after_exit", 60)
-        self.after_stop_loss = config.get("after_stop_loss", 300)
-        self.after_take_profit = config.get("after_take_profit", 0)
+        self.enabled = config_value(config, "enabled", True)
+        self.after_exit = config_value(config, "after_exit", 60)
+        self.after_stop_loss = config_value(config, "after_stop_loss", 300)
+        self.after_take_profit = config_value(config, "after_take_profit", 0)
 
         # State
-        self._last_exit_time: int = 0
+        self._last_exit_time: float = 0
         self._last_exit_type: str = ""
         self._ready = True
 

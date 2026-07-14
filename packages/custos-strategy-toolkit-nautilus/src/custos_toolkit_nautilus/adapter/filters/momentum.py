@@ -17,12 +17,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from nautilus_trader.indicators.averages import ExponentialMovingAverage
-from nautilus_trader.indicators.momentum import RateOfChange, RelativeStrengthIndex
-from nautilus_trader.indicators.trend import MovingAverageConvergenceDivergence
 from custos_toolkit.protocols.bar import BarProtocol
 from custos_toolkit.protocols.filter import FilterResult
 from custos_toolkit.signals.types import SignalDirection
+from nautilus_trader.indicators.averages import ExponentialMovingAverage
+from nautilus_trader.indicators.momentum import RateOfChange, RelativeStrengthIndex
+from nautilus_trader.indicators.trend import MovingAverageConvergenceDivergence
 
 if TYPE_CHECKING:
     from custos_toolkit_nautilus.adapter.config.filters import MomentumFilterConfig
@@ -91,16 +91,24 @@ class NautilusMomentumFilter:
         close = float(bar.close)
 
         if self.indicator == "rsi":
-            self._rsi.update_raw(close)
-            self._ready = self._rsi.initialized
+            rsi = self._rsi
+            assert rsi is not None
+            rsi.update_raw(close)
+            self._ready = rsi.initialized
         elif self.indicator == "roc":
-            self._roc.update_raw(close)
-            self._ready = self._roc.initialized
+            roc = self._roc
+            assert roc is not None
+            roc.update_raw(close)
+            self._ready = roc.initialized
         elif self.indicator == "macd":
-            self._macd.update_raw(close)
-            if self._macd.initialized:
-                self._signal_ema.update_raw(self._macd.value)
-                self._ready = self._signal_ema.initialized
+            macd = self._macd
+            signal_ema = self._signal_ema
+            assert macd is not None
+            assert signal_ema is not None
+            macd.update_raw(close)
+            if macd.initialized:
+                signal_ema.update_raw(macd.value)
+                self._ready = signal_ema.initialized
 
     def check(self, bar: BarProtocol, direction: SignalDirection | None = None) -> FilterResult:
         if not self.enabled:
@@ -115,7 +123,9 @@ class NautilusMomentumFilter:
         return self._check_macd()
 
     def _check_rsi(self, direction: SignalDirection | None) -> FilterResult:
-        rsi = self._rsi.value * 100.0  # nautilus RSI is 0..1
+        indicator = self._rsi
+        assert indicator is not None
+        rsi = indicator.value * 100.0  # nautilus RSI is 0..1
         # A short entry uses the short band; long entries (and direction-agnostic
         # legacy calls) use the long band.
         if direction == SignalDirection.ENTER_SHORT:
@@ -129,7 +139,9 @@ class NautilusMomentumFilter:
         return FilterResult.allow()
 
     def _check_roc(self, direction: SignalDirection | None) -> FilterResult:
-        roc = self._roc.value * 100.0  # nautilus ROC is a fraction
+        indicator = self._roc
+        assert indicator is not None
+        roc = indicator.value * 100.0  # nautilus ROC is a fraction
         # Long entries need positive momentum (>= long_threshold); short entries need
         # negative momentum (<= short_threshold).
         if direction == SignalDirection.ENTER_SHORT:
@@ -143,8 +155,12 @@ class NautilusMomentumFilter:
         return FilterResult.allow()
 
     def _check_macd(self) -> FilterResult:
+        macd = self._macd
+        signal_ema = self._signal_ema
+        assert macd is not None
+        assert signal_ema is not None
         if self.macd_histogram_positive:
-            histogram = self._macd.value - self._signal_ema.value
+            histogram = macd.value - signal_ema.value
             if histogram <= 0:
                 return FilterResult.block(f"MACD histogram {histogram:.4f} is not positive")
         return FilterResult.allow()
@@ -161,16 +177,20 @@ class NautilusMomentumFilter:
     def get_rsi(self) -> float | None:
         if self.indicator != "rsi" or not self._ready:
             return None
+        assert self._rsi is not None
         return self._rsi.value * 100.0
 
     def get_roc(self) -> float | None:
         if self.indicator != "roc" or not self._ready:
             return None
+        assert self._roc is not None
         return self._roc.value * 100.0
 
-    def get_macd(self) -> dict | None:
+    def get_macd(self) -> dict[str, float] | None:
         if self.indicator != "macd" or not self._ready:
             return None
+        assert self._macd is not None
+        assert self._signal_ema is not None
         line = self._macd.value
         signal = self._signal_ema.value
         return {"macd_line": line, "signal_line": signal, "histogram": line - signal}

@@ -9,6 +9,7 @@ testable without nautilus (lesson #22).
 """
 
 from decimal import Decimal
+from typing import cast
 
 
 def resolve_risk_equity(
@@ -49,7 +50,7 @@ def resolve_risk_equity(
         and equity_value > 0
     )
     if reliable:
-        return equity_value, None
+        return cast(Decimal, equity_value), None
 
     # Unreliable: floor by the most conservative of {free balance, last good mark}.
     conservative = free_balance

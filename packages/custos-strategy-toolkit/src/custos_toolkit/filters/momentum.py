@@ -7,8 +7,9 @@ Filters trades based on momentum indicators: RSI, MACD, or ROC.
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -74,10 +75,12 @@ class MomentumFilter(BaseFilter):
     def name(self) -> str:
         return "momentum"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.indicator: Literal["rsi", "macd", "roc"] = config.get("indicator", "rsi")
+        self.enabled = config_value(config, "enabled", True)
+        self.indicator: Literal["rsi", "macd", "roc"] = cast(
+            Literal["rsi", "macd", "roc"], config_value(config, "indicator", "rsi")
+        )
 
         # Validate indicator
         valid_indicators = ("rsi", "macd", "roc")
@@ -88,23 +91,23 @@ class MomentumFilter(BaseFilter):
 
         # RSI configuration
         self.rsi_config = RSIConfig(
-            period=config.get("rsi_period", 14),
-            long_min=config.get("rsi_long_min", 30.0),
-            long_max=config.get("rsi_long_max", 70.0),
+            period=config_value(config, "rsi_period", 14),
+            long_min=config_value(config, "rsi_long_min", 30.0),
+            long_max=config_value(config, "rsi_long_max", 70.0),
         )
 
         # MACD configuration
         self.macd_config = MACDConfig(
-            fast=config.get("macd_fast", 12),
-            slow=config.get("macd_slow", 26),
-            signal=config.get("macd_signal", 9),
-            histogram_positive=config.get("macd_histogram_positive", True),
+            fast=config_value(config, "macd_fast", 12),
+            slow=config_value(config, "macd_slow", 26),
+            signal=config_value(config, "macd_signal", 9),
+            histogram_positive=config_value(config, "macd_histogram_positive", True),
         )
 
         # ROC configuration
         self.roc_config = ROCConfig(
-            period=config.get("roc_period", 12),
-            long_threshold=config.get("roc_long_threshold", 0.0),
+            period=config_value(config, "roc_period", 12),
+            long_threshold=config_value(config, "roc_long_threshold", 0.0),
         )
 
         # Price history for calculations
@@ -236,8 +239,8 @@ class MomentumFilter(BaseFilter):
         if len(prices) < self.rsi_config.period + 1:
             return None
 
-        gains = []
-        losses = []
+        gains: list[float] = []
+        losses: list[float] = []
         for i in range(1, len(prices)):
             change = prices[i] - prices[i - 1]
             if change > 0:
@@ -319,7 +322,7 @@ class MomentumFilter(BaseFilter):
             return None
         return self._calculate_rsi()
 
-    def get_macd(self) -> dict | None:
+    def get_macd(self) -> dict[str, float] | None:
         """
         Get current MACD values.
 

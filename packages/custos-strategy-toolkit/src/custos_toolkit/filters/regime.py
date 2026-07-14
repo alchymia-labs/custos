@@ -8,6 +8,7 @@ trades based on the detected regime.
 
 from collections import deque
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -34,13 +35,13 @@ class RegimeFilter(BaseFilter):
     def name(self) -> str:
         return "regime"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.lookback = config.get("lookback", 20)
-        self.method = config.get("method", "efficiency_ratio")
-        self.trending_threshold = config.get("trending_threshold", 0.5)
-        self.allow_regime = config.get("allow_regime", "trending")
+        self.enabled = config_value(config, "enabled", True)
+        self.lookback = config_value(config, "lookback", 20)
+        self.method = config_value(config, "method", "efficiency_ratio")
+        self.trending_threshold = config_value(config, "trending_threshold", 0.5)
+        self.allow_regime = config_value(config, "allow_regime", "trending")
 
         # Validate method
         valid_methods = ("efficiency_ratio", "atr_percentile")

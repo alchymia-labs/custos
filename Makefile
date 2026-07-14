@@ -29,10 +29,10 @@ fmt-check:  ## Check formatting (ruff format --check, no file changes)
 lint:  ## Lint check (ruff check)
 	uv run --package custos-runner ruff check src/ tests/ scripts/ packages/
 
-toolkit-typecheck:  ## Strict contracts plus exact extracted-source debt baseline
-	uv run --package custos-runner --extra dev mypy --config-file packages/custos-strategy-toolkit/pyproject.toml packages/custos-strategy-toolkit/src/custos_toolkit/contracts
-	uv run --package custos-runner --extra dev --extra nautilus mypy --config-file packages/custos-strategy-toolkit-nautilus/pyproject.toml packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/__init__.py
-	uv run --package custos-runner --extra dev --extra nautilus python scripts/check-toolkit-typing-baseline.py
+toolkit-typecheck:  ## Whole-package strict typing plus versioned T4 -> T4b evidence
+	uv run --package custos-runner --extra dev mypy --config-file packages/custos-strategy-toolkit/pyproject.toml packages/custos-strategy-toolkit/src/custos_toolkit
+	uv run --package custos-runner --extra dev --extra nautilus mypy --config-file packages/custos-strategy-toolkit-nautilus/pyproject.toml packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus
+	uv run --package custos-runner --extra dev --extra nautilus python scripts/check-toolkit-typing-closure.py
 
 check: fmt-check lint  ## Combined formatting check and lint
 
@@ -191,6 +191,7 @@ check-strategy-contract-assets:  ## Fail when generated Plan 18 contract assets 
 .PHONY: check-authority
 check-toolkit-extraction:
 	uv run python scripts/check-toolkit-extraction.py
+	uv run --package custos-runner --extra dev --extra nautilus python scripts/check-toolkit-typing-closure.py
 
 check-authority: check-strategy-contract-assets check-toolkit-extraction
 	@/usr/bin/python3 scripts/check-authority-docs.py

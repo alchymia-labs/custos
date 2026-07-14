@@ -1,0 +1,4 @@
+from nautilus_trader.core.nautilus_pyo3 import ExponentialMovingAverage as ExponentialMovingAverage
+from nautilus_trader.core.nautilus_pyo3 import MovingAverageType as MovingAverageType
+from nautilus_trader.core.nautilus_pyo3 import SimpleMovingAverage as SimpleMovingAverage
+from nautilus_trader.core.nautilus_pyo3 import WilderMovingAverage as WilderMovingAverage

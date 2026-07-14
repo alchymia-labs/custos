@@ -7,6 +7,8 @@ These settings only apply during backtests, not live trading.
 
 import msgspec
 
+from ._input import section, value
+
 
 class UiConfigSchemaConfig(msgspec.Struct, frozen=True):
     """UI configuration schema for Speculum."""
@@ -36,51 +38,51 @@ class BacktestingConfig(msgspec.Struct, frozen=True):
     ui_config_schema: UiConfigSchemaConfig = UiConfigSchemaConfig()
     data_source: DataSourceConfig = DataSourceConfig()
     execution_model: ExecutionModelConfig = ExecutionModelConfig()
-    raw: dict | None = None
+    raw: dict[str, object] | None = None
 
 
 def build_backtesting_config(
-    backtesting_dict: dict, raw_dict: dict | None = None
+    backtesting_dict: dict[str, object],
+    raw_dict: dict[str, object] | None = None,
 ) -> BacktestingConfig:
     """Build BacktestingConfig from YAML dict."""
     if not backtesting_dict:
         return BacktestingConfig()
 
     # UI config schema
-    ui_schema_data = backtesting_dict.get("ui_config_schema", {})
+    ui_schema_data = section(backtesting_dict, "ui_config_schema")
     if ui_schema_data:
-        sections = ui_schema_data.get(
-            "sections", ["parameters", "trading", "position", "risk", "filters"]
+        raw_sections: list[str] | tuple[str, ...] = value(
+            ui_schema_data, "sections", ["parameters", "trading", "position", "risk", "filters"]
         )
-        if isinstance(sections, list):
-            sections = tuple(sections)
+        sections = tuple(raw_sections) if isinstance(raw_sections, list) else raw_sections
         ui_config_schema = UiConfigSchemaConfig(sections=sections)
     else:
         ui_config_schema = UiConfigSchemaConfig()
 
     # Data source
-    data_source_data = backtesting_dict.get("data_source", {})
+    data_source_data = section(backtesting_dict, "data_source")
     if data_source_data:
         data_source = DataSourceConfig(
-            provider=data_source_data.get("provider", "databento"),
-            warmup_bars=data_source_data.get("warmup_bars", 100),
+            provider=value(data_source_data, "provider", "databento"),
+            warmup_bars=value(data_source_data, "warmup_bars", 100),
         )
     else:
         data_source = DataSourceConfig()
 
     # Execution model
-    execution_model_data = backtesting_dict.get("execution_model", {})
+    execution_model_data = section(backtesting_dict, "execution_model")
     if execution_model_data:
         execution_model = ExecutionModelConfig(
-            fill_model=execution_model_data.get("fill_model", "realistic"),
-            slippage_model=execution_model_data.get("slippage_model", "fixed"),
-            simulated_latency_ms=execution_model_data.get("simulated_latency_ms", 0),
+            fill_model=value(execution_model_data, "fill_model", "realistic"),
+            slippage_model=value(execution_model_data, "slippage_model", "fixed"),
+            simulated_latency_ms=value(execution_model_data, "simulated_latency_ms", 0),
         )
     else:
         execution_model = ExecutionModelConfig()
 
     return BacktestingConfig(
-        log_indicators=backtesting_dict.get("log_indicators", True),
+        log_indicators=value(backtesting_dict, "log_indicators", True),
         ui_config_schema=ui_config_schema,
         data_source=data_source,
         execution_model=execution_model,

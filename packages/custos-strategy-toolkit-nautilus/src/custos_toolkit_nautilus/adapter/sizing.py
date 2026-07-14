@@ -7,6 +7,7 @@ fixed-risk sizing lives in ``shared/nautilus/`` rather than ``shared/position/``
 """
 
 from decimal import Decimal
+from typing import cast
 
 from nautilus_trader.model.instruments import Instrument
 from nautilus_trader.model.objects import Money, Quantity
@@ -41,7 +42,7 @@ def compute_fixed_risk_qty(
     """
     entry = instrument.make_price(entry_price)
     stop_loss = instrument.make_price(stop_loss_price)
-    equity_money = Money(equity, instrument.quote_currency)
+    equity_money = Money(cast(float, equity), instrument.quote_currency)
     risk = Decimal(str(risk_pct))
     return FixedRiskSizer(instrument).calculate(
         entry=entry,

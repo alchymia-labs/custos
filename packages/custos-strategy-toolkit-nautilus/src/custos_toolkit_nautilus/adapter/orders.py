@@ -6,9 +6,14 @@ Provides clean interfaces for creating SL/TP orders based on trading signals
 and position state, separating order creation logic from strategy implementation.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, ROUND_UP, Decimal
+from typing import TYPE_CHECKING, cast
 
+from custos_toolkit.risk.orders import OrderPriceCalculator
+from custos_toolkit.signals.types import Signal, SignalDirection
 from nautilus_trader.model.enums import (
     OrderSide,
     OrderType,
@@ -17,9 +22,12 @@ from nautilus_trader.model.enums import (
     TriggerType,
 )
 from nautilus_trader.model.identifiers import ClientOrderId, InstrumentId
-from nautilus_trader.model.objects import Price
-from custos_toolkit.risk.orders import OrderPriceCalculator
-from custos_toolkit.signals.types import Signal, SignalDirection
+from nautilus_trader.model.objects import Price, Quantity
+
+from .runtime_types import Cache, Logger, Order, OrderFactory, Position
+
+if TYPE_CHECKING:
+    from .config.risk import ScaledTakeProfitConfig, StopLossTrailingConfig
 
 # In-flight window (ns) that blocks re-submitting a full close after one is sent,
 # a safety net against losing a fill and getting stuck. Shared by every close
@@ -189,10 +197,10 @@ STALE_SWEEP_RETRY_COOLDOWN_NS: int = 120_000_000_000  # 120s — per-order cance
 
 
 def is_stale_order(
-    order,
+    order: Order,
     *,
     position_is_long: bool | None,
-    tracked_ids: set,
+    tracked_ids: set[ClientOrderId],
     sl_is_tracked: bool,
     now_ns: int,
     min_age_ns: int = STALE_ORDER_MIN_AGE_NS,
@@ -307,11 +315,11 @@ class StopLossSubmitter:
 
     def __init__(
         self,
-        order_factory,
-        cache,
-        log,
+        order_factory: OrderFactory,
+        cache: Cache,
+        log: Logger,
         order_calculator: OrderPriceCalculator,
-    ):
+    ) -> None:
         """
         Initialize with Nautilus components.
 
@@ -332,9 +340,9 @@ class StopLossSubmitter:
         signal: Signal,
         entry_price: Decimal,
         atr: Decimal | None,
-        position,
+        position: Position,
         tags: list[str] | None = None,
-    ) -> object | None:
+    ) -> Order | None:
         """
         Create stop loss order.
 
@@ -378,10 +386,10 @@ class StopLossSubmitter:
         self,
         instrument_id: InstrumentId,
         side: OrderSide,
-        quantity,
+        quantity: Quantity,
         stop_price: Decimal,
         tags: list[str] | None = None,
-    ) -> object | None:
+    ) -> Order | None:
         """Build a reduce-only stop-market order at a given (pre-computed) stop price.
 
         A shared order-building primitive that separates price calculation from order
@@ -413,7 +421,7 @@ class StopLossSubmitter:
             instrument_id=instrument_id,
             order_side=side,
             quantity=quantity,
-            trigger_price=Price(aligned_stop_price, instrument.price_precision),
+            trigger_price=Price(cast(float, aligned_stop_price), instrument.price_precision),
             time_in_force=TimeInForce.GTC,
             reduce_only=True,
             tags=tags,
@@ -469,7 +477,7 @@ class NativeTrailingStopSubmitter:
         _log: Logger for error/info messages
     """
 
-    def __init__(self, order_factory, cache, log):
+    def __init__(self, order_factory: OrderFactory, cache: Cache, log: Logger) -> None:
         """
         Initialize with Nautilus components.
 
@@ -487,10 +495,10 @@ class NativeTrailingStopSubmitter:
         instrument_id: InstrumentId,
         signal: Signal,
         entry_price: Decimal,
-        position,
-        trailing_cfg,
+        position: Position,
+        trailing_cfg: StopLossTrailingConfig,
         tags: list[str] | None = None,
-    ) -> object | None:
+    ) -> Order | None:
         """
         Create an exchange-managed trailing stop market order.
 
@@ -542,7 +550,7 @@ class NativeTrailingStopSubmitter:
             raw_activation = entry * (Decimal("1") - activation_pct)
         tick_size = Decimal(str(instrument.price_increment))
         aligned_activation = align_stop_price_to_tick(raw_activation, tick_size, side)
-        activation_price = Price(aligned_activation, instrument.price_precision)
+        activation_price = Price(cast(float, aligned_activation), instrument.price_precision)
 
         # trigger_type: mark/last/default, fall back to MARK_PRICE on unknown value
         trigger_price_type = str(getattr(trailing_cfg, "trigger_price_type", "mark")).lower()
@@ -584,11 +592,11 @@ class TakeProfitSubmitter:
 
     def __init__(
         self,
-        order_factory,
-        cache,
-        log,
+        order_factory: OrderFactory,
+        cache: Cache,
+        log: Logger,
         order_calculator: OrderPriceCalculator,
-    ):
+    ) -> None:
         """
         Initialize with Nautilus components.
 
@@ -610,9 +618,9 @@ class TakeProfitSubmitter:
         entry_price: Decimal,
         atr: Decimal | None,
         stop_loss: Decimal | None,
-        position,
+        position: Position,
         tags: list[str] | None = None,
-    ) -> object | None:
+    ) -> Order | None:
         """
         Create single take profit limit order.
 
@@ -660,7 +668,7 @@ class TakeProfitSubmitter:
             instrument_id=instrument_id,
             order_side=side,
             quantity=position.quantity,
-            price=Price(aligned_tp_price, instrument.price_precision),
+            price=Price(cast(float, aligned_tp_price), instrument.price_precision),
             time_in_force=TimeInForce.GTC,
             reduce_only=True,
             tags=tags,  # pass-through signal_id tag
@@ -671,10 +679,10 @@ class TakeProfitSubmitter:
         instrument_id: InstrumentId,
         signal: Signal,
         entry_price: Decimal,
-        position,
-        scaled_config,
+        position: Position,
+        scaled_config: ScaledTakeProfitConfig,
         tags: list[str] | None = None,
-    ) -> list:
+    ) -> list[Order]:
         """
         Create scaled take profit orders at multiple price levels.
 
@@ -731,7 +739,7 @@ class TakeProfitSubmitter:
                 return []
             prev_target = target_pct
 
-        orders = []
+        orders: list[Order] = []
         for level in scaled_levels:
             target_pct = Decimal(str(level.target_pct))
             exit_pct = Decimal(str(level.exit_pct))
@@ -752,7 +760,7 @@ class TakeProfitSubmitter:
                 instrument_id=instrument_id,
                 order_side=side,
                 quantity=instrument.make_qty(scale_qty),
-                price=Price(aligned_tp_price, instrument.price_precision),
+                price=Price(cast(float, aligned_tp_price), instrument.price_precision),
                 time_in_force=TimeInForce.GTC,
                 reduce_only=True,
                 tags=tags,  # pass-through signal_id tag

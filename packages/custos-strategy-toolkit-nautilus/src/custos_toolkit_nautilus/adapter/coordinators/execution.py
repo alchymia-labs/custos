@@ -18,13 +18,17 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from nautilus_trader.common.enums import LogColor
+
 from custos_toolkit_nautilus.adapter.orders import _CLOSE_INFLIGHT_TIMEOUT_NS
 
 if TYPE_CHECKING:
     from nautilus_trader.model.data import QuoteTick, TradeTick
+
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
     from custos_toolkit_nautilus.adapter.tick_monitor import ExitAction
     from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
+
+    from ..runtime_types import Position
 
 
 class ExecutionCoordinator:
@@ -84,7 +88,9 @@ class ExecutionCoordinator:
         if action:
             self._execute_exit_action_for_pair(ctx, action, positions[0])
 
-    def _execute_exit_action_for_pair(self, ctx: PairContext, action: ExitAction, position) -> None:
+    def _execute_exit_action_for_pair(
+        self, ctx: PairContext, action: ExitAction, position: Position
+    ) -> None:
         """Execute exit action from tick monitor for a specific pair."""
         self._strategy.log.info(
             f"[{ctx.pair}] TICK EXIT: {action.exit_type} | {action.reason}",
@@ -97,15 +103,17 @@ class ExecutionCoordinator:
             self._execute_trailing_stop_exit_for_pair(ctx, action.price, action.reason)
 
     def _execute_partial_exit_for_pair(
-        self, ctx: PairContext, position, exit_pct: Decimal, reason: str
+        self, ctx: PairContext, position: Position, exit_pct: Decimal, reason: str
     ) -> None:
         """Execute partial position exit for a specific pair."""
         s = self._strategy
-        exit_qty = Decimal(str(position.quantity)) * exit_pct
+        raw_exit_qty = Decimal(str(position.quantity)) * exit_pct
 
         instrument = s.cache.instrument(ctx.instrument_id)
-        if instrument:
-            exit_qty = instrument.make_qty(exit_qty)
+        if instrument is None:
+            s.log.error(f"Instrument not found: {ctx.instrument_id}")
+            return
+        exit_qty = instrument.make_qty(raw_exit_qty)
 
         if exit_qty <= 0:
             return

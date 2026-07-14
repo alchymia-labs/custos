@@ -19,12 +19,15 @@ from typing import TYPE_CHECKING
 from custos_toolkit.signals.types import SignalDirection
 
 if TYPE_CHECKING:
-    from custos_toolkit_nautilus.adapter.pair_context import PairContext
-    from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
     from custos_toolkit.signals.types import Signal
 
+    from custos_toolkit_nautilus.adapter.pair_context import PairContext
+    from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
 
-class SLTPMode(str, Enum):
+    from .runtime_types import Position
+
+
+class SLTPMode(str, Enum):  # noqa: UP042 - preserve pre-T4b str(Enum) runtime semantics
     """How stop-loss / take-profit protection is placed and managed.
 
     - ``EXCHANGE``: SL and TP both submitted as resting exchange orders.
@@ -77,9 +80,9 @@ class SLTPMode(str, Enum):
         strategy: NautilusTradingStrategy,
         ctx: PairContext,
         signal: Signal,
-        position: object,
-        entry_px: object,
-        entry_atr: object,
+        position: Position | None,
+        entry_px: Decimal | float,
+        entry_atr: Decimal | float | None,
     ) -> None:
         """Submit post-fill protection for an entry, per this mode.
 
@@ -102,9 +105,9 @@ class SLTPMode(str, Enum):
 def _init_tick_position(
     ctx: PairContext,
     signal: Signal,
-    position: object,
-    entry_px: object,
-    entry_atr: object,
+    position: Position | None,
+    entry_px: Decimal | float,
+    entry_atr: Decimal | float | None,
 ) -> None:
     """Seed the tick monitor with the just-opened position (tick/hybrid)."""
     if position is None or ctx.tick_monitor is None:

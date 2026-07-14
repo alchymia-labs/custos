@@ -6,16 +6,18 @@ Provides position size calculation with Kelly, scaling, and dynamic adjustments.
 """
 
 from decimal import ROUND_DOWN, Decimal
-from typing import Any
+from typing import TypeVar, cast
+
+T = TypeVar("T")
 
 
-def _get(obj: Any, key: str, default: Any = None) -> Any:
+def _get(obj: object, key: str, default: T) -> T:
     """Get value from dict or object attribute."""
     if obj is None:
         return default
     if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
+        return cast(T, obj.get(key, default))
+    return cast(T, getattr(obj, key, default))
 
 
 class PositionSizer:
@@ -29,7 +31,7 @@ class PositionSizer:
     - Scaling (pyramid, fixed, martingale)
     """
 
-    def __init__(self, config: dict | Any):
+    def __init__(self, config: dict[str, object] | object):
         """
         Initialize sizer with configuration.
 
@@ -42,8 +44,8 @@ class PositionSizer:
         """
         self.size_type = _get(config, "size_type", "percentage")
         self.size_value = Decimal(str(_get(config, "size_value", 0.1)))
-        self.kelly_config = _get(config, "kelly", {})
-        self.scaling_config = _get(config, "scaling", {})
+        self.kelly_config: object = _get(config, "kelly", {})
+        self.scaling_config: object = _get(config, "scaling", {})
 
     def calculate_base_size(self, effective_capital: Decimal) -> Decimal:
         """
@@ -101,18 +103,18 @@ class PositionSizer:
         method = _get(scaling, "method", "pyramid")
 
         if method == "pyramid":
-            pyramid_config = _get(scaling, "pyramid", {})
+            pyramid_config: object = _get(scaling, "pyramid", {})
             factor = _get(pyramid_config, "scale_factor", 0.5)
             return size * Decimal(str(factor**entry_count))
 
         elif method == "fixed":
             # Fixed scaling returns same size each time
-            fixed_config = _get(scaling, "fixed", {})
+            fixed_config: object = _get(scaling, "fixed", {})
             fixed_pct = _get(fixed_config, "size_per_entry", 0.1)
             return Decimal(str(fixed_pct))
 
         elif method == "martingale":
-            martingale_config = _get(scaling, "martingale", {})
+            martingale_config: object = _get(scaling, "martingale", {})
             multiplier = _get(martingale_config, "multiplier", 2.0)
             return size * Decimal(str(multiplier**entry_count))
 
@@ -147,7 +149,7 @@ class PositionSizer:
         self,
         size: Decimal,
         effective_capital: Decimal,
-        limits: dict | Any | None = None,
+        limits: dict[str, object] | object | None = None,
     ) -> Decimal:
         """
         Apply position limits (min/max).
@@ -168,18 +170,18 @@ class PositionSizer:
             return size.quantize(Decimal("0.001"), rounding=ROUND_DOWN)
 
         # Check max position percentage
-        max_pct = _get(limits, "max_position_pct")
+        max_pct = _get(limits, "max_position_pct", None)
         if max_pct:
             max_size = effective_capital * Decimal(str(max_pct))
             size = min(size, max_size)
 
         # Check absolute max trade size (exchange limit)
-        max_trade = _get(limits, "max_trade_size")
+        max_trade = _get(limits, "max_trade_size", None)
         if max_trade:
             size = min(size, Decimal(str(max_trade)))
 
         # Check min order size
-        min_size = _get(limits, "min_order_size")
+        min_size = _get(limits, "min_order_size", None)
         if min_size and size < Decimal(str(min_size)):
             return Decimal("0")  # Too small, return 0
 

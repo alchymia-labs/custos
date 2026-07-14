@@ -8,6 +8,8 @@ The Custos strategy toolkit extraction is governed, in order, by:
 2. `strategy-toolkit-extraction-v1.json`, the Task 4 mapping from pinned source Git blobs to package targets.
 3. `scripts/check-toolkit-extraction.py`, the deterministic zero-rewrite verifier.
 4. The Task 4 receipt, which may become handoff-ready only after focused and repository gates pass at an exact commit.
+5. `strategy-toolkit-typing-closure-v1.json`, the versioned digest map from the exact Task 4 implementation to the typed Task 4b candidate.
+6. The Task 4b receipt, which remains `VERIFIED_PENDING_COMMIT` and not handoff-ready until a standalone implementation commit is bound and reverified.
 
 The inventory remains historical evidence and is not regenerated after cutover. The extraction manifest binds every old path and target path to SHA-256 digests and to the exact source commit.
 
@@ -45,3 +47,16 @@ A future upstream change requires a new versioned inventory and extraction manif
 5. prove both wheels ship no retired top-level aliases.
 
 Task 4 establishes package authority only. Runtime verifier activation and consumer cutover remain later Plan 18 tasks.
+
+## Task 4b typing closure
+
+Task 4b does not rewrite or replace Task 4 evidence. The historical extraction manifest,
+baseline, and receipt stay immutable. The closure manifest binds each of the 241 Task 4
+target digests to its typed target digest, separately records local type stubs and typed
+boundary support files, and requires whole-package strict mypy with zero errors. Private
+vendor bytes remain identical to Task 4 and stay outside mypy only because they are
+third-party source; their digests and fixed-input parity remain mandatory.
+
+Until `typed_implementation_commit` is populated by a standalone Task 4b commit, the
+receipt status is `VERIFIED_PENDING_COMMIT`, `handoff_ready` is false, and no 18b,
+runtime-ready, or production-ready claim is permitted.

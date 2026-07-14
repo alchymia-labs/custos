@@ -52,7 +52,11 @@ class RiskControlCoordinator:
         """Check all risk limits. Returns True if trading allowed."""
         s = self._strategy
         equity = s._get_risk_equity()
-        allowed, reason = s._risk_controller.check_limits(equity, current_ts)
+        controller = s._risk_controller
+        if controller is None:
+            s.log.error("Risk controller unavailable; blocking trading")
+            return False
+        allowed, reason = controller.check_limits(equity, current_ts)
         if not allowed:
             if reason != s._last_risk_reason:
                 s.log.warning(f"Risk limit: {reason}")

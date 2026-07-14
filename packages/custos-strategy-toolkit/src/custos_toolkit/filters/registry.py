@@ -39,7 +39,7 @@ def register_filter(name: str) -> Callable[[type[BaseFilter]], type[BaseFilter]]
     return decorator
 
 
-def create_filter(name: str, config: dict) -> BaseFilter:
+def create_filter(name: str, config: dict[str, object]) -> BaseFilter:
     """
     Create filter instance by name.
 

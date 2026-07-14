@@ -31,12 +31,29 @@ import os
 from abc import abstractmethod
 from decimal import Decimal
 from pathlib import Path as _Path
+from typing import Protocol, cast
 
 import msgspec
+from custos_toolkit.position import PositionSizer
+from custos_toolkit.risk import OrderPriceCalculator, RiskController, RiskManager
+from custos_toolkit.signals.types import Signal, SignalDirection
+from custos_toolkit.warmup import WarmupConfig
+from custos_toolkit.warmup.exceptions import CheckpointValidationError
 from nautilus_trader.common.enums import LogColor
-from nautilus_trader.model.data import Bar, QuoteTick, TradeTick
+from nautilus_trader.model.data import Bar, BarType, QuoteTick, TradeTick
+from nautilus_trader.model.events import (
+    OrderAccepted,
+    OrderCanceled,
+    OrderCancelRejected,
+    OrderFilled,
+    OrderRejected,
+    PositionClosed,
+    PositionOpened,
+)
 from nautilus_trader.model.identifiers import InstrumentId
+
 from custos_toolkit_nautilus.adapter.capital_allocator import CapitalAllocator
+from custos_toolkit_nautilus.adapter.config import TickMonitoringConfig
 from custos_toolkit_nautilus.adapter.coordinators import (
     ConfigSummaryLogger,
     EquityProvider,
@@ -69,11 +86,11 @@ from custos_toolkit_nautilus.adapter.utils import (
     derive_bar_type,
 )
 from custos_toolkit_nautilus.adapter.warmup_manager import WarmupManager
-from custos_toolkit.position import PositionSizer
-from custos_toolkit.risk import OrderPriceCalculator, RiskController, RiskManager
-from custos_toolkit.signals.types import Signal, SignalDirection
-from custos_toolkit.warmup import WarmupConfig
-from custos_toolkit.warmup.exceptions import CheckpointValidationError
+
+
+class _StrategyId(Protocol):
+    @property
+    def value(self) -> str: ...
 
 
 class NautilusTradingStrategy(NautilusStrategyCore):
@@ -113,7 +130,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         "calculate_position_size": ("ctx", "signal"),
     }
 
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         """Guard: forbid subclasses from overriding per-bar hooks with a pair-string or
         non-callable signature (fires along the whole inheritance chain)."""
         super().__init_subclass__(**kwargs)
@@ -137,7 +154,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
                 )
 
     @property
-    def config(self) -> NautilusTradingStrategyConfig:  # type: ignore[override]
+    def config(self) -> NautilusTradingStrategyConfig:
         """Typed config property.
 
         Python property overrides Cython read-only Actor.config for IDE navigation.
@@ -229,7 +246,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         # on_start, when contexts is still empty); once contexts are built,
         # SnapshotCoordinator.apply_loaded_snapshot() applies it once. _snapshot_restored
         # drives the state log.
-        self._loaded_snapshot: dict | None = None
+        self._loaded_snapshot: dict[str, object] | None = None
         self._snapshot_restored: bool = False
         # One-shot warmup-complete gate: fires on_warmup_complete once all indicators are
         # ready, then short-circuits.
@@ -314,7 +331,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         """Hook: Calculate position size for a signal within a pair's context."""
         return self._sizing_coordinator.default_position_size(ctx, signal)
 
-    def get_snapshot_indicators(self) -> dict:
+    def get_snapshot_indicators(self) -> dict[str, object]:
         """
         Hook: Return indicators to snapshot.
 
@@ -331,7 +348,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         """
         return {}
 
-    def get_snapshot_state(self) -> dict:
+    def get_snapshot_state(self) -> dict[str, object]:
         """
         Hook: Return strategy-specific state to snapshot.
 
@@ -347,7 +364,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         """
         return {}
 
-    def restore_from_snapshot(self, snapshot: dict) -> bool:
+    def restore_from_snapshot(self, snapshot: dict[str, object]) -> bool:
         """
         Hook: Restore strategy state from snapshot.
 
@@ -442,7 +459,9 @@ class NautilusTradingStrategy(NautilusStrategyCore):
             # Use the Crucible slug (STRATEGY_ID env) rather than the Nautilus internal id,
             # otherwise the EventPersister upsert hits orders_strategy_id_fkey -> the SSE
             # persistence path dies silently.
-            strategy_id=resolve_event_strategy_id(self.id.value if self.id else ""),
+            strategy_id=resolve_event_strategy_id(
+                cast(_StrategyId, self.id).value if self.id else ""
+            ),
             clock=self.clock,
             enabled=events_enabled,
         )
@@ -547,7 +566,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
 
         self.log.info(f"Strategy stopped: {len(self._contexts)} pairs", color=LogColor.YELLOW)
 
-    def _on_bar_risk_hygiene(self, bar) -> None:
+    def _on_bar_risk_hygiene(self, bar: Bar) -> None:
         """Risk hygiene that runs even during soft pause and before warmup.
 
         Order reconciliation (orphan sweep + native-trailing self-heal) depends only on
@@ -610,7 +629,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
             + (f" | {metadata_str}" if metadata_str else "")
         )
 
-        # 6b. Event emission：signal event
+        # 6b. Event emission: signal event
         if self._event_publisher.enabled and signal.is_actionable():
             _signal_id = generate_signal_id()
             signal.metadata["_signal_id"] = _signal_id
@@ -690,7 +709,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         """Risk-control mark-to-market equity basis (delegates to EquityProvider)."""
         return self._equity_provider.get_risk_equity()
 
-    def _get_tick_monitoring_config(self):
+    def _get_tick_monitoring_config(self) -> TickMonitoringConfig:
         """Get tick monitoring config if available."""
         return self.config.risk.tick_monitoring
 
@@ -744,7 +763,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
 
     # ---- Trade result tracking ----
 
-    def on_order_accepted(self, event) -> None:
+    def on_order_accepted(self, event: OrderAccepted) -> None:
         """Handle order accepted with top-level exception protection."""
         try:
             self._trade_event_handler.handle_order_accepted(event)
@@ -754,7 +773,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
                 color=LogColor.RED,
             )
 
-    def on_order_filled(self, event) -> None:
+    def on_order_filled(self, event: OrderFilled) -> None:
         """Handle order filled with top-level exception protection."""
         try:
             self._trade_event_handler.handle_order_filled(event)
@@ -764,7 +783,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
                 color=LogColor.RED,
             )
 
-    def on_position_opened(self, event) -> None:
+    def on_position_opened(self, event: PositionOpened) -> None:
         """Handle position opened with top-level exception protection."""
         try:
             self._trade_event_handler.handle_position_opened(event)
@@ -774,7 +793,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
                 color=LogColor.RED,
             )
 
-    def on_position_closed(self, event) -> None:
+    def on_position_closed(self, event: PositionClosed) -> None:
         """Handle position closed with top-level exception protection."""
         try:
             self._trade_event_handler.handle_position_closed(event)
@@ -784,7 +803,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
                 color=LogColor.RED,
             )
 
-    def on_order_canceled(self, event) -> None:
+    def on_order_canceled(self, event: OrderCanceled) -> None:
         """Handle order canceled with top-level exception protection."""
         try:
             self._trade_event_handler.handle_order_canceled(event)
@@ -794,7 +813,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
                 color=LogColor.RED,
             )
 
-    def on_order_rejected(self, event) -> None:
+    def on_order_rejected(self, event: OrderRejected) -> None:
         """Handle order rejected event (rejection-breaker body delegated to OrderReconciler).
 
         The engine dispatches this callback by name, so the thin shell must stay on the
@@ -807,7 +826,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         except Exception as exc:  # noqa: BLE001 — engine doesn't guard callbacks; log and continue
             self.log.error(f"on_order_rejected handler failed: {exc}")
 
-    def on_order_cancel_rejected(self, event) -> None:
+    def on_order_cancel_rejected(self, event: OrderCancelRejected) -> None:
         """Handle order cancel rejected with top-level exception protection.
 
         Body delegated to OrderReconciler; the engine dispatches by name, so the thin
@@ -836,7 +855,7 @@ class NautilusTradingStrategy(NautilusStrategyCore):
         # self.config.warmup is already a WarmupConfig object (built by base_config.py)
         return self.config.warmup
 
-    def on_historical_data(self, data) -> None:
+    def on_historical_data(self, data: object) -> None:
         """Handle historical bar data received from request_bars().
 
         NautilusTrader callback (dispatched by name); delegates to the coordinator.
@@ -891,14 +910,14 @@ class NautilusTradingStrategy(NautilusStrategyCore):
 
         return InstrumentId.from_str(f"{symbol}.{venue}")
 
-    def _derive_bar_type_for_instrument(self, instrument_id: InstrumentId) -> "BarType":  # noqa: F821
+    def _derive_bar_type_for_instrument(self, instrument_id: InstrumentId) -> BarType:
         """Derive BarType directly from an InstrumentId.
 
         L1: reused when the caller already holds the instrument_id, avoiding a re-derive.
         """
         return derive_bar_type(self.config.platforms, instrument_id)
 
-    def _derive_bar_type_for_pair(self, pair: str) -> "BarType":  # noqa: F821
+    def _derive_bar_type_for_pair(self, pair: str) -> BarType:
         """Derive BarType from a pair string via InstrumentId, then the instrument variant."""
         return self._derive_bar_type_for_instrument(self._derive_instrument_id_for_pair(pair))
 

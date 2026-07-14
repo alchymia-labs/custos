@@ -14,11 +14,25 @@ hooks (subclasses override them); ``on_historical_data`` is the nautilus callbac
 lives in SnapshotCoordinator (``apply_loaded_snapshot``).
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol, cast
+
 import pandas as pd
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.model.data import Bar
+
 from custos_toolkit_nautilus.adapter.utils import get_bar_duration_ns
 from custos_toolkit_nautilus.adapter.warmup_manager import WarmupManager
+
+if TYPE_CHECKING:
+    from custos_toolkit_nautilus.adapter.pair_context import PairContext
+    from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
+
+
+class _InitializedIndicator(Protocol):
+    @property
+    def initialized(self) -> bool: ...
 
 
 class WarmupCoordinator:
@@ -27,7 +41,7 @@ class WarmupCoordinator:
     Dependencies are reached through ``self._strategy``.
     """
 
-    def __init__(self, strategy) -> None:
+    def __init__(self, strategy: NautilusTradingStrategy) -> None:
         self._strategy = strategy
 
     def init_manager(self) -> None:
@@ -86,7 +100,7 @@ class WarmupCoordinator:
                 f"for {len(s._contexts)} pairs"
             )
 
-    def handle_warmup_gate(self, ctx, bar) -> bool:
+    def handle_warmup_gate(self, ctx: PairContext, bar: Bar) -> bool:
         """Run the per-pair warmup gate before the signal pipeline.
 
         Returns True when ``bar`` was buffered because the pair is still warming up
@@ -116,14 +130,17 @@ class WarmupCoordinator:
         self.maybe_mark_complete()
         return False
 
-    def check_pair_warmup(self, ctx) -> bool:
+    def check_pair_warmup(self, ctx: PairContext) -> bool:
         """Check if all of the pair's indicators are warmed up."""
         for indicator in ctx.indicators.values():
-            if hasattr(indicator, "initialized") and not indicator.initialized:
+            if (
+                hasattr(indicator, "initialized")
+                and not cast(_InitializedIndicator, indicator).initialized
+            ):
                 return False
         return True
 
-    def replay_buffered_bars(self, pair: str, ctx) -> None:
+    def replay_buffered_bars(self, pair: str, ctx: PairContext) -> None:
         """Replay buffered bars to update indicators after warmup.
 
         During warmup, live bars that arrive via on_bar are buffered. After warmup
@@ -159,7 +176,7 @@ class WarmupCoordinator:
         if all(c.warmed_up for c in s._contexts.values()):
             s._warmup_manager.clear_buffered_bars()
 
-    def handle_historical_data(self, data) -> None:
+    def handle_historical_data(self, data: object) -> None:
         """Handle historical bar data received from request_bars().
 
         NautilusTrader automatically feeds bars to registered indicators. This also

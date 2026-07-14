@@ -2,7 +2,7 @@
 
 > **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3-T4 complete, T4b-T5 open; T6-T9 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Task 4 clean exact-HEAD extraction verification
+> **Revised**: 2026-07-15 after Task 4b strict-zero candidate verification
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -432,6 +432,12 @@ contracts 与 2 个 Nautilus package source，不代表 241 个提取文件 stri
    fixed-input parity 和 exact debt reduction；
 5. baseline 清零前不得宣称整个 distribution strict、18b production-ready 或 runtime-ready。
 
+T4b 使用独立的 `strategy-toolkit-typing-closure-v1.json` 和 receipt 保存版本化证据：
+历史 T4 extraction manifest、typing baseline 与 receipt 不修改；closure manifest 必须逐文件
+绑定 exact T4 implementation `b5ff7ee9cea0e78f4462a478bafa42f8f6e18805` 的 source digest
+到 typed target digest，并单独覆盖 local stubs/support files。未绑定 standalone T4b commit 前，
+receipt 只能是 `VERIFIED_PENDING_COMMIT`、`handoff_ready=false`。
+
 T4b 可与 T5 实现并行，但属于 18b close-out hard gate。
 
 ### Task 5: Implement artifact verifier and attestation policy
@@ -541,7 +547,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T2 Coordinated contracts | [x] | 2026-07-14 | READY receipt pins candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`, source `71990c6a...`, index `d87d6fc2...`, both exact requirements reviews, and clean verification checkout `f6406ea1...` |
 | T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4b-T5 remain open, so 18b is not production-ready |
 | T4 Zero-rewrite extraction | [x] | 2026-07-15 | exact implementation `b5ff7ee9cea0e78f4462a478bafa42f8f6e18805`; clean exact-HEAD focused `91 passed, 1 skipped`; 241/241 extraction、parity、authority、English and lint gates PASS; receipt `VERIFIED_EXTRACTION_ONLY`, handoff false because T4b/T5 remain open |
-| T4b Extracted typing closure | [ ] | — | exact baseline: platform-neutral 75, Nautilus adapter 289; zero required before strict/production-ready claim |
+| T4b Extracted typing closure | [ ] | — | candidate strict zero: platform-neutral 0/40 files, Nautilus adapter 0/59 files; 241-file T4→T4b digest chain + 22 support files verified; receipt `VERIFIED_PENDING_COMMIT`, standalone commit binding and final rerun still required |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
 | T6 Candidate | [ ] | — | immutable rc |
 | T7 Receipts | [ ] | — | four parties |

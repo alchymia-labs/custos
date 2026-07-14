@@ -9,10 +9,11 @@ Provides:
 
 from __future__ import annotations
 
+import importlib
 import logging
 import sys
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 import yaml
 
@@ -145,16 +146,14 @@ def _get_engine_version(platform: str) -> str:
     """Get engine version string for the given platform."""
     if platform == "nautilus":
         try:
-            import nautilus_trader  # noqa: PLC0415
-
-            return nautilus_trader.__version__
+            module = importlib.import_module("nautilus_trader")
+            return cast(str, getattr(module, "__version__", "unknown"))
         except ImportError:
             return "unknown"
     elif platform == "hummingbot":
         try:
-            import hummingbot  # noqa: PLC0415
-
-            return getattr(hummingbot, "__version__", "unknown")
+            module = importlib.import_module("hummingbot")
+            return cast(str, getattr(module, "__version__", "unknown"))
         except ImportError:
             return "unknown"
     return "unknown"

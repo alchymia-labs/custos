@@ -7,6 +7,7 @@ Filters trades based on ATR (Average True Range) as a percentage of price.
 
 from collections import deque
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -35,12 +36,12 @@ class VolatilityFilter(BaseFilter):
     def name(self) -> str:
         return "volatility"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.atr_lookback = config.get("atr_lookback", 14)
-        self.min_atr_pct = config.get("min_atr_pct", 0.003)
-        self.max_atr_pct = config.get("max_atr_pct", 0.05)
+        self.enabled = config_value(config, "enabled", True)
+        self.atr_lookback = config_value(config, "atr_lookback", 14)
+        self.min_atr_pct = config_value(config, "min_atr_pct", 0.003)
+        self.max_atr_pct = config_value(config, "max_atr_pct", 0.05)
 
         # State for ATR calculation
         self._prev_close: float | None = None

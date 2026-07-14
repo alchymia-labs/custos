@@ -5,7 +5,11 @@ Provides type-safe configuration classes using msgspec.Struct with frozen=True
 for compatibility with NautilusTrader's StrategyConfig.
 """
 
+from typing import cast
+
 import msgspec
+
+from ._input import section, value
 
 
 class KellyConfig(msgspec.Struct, frozen=True):
@@ -117,74 +121,111 @@ class PositionConfig(msgspec.Struct, frozen=True):
     scaling: ScalingConfig = ScalingConfig()
     limits: PositionLimitsConfig = PositionLimitsConfig()
     dynamic_sizing: DynamicSizingConfig = DynamicSizingConfig()
-    raw: dict | None = None
+    raw: dict[str, object] | None = None
 
 
-def build_position_config(position_dict: dict, raw_dict: dict | None = None) -> PositionConfig:
+def build_position_config(
+    position_dict: dict[str, object],
+    raw_dict: dict[str, object] | None = None,
+) -> PositionConfig:
     """Build PositionConfig from YAML dict."""
     if not position_dict:
         return PositionConfig()
 
-    kelly_data = position_dict.get("kelly", {})
-    kelly = KellyConfig(**kelly_data) if kelly_data else KellyConfig()
+    kelly_data = section(position_dict, "kelly")
+    kelly = (
+        KellyConfig(
+            fraction=value(kelly_data, "fraction", 0.25),
+            win_rate=value(kelly_data, "win_rate", 0.55),
+            payoff_ratio=value(kelly_data, "payoff_ratio", 2.0),
+        )
+        if kelly_data
+        else KellyConfig()
+    )
 
-    fixed_risk_data = position_dict.get("fixed_risk", {})
-    fixed_risk = FixedRiskConfig(**fixed_risk_data) if fixed_risk_data else FixedRiskConfig()
+    fixed_risk_data = section(position_dict, "fixed_risk")
+    fixed_risk = (
+        FixedRiskConfig(risk_pct=value(fixed_risk_data, "risk_pct", 0.01))
+        if fixed_risk_data
+        else FixedRiskConfig()
+    )
 
-    scaling_data = position_dict.get("scaling", {})
+    scaling_data = section(position_dict, "scaling")
     if scaling_data:
         scaling = ScalingConfig(
-            enabled=scaling_data.get("enabled", False),
-            method=scaling_data.get("method", "pyramid"),
-            max_entries=scaling_data.get("max_entries", 3),
-            entry_interval_pct=scaling_data.get("entry_interval_pct", 0.02),
-            pyramid=PyramidScalingConfig(**scaling_data.get("pyramid", {})),
-            fixed=FixedScalingConfig(**scaling_data.get("fixed", {})),
-            martingale=MartingaleScalingConfig(**scaling_data.get("martingale", {})),
+            enabled=value(scaling_data, "enabled", False),
+            method=value(scaling_data, "method", "pyramid"),
+            max_entries=value(scaling_data, "max_entries", 3),
+            entry_interval_pct=value(scaling_data, "entry_interval_pct", 0.02),
+            pyramid=PyramidScalingConfig(
+                scale_factor=value(section(scaling_data, "pyramid"), "scale_factor", 0.5)
+            ),
+            fixed=FixedScalingConfig(
+                size_per_entry=value(section(scaling_data, "fixed"), "size_per_entry", 0.1)
+            ),
+            martingale=MartingaleScalingConfig(
+                multiplier=value(section(scaling_data, "martingale"), "multiplier", 2.0)
+            ),
         )
     else:
         scaling = ScalingConfig()
 
-    limits_data = position_dict.get("limits", {})
+    limits_data = section(position_dict, "limits")
     if limits_data:
         # Handle correlation_groups conversion from list to tuple
-        correlation_groups = limits_data.get("correlation_groups", [])
-        if isinstance(correlation_groups, list):
+        raw_correlation_groups: list[list[str] | tuple[str, ...]] | tuple[tuple[str, ...], ...] = (
+            value(limits_data, "correlation_groups", [])
+        )
+        if isinstance(raw_correlation_groups, list):
             correlation_groups = tuple(
-                tuple(group) if isinstance(group, list) else group for group in correlation_groups
+                tuple(group) if isinstance(group, list) else group
+                for group in raw_correlation_groups
             )
+        else:
+            correlation_groups = raw_correlation_groups
 
         limits = PositionLimitsConfig(
-            max_positions_per_pair=limits_data.get("max_positions_per_pair", 1),
-            min_order_size=limits_data.get("min_order_size", 10.0),
-            max_position_pct=limits_data.get("max_position_pct", 0.5),
-            max_total_positions=limits_data.get("max_total_positions", 5),
-            max_total_exposure=limits_data.get("max_total_exposure", 0.8),
-            max_correlated_exposure=limits_data.get("max_correlated_exposure", 0.5),
+            max_positions_per_pair=value(limits_data, "max_positions_per_pair", 1),
+            min_order_size=value(limits_data, "min_order_size", 10.0),
+            max_position_pct=value(limits_data, "max_position_pct", 0.5),
+            max_total_positions=value(limits_data, "max_total_positions", 5),
+            max_total_exposure=value(limits_data, "max_total_exposure", 0.8),
+            max_correlated_exposure=value(limits_data, "max_correlated_exposure", 0.5),
             correlation_groups=correlation_groups,
-            max_trade_size=limits_data.get("max_trade_size"),
+            max_trade_size=cast(float | None, value(limits_data, "max_trade_size")),
         )
     else:
         limits = PositionLimitsConfig()
 
-    dynamic_sizing_data = position_dict.get("dynamic_sizing", {})
+    dynamic_sizing_data = section(position_dict, "dynamic_sizing")
     if dynamic_sizing_data:
-        vol_adj_data = dynamic_sizing_data.get("volatility_adjustment", {})
+        vol_adj_data = section(dynamic_sizing_data, "volatility_adjustment")
         volatility_adjustment = (
-            VolatilityAdjustmentConfig(**vol_adj_data)
+            VolatilityAdjustmentConfig(
+                enabled=value(vol_adj_data, "enabled", False),
+                target_volatility=value(vol_adj_data, "target_volatility", 0.02),
+                lookback=value(vol_adj_data, "lookback", 20),
+                min_multiplier=value(vol_adj_data, "min_multiplier", 0.5),
+                max_multiplier=value(vol_adj_data, "max_multiplier", 1.5),
+            )
             if vol_adj_data
             else VolatilityAdjustmentConfig()
         )
 
-        streak_adj_data = dynamic_sizing_data.get("streak_adjustment", {})
+        streak_adj_data = section(dynamic_sizing_data, "streak_adjustment")
         streak_adjustment = (
-            StreakAdjustmentConfig(**streak_adj_data)
+            StreakAdjustmentConfig(
+                enabled=value(streak_adj_data, "enabled", False),
+                loss_reduction=value(streak_adj_data, "loss_reduction", 0.2),
+                win_increase=value(streak_adj_data, "win_increase", 0.1),
+                max_streak_adjustment=value(streak_adj_data, "max_streak_adjustment", 3),
+            )
             if streak_adj_data
             else StreakAdjustmentConfig()
         )
 
         dynamic_sizing = DynamicSizingConfig(
-            enabled=dynamic_sizing_data.get("enabled", False),
+            enabled=value(dynamic_sizing_data, "enabled", False),
             volatility_adjustment=volatility_adjustment,
             streak_adjustment=streak_adjustment,
         )
@@ -192,11 +233,11 @@ def build_position_config(position_dict: dict, raw_dict: dict | None = None) -> 
         dynamic_sizing = DynamicSizingConfig()
 
     return PositionConfig(
-        size_type=position_dict.get("size_type", "percentage"),
-        size_value=position_dict.get("size_value", 0.1),
-        capital_mode=position_dict.get("capital_mode", "compound"),
-        initial_capital=position_dict.get("initial_capital", 10000.0),
-        base_size_factor=position_dict.get("base_size_factor", 1.0),
+        size_type=value(position_dict, "size_type", "percentage"),
+        size_value=value(position_dict, "size_value", 0.1),
+        capital_mode=value(position_dict, "capital_mode", "compound"),
+        initial_capital=value(position_dict, "initial_capital", 10000.0),
+        base_size_factor=value(position_dict, "base_size_factor", 1.0),
         kelly=kelly,
         fixed_risk=fixed_risk,
         scaling=scaling,

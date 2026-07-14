@@ -1,10 +1,10 @@
 # shared/filters/volume.py
 """
 Volume-based trading filter.
-
 Filters trades based on volume relative to moving average.
 """
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from .base import BaseFilter
@@ -30,12 +30,12 @@ class VolumeFilter(BaseFilter):
     def name(self) -> str:
         return "volume"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self._ma_period = config.get("ma_period", 20)
-        self._threshold = config.get("threshold", 1.0)
-        self._ma_type = config.get("ma_type", "ema").lower()
+        self.enabled = config_value(config, "enabled", True)
+        self._ma_period = config_value(config, "ma_period", 20)
+        self._threshold = config_value(config, "threshold", 1.0)
+        self._ma_type = config_value(config, "ma_type", "ema").lower()
 
         # Validate ma_type
         if self._ma_type not in ("ema", "sma"):

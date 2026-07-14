@@ -8,12 +8,17 @@ requests in the strategy framework.
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol, cast
 
 import msgspec
+from custos_toolkit.protocols.bar import BarProtocol
+from custos_toolkit.protocols.filter import FilterResult as CheckResult
+from custos_toolkit.signals.types import SignalDirection
+from nautilus_trader.model.data import Bar, BarType
+from nautilus_trader.model.identifiers import InstrumentId
 
 if TYPE_CHECKING:
-    from custos_toolkit_nautilus.adapter.config.filters import FiltersConfig
+    from custos_toolkit_nautilus.adapter.config.filters import BehaviorConfig, FiltersConfig
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +35,8 @@ class SubscriptionRequest:
     """
 
     type: str
-    bar_type: Any = None
-    instrument_id: Any = None
+    bar_type: str | BarType | None = None
+    instrument_id: InstrumentId | None = None
 
 
 @dataclass
@@ -54,6 +59,25 @@ class FilterResult:
     delay_until: int = 0
 
 
+class _ScopedConfig(Protocol):
+    @property
+    def scope(self) -> str: ...
+
+
+class _Filter(Protocol):
+    @property
+    def name(self) -> str: ...
+    def update(self, bar: BarProtocol) -> None: ...
+
+
+class _StandardFilter(_Filter, Protocol):
+    def check(self, bar: BarProtocol) -> CheckResult: ...
+
+
+class _DirectionFilter(_Filter, Protocol):
+    def check(self, bar: BarProtocol, direction: SignalDirection | None) -> CheckResult: ...
+
+
 class FilterManager:
     """
     Manages filter lifecycle, updates, and checks.
@@ -63,8 +87,11 @@ class FilterManager:
     """
 
     def __init__(
-        self, config: "FiltersConfig | None", instrument_id: Any, scope_filter: str = "all"
-    ):
+        self,
+        config: "FiltersConfig | None",
+        instrument_id: InstrumentId | None,
+        scope_filter: str = "all",
+    ) -> None:
         """
         Initialize FilterManager.
 
@@ -76,8 +103,8 @@ class FilterManager:
         self._config: FiltersConfig | None = config
         self._instrument_id = instrument_id
         self._scope_filter = scope_filter
-        self._filters: list[Any] = []
-        self._mtf_filter: Any = None
+        self._filters: list[_Filter] = []
+        self._mtf_filter: _Filter | None = None
         self._mtf_bar_type: str | None = None
         self._initialized: bool = False
 
@@ -91,7 +118,7 @@ class FilterManager:
         """Return number of configured filters."""
         return len(self._filters)
 
-    def _should_create_filter(self, filter_config) -> bool:
+    def _should_create_filter(self, filter_config: _ScopedConfig) -> bool:
         """
         Check if filter should be created based on scope_filter.
 
@@ -127,6 +154,7 @@ class FilterManager:
         # nautilus-backed implementations (nautilus indicators); time/cooldown/mtf are
         # pure business (no nautilus indicator) and stay in custos_toolkit.filters.
         from custos_toolkit.filters import CooldownFilter, MTFFilter, TimeFilter
+
         from custos_toolkit_nautilus.adapter.filters import (
             NautilusAdxFilter,
             NautilusMomentumFilter,
@@ -245,7 +273,7 @@ class FilterManager:
 
         return tf
 
-    def update(self, bar: Any) -> None:
+    def update(self, bar: Bar) -> None:
         """
         Update all filters with new bar data.
 
@@ -256,12 +284,12 @@ class FilterManager:
             try:
                 update_method = getattr(f, "update", None)
                 if update_method is not None and callable(update_method):
-                    update_method(bar)
+                    update_method(cast(BarProtocol, bar))
             except Exception:
                 filter_name = getattr(f, "name", type(f).__name__)
                 logger.warning(f"Filter '{filter_name}' update failed", exc_info=True)
 
-    def is_mtf_bar(self, bar: Any) -> bool:
+    def is_mtf_bar(self, bar: Bar) -> bool:
         """
         Check if bar is from higher timeframe.
 
@@ -280,7 +308,7 @@ class FilterManager:
 
         return str(bar_type) == self._mtf_bar_type
 
-    def check(self, bar: Any, direction: Any = None) -> FilterResult:
+    def check(self, bar: Bar, direction: SignalDirection | None = None) -> FilterResult:
         """
         Check all filters and return aggregated result.
 
@@ -319,9 +347,9 @@ class FilterManager:
                 # Only direction-aware filters (momentum) receive the entry direction;
                 # the rest keep their direction-agnostic single-arg contract.
                 if getattr(f, "direction_aware", False):
-                    result = f.check(bar, direction)
+                    result = cast(_DirectionFilter, f).check(cast(BarProtocol, bar), direction)
                 else:
-                    result = f.check(bar)
+                    result = cast(_StandardFilter, f).check(cast(BarProtocol, bar))
                 if getattr(result, "passed", False):
                     passed_filters.append(filter_name)
                     # Combine size factors (safely handle non-numeric values)
@@ -343,7 +371,7 @@ class FilterManager:
 
     def _aggregate(
         self,
-        bar: Any,
+        bar: Bar,
         passed_filters: list[str],
         failed_filters: list[str],
         combined_size_factor: "Decimal",
@@ -363,6 +391,7 @@ class FilterManager:
         on_fail = behavior.on_filter_fail if behavior is not None else "skip"
         if on_fail == "reduce_size":
             # Allow the entry but at a reduced size rather than skipping it.
+            assert behavior is not None
             factor = combined_size_factor * Decimal(str(behavior.reduce_size_factor))
             return FilterResult(
                 passed=True,
@@ -392,7 +421,10 @@ class FilterManager:
         )
 
     def _mode_passed(
-        self, passed_filters: list[str], failed_filters: list[str], behavior: Any
+        self,
+        passed_filters: list[str],
+        failed_filters: list[str],
+        behavior: "BehaviorConfig | None",
     ) -> bool:
         """Whether the combined filter set passes under ``behavior.mode``."""
         if not failed_filters:
@@ -403,7 +435,15 @@ class FilterManager:
         if mode == "weighted" and behavior is not None:
             # Weight keys are "<name>_filter" (adx_filter, ...); filter names are "adx".
             # Filters absent from the weights config contribute 0 (don't affect score).
-            weights = msgspec.structs.asdict(behavior.weights)
+            configured = behavior.weights
+            weights = {
+                "adx_filter": configured.adx_filter,
+                "volatility_filter": configured.volatility_filter,
+                "volume_filter": configured.volume_filter,
+                "regime_filter": configured.regime_filter,
+                "momentum_filter": configured.momentum_filter,
+                "mtf_filter": configured.mtf_filter,
+            }
             total = sum(weights.get(f"{n}_filter", 0.0) for n in (passed_filters + failed_filters))
             if total <= 0:
                 return False

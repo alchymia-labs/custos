@@ -6,8 +6,9 @@ Provides helper functions for deriving runtime values from configuration:
 - BarType from platforms config
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast, overload
 
+import msgspec
 from nautilus_trader.model.data import BarType
 from nautilus_trader.model.identifiers import InstrumentId
 
@@ -133,7 +134,31 @@ def is_futures_connector(connector: str) -> bool:
     return "perpetual" in connector.lower()
 
 
-def deep_asdict(obj):
+class _StructLike(Protocol):
+    __struct_fields__: tuple[str, ...]
+
+
+@overload
+def deep_asdict(obj: msgspec.Struct) -> dict[str, object]: ...
+
+
+@overload
+def deep_asdict(obj: dict[object, object]) -> dict[object, object]: ...
+
+
+@overload
+def deep_asdict(obj: list[object]) -> list[object]: ...
+
+
+@overload
+def deep_asdict(obj: tuple[object, ...]) -> tuple[object, ...]: ...
+
+
+@overload
+def deep_asdict(obj: object) -> object: ...
+
+
+def deep_asdict(obj: object) -> object:
     """
     Recursively convert msgspec struct to dict.
 
@@ -157,16 +182,19 @@ def deep_asdict(obj):
         {'inner': {'value': 0.02}}
     """
     if hasattr(obj, "__struct_fields__"):
-        return {f: deep_asdict(getattr(obj, f)) for f in obj.__struct_fields__}
+        fields = cast(_StructLike, obj).__struct_fields__
+        return {field: deep_asdict(getattr(obj, field)) for field in fields}
     elif isinstance(obj, dict):
         return {k: deep_asdict(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple)):
-        return type(obj)(deep_asdict(item) for item in obj)
+    elif isinstance(obj, list):
+        return [deep_asdict(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(deep_asdict(item) for item in obj)
     else:
         return obj
 
 
-def get_bar_duration_ns(bar_type) -> int:
+def get_bar_duration_ns(bar_type: BarType) -> int:
     """
     Get duration of a single bar in nanoseconds.
 

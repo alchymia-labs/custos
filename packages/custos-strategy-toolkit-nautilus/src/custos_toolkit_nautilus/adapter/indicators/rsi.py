@@ -1,9 +1,10 @@
 """RSI (Relative Strength Index) indicator wrapping pandas-ta."""
 
 import pandas as pd
-from custos_toolkit_nautilus._vendor import pandas_ta as ta
 from nautilus_trader.indicators.base import Indicator
 from nautilus_trader.model.data import Bar
+
+from ._pandas_ta import ta
 
 
 class RSI(Indicator):
@@ -86,7 +87,7 @@ class RSI(Indicator):
 
     def handle_bar(self, bar: Bar) -> None:
         """Process a bar and update the indicator."""
-        self.update_raw(close=float(bar.close))
+        self.update_raw(close=bar.close.as_double())
 
     def update_raw(self, close: float) -> None:
         """Update the indicator with raw close price."""

@@ -17,13 +17,23 @@ here; ``get_snapshot_indicators`` / ``get_snapshot_state`` / ``restore_from_snap
 are hooks subclasses override; ``_loaded_snapshot`` / ``_snapshot_restored`` are state.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
 from nautilus_trader.common.enums import LogColor
+
 from custos_toolkit_nautilus.adapter.state_persistence import (
     build_snapshot,
     decode_snapshot,
     encode_snapshot,
     restore_indicators,
 )
+
+if TYPE_CHECKING:
+    from custos_toolkit.warmup import WarmupConfig
+
+    from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
 
 
 class SnapshotCoordinator:
@@ -32,7 +42,7 @@ class SnapshotCoordinator:
     Dependencies are reached through ``self._strategy``.
     """
 
-    def __init__(self, strategy) -> None:
+    def __init__(self, strategy: NautilusTradingStrategy) -> None:
         self._strategy = strategy
 
     def save_state(self) -> dict[str, bytes]:
@@ -89,8 +99,9 @@ class SnapshotCoordinator:
         mode = warmup_config.mode if warmup_config else None
         if mode != "snapshot":
             return None
+        assert warmup_config is not None
 
-        timestamp = None
+        timestamp: int | None = None
 
         # Layer 1: framework on_load snapshot (Redis state) -- per-pair indicators +
         # global state. Only drive warmup acceleration when indicators were actually
@@ -98,14 +109,14 @@ class SnapshotCoordinator:
         snapshot = s._loaded_snapshot
         if snapshot is not None:
             restored = restore_indicators(s._contexts, snapshot, logger=s.log)
-            global_state = snapshot.get("global_state", {})
+            global_state = cast(dict[str, object], snapshot.get("global_state", {}))
             if global_state:
                 try:
                     s.restore_from_snapshot({"state": global_state})
                 except Exception as exc:
                     s.log.warning(f"Failed to restore global state: {exc}")
             if restored > 0:
-                timestamp = snapshot.get("timestamp")
+                timestamp = cast(int | None, snapshot.get("timestamp"))
                 s.log.info(
                     f"Applied loaded snapshot: {restored} indicators restored",
                     color=LogColor.GREEN,
@@ -124,7 +135,7 @@ class SnapshotCoordinator:
                 s._warmup_manager.load_pending_checkpoints()
         return timestamp
 
-    def _warm_indicators_from_yaml(self, warmup_config) -> int | None:
+    def _warm_indicators_from_yaml(self, warmup_config: WarmupConfig) -> int | None:
         """Warm flat indicators from a YAML config snapshot.
 
         Uses the ``get_snapshot_indicators()`` hook + each indicator's
@@ -135,7 +146,7 @@ class SnapshotCoordinator:
         Returns:
             Snapshot timestamp (nanoseconds) if any indicator was warmed, else None.
         """
-        from custos_toolkit.warmup import IndicatorWarmer
+        from custos_toolkit.warmup import IndicatorWarmer, SnapshotSupport
 
         s = self._strategy
         indicators = s.get_snapshot_indicators()
@@ -147,7 +158,7 @@ class SnapshotCoordinator:
         for name, indicator in indicators.items():
             if not hasattr(indicator, "load_snapshot"):
                 continue
-            result = warmer.warm_indicator(indicator, indicator_type=name)
+            result = warmer.warm_indicator(cast(SnapshotSupport, indicator), indicator_type=name)
             if result.success and result.snapshot_time:
                 timestamp = int(result.snapshot_time.timestamp() * 1e9)
                 s.log.debug(f"Indicator {name} warmed from YAML snapshot")

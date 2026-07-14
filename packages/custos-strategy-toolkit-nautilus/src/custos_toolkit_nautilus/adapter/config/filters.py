@@ -7,6 +7,8 @@ for compatibility with NautilusTrader's StrategyConfig.
 
 import msgspec
 
+from ._input import section, value
+
 
 class AdxFilterConfig(msgspec.Struct, frozen=True):
     """ADX filter configuration."""
@@ -157,118 +159,121 @@ class FiltersConfig(msgspec.Struct, frozen=True):
     regime_filter: RegimeFilterConfig = RegimeFilterConfig()
     momentum_filter: MomentumFilterConfig = MomentumFilterConfig()
     behavior: BehaviorConfig = BehaviorConfig()
-    raw: dict | None = None
+    raw: dict[str, object] | None = None
 
 
-def build_filters_config(filters_dict: dict, raw_dict: dict | None = None) -> FiltersConfig:
+def build_filters_config(
+    filters_dict: dict[str, object],
+    raw_dict: dict[str, object] | None = None,
+) -> FiltersConfig:
     """Build FiltersConfig from YAML dict."""
     if not filters_dict:
         return FiltersConfig()
 
-    adx_data = filters_dict.get("adx_filter", {})
+    adx_data = section(filters_dict, "adx_filter")
     if adx_data:
         adx = AdxFilterConfig(
-            enabled=adx_data.get("enabled", False),
-            period=adx_data.get("period", 14),
-            threshold=adx_data.get("threshold", 25),
-            scope=adx_data.get("scope", "per_pair"),
+            enabled=value(adx_data, "enabled", False),
+            period=value(adx_data, "period", 14),
+            threshold=value(adx_data, "threshold", 25),
+            scope=value(adx_data, "scope", "per_pair"),
         )
     else:
         adx = AdxFilterConfig()
 
-    vol_data = filters_dict.get("volatility_filter", {})
+    vol_data = section(filters_dict, "volatility_filter")
     if vol_data:
         volatility = VolatilityFilterConfig(
-            enabled=vol_data.get("enabled", False),
-            min_atr_pct=vol_data.get("min_atr_pct", 0.003),
-            max_atr_pct=vol_data.get("max_atr_pct", 0.05),
-            atr_lookback=vol_data.get("atr_lookback", 14),
-            scope=vol_data.get("scope", "per_pair"),
+            enabled=value(vol_data, "enabled", False),
+            min_atr_pct=value(vol_data, "min_atr_pct", 0.003),
+            max_atr_pct=value(vol_data, "max_atr_pct", 0.05),
+            atr_lookback=value(vol_data, "atr_lookback", 14),
+            scope=value(vol_data, "scope", "per_pair"),
         )
     else:
         volatility = VolatilityFilterConfig()
 
-    volume_data = filters_dict.get("volume_filter", {})
+    volume_data = section(filters_dict, "volume_filter")
     if volume_data:
         volume = VolumeFilterConfig(
-            enabled=volume_data.get("enabled", False),
-            ma_period=volume_data.get("ma_period", 20),
-            threshold=volume_data.get("threshold", 1.2),
-            ma_type=volume_data.get("ma_type", "ema"),
-            scope=volume_data.get("scope", "per_pair"),
+            enabled=value(volume_data, "enabled", False),
+            ma_period=value(volume_data, "ma_period", 20),
+            threshold=value(volume_data, "threshold", 1.2),
+            ma_type=value(volume_data, "ma_type", "ema"),
+            scope=value(volume_data, "scope", "per_pair"),
         )
     else:
         volume = VolumeFilterConfig()
 
-    time_data = filters_dict.get("time_filter", {})
+    time_data = section(filters_dict, "time_filter")
     if time_data:
-        excluded_days = time_data.get("excluded_days", [])
-        excluded_dates = time_data.get("excluded_dates", [])
+        excluded_days: list[int] | tuple[int, ...] = value(time_data, "excluded_days", [])
+        excluded_dates: list[str] | tuple[str, ...] = value(time_data, "excluded_dates", [])
         time_filter = TimeFilterConfig(
-            enabled=time_data.get("enabled", False),
-            trading_hours=time_data.get("trading_hours", "00:00-23:59"),
+            enabled=value(time_data, "enabled", False),
+            trading_hours=value(time_data, "trading_hours", "00:00-23:59"),
             excluded_days=tuple(excluded_days)
             if isinstance(excluded_days, list)
             else excluded_days,
             excluded_dates=tuple(excluded_dates)
             if isinstance(excluded_dates, list)
             else excluded_dates,
-            scope=time_data.get("scope", "global"),
+            scope=value(time_data, "scope", "global"),
         )
     else:
         time_filter = TimeFilterConfig()
 
-    cooldown_data = filters_dict.get("cooldown", {})
+    cooldown_data = section(filters_dict, "cooldown")
     if cooldown_data:
         cooldown = CooldownConfig(
-            min_holding_time=cooldown_data.get("min_holding_time", 0),
-            after_exit=cooldown_data.get("after_exit", 0),
-            after_stop_loss=cooldown_data.get("after_stop_loss", 300),
-            after_take_profit=cooldown_data.get("after_take_profit", 0),
-            scope=cooldown_data.get("scope", "per_pair"),
+            min_holding_time=value(cooldown_data, "min_holding_time", 0),
+            after_exit=value(cooldown_data, "after_exit", 0),
+            after_stop_loss=value(cooldown_data, "after_stop_loss", 300),
+            after_take_profit=value(cooldown_data, "after_take_profit", 0),
+            scope=value(cooldown_data, "scope", "per_pair"),
         )
     else:
         cooldown = CooldownConfig()
 
-    mtf_data = filters_dict.get("mtf_filter", {})
+    mtf_data = section(filters_dict, "mtf_filter")
     if mtf_data:
         mtf_filter = MtfFilterConfig(
-            enabled=mtf_data.get("enabled", False),
-            higher_timeframe=mtf_data.get("higher_timeframe", "4h"),
-            alignment_mode=mtf_data.get("alignment_mode", "same_direction"),
-            scope=mtf_data.get("scope", "per_pair"),
+            enabled=value(mtf_data, "enabled", False),
+            higher_timeframe=value(mtf_data, "higher_timeframe", "4h"),
+            alignment_mode=value(mtf_data, "alignment_mode", "same_direction"),
+            scope=value(mtf_data, "scope", "per_pair"),
         )
     else:
         mtf_filter = MtfFilterConfig()
 
-    regime_data = filters_dict.get("regime_filter", {})
+    regime_data = section(filters_dict, "regime_filter")
     if regime_data:
         regime_filter = RegimeFilterConfig(
-            enabled=regime_data.get("enabled", False),
-            method=regime_data.get("method", "efficiency_ratio"),
-            lookback=regime_data.get("lookback", 20),
-            trending_threshold=regime_data.get("trending_threshold", 0.5),
-            range_pct_threshold=regime_data.get("range_pct_threshold", 0.03),
-            adx_period=regime_data.get("adx_period", 14),
-            allow_regime=regime_data.get("allow_regime", "trending"),
-            scope=regime_data.get("scope", "per_pair"),
+            enabled=value(regime_data, "enabled", False),
+            method=value(regime_data, "method", "efficiency_ratio"),
+            lookback=value(regime_data, "lookback", 20),
+            trending_threshold=value(regime_data, "trending_threshold", 0.5),
+            range_pct_threshold=value(regime_data, "range_pct_threshold", 0.03),
+            adx_period=value(regime_data, "adx_period", 14),
+            allow_regime=value(regime_data, "allow_regime", "trending"),
+            scope=value(regime_data, "scope", "per_pair"),
         )
     else:
         regime_filter = RegimeFilterConfig()
 
-    momentum_data = filters_dict.get("momentum_filter", {})
+    momentum_data = section(filters_dict, "momentum_filter")
     if momentum_data:
-        rsi_data = momentum_data.get("rsi", {})
-        roc_data = momentum_data.get("roc", {})
-        macd_data = momentum_data.get("macd", {})
+        rsi_data = section(momentum_data, "rsi")
+        roc_data = section(momentum_data, "roc")
+        macd_data = section(momentum_data, "macd")
 
         rsi = (
             RsiConfig(
-                period=rsi_data.get("period", 14),
-                long_min=rsi_data.get("long_min", 40),
-                long_max=rsi_data.get("long_max", 70),
-                short_min=rsi_data.get("short_min", 30),
-                short_max=rsi_data.get("short_max", 60),
+                period=value(rsi_data, "period", 14),
+                long_min=value(rsi_data, "long_min", 40),
+                long_max=value(rsi_data, "long_max", 70),
+                short_min=value(rsi_data, "short_min", 30),
+                short_max=value(rsi_data, "short_max", 60),
             )
             if rsi_data
             else RsiConfig()
@@ -276,9 +281,9 @@ def build_filters_config(filters_dict: dict, raw_dict: dict | None = None) -> Fi
 
         roc = (
             RocConfig(
-                period=roc_data.get("period", 10),
-                long_threshold=roc_data.get("long_threshold", 0.0),
-                short_threshold=roc_data.get("short_threshold", 0.0),
+                period=value(roc_data, "period", 10),
+                long_threshold=value(roc_data, "long_threshold", 0.0),
+                short_threshold=value(roc_data, "short_threshold", 0.0),
             )
             if roc_data
             else RocConfig()
@@ -286,49 +291,49 @@ def build_filters_config(filters_dict: dict, raw_dict: dict | None = None) -> Fi
 
         macd = (
             MacdConfig(
-                fast=macd_data.get("fast", 12),
-                slow=macd_data.get("slow", 26),
-                signal=macd_data.get("signal", 9),
-                require_crossover=macd_data.get("require_crossover", False),
-                histogram_positive=macd_data.get("histogram_positive", True),
+                fast=value(macd_data, "fast", 12),
+                slow=value(macd_data, "slow", 26),
+                signal=value(macd_data, "signal", 9),
+                require_crossover=value(macd_data, "require_crossover", False),
+                histogram_positive=value(macd_data, "histogram_positive", True),
             )
             if macd_data
             else MacdConfig()
         )
 
         momentum_filter = MomentumFilterConfig(
-            enabled=momentum_data.get("enabled", False),
-            indicator=momentum_data.get("indicator", "rsi"),
+            enabled=value(momentum_data, "enabled", False),
+            indicator=value(momentum_data, "indicator", "rsi"),
             rsi=rsi,
             roc=roc,
             macd=macd,
-            scope=momentum_data.get("scope", "per_pair"),
+            scope=value(momentum_data, "scope", "per_pair"),
         )
     else:
         momentum_filter = MomentumFilterConfig()
 
-    behavior_data = filters_dict.get("behavior", {})
+    behavior_data = section(filters_dict, "behavior")
     if behavior_data:
-        weights_data = behavior_data.get("weights", {})
+        weights_data = section(behavior_data, "weights")
         weights = (
             FilterWeightsConfig(
-                adx_filter=weights_data.get("adx_filter", 0.3),
-                volatility_filter=weights_data.get("volatility_filter", 0.25),
-                volume_filter=weights_data.get("volume_filter", 0.25),
-                regime_filter=weights_data.get("regime_filter", 0.2),
-                momentum_filter=weights_data.get("momentum_filter", 0.0),
-                mtf_filter=weights_data.get("mtf_filter", 0.0),
+                adx_filter=value(weights_data, "adx_filter", 0.3),
+                volatility_filter=value(weights_data, "volatility_filter", 0.25),
+                volume_filter=value(weights_data, "volume_filter", 0.25),
+                regime_filter=value(weights_data, "regime_filter", 0.2),
+                momentum_filter=value(weights_data, "momentum_filter", 0.0),
+                mtf_filter=value(weights_data, "mtf_filter", 0.0),
             )
             if weights_data
             else FilterWeightsConfig()
         )
 
         behavior = BehaviorConfig(
-            mode=behavior_data.get("mode", "all"),
-            min_score=behavior_data.get("min_score", 0.6),
+            mode=value(behavior_data, "mode", "all"),
+            min_score=value(behavior_data, "min_score", 0.6),
             weights=weights,
-            on_filter_fail=behavior_data.get("on_filter_fail", "skip"),
-            reduce_size_factor=behavior_data.get("reduce_size_factor", 0.5),
+            on_filter_fail=value(behavior_data, "on_filter_fail", "skip"),
+            reduce_size_factor=value(behavior_data, "reduce_size_factor", 0.5),
         )
     else:
         behavior = BehaviorConfig()

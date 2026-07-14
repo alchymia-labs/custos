@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from ..config._values import config_value
+
 
 @dataclass
 class RiskState:
@@ -39,7 +41,7 @@ class RiskController:
 
     def __init__(
         self,
-        config: dict,
+        config: dict[str, object],
         initial_capital: Decimal,
         capital_mode: str = "compound",
     ):
@@ -131,33 +133,33 @@ class RiskController:
             return False, "Trading paused"
 
         # Check max trades
-        max_trades = self.config.get("max_daily_trades", 0)
+        max_trades = config_value(self.config, "max_daily_trades", 0)
         if max_trades > 0 and self._state.session_trade_count >= max_trades:
             return False, f"Max daily trades ({max_trades}) reached"
 
         # Check daily loss
-        max_loss = self.config.get("max_daily_loss", 0)
+        max_loss = config_value(self.config, "max_daily_loss", 0.0)
         if max_loss > 0 and equity > 0:
             loss_pct = -self._state.session_pnl / equity
             if loss_pct >= Decimal(str(max_loss)):
                 return False, f"Daily loss limit ({max_loss:.1%}) reached"
 
         # Check daily profit
-        max_profit = self.config.get("max_daily_profit", 0)
+        max_profit = config_value(self.config, "max_daily_profit", 0.0)
         if max_profit > 0 and equity > 0:
             profit_pct = self._state.session_pnl / equity
             if profit_pct >= Decimal(str(max_profit)):
                 return False, f"Daily profit target ({max_profit:.1%}) reached"
 
         # Check drawdown
-        max_dd = self.config.get("max_drawdown", 0)
+        max_dd = config_value(self.config, "max_drawdown", 0.0)
         if max_dd > 0:
             dd_pct = self._calculate_drawdown(equity)
             if dd_pct >= Decimal(str(max_dd)):
                 return False, f"Max drawdown ({max_dd:.1%}) reached"
 
         # Check consecutive losses
-        max_consec = self.config.get("consecutive_loss_pause", 0)
+        max_consec = config_value(self.config, "consecutive_loss_pause", 0)
         if max_consec > 0 and self._state.consecutive_losses >= max_consec:
             # Apply time-based pause and reset counter to allow recovery
             if self._state.paused_until == 0 or current_ts >= self._state.paused_until:
@@ -222,7 +224,7 @@ class RiskController:
         Args:
             current_ts: Current timestamp in nanoseconds
         """
-        duration = self.config.get("pause_duration", 3600)  # Default 1 hour
+        duration = config_value(self.config, "pause_duration", 3600)  # Default 1 hour
         if duration == 0:
             if self._state.next_reset_ns == 0:
                 self._state.next_reset_ns = self._compute_next_reset_ns(current_ts)

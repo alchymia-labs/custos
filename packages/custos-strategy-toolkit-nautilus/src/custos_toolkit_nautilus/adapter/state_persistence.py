@@ -12,9 +12,28 @@ round-trip and equivalence behaviour is directly unit-testable.
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Protocol, cast
 
 import msgspec
+
+if TYPE_CHECKING:
+    from nautilus_trader.model.identifiers import InstrumentId
+
+    from .pair_context import PairContext
+
+
+class _Logger(Protocol):
+    def warning(self, message: str) -> None: ...
+
+
+class _SnapshotIndicator(Protocol):
+    def to_snapshot(self) -> object: ...
+
+
+class _RestoreIndicator(Protocol):
+    def from_snapshot(self, snapshot: object) -> None: ...
+
 
 # v2 snapshot schema version (kept identical to the legacy WarmupManager format
 # so on_save output is byte-equivalent for the same indicator state).
@@ -25,12 +44,12 @@ STATE_KEY = "state"
 
 
 def build_snapshot(
-    contexts: dict,
-    global_state: dict,
+    contexts: Mapping[InstrumentId, PairContext],
+    global_state: dict[str, object],
     strategy_id: str,
     timestamp: int,
-    logger: Any = None,
-) -> dict:
+    logger: _Logger | None = None,
+) -> dict[str, object]:
     """Build a v2 snapshot dict from per-pair contexts + global strategy state.
 
     Mirrors the structure ``WarmupManager.save_snapshot`` produced so the new
@@ -46,16 +65,16 @@ def build_snapshot(
     Returns:
         v2 snapshot dict (json-encodable).
     """
-    pairs_data: dict = {}
+    pairs_data: dict[str, object] = {}
     # contexts is keyed by InstrumentId, but the snapshot is still organized by pair
     # string (via ctx.pair) so old snapshots stay restorable after the key change.
     for ctx in contexts.values():
         pair = ctx.pair
-        indicator_snapshots: dict = {}
+        indicator_snapshots: dict[str, object] = {}
         for name, indicator in ctx.indicators.items():
             if hasattr(indicator, "to_snapshot"):
                 try:
-                    indicator_snapshots[name] = indicator.to_snapshot()
+                    indicator_snapshots[name] = cast(_SnapshotIndicator, indicator).to_snapshot()
                 except Exception as exc:  # pragma: no cover - defensive
                     if logger is not None:
                         logger.warning(f"[{pair}] Failed to snapshot indicator {name}: {exc}")
@@ -70,7 +89,11 @@ def build_snapshot(
     }
 
 
-def restore_indicators(contexts: dict, snapshot: dict, logger: Any = None) -> int:
+def restore_indicators(
+    contexts: Mapping[InstrumentId, PairContext],
+    snapshot: dict[str, object],
+    logger: _Logger | None = None,
+) -> int:
     """Restore per-pair indicator state from a v2 snapshot dict.
 
     Global strategy state restore is the caller's responsibility (it routes
@@ -84,20 +107,20 @@ def restore_indicators(contexts: dict, snapshot: dict, logger: Any = None) -> in
     Returns:
         Number of indicators successfully restored.
     """
-    pairs_data = snapshot.get("pairs", {})
+    pairs_data = cast(dict[str, object], snapshot.get("pairs", {}))
     restored_count = 0
     # contexts is keyed by InstrumentId; the snapshot is organized by pair string,
     # so match via ctx.pair.
     for ctx in contexts.values():
         pair = ctx.pair
-        pair_snapshot = pairs_data.get(pair)
+        pair_snapshot = cast(dict[str, object] | None, pairs_data.get(pair))
         if pair_snapshot is None:
             continue
-        indicators_data = pair_snapshot.get("indicators", {})
+        indicators_data = cast(dict[str, object], pair_snapshot.get("indicators", {}))
         for name, indicator in ctx.indicators.items():
             if name in indicators_data and hasattr(indicator, "from_snapshot"):
                 try:
-                    indicator.from_snapshot(indicators_data[name])
+                    cast(_RestoreIndicator, indicator).from_snapshot(indicators_data[name])
                     restored_count += 1
                 except Exception as exc:  # pragma: no cover - defensive
                     if logger is not None:
@@ -105,12 +128,12 @@ def restore_indicators(contexts: dict, snapshot: dict, logger: Any = None) -> in
     return restored_count
 
 
-def encode_snapshot(snapshot: dict) -> dict[str, bytes]:
+def encode_snapshot(snapshot: dict[str, object]) -> dict[str, bytes]:
     """Encode a v2 snapshot dict to the framework state dict[str, bytes]."""
     return {STATE_KEY: msgspec.json.encode(snapshot)}
 
 
-def decode_snapshot(state: dict | None) -> dict | None:
+def decode_snapshot(state: dict[str, bytes] | None) -> dict[str, object] | None:
     """Decode the framework state dict[str, bytes] back to a v2 snapshot dict.
 
     Returns None when the state is empty/missing (e.g. first start, no prior
@@ -119,4 +142,4 @@ def decode_snapshot(state: dict | None) -> dict | None:
     raw = state.get(STATE_KEY) if state else None
     if not raw:
         return None
-    return msgspec.json.decode(raw)
+    return msgspec.json.decode(raw, type=dict[str, object])

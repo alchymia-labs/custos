@@ -15,7 +15,13 @@ Stays on the Strategy class: the context lookup/derive accessors
 state, and ``_init_capital_allocator`` is the capital domain — neither belongs here.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from custos_toolkit.position import PositionTracker
 from nautilus_trader.indicators import AverageTrueRange
+
 from custos_toolkit_nautilus.adapter.execution import ExecutionManager
 from custos_toolkit_nautilus.adapter.orders import (
     NativeTrailingStopSubmitter,
@@ -25,7 +31,9 @@ from custos_toolkit_nautilus.adapter.orders import (
 )
 from custos_toolkit_nautilus.adapter.pair_context import PairContext
 from custos_toolkit_nautilus.adapter.tick_monitor import TickMonitorManager
-from custos_toolkit.position import PositionTracker
+
+if TYPE_CHECKING:
+    from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
 
 
 class PairContextCoordinator:
@@ -34,7 +42,7 @@ class PairContextCoordinator:
     Dependencies are reached through ``self._strategy``.
     """
 
-    def __init__(self, strategy) -> None:
+    def __init__(self, strategy: NautilusTradingStrategy) -> None:
         self._strategy = strategy
 
     def create_context(self, pair: str) -> PairContext:

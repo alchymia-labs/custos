@@ -1,0 +1,37 @@
+{
+  "canonical_name": "Custos Plan 18 Task 4b extracted-source typing closure receipt",
+  "commit_requirement": "bind the next standalone T4b implementation commit, then rerun all gates before READY",
+  "handoff_ready": false,
+  "historical_error_counts": {
+    "nautilus_adapter": 289,
+    "platform_neutral": 75
+  },
+  "manifest_path": "docs/authority/strategy-toolkit-typing-closure-v1.json",
+  "manifest_sha256": "584d0b8f91cfee79fec91af6e8422938f99f7e6f975511d5ba3de01d18b97afe",
+  "open_blockers": [
+    "standalone T4b implementation commit binding",
+    "Custos Plan 18 Task 5 artifact verifier and attestation policy"
+  ],
+  "owned_public_explicit_any_count": 0,
+  "private_vendor_changed_file_count": 0,
+  "production_ready": false,
+  "receipt_schema_version": 1,
+  "receipt_status": "VERIFIED_PENDING_COMMIT",
+  "scope_ceiling": "Typing closure candidate only. No Task 5 verifier, immutable RC, runtime activation, consumer cutover, or production-readiness claim.",
+  "t4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
+  "typed_candidate_tree_sha256": "c4d6c023b60e97ca2c82ebd1a218ce29f336e91b06af558e5129e569dd33f81d",
+  "typed_implementation_commit": null,
+  "verification": {
+    "base_whole_package_strict": "PASS_40_SOURCE_FILES",
+    "english_hook": "PASS_6_TESTS_ZERO_EXEMPTIONS",
+    "focused_parity": "PASS_TOOLKIT_65_NT_25_ORDER_9_PASSED_1_SKIPPED",
+    "format_lint": "PASS_FULL_REPOSITORY_164_FILES",
+    "full_repository_gate": "PASS_508_PASSED_4_SKIPPED_1_XFAILED",
+    "nautilus_whole_package_strict": "PASS_59_SOURCE_FILES",
+    "t4_to_t4b_digest_chain": "PASS_PENDING_COMMIT_BINDING"
+  },
+  "verified_error_counts": {
+    "nautilus_adapter": 0,
+    "platform_neutral": 0
+  }
+}

@@ -14,18 +14,28 @@ it delegates the signal-execution steps (entry/exit/manage) to this component.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
-from nautilus_trader.common.enums import LogColor
-from custos_toolkit_nautilus.adapter.event_publisher import make_signal_tag
-from custos_toolkit_nautilus.adapter.orders import _CLOSE_INFLIGHT_TIMEOUT_NS
 from custos_toolkit.signals.types import SignalDirection
+from nautilus_trader.common.enums import LogColor
+
+from custos_toolkit_nautilus.adapter.event_publisher import make_signal_tag
+from custos_toolkit_nautilus.adapter.execution import ExecutionManager
+from custos_toolkit_nautilus.adapter.orders import _CLOSE_INFLIGHT_TIMEOUT_NS
 
 if TYPE_CHECKING:
+    from custos_toolkit.signals.types import Signal
     from nautilus_trader.model.data import Bar
+
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
     from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
-    from custos_toolkit.signals.types import Signal
+
+
+class _Indicator(Protocol):
+    @property
+    def initialized(self) -> bool: ...
+    @property
+    def value(self) -> object: ...
 
 
 class SignalExecutionCoordinator:
@@ -158,12 +168,13 @@ class SignalExecutionCoordinator:
 
         # Propagate signal_id through order tags
         _tags = None
-        _sig_id = signal.metadata.get("_signal_id") if signal.metadata else None
+        _sig_id = cast(str | None, signal.metadata.get("_signal_id") if signal.metadata else None)
         if _sig_id:
             _tags = [make_signal_tag(_sig_id)]
 
         # Use context's execution_manager
-        order = ctx.execution_manager.create_entry_order(
+        execution_manager = cast(ExecutionManager, ctx.execution_manager)
+        order = execution_manager.create_entry_order(
             instrument_id=ctx.instrument_id,
             signal=signal,
             size=final_size,
@@ -186,7 +197,7 @@ class SignalExecutionCoordinator:
             s._capital_allocator.allocate(ctx.pair, final_size)
 
         # Store entry ATR
-        atr = ctx.indicators.get("atr")
+        atr = cast(_Indicator | None, ctx.indicators.get("atr"))
         entry_atr = Decimal(str(atr.value)) if atr and atr.initialized else None
         ctx.position_tracker.set_pending_signal(signal, entry_atr)
 
@@ -226,13 +237,16 @@ class SignalExecutionCoordinator:
         if not ctx.order_tracker.can_submit_close(now_ns):
             return
 
-        order = ctx.execution_manager.create_exit_order(
+        execution_manager = cast(ExecutionManager, ctx.execution_manager)
+        order = execution_manager.create_exit_order(
             instrument_id=ctx.instrument_id,
             signal=signal,
             size=Decimal(str(position.quantity)),
         )
         if order:
-            _sig_id = signal.metadata.get("_signal_id") if signal.metadata else None
+            _sig_id = cast(
+                str | None, signal.metadata.get("_signal_id") if signal.metadata else None
+            )
             if _sig_id:
                 s._order_signal_map[str(order.client_order_id)] = _sig_id
             s.submit_order(order)

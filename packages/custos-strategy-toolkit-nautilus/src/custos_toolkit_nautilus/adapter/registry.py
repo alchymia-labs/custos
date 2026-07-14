@@ -17,10 +17,13 @@ import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import Protocol, Unpack, cast
 
 from custos_toolkit.config import ConfigWrapper, load_config
+
 from custos_toolkit_nautilus.adapter.strategy_core import NautilusStrategyCore
 from custos_toolkit_nautilus.adapter.trading_config import (
+    NautilusBaseConfigSections,
     NautilusTradingStrategyConfig,
     build_nautilus_base_config,
 )
@@ -37,6 +40,16 @@ _STRATEGY_REGISTRY: dict[
         Callable[[ConfigWrapper], object],  # parameters_builder
     ],
 ] = {}
+
+
+class _RegisteredConfigFactory(Protocol):
+    def __call__(
+        self,
+        *,
+        parameters: object,
+        **base_sections: Unpack[NautilusBaseConfigSections],
+    ) -> NautilusTradingStrategyConfig: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -282,13 +295,14 @@ def create_strategy(
     if config_wrapper is not None:
         base_sections = build_nautilus_base_config(config_wrapper)
         parameters = parameters_builder(config_wrapper)
-        built_config = config_class(parameters=parameters, **base_sections)
+        config_factory = cast(_RegisteredConfigFactory, config_class)
+        built_config = config_factory(parameters=parameters, **base_sections)
         return strategy_class(config=built_config)
 
     raise ValueError("Must provide one of: config, config_path, or config_wrapper")
 
 
-def get_strategy_info(name: str) -> dict:
+def get_strategy_info(name: str) -> dict[str, object]:
     """
     Get information about a registered strategy.
 

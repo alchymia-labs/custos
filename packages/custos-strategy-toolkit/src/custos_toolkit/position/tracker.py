@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from ..config._values import config_value
+
 if TYPE_CHECKING:
     from custos_toolkit.signals.types import Signal
 
@@ -41,7 +43,7 @@ class PositionTracker:
     Platform-agnostic tracking of entry count and weighted average price.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize tracker with empty state."""
         self._state = PositionState()
         self._pending_signal: Signal | None = None
@@ -169,7 +171,12 @@ class PositionTracker:
         else:
             return (self._state.avg_entry_price - current_price) * self._state.total_quantity
 
-    def should_scale_in(self, current_price: Decimal, is_long: bool, scaling_config: dict) -> bool:
+    def should_scale_in(
+        self,
+        current_price: Decimal,
+        is_long: bool,
+        scaling_config: dict[str, object],
+    ) -> bool:
         """
         Check if conditions are met for scaled entry.
 
@@ -187,7 +194,7 @@ class PositionTracker:
         if not scaling_config or not scaling_config.get("enabled"):
             return False
 
-        max_entries = scaling_config.get("max_entries", 3)
+        max_entries = config_value(scaling_config, "max_entries", 3)
         if self._state.entry_count >= max_entries:
             return False
 

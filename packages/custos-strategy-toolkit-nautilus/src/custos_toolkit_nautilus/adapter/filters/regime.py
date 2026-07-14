@@ -17,12 +17,12 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING
 
+from custos_toolkit.protocols.bar import BarProtocol
+from custos_toolkit.protocols.filter import FilterResult
 from nautilus_trader.indicators.averages import MovingAverageType, WilderMovingAverage
 from nautilus_trader.indicators.momentum import EfficiencyRatio
 from nautilus_trader.indicators.trend import DirectionalMovement
 from nautilus_trader.indicators.volatility import AverageTrueRange
-from custos_toolkit.protocols.bar import BarProtocol
-from custos_toolkit.protocols.filter import FilterResult
 
 if TYPE_CHECKING:
     from custos_toolkit_nautilus.adapter.config.filters import RegimeFilterConfig
@@ -83,18 +83,22 @@ class NautilusRegimeFilter:
 
     def update(self, bar: BarProtocol) -> None:
         if self.method == "efficiency_ratio":
-            self._er.update_raw(float(bar.close))
-            if self._er.initialized:
+            er = self._er
+            assert er is not None
+            er.update_raw(float(bar.close))
+            if er.initialized:
                 self._ready = True
                 self._current_regime = (
-                    "trending" if self._er.value >= self.trending_threshold else "ranging"
+                    "trending" if er.value >= self.trending_threshold else "ranging"
                 )
             else:
                 self._ready = False
                 self._current_regime = "unknown"
         elif self.method == "atr_percentile":
-            self._prices.append(float(bar.close))
-            if len(self._prices) >= self.lookback:
+            prices = self._prices
+            assert prices is not None
+            prices.append(float(bar.close))
+            if len(prices) >= self.lookback:
                 self._ready = True
                 self._current_regime = self._classify_atr_percentile()
             else:
@@ -104,23 +108,31 @@ class NautilusRegimeFilter:
             self._update_adx_slope(bar)
 
     def _update_adx_slope(self, bar: BarProtocol) -> None:
+        adx_dm = self._adx_dm
+        adx_atr = self._adx_atr
+        adx_ma = self._adx_ma
+        adx_values = self._adx_values
+        assert adx_dm is not None
+        assert adx_atr is not None
+        assert adx_ma is not None
+        assert adx_values is not None
         high, low, close = float(bar.high), float(bar.low), float(bar.close)
-        self._adx_dm.update_raw(high, low)
-        self._adx_atr.update_raw(high, low, close)
-        if not (self._adx_dm.initialized and self._adx_atr.initialized) or self._adx_atr.value <= 0:
+        adx_dm.update_raw(high, low)
+        adx_atr.update_raw(high, low, close)
+        if not (adx_dm.initialized and adx_atr.initialized) or adx_atr.value <= 0:
             self._ready = False
             self._current_regime = "unknown"
             return
 
-        plus_di = 100.0 * self._adx_dm.pos / self._adx_atr.value
-        minus_di = 100.0 * self._adx_dm.neg / self._adx_atr.value
+        plus_di = 100.0 * adx_dm.pos / adx_atr.value
+        minus_di = 100.0 * adx_dm.neg / adx_atr.value
         di_sum = plus_di + minus_di
         dx = 100.0 * abs(plus_di - minus_di) / di_sum if di_sum > 0 else 0.0
-        self._adx_ma.update_raw(dx)
-        if self._adx_ma.initialized:
-            self._adx_values.append(self._adx_ma.value)
+        adx_ma.update_raw(dx)
+        if adx_ma.initialized:
+            adx_values.append(adx_ma.value)
 
-        if len(self._adx_values) >= self.lookback + 1:
+        if len(adx_values) >= self.lookback + 1:
             self._ready = True
             self._current_regime = self._classify_adx_slope()
         else:
@@ -129,13 +141,17 @@ class NautilusRegimeFilter:
 
     def _classify_adx_slope(self) -> str:
         # Rising ADX over the lookback window = strengthening trend.
-        if len(self._adx_values) < self.lookback + 1:
+        adx_values = self._adx_values
+        assert adx_values is not None
+        if len(adx_values) < self.lookback + 1:
             return "unknown"
-        slope = self._adx_values[-1] - self._adx_values[0]
+        slope = adx_values[-1] - adx_values[0]
         return "trending" if slope > 0 else "ranging"
 
     def _classify_atr_percentile(self) -> str:
-        prices = list(self._prices)
+        raw_prices = self._prices
+        assert raw_prices is not None
+        prices = list(raw_prices)
         if len(prices) < 2:
             return "unknown"
         price_range = max(prices) - min(prices)

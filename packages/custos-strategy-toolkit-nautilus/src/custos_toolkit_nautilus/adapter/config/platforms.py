@@ -5,9 +5,27 @@ Provides type-safe configuration classes using msgspec.Struct with frozen=True
 for compatibility with NautilusTrader's StrategyConfig.
 """
 
-import msgspec
+from typing import TypedDict, cast
 
+import msgspec
 from custos_toolkit.config import extract_value
+
+from ._input import section, value
+
+
+class _HummingbotKwargs(TypedDict, total=False):
+    candles_exchange: str | None
+    candles_pair: str | None
+    candles_interval: str
+
+
+class _TradingNodeKwargs(TypedDict, total=False):
+    timeout_connection: float
+    timeout_reconciliation: float
+    timeout_portfolio: float
+    timeout_disconnection: float
+    reconciliation_lookback_mins: int
+    database: "DatabaseConfig"
 
 
 class DatabaseConfig(msgspec.Struct, frozen=True):
@@ -59,34 +77,40 @@ class PlatformsConfig(msgspec.Struct, frozen=True):
 
     hummingbot: HummingbotPlatformConfig = HummingbotPlatformConfig()
     nautilus: NautilusPlatformConfig = NautilusPlatformConfig()
-    raw: dict | None = None
+    raw: dict[str, object] | None = None
 
 
-def build_platforms_config(platforms_dict: dict, raw_dict: dict | None = None) -> PlatformsConfig:
+def build_platforms_config(
+    platforms_dict: dict[str, object],
+    raw_dict: dict[str, object] | None = None,
+) -> PlatformsConfig:
     """Build PlatformsConfig from YAML dict."""
     if not platforms_dict:
         return PlatformsConfig()
 
-    hb_data = platforms_dict.get("hummingbot", {})
+    raw_hb_data = section(platforms_dict, "hummingbot")
     # Filter out None values for msgspec compatibility
-    hb_data = {k: v for k, v in hb_data.items() if v is not None}
+    hb_data = cast(
+        _HummingbotKwargs,
+        {k: v for k, v in raw_hb_data.items() if v is not None},
+    )
     hummingbot = HummingbotPlatformConfig(**hb_data) if hb_data else HummingbotPlatformConfig()
 
-    nautilus_data = platforms_dict.get("nautilus", {})
+    nautilus_data = section(platforms_dict, "nautilus")
     if nautilus_data:
         # Build trading_node config
-        trading_node_data = nautilus_data.get("trading_node", {})
+        trading_node_data = section(nautilus_data, "trading_node")
 
         # Build database config
-        db_data = trading_node_data.get("database", {})
+        db_data = section(trading_node_data, "database")
         database = (
             DatabaseConfig(
-                enabled=db_data.get("enabled", False),
-                type=db_data.get("type", "redis"),
-                host=db_data.get("host", "localhost"),
-                port=db_data.get("port", 6379),
-                username=db_data.get("username"),
-                password=db_data.get("password"),
+                enabled=value(db_data, "enabled", False),
+                type=value(db_data, "type", "redis"),
+                host=value(db_data, "host", "localhost"),
+                port=value(db_data, "port", 6379),
+                username=cast(str | None, value(db_data, "username")),
+                password=cast(str | None, value(db_data, "password")),
             )
             if db_data
             else DatabaseConfig()
@@ -95,7 +119,10 @@ def build_platforms_config(platforms_dict: dict, raw_dict: dict | None = None) -
         # Filter out Redis config keys for TradingNodeConfig constructor
         # (these are handled separately - database is now in DatabaseConfig)
         redis_keys = {"database", "cache", "message_bus"}
-        trading_node_kwargs = {k: v for k, v in trading_node_data.items() if k not in redis_keys}
+        trading_node_kwargs = cast(
+            _TradingNodeKwargs,
+            {k: v for k, v in trading_node_data.items() if k not in redis_keys},
+        )
         trading_node_kwargs["database"] = database
 
         trading_node = (
@@ -103,9 +130,11 @@ def build_platforms_config(platforms_dict: dict, raw_dict: dict | None = None) -
         )
 
         nautilus = NautilusPlatformConfig(
-            venue=extract_value(nautilus_data.get("venue"), "BINANCE"),
-            bar_type=extract_value(nautilus_data.get("bar_type"), "1-HOUR"),
-            bar_aggregation=extract_value(nautilus_data.get("bar_aggregation"), "EXTERNAL"),
+            venue=cast(str, extract_value(value(nautilus_data, "venue"), "BINANCE")),
+            bar_type=cast(str, extract_value(value(nautilus_data, "bar_type"), "1-HOUR")),
+            bar_aggregation=cast(
+                str, extract_value(value(nautilus_data, "bar_aggregation"), "EXTERNAL")
+            ),
             trading_node=trading_node,
         )
     else:

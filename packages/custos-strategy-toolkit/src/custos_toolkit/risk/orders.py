@@ -7,6 +7,7 @@ Calculates stop loss and take profit prices.
 
 from decimal import Decimal
 
+from ..config._values import config_section
 from ..signals.types import SignalDirection
 
 
@@ -17,7 +18,7 @@ class OrderPriceCalculator:
     Supports fixed percentage and ATR-based calculations.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         """
         Initialize calculator with trade risk config.
 
@@ -45,7 +46,7 @@ class OrderPriceCalculator:
         Returns:
             Stop loss price or None if not configured
         """
-        sl_config = self.config.get("stop_loss", {})
+        sl_config = config_section(self.config, "stop_loss")
         if not sl_config:
             return None
 
@@ -56,14 +57,14 @@ class OrderPriceCalculator:
         is_long = direction in (SignalDirection.ENTER_LONG,)
 
         if method == "fixed" and sl_config.get("fixed"):
-            pct = Decimal(str(sl_config["fixed"].get("value", 0.02)))
+            pct = Decimal(str(config_section(sl_config, "fixed").get("value", 0.02)))
             if is_long:
                 return entry_price * (1 - pct)
             else:
                 return entry_price * (1 + pct)
 
         elif method == "atr" and sl_config.get("atr") and atr is not None:
-            multiplier = Decimal(str(sl_config["atr"].get("multiplier", 2.0)))
+            multiplier = Decimal(str(config_section(sl_config, "atr").get("multiplier", 2.0)))
             if is_long:
                 return entry_price - (atr * multiplier)
             else:
@@ -90,7 +91,7 @@ class OrderPriceCalculator:
         Returns:
             Take profit price or None if not configured
         """
-        tp_config = self.config.get("take_profit", {})
+        tp_config = config_section(self.config, "take_profit")
         if not tp_config:
             return None
 
@@ -102,7 +103,7 @@ class OrderPriceCalculator:
 
         # Fixed percentage
         if method == "fixed" and tp_config.get("fixed"):
-            pct = Decimal(str(tp_config["fixed"].get("value", 0.04)))
+            pct = Decimal(str(config_section(tp_config, "fixed").get("value", 0.04)))
             if is_long:
                 return entry_price * (1 + pct)
             else:
@@ -110,7 +111,7 @@ class OrderPriceCalculator:
 
         # ATR-based
         elif method == "atr" and tp_config.get("atr") and atr is not None:
-            multiplier = Decimal(str(tp_config["atr"].get("multiplier", 3.0)))
+            multiplier = Decimal(str(config_section(tp_config, "atr").get("multiplier", 3.0)))
             if is_long:
                 return entry_price + (atr * multiplier)
             else:
@@ -148,8 +149,8 @@ class OrderPriceCalculator:
         Returns:
             New stop price or None if trailing not activated
         """
-        sl_config = self.config.get("stop_loss", {})
-        trailing = sl_config.get("trailing")
+        sl_config = config_section(self.config, "stop_loss")
+        trailing = config_section(sl_config, "trailing")
         if not trailing or not trailing.get("enabled"):
             return None
 

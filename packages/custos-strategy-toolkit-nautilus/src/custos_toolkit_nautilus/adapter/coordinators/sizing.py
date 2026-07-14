@@ -14,16 +14,23 @@ override it); its default body delegates to ``default_position_size`` here.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 import msgspec
 from nautilus_trader.common.enums import LogColor
+
 from custos_toolkit_nautilus.adapter.sizing import compute_fixed_risk_qty
 
 if TYPE_CHECKING:
+    from custos_toolkit.signals.types import Signal
+
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
     from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
-    from custos_toolkit.signals.types import Signal
+
+
+class _ValueIndicator(Protocol):
+    @property
+    def value(self) -> object: ...
 
 
 class SizingCoordinator:
@@ -93,7 +100,7 @@ class SizingCoordinator:
 
         atr = None
         if "atr" in ctx.indicators:
-            atr_value = ctx.indicators["atr"].value
+            atr_value = cast(_ValueIndicator, ctx.indicators["atr"]).value
             atr = Decimal(str(atr_value)) if atr_value else None
 
         sl_price = s._order_calculator.calculate_stop_loss(entry_price, signal.direction, atr)

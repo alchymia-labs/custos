@@ -24,6 +24,10 @@ import json
 import logging
 import os
 import uuid
+from collections.abc import Iterable
+from typing import Protocol, cast
+
+from .runtime_types import Clock, MessageBus, Order
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +72,7 @@ def make_signal_tag(signal_id: str) -> str:
     return f"{_SIGNAL_ID_TAG_PREFIX}{signal_id}"
 
 
-def extract_signal_id_from_tags(tags) -> str | None:
+def extract_signal_id_from_tags(tags: Iterable[object] | None) -> str | None:
     """Extract signal_id from order tags.
 
     Args:
@@ -83,7 +87,7 @@ def extract_signal_id_from_tags(tags) -> str | None:
     return None
 
 
-def _compute_fill_latency_ms(event, order) -> int | None:
+def _compute_fill_latency_ms(event: object, order: object) -> int | None:
     """Submit->fill latency (ms) from nautilus nanosecond timestamps.
 
     The submit anchor prefers order.ts_submitted (when the order was sent to the venue),
@@ -91,8 +95,8 @@ def _compute_fill_latency_ms(event, order) -> int | None:
     the submit (clock anomaly) -> None. event/order are accessed via duck typing, so this
     module stays independently testable without a nautilus dependency.
     """
-    submit_ns = getattr(order, "ts_submitted", 0) or getattr(order, "ts_init", 0)
-    fill_ns = getattr(event, "ts_event", 0)
+    submit_ns = cast(int, getattr(order, "ts_submitted", 0) or getattr(order, "ts_init", 0))
+    fill_ns = cast(int, getattr(event, "ts_event", 0))
     try:
         if not submit_ns or not fill_ns or fill_ns < submit_ns:
             return None
@@ -100,6 +104,31 @@ def _compute_fill_latency_ms(event, order) -> int | None:
     except TypeError:
         # Non-numeric timestamps yield no latency rather than aborting the publish.
         return None
+
+
+class _NamedValue(Protocol):
+    @property
+    def name(self) -> str: ...
+
+
+class _OrderEvent(Protocol):
+    @property
+    def client_order_id(self) -> object: ...
+    @property
+    def instrument_id(self) -> object: ...
+    @property
+    def venue_order_id(self) -> object | None: ...
+
+
+class _PositionEvent(Protocol):
+    @property
+    def entry(self) -> _NamedValue: ...
+    @property
+    def instrument_id(self) -> object: ...
+    @property
+    def position_id(self) -> object: ...
+    @property
+    def quantity(self) -> object: ...
 
 
 class EventPublisher:
@@ -114,11 +143,11 @@ class EventPublisher:
 
     def __init__(
         self,
-        msgbus,
+        msgbus: MessageBus | None,
         strategy_id: str,
-        clock=None,
+        clock: Clock | None = None,
         enabled: bool = False,
-    ):
+    ) -> None:
         self._msgbus = msgbus
         self._strategy_id = strategy_id
         self._clock = clock
@@ -144,7 +173,7 @@ class EventPublisher:
             return str(self._clock.timestamp_ns())
         return ""
 
-    def _publish(self, data: dict) -> None:
+    def _publish(self, data: dict[str, object]) -> None:
         if not self._enabled:
             return
         if self._msgbus is None:
@@ -174,7 +203,7 @@ class EventPublisher:
         pair: str,
         price: str,
         strength: float,
-        metadata: dict | None = None,
+        metadata: dict[str, object] | None = None,
         stop_loss: str | None = None,
         take_profit: str | None = None,
     ) -> None:
@@ -278,8 +307,8 @@ class EventPublisher:
     def publish_order_event(
         self,
         *,
-        event,
-        order,
+        event: _OrderEvent,
+        order: Order | None,
         signal_id: str | None,
         side: str,
         order_type: str,
@@ -340,7 +369,7 @@ class EventPublisher:
     def publish_position_event(
         self,
         *,
-        event,
+        event: _PositionEvent,
         signal_id: str | None,
         status: str,
         realized_pnl: str | None = None,

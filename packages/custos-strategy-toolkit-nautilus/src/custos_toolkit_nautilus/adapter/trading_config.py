@@ -11,11 +11,13 @@ Provides a base config class that includes common sections shared by all strateg
 Strategies extend NautilusTradingStrategyConfig and add their own parameters section.
 """
 
-from typing import Literal
+from typing import Literal, TypedDict, cast
 
+from custos_toolkit.config.loader import ConfigWrapper
+from custos_toolkit.warmup.snapshot import WarmupConfig, warmup_config_from_dict
 from nautilus_trader.config import StrategyConfig
 from nautilus_trader.model.identifiers import InstrumentId
-from custos_toolkit.config.loader import ConfigWrapper
+
 from custos_toolkit_nautilus.adapter.config import (
     BacktestingConfig,
     FiltersConfig,
@@ -35,11 +37,26 @@ from custos_toolkit_nautilus.adapter.config import (
     build_trading_config,
 )
 from custos_toolkit_nautilus.adapter.utils import get_venue_from_connector, is_futures_connector
-from custos_toolkit.warmup.snapshot import WarmupConfig, warmup_config_from_dict
 
 # Valid level values in the (level, message) tuples returned by validation_warnings();
 # they map one-to-one onto the strategy's _validate_startup_config log-dispatch branches.
 WarningLevel = Literal["error", "warning", "info"]
+
+
+class NautilusBaseConfigSections(TypedDict):
+    """Exact common kwargs supplied to every registered strategy config."""
+
+    oms_type: str
+    external_order_claims: list[InstrumentId]
+    trading: TradingConfig
+    position: PositionConfig
+    risk: RiskConfig
+    filters: FiltersConfig
+    platforms: PlatformsConfig
+    backtesting: BacktestingConfig
+    snapshot: SnapshotConfig
+    warmup: WarmupConfig | None
+    signal: SignalConfig
 
 
 class NautilusTradingStrategyConfig(StrategyConfig, frozen=True):
@@ -194,7 +211,7 @@ class NautilusTradingStrategyConfig(StrategyConfig, frozen=True):
         ]
 
 
-def build_nautilus_base_config(config_wrapper: ConfigWrapper) -> dict:
+def build_nautilus_base_config(config_wrapper: ConfigWrapper) -> NautilusBaseConfigSections:
     """
     Build common Nautilus config sections from ConfigWrapper.
 
@@ -228,10 +245,12 @@ def build_nautilus_base_config(config_wrapper: ConfigWrapper) -> dict:
     # Multi-asset strategies such as rebalancing must claim all configured
     # instruments instead of only the first pair.
     trading_cfg = config_wrapper.trading
-    trading_pairs = trading_cfg.get("pairs", ["BTC-USDT"])
-    connector = trading_cfg.get("connector", "binance_perpetual")
-    if not isinstance(trading_pairs, list) or not trading_pairs:
+    trading_pairs_value = trading_cfg.get("pairs", ["BTC-USDT"])
+    connector = cast(str, trading_cfg.get("connector", "binance_perpetual"))
+    if not isinstance(trading_pairs_value, list) or not trading_pairs_value:
         trading_pairs = ["BTC-USDT"]
+    else:
+        trading_pairs = cast(list[str], trading_pairs_value)
 
     venue = get_venue_from_connector(connector)
     suffix = "-PERP" if is_futures_connector(connector) else ""
@@ -255,13 +274,30 @@ def build_nautilus_base_config(config_wrapper: ConfigWrapper) -> dict:
     return {
         "oms_type": oms_type,
         "external_order_claims": external_order_claims,
-        "trading": build_trading_config(config_wrapper.trading, raw.get("trading")),
-        "position": build_position_config(config_wrapper.position, raw.get("position")),
-        "risk": build_risk_config(config_wrapper.risk, raw.get("risk")),
-        "filters": build_filters_config(config_wrapper.filters, raw.get("filters")),
-        "platforms": build_platforms_config(config_wrapper.platforms, raw.get("platforms")),
-        "backtesting": build_backtesting_config(config_wrapper.backtesting, raw.get("backtesting")),
-        "snapshot": build_snapshot_config(snapshot_dict, raw.get("snapshot")),
+        "trading": build_trading_config(
+            config_wrapper.trading, cast(dict[str, object] | None, raw.get("trading"))
+        ),
+        "position": build_position_config(
+            config_wrapper.position, cast(dict[str, object] | None, raw.get("position"))
+        ),
+        "risk": build_risk_config(
+            config_wrapper.risk, cast(dict[str, object] | None, raw.get("risk"))
+        ),
+        "filters": build_filters_config(
+            config_wrapper.filters, cast(dict[str, object] | None, raw.get("filters"))
+        ),
+        "platforms": build_platforms_config(
+            config_wrapper.platforms, cast(dict[str, object] | None, raw.get("platforms"))
+        ),
+        "backtesting": build_backtesting_config(
+            config_wrapper.backtesting,
+            cast(dict[str, object] | None, raw.get("backtesting")),
+        ),
+        "snapshot": build_snapshot_config(
+            snapshot_dict, cast(dict[str, object] | None, raw.get("snapshot"))
+        ),
         "warmup": warmup_config,
-        "signal": build_signal_config(signal_dict, raw.get("signal")),
+        "signal": build_signal_config(
+            signal_dict, cast(dict[str, object] | None, raw.get("signal"))
+        ),
     }

@@ -16,9 +16,18 @@ their thin shells delegate the body to this component's ``handle_*`` methods.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
+from custos_toolkit.risk import RiskController
 from nautilus_trader.common.enums import LogColor
+from nautilus_trader.model.events import (
+    OrderAccepted,
+    OrderCanceled,
+    OrderFilled,
+    PositionClosed,
+    PositionOpened,
+)
+
 from custos_toolkit_nautilus.adapter.event_publisher import extract_signal_id_from_tags
 
 if TYPE_CHECKING:
@@ -34,7 +43,7 @@ class TradeEventHandler:
     def __init__(self, strategy: NautilusTradingStrategy) -> None:
         self._strategy = strategy
 
-    def handle_order_accepted(self, event) -> None:
+    def handle_order_accepted(self, event: OrderAccepted) -> None:
         """Publish an order event (status=accepted) as soon as the venue accepts
         the order, so WORKING SL/TP orders reach the persistence path (Path B
         EventPersister has no terminal-state gate). Otherwise resting stop orders
@@ -64,7 +73,7 @@ class TradeEventHandler:
             include_price=True,
         )
 
-    def handle_order_filled(self, event) -> None:
+    def handle_order_filled(self, event: OrderFilled) -> None:
         """Track filled orders - route to correct pair context."""
         s = self._strategy
         ctx = s._get_context_from_instrument(event.instrument_id)
@@ -113,7 +122,7 @@ class TradeEventHandler:
         pos_config = s.config.position
         if pos_config.capital_mode == "compound":
             equity = s._get_risk_equity()
-            s._risk_controller.update_peak_equity(equity)
+            cast(RiskController, s._risk_controller).update_peak_equity(equity)
 
         pending_signal = ctx.position_tracker.pending_signal
         if pending_signal is not None:
@@ -132,7 +141,7 @@ class TradeEventHandler:
             ctx.pending_entry_is_reversal = False
             s._mode.on_entry_filled(s, ctx, signal, position, event.last_px, entry_atr)
 
-    def handle_position_opened(self, event) -> None:
+    def handle_position_opened(self, event: PositionOpened) -> None:
         """Handle position opened event -- publish position event."""
         s = self._strategy
         if s._event_publisher.enabled:
@@ -148,7 +157,7 @@ class TradeEventHandler:
                 status="opened",
             )
 
-    def handle_position_closed(self, event) -> None:
+    def handle_position_closed(self, event: PositionClosed) -> None:
         """Track closed positions - route to correct pair context."""
         s = self._strategy
         ctx = s._get_context_from_instrument(event.instrument_id)
@@ -182,7 +191,7 @@ class TradeEventHandler:
                     f"[{ctx.pair}] Position-close telemetry failed (cleanup continues): {exc}"
                 )
 
-        s._risk_controller.record_trade(realized_pnl)
+        cast(RiskController, s._risk_controller).record_trade(realized_pnl)
 
         if s._capital_allocator:
             s._capital_allocator.release(ctx.pair, ctx.allocated_capital)
@@ -224,7 +233,7 @@ class TradeEventHandler:
         # guard catches it, never disturbing SL/TP cancellation or tracker reset.
         s.on_trade_closed(ctx, realized_pnl)
 
-    def handle_order_canceled(self, event) -> None:
+    def handle_order_canceled(self, event: OrderCanceled) -> None:
         """Handle order canceled event - clean up entry order tracker."""
         s = self._strategy
         ctx = s._get_context_from_instrument(event.instrument_id)

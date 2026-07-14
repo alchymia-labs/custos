@@ -18,7 +18,7 @@ class BaseFilter(ABC):
     Subclasses must implement name, update(), check(), and is_ready().
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         """
         Initialize filter with configuration.
 

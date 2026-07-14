@@ -6,6 +6,8 @@ Provides configuration for tiered capital allocation across trading pairs.
 
 import msgspec
 
+from ._input import value
+
 
 class AllocationConfig(msgspec.Struct, frozen=True):
     """
@@ -25,7 +27,7 @@ class AllocationConfig(msgspec.Struct, frozen=True):
     rebalance_threshold: float = 0.05
 
 
-def build_allocation_config(data: dict | None) -> AllocationConfig:
+def build_allocation_config(data: dict[str, object] | None) -> AllocationConfig:
     """
     Build AllocationConfig from dictionary.
 
@@ -39,8 +41,8 @@ def build_allocation_config(data: dict | None) -> AllocationConfig:
         return AllocationConfig()
 
     return AllocationConfig(
-        mode=data.get("mode", "tiered"),
-        tiers=data.get("tiers", {}),
-        max_total_exposure=data.get("max_total_exposure", 0.8),
-        rebalance_threshold=data.get("rebalance_threshold", 0.05),
+        mode=value(data, "mode", "tiered"),
+        tiers=value(data, "tiers", {}),
+        max_total_exposure=value(data, "max_total_exposure", 0.8),
+        rebalance_threshold=value(data, "rebalance_threshold", 0.05),
     )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, cast
 
 
 @dataclass(frozen=True)
@@ -112,7 +112,7 @@ class WarmupConfig:
     checkpoints: CheckpointConfig | None = None
 
 
-def _extract_value(val):
+def _extract_value(val: object) -> object:
     """
     Extract value from potentially nested config format.
 
@@ -127,7 +127,7 @@ def _extract_value(val):
 
 def _parse_timestamp(timestamp_raw: str) -> datetime:
     """Parse ISO format timestamp string to datetime."""
-    timestamp_str = _extract_value(timestamp_raw) if timestamp_raw else ""
+    timestamp_str = cast(str, _extract_value(timestamp_raw)) if timestamp_raw else ""
     if timestamp_str:
         if timestamp_str.endswith("Z"):
             timestamp_str = timestamp_str[:-1] + "+00:00"
@@ -135,31 +135,33 @@ def _parse_timestamp(timestamp_raw: str) -> datetime:
     return datetime.now(UTC)
 
 
-def _parse_checkpoints(checkpoint_config: dict) -> CheckpointConfig | None:
+def _parse_checkpoints(checkpoint_config: dict[str, object]) -> CheckpointConfig | None:
     """Parse checkpoint configuration from dict."""
     if not checkpoint_config:
         return None
 
-    tolerance_pct = float(_extract_value(checkpoint_config.get("tolerance_pct", 0.1)))
+    tolerance_pct = float(
+        cast(str | int | float, _extract_value(checkpoint_config.get("tolerance_pct", 0.1)))
+    )
     trend_strict = bool(_extract_value(checkpoint_config.get("trend_strict", True)))
 
-    points_raw = checkpoint_config.get("points", [])
+    points_raw = cast(list[dict[str, object]], checkpoint_config.get("points", []))
     points: list[Checkpoint] = []
 
     for point_raw in points_raw:
-        offset_bars = int(_extract_value(point_raw.get("offset_bars", 0)))
-        bar_close_time = _parse_timestamp(point_raw.get("bar_close_time", ""))
+        offset_bars = int(cast(str | int | float, _extract_value(point_raw.get("offset_bars", 0))))
+        bar_close_time = _parse_timestamp(cast(str, point_raw.get("bar_close_time", "")))
 
         # Parse price snapshot if present
         price = None
         price_raw = point_raw.get("price")
         if price_raw and isinstance(price_raw, dict):
             price = PriceSnapshot(
-                open=float(_extract_value(price_raw.get("open", 0))),
-                high=float(_extract_value(price_raw.get("high", 0))),
-                low=float(_extract_value(price_raw.get("low", 0))),
-                close=float(_extract_value(price_raw.get("close", 0))),
-                volume=float(_extract_value(price_raw.get("volume")))
+                open=float(cast(str | int | float, _extract_value(price_raw.get("open", 0)))),
+                high=float(cast(str | int | float, _extract_value(price_raw.get("high", 0)))),
+                low=float(cast(str | int | float, _extract_value(price_raw.get("low", 0)))),
+                close=float(cast(str | int | float, _extract_value(price_raw.get("close", 0)))),
+                volume=float(cast(str | int | float, _extract_value(price_raw.get("volume"))))
                 if price_raw.get("volume")
                 else None,
             )
@@ -169,9 +171,13 @@ def _parse_checkpoints(checkpoint_config: dict) -> CheckpointConfig | None:
             if name in ("offset_bars", "bar_close_time", "price"):
                 continue
             if isinstance(values, dict):
-                value = float(_extract_value(values.get("value", 0)))
+                value = float(cast(str | int | float, _extract_value(values.get("value", 0))))
                 trend_raw = values.get("trend")
-                trend = int(_extract_value(trend_raw)) if trend_raw is not None else None
+                trend = (
+                    int(cast(str | int | float, _extract_value(trend_raw)))
+                    if trend_raw is not None
+                    else None
+                )
                 indicators[name] = CheckpointValue(value=value, trend=trend)
 
         points.append(
@@ -190,7 +196,7 @@ def _parse_checkpoints(checkpoint_config: dict) -> CheckpointConfig | None:
     )
 
 
-def warmup_config_from_dict(config_dict: dict) -> WarmupConfig:
+def warmup_config_from_dict(config_dict: dict[str, object]) -> WarmupConfig:
     """
     Create WarmupConfig from a dictionary (e.g., from YAML config).
 
@@ -198,24 +204,24 @@ def warmup_config_from_dict(config_dict: dict) -> WarmupConfig:
     in {"value": ...} dictionaries.
     """
     mode = _extract_value(config_dict.get("mode", "none"))
-    history = config_dict.get("history", {})
-    min_bars = _extract_value(history.get("min_bars", 500))
-    preferred_bars = _extract_value(history.get("preferred_bars", 2000))
-    timeout_secs = _extract_value(history.get("timeout_secs", 30))
+    history = cast(dict[str, object], config_dict.get("history", {}))
+    min_bars = cast(int, _extract_value(history.get("min_bars", 500)))
+    preferred_bars = cast(int, _extract_value(history.get("preferred_bars", 2000)))
+    timeout_secs = cast(int, _extract_value(history.get("timeout_secs", 30)))
 
     snapshots: dict[str, IndicatorSnapshot] = {}
-    snapshot_config = config_dict.get("snapshot", {})
+    snapshot_config = cast(dict[str, object], config_dict.get("snapshot", {}))
 
     if snapshot_config:
-        timestamp = _parse_timestamp(snapshot_config.get("timestamp", ""))
+        timestamp = _parse_timestamp(cast(str, snapshot_config.get("timestamp", "")))
 
-        indicators = snapshot_config.get("indicators", {})
+        indicators = cast(dict[str, dict[str, object]], snapshot_config.get("indicators", {}))
         for indicator_type, values in indicators.items():
             # Extract values, handling nested {value: ...} format
             float_values = {}
             for k, v in values.items():
                 extracted = _extract_value(v)
-                float_values[k] = float(extracted)
+                float_values[k] = float(cast(str | int | float, extracted))
             snapshots[indicator_type] = IndicatorSnapshot(
                 indicator_type=indicator_type,
                 timestamp=timestamp,
@@ -225,10 +231,12 @@ def warmup_config_from_dict(config_dict: dict) -> WarmupConfig:
     snapshot = list(snapshots.values())[0] if snapshots else None
 
     # Parse checkpoints from snapshot config
-    checkpoints = _parse_checkpoints(snapshot_config.get("checkpoints"))
+    checkpoints = _parse_checkpoints(
+        cast(dict[str, object], snapshot_config.get("checkpoints", {}))
+    )
 
     return WarmupConfig(
-        mode=mode,
+        mode=cast(Literal["snapshot", "warmup", "none"], mode),
         snapshot=snapshot,
         snapshots=snapshots,
         min_bars=min_bars,

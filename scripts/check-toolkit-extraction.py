@@ -16,6 +16,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
+TASK_4_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
 BASE_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
 
@@ -122,9 +123,11 @@ def check() -> list[str]:
     errors: list[str] = []
     inventory = json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
     extraction = json.loads(EXTRACTION_PATH.read_text(encoding="utf-8"))
+    receipt = json.loads(TASK_4_RECEIPT_PATH.read_text(encoding="utf-8"))
     entries = inventory["files"]
     records = extraction["files"]
     source_commit = extraction["source_commit"]
+    implementation_commit = receipt["implementation"]["implementation_commit"]
 
     if inventory["file_count"] != 241 or len(entries) != 241:
         errors.append("frozen inventory must contain exactly 241 files")
@@ -148,12 +151,8 @@ def check() -> list[str]:
             errors.append(f"target mapping drift: {legacy_path}")
         if (ROOT / legacy_path).exists():
             errors.append(f"legacy implementation still exists: {legacy_path}")
-        if not target.is_file():
-            errors.append(f"extracted target missing: {target.relative_to(ROOT)}")
-            continue
-
         source = _git_blob(source_commit, legacy_path)
-        target_content = target.read_bytes()
+        target_content = _git_blob(implementation_commit, str(target.relative_to(ROOT)))
         expected = transform_source(legacy_path, source)
         if _sha256(source) != record["legacy_sha256"]:
             errors.append(f"legacy digest drift: {legacy_path}")
@@ -176,7 +175,7 @@ def main() -> int:
         for error in errors:
             print(error, file=sys.stderr)
         return 1
-    print("strategy toolkit extraction: verified (241/241, zero-rewrite)")
+    print("strategy toolkit extraction: verified historical T4 snapshot (241/241, zero-rewrite)")
     return 0
 
 

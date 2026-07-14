@@ -7,6 +7,8 @@ Redis connection is reused from platforms.nautilus.trading_node.database.
 
 import msgspec
 
+from ._input import value
+
 
 class SnapshotConfig(msgspec.Struct, frozen=True):
     """
@@ -27,11 +29,12 @@ class SnapshotConfig(msgspec.Struct, frozen=True):
     key_prefix: str = "nautilus:snapshot"
     save_interval_bars: int = 100
     save_on_stop: bool = True
-    raw: dict | None = None
+    raw: dict[str, object] | None = None
 
 
 def build_snapshot_config(
-    snapshot_dict: dict | None, raw_dict: dict | None = None
+    snapshot_dict: dict[str, object] | None,
+    raw_dict: dict[str, object] | None = None,
 ) -> SnapshotConfig:
     """
     Build SnapshotConfig from dictionary.
@@ -46,9 +49,9 @@ def build_snapshot_config(
         return SnapshotConfig()
 
     return SnapshotConfig(
-        enabled=snapshot_dict.get("enabled", False),
-        key_prefix=snapshot_dict.get("key_prefix", "nautilus:snapshot"),
-        save_interval_bars=snapshot_dict.get("save_interval_bars", 100),
-        save_on_stop=snapshot_dict.get("save_on_stop", True),
+        enabled=value(snapshot_dict, "enabled", False),
+        key_prefix=value(snapshot_dict, "key_prefix", "nautilus:snapshot"),
+        save_interval_bars=value(snapshot_dict, "save_interval_bars", 100),
+        save_on_stop=value(snapshot_dict, "save_on_stop", True),
         raw=raw_dict,
     )

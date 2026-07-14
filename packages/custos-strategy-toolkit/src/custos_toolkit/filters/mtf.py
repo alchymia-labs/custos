@@ -1,12 +1,12 @@
 # shared/filters/mtf.py
 """
 Multi-TimeFrame (MTF) filter.
-
 Filters trades based on alignment with higher timeframe direction.
 The filter tracks a direction value that can be set externally by the strategy
 which subscribes to higher timeframe bars.
 """
 
+from ..config._values import config_value
 from ..protocols.bar import BarProtocol
 from ..protocols.filter import FilterResult
 from ..signals.types import Signal, SignalDirection
@@ -35,11 +35,11 @@ class MTFFilter(BaseFilter):
     def name(self) -> str:
         return "mtf"
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, object]):
         super().__init__(config)
-        self.enabled = config.get("enabled", True)
-        self.alignment_mode = config.get("alignment_mode", "same_direction")
-        self.higher_timeframe = config.get("higher_timeframe", "1h")
+        self.enabled = config_value(config, "enabled", True)
+        self.alignment_mode = config_value(config, "alignment_mode", "same_direction")
+        self.higher_timeframe = config_value(config, "higher_timeframe", "1h")
 
         # Validate alignment_mode
         valid_modes = ("same_direction", "not_against")
@@ -53,7 +53,7 @@ class MTFFilter(BaseFilter):
         self._ready = False
 
         # HTF bar type for automatic detection
-        self._htf_bar_type = None
+        self._htf_bar_type: object | None = None
 
     def set_direction(self, direction: int) -> None:
         """
@@ -78,7 +78,7 @@ class MTFFilter(BaseFilter):
         """
         return self._direction
 
-    def set_htf_bar_type(self, bar_type) -> None:
+    def set_htf_bar_type(self, bar_type: object) -> None:
         """
         Set the higher timeframe bar type for identification.
 
@@ -90,7 +90,7 @@ class MTFFilter(BaseFilter):
         """
         self._htf_bar_type = bar_type
 
-    def is_htf_bar(self, bar) -> bool:
+    def is_htf_bar(self, bar: object) -> bool:
         """
         Check if bar is from higher timeframe.
 

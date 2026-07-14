@@ -8,7 +8,7 @@ and bidirectional format conversion (internal Signal <-> OKX format).
 import time
 from datetime import UTC
 from decimal import Decimal
-from typing import Any
+from typing import Protocol, cast
 
 from custos_toolkit.signals.types import Signal, SignalDirection
 
@@ -19,6 +19,38 @@ _DEFAULTS = {
     "order_price_offset": Decimal("0.1"),
     "max_lag": 60,
 }
+
+
+class _SignalDefaults(Protocol):
+    @property
+    def investment_type(self) -> str: ...
+    @property
+    def order_type(self) -> str: ...
+    @property
+    def order_price_offset(self) -> Decimal | float: ...
+
+
+class _SignalOkx(Protocol):
+    @property
+    def max_lag(self) -> int: ...
+    @property
+    def signal_token(self) -> str | None: ...
+    @property
+    def instrument_format(self) -> str: ...
+
+
+class _SignalConfig(Protocol):
+    @property
+    def defaults(self) -> _SignalDefaults: ...
+    @property
+    def okx(self) -> _SignalOkx: ...
+
+
+class _PositionConfig(Protocol):
+    @property
+    def size_type(self) -> str: ...
+    @property
+    def size_value(self) -> Decimal | float | None: ...
 
 
 class SignalResolver:
@@ -35,7 +67,11 @@ class SignalResolver:
     2. Convert between internal Signal and OKX JSON format
     """
 
-    def __init__(self, signal_config=None, position_config=None):
+    def __init__(
+        self,
+        signal_config: _SignalConfig | None = None,
+        position_config: _PositionConfig | None = None,
+    ) -> None:
         """
         Initialize resolver with configuration.
 
@@ -73,7 +109,7 @@ class SignalResolver:
             signal_token=self._resolve_signal_token(signal),
         )
 
-    def from_external(self, external_signal: Any) -> Signal:
+    def from_external(self, external_signal: object) -> Signal:
         """
         Convert external signal to internal Signal type.
 
@@ -114,9 +150,12 @@ class SignalResolver:
                 "fixed": "margin",
                 "kelly": "percentage_investment",
             }
-            return mapping.get(self._position_config.size_type, _DEFAULTS["investment_type"])
+            return mapping.get(
+                self._position_config.size_type,
+                cast(str, _DEFAULTS["investment_type"]),
+            )
 
-        return _DEFAULTS["investment_type"]
+        return cast(str, _DEFAULTS["investment_type"])
 
     def _resolve_amount(self, signal: Signal) -> Decimal | None:
         """Resolve amount: signal > position.size_value."""
@@ -137,7 +176,7 @@ class SignalResolver:
         if self._signal_config and self._signal_config.defaults.order_type:
             return self._signal_config.defaults.order_type
 
-        return _DEFAULTS["order_type"]
+        return cast(str, _DEFAULTS["order_type"])
 
     def _resolve_order_price_offset(self, signal: Signal) -> Decimal:
         """Resolve order_price_offset: signal > config > default."""
@@ -147,7 +186,7 @@ class SignalResolver:
         if self._signal_config:
             return Decimal(str(self._signal_config.defaults.order_price_offset))
 
-        return _DEFAULTS["order_price_offset"]
+        return cast(Decimal, _DEFAULTS["order_price_offset"])
 
     def _resolve_max_lag(self, signal: Signal) -> int:
         """Resolve max_lag: signal > config > default."""
@@ -157,7 +196,7 @@ class SignalResolver:
         if self._signal_config and self._signal_config.okx.max_lag:
             return self._signal_config.okx.max_lag
 
-        return _DEFAULTS["max_lag"]
+        return cast(int, _DEFAULTS["max_lag"])
 
     def _resolve_signal_token(self, signal: Signal) -> str | None:
         """Resolve signal_token: signal > config."""
@@ -177,7 +216,7 @@ class SignalResolver:
     # FORMAT CONVERSION
     # =========================================================================
 
-    def to_okx_format(self, signal: Signal) -> dict[str, Any]:
+    def to_okx_format(self, signal: Signal) -> dict[str, object]:
         """
         Convert Signal to OKX B-section JSON format.
 
@@ -200,7 +239,7 @@ class SignalResolver:
         # Format timestamp (ISO 8601 UTC)
         timestamp_str = self._format_timestamp(resolved.timestamp)
 
-        result = {
+        result: dict[str, object] = {
             "action": action,
             "instrument": instrument,
             "timestamp": timestamp_str,
@@ -221,7 +260,7 @@ class SignalResolver:
 
         return result
 
-    def from_okx_format(self, data: dict[str, Any]) -> Signal:
+    def from_okx_format(self, data: dict[str, object]) -> Signal:
         """
         Parse OKX format to internal Signal.
 
@@ -232,17 +271,17 @@ class SignalResolver:
             Internal Signal object
         """
         # Required field: action
-        action = data.get("action")
+        action = cast(str | None, data.get("action"))
         if not action:
             raise ValueError("Missing required field: action")
 
         direction = self._okx_action_to_direction(action)
 
         # Parse optional fields
-        instrument = data.get("instrument", "")
+        instrument = cast(str, data.get("instrument", ""))
         pair = self._instrument_to_pair(instrument)
 
-        timestamp = self._parse_timestamp(data.get("timestamp"))
+        timestamp = self._parse_timestamp(cast(str | None, data.get("timestamp")))
 
         amount = None
         if data.get("amount"):
@@ -254,18 +293,18 @@ class SignalResolver:
 
         max_lag = None
         if data.get("maxLag"):
-            max_lag = int(data["maxLag"])
+            max_lag = int(cast(str | int | float, data["maxLag"]))
 
         return Signal(
             direction=direction,
             pair=pair,
             timestamp=timestamp,
-            investment_type=data.get("investmentType"),
+            investment_type=cast(str | None, data.get("investmentType")),
             amount=amount,
-            order_type=data.get("orderType"),
+            order_type=cast(str | None, data.get("orderType")),
             order_price_offset=order_price_offset,
             max_lag=max_lag,
-            signal_token=data.get("signalToken"),
+            signal_token=cast(str | None, data.get("signalToken")),
         )
 
     def _direction_to_okx_action(self, direction: SignalDirection) -> str | None:

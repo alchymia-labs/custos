@@ -18,12 +18,15 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from nautilus_trader.common.enums import LogColor
-from custos_toolkit_nautilus.adapter.event_publisher import extract_signal_id_from_tags
-from custos_toolkit_nautilus.adapter.orders import STALE_SWEEP_RETRY_COOLDOWN_NS, is_stale_order
-from custos_toolkit_nautilus.adapter.sltp_mode import SLTPMode
 from custos_toolkit.risk.exchange_errors import classify_rejection_reason
 from custos_toolkit.signals.types import Signal, SignalDirection
+from nautilus_trader.common.enums import LogColor
+from nautilus_trader.model.events import OrderCancelRejected, OrderRejected
+
+from custos_toolkit_nautilus.adapter.event_publisher import extract_signal_id_from_tags
+from custos_toolkit_nautilus.adapter.orders import STALE_SWEEP_RETRY_COOLDOWN_NS, is_stale_order
+from custos_toolkit_nautilus.adapter.runtime_types import Order, Position
+from custos_toolkit_nautilus.adapter.sltp_mode import SLTPMode
 
 if TYPE_CHECKING:
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
@@ -103,7 +106,7 @@ class OrderReconciler:
             if s._mode.uses_native_trailing:
                 self.ensure_native_trailing_exists(ctx, position)
 
-    def ensure_exchange_sl_exists(self, ctx: PairContext, position) -> None:
+    def ensure_exchange_sl_exists(self, ctx: PairContext, position: Position) -> None:
         """
         Ensure exchange stop loss order exists for the position.
 
@@ -149,7 +152,7 @@ class OrderReconciler:
             ctx.position_tracker.set_pending_signal(signal, entry_atr=None)
             s._sltp_coordinator.submit_stop_loss(ctx, signal)
 
-    def find_existing_sl_order(self, ctx: PairContext, position) -> object | None:
+    def find_existing_sl_order(self, ctx: PairContext, position: Position) -> Order | None:
         """
         Find existing stop loss order for the position on the exchange.
 
@@ -186,7 +189,7 @@ class OrderReconciler:
 
         return None
 
-    def ensure_native_trailing_exists(self, ctx: PairContext, position) -> None:
+    def ensure_native_trailing_exists(self, ctx: PairContext, position: Position) -> None:
         """Ensure an exchange-managed trailing stop exists for the position.
 
         After a restart, reconciliation re-discovers venue orders as EXTERNAL.
@@ -250,7 +253,7 @@ class OrderReconciler:
         )
         self.ensure_native_trailing_exists(ctx, positions[0])
 
-    def find_existing_trailing_order(self, ctx: PairContext, position) -> object | None:
+    def find_existing_trailing_order(self, ctx: PairContext, position: Position) -> Order | None:
         """Find an open exchange-managed trailing stop for the position.
 
         Looks for a reduce-only TRAILING_STOP_MARKET on the protective side
@@ -336,7 +339,7 @@ class OrderReconciler:
             cancelled += 1
         return cancelled
 
-    def handle_order_rejected(self, event) -> None:
+    def handle_order_rejected(self, event: OrderRejected) -> None:
         """Handle order rejected event.
 
         Break the tight loop when the venue rejects an order (e.g. Binance -2022
@@ -435,7 +438,7 @@ class OrderReconciler:
                 color=LogColor.RED,
             )
 
-    def handle_order_cancel_rejected(self, event) -> None:
+    def handle_order_cancel_rejected(self, event: OrderCancelRejected) -> None:
         """
         Handle order cancel rejected event - clean up tracker anyway.
 

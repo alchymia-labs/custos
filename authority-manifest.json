@@ -99,6 +99,18 @@
       "path": "docs/authority/strategy-toolkit-typing-baseline-v1.json"
     },
     {
+      "role": "strategy_toolkit_typing_closure",
+      "path": "docs/authority/strategy-toolkit-typing-closure-v1.json"
+    },
+    {
+      "role": "plan_18_task_4b_typing_closure_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
+      "receipt_status": "VERIFIED_PENDING_COMMIT",
+      "handoff_ready": false,
+      "t4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
+      "typed_implementation_commit": null
+    },
+    {
       "role": "plan_18_task_4_extraction_receipt",
       "path": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
       "implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
@@ -179,11 +191,14 @@
       "docs/authority/strategy-toolkit-extraction-v1.json",
       "docs/authority/strategy-toolkit-parity-golden-v1.json",
       "docs/authority/strategy-toolkit-typing-baseline-v1.json",
+      "docs/authority/strategy-toolkit-typing-closure-v1.json",
       "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
+      "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
       "packages/custos-strategy-toolkit/pyproject.toml",
       "packages/custos-strategy-toolkit-nautilus/pyproject.toml",
       "scripts/check-toolkit-extraction.py",
       "scripts/check-toolkit-typing-baseline.py",
+      "scripts/check-toolkit-typing-closure.py",
       "tests/test_toolkit_zero_rewrite.py"
     ],
     "forbidden_regex": [

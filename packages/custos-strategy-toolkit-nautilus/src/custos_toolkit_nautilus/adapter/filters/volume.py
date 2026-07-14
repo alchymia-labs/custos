@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from custos_toolkit.protocols.bar import BarProtocol
+from custos_toolkit.protocols.filter import FilterResult
 from nautilus_trader.indicators.averages import (
     ExponentialMovingAverage,
     SimpleMovingAverage,
 )
-from custos_toolkit.protocols.bar import BarProtocol
-from custos_toolkit.protocols.filter import FilterResult
 
 if TYPE_CHECKING:
     from custos_toolkit_nautilus.adapter.config.filters import VolumeFilterConfig
@@ -40,6 +40,7 @@ class NautilusVolumeFilter:
         if self._ma_type not in ("ema", "sma"):
             raise ValueError(f"Invalid ma_type: {self._ma_type}. Must be 'ema' or 'sma'")
 
+        self._ma: ExponentialMovingAverage | SimpleMovingAverage
         if self._ma_type == "ema":
             self._ma = ExponentialMovingAverage(self._ma_period)
         else:

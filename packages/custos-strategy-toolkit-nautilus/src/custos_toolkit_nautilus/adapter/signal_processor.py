@@ -9,13 +9,13 @@ supporting bidirectional signal flow:
 
 from collections import deque
 from decimal import Decimal
-from typing import Any
 
+from custos_toolkit.signals import Signal, SignalResolver
 from nautilus_trader.model.data import Bar
+
 from custos_toolkit_nautilus.adapter.pair_context import PairContext
 from custos_toolkit_nautilus.adapter.trading_config import NautilusTradingStrategyConfig
 from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
-from custos_toolkit.signals import Signal, SignalResolver
 
 
 class SignalProcessorConfig(NautilusTradingStrategyConfig, frozen=True):
@@ -72,7 +72,7 @@ class SignalProcessorStrategy(NautilusTradingStrategy):
         self._pending_signals: dict[str, deque[Signal]] = {}
 
         # Last emitted signal for external consumption
-        self._last_emitted_signal: dict[str, dict[str, Any]] = {}
+        self._last_emitted_signal: dict[str, dict[str, object]] = {}
 
     # ABSTRACT METHOD IMPLEMENTATIONS
 
@@ -146,7 +146,7 @@ class SignalProcessorStrategy(NautilusTradingStrategy):
 
         return Signal.neutral(price=Decimal(str(bar.close)), pair=pair)
 
-    def get_indicator_history(self) -> dict:
+    def get_indicator_history(self) -> dict[str, object]:
         """Return empty indicator history (no indicators in this strategy)."""
         return {}
 
@@ -183,7 +183,7 @@ class SignalProcessorStrategy(NautilusTradingStrategy):
             f"queue_size={len(self._pending_signals[pair])}"
         )
 
-    def receive_okx_signal(self, data: dict[str, Any]) -> None:
+    def receive_okx_signal(self, data: dict[str, object]) -> None:
         """
         Receive a signal in OKX JSON format.
 
@@ -211,7 +211,7 @@ class SignalProcessorStrategy(NautilusTradingStrategy):
 
     # SIGNAL OUTPUT INTERFACE
 
-    def emit_signal(self, signal: Signal) -> dict[str, Any]:
+    def emit_signal(self, signal: Signal) -> dict[str, object]:
         """
         Convert signal to OKX format for external consumption.
 
@@ -236,7 +236,7 @@ class SignalProcessorStrategy(NautilusTradingStrategy):
         self.log.info(f"[{pair}] Signal emitted: {okx_data['action']}")
         return okx_data
 
-    def get_last_emitted_signal(self, pair: str | None = None) -> dict[str, Any] | None:
+    def get_last_emitted_signal(self, pair: str | None = None) -> dict[str, object] | None:
         """
         Get the last emitted signal for a pair.
 

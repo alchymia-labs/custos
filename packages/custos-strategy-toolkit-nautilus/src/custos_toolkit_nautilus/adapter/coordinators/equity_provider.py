@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 from custos_toolkit.risk import resolve_risk_equity
 
 if TYPE_CHECKING:
+    from nautilus_trader.model.identifiers import InstrumentId
+
     from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
 
 
@@ -50,7 +52,7 @@ class EquityProvider:
             return Decimal(str(pos_config.initial_capital))
         return self.get_actual_balance()
 
-    def _primary_instrument_id(self):
+    def _primary_instrument_id(self) -> InstrumentId | None:
         """The first configured pair's InstrumentId (lookups only need venue + quote currency).
 
         Derived directly -- same source as ``PairContextCoordinator.create_context``

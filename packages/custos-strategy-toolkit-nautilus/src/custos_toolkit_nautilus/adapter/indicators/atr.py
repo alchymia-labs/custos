@@ -1,9 +1,10 @@
 """ATR (Average True Range) indicator wrapping pandas-ta."""
 
 import pandas as pd
-from custos_toolkit_nautilus._vendor import pandas_ta as ta
 from nautilus_trader.indicators.base import Indicator
 from nautilus_trader.model.data import Bar
+
+from ._pandas_ta import ta
 
 
 class ATR(Indicator):
@@ -55,9 +56,9 @@ class ATR(Indicator):
     def handle_bar(self, bar: Bar) -> None:
         """Process a bar and update the indicator."""
         self.update_raw(
-            high=float(bar.high),
-            low=float(bar.low),
-            close=float(bar.close),
+            high=bar.high.as_double(),
+            low=bar.low.as_double(),
+            close=bar.close.as_double(),
         )
 
     def update_raw(

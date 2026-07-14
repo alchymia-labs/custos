@@ -12,7 +12,6 @@ OKX Signal Bot Compatibility:
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from typing import Any
 
 
 class InvestmentType(Enum):
@@ -88,7 +87,7 @@ class Signal:
     strength: float = 1.0
     timestamp: int | None = None
     pair: str = ""
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, object] = field(default_factory=dict)
 
     # === OKX compatible fields (all optional) ===
     investment_type: str | None = None
@@ -130,7 +129,7 @@ class Signal:
         return self.direction.is_exit()
 
     @classmethod
-    def neutral(cls, price: Decimal | float = 0, pair: str = "", **metadata: Any) -> "Signal":
+    def neutral(cls, price: Decimal | float = 0, pair: str = "", **metadata: object) -> "Signal":
         """Create a neutral (no action) signal with optional metadata."""
         return cls(
             direction=SignalDirection.NEUTRAL,
@@ -149,7 +148,7 @@ class Signal:
         investment_type: str | None = None,
         order_type: str | None = None,
         order_price_offset: Decimal | float | None = None,
-        **metadata: Any,
+        **metadata: object,
     ) -> "Signal":
         """Create a long entry signal with optional OKX fields."""
         return cls(
@@ -180,7 +179,7 @@ class Signal:
         investment_type: str | None = None,
         order_type: str | None = None,
         order_price_offset: Decimal | float | None = None,
-        **metadata: Any,
+        **metadata: object,
     ) -> "Signal":
         """Create a short entry signal with optional OKX fields."""
         return cls(
@@ -210,7 +209,7 @@ class Signal:
         investment_type: str | None = None,
         order_type: str | None = None,
         order_price_offset: Decimal | float | None = None,
-        **metadata: Any,
+        **metadata: object,
     ) -> "Signal":
         """Create a long exit signal with optional OKX fields."""
         return cls(
@@ -239,7 +238,7 @@ class Signal:
         investment_type: str | None = None,
         order_type: str | None = None,
         order_price_offset: Decimal | float | None = None,
-        **metadata: Any,
+        **metadata: object,
     ) -> "Signal":
         """Create a short exit signal with optional OKX fields."""
         return cls(

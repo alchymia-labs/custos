@@ -15,9 +15,11 @@ The load_config() function merges both, with strategy config overriding base con
 import logging
 import re
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 import yaml
+
+from ._values import config_section, config_value
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,7 @@ def _normalize_yaml_indent(content: str) -> str:
 
     # Replace '..' markers at line start with 2 spaces each
     # Pattern: start of line followed by one or more '..' sequences
-    def replace_dots(match: re.Match) -> str:
+    def replace_dots(match: re.Match[str]) -> str:
         dots = match.group(0)
         return " " * len(dots)  # Each '.' becomes one space
 
@@ -55,7 +57,7 @@ def _normalize_yaml_indent(content: str) -> str:
 # =============================================================================
 
 
-def extract_value(val: Any, default: Any = None) -> Any:
+def extract_value(val: object, default: object = None) -> object:
     """
     Extract value from potentially nested config format.
 
@@ -107,7 +109,7 @@ class ConfigWrapper:
     - Preserves raw config with schema for UI: config.raw["parameters"]["atr_period"] -> {...}
     """
 
-    def __init__(self, data: dict[str, Any]):
+    def __init__(self, data: dict[str, object]):
         """
         Initialize ConfigWrapper.
 
@@ -117,7 +119,7 @@ class ConfigWrapper:
         self._raw = data
         self._values = self._extract_values(data)
 
-    def _extract_values(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _extract_values(self, data: dict[str, object]) -> dict[str, object]:
         """
         Recursively extract 'value' fields from nested config.
 
@@ -144,7 +146,7 @@ class ConfigWrapper:
                 result[key] = val
         return result
 
-    def get(self, *keys, default: Any = None) -> Any:
+    def get(self, *keys: str, default: object = None) -> object:
         """
         Get configuration value by keys path.
 
@@ -163,10 +165,10 @@ class ConfigWrapper:
         if len(keys) == 1 and isinstance(keys[0], str) and "." in keys[0]:
             keys = tuple(keys[0].split("."))
 
-        value = self._values
+        value: object = self._values
         for k in keys:
             if isinstance(value, dict):
-                value = value.get(k)
+                value = cast(dict[str, object], value).get(k)
             else:
                 return default
             if value is None:
@@ -174,7 +176,7 @@ class ConfigWrapper:
 
         return value
 
-    def get_raw(self, key: str, default: Any = None) -> Any:
+    def get_raw(self, key: str, default: object = None) -> object:
         """
         Get raw config with schema by key.
 
@@ -186,11 +188,11 @@ class ConfigWrapper:
             Raw config dict including schema metadata
         """
         keys = key.split(".")
-        value = self._raw
+        value: object = self._raw
 
         for k in keys:
             if isinstance(value, dict):
-                value = value.get(k)
+                value = cast(dict[str, object], value).get(k)
             else:
                 return default
             if value is None:
@@ -198,7 +200,7 @@ class ConfigWrapper:
 
         return value
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> object:
         """Get extracted value by key."""
         return self._values[key]
 
@@ -207,7 +209,7 @@ class ConfigWrapper:
         return key in self._values
 
     @property
-    def values(self) -> dict[str, Any]:
+    def values(self) -> dict[str, object]:
         """
         Return pure values dictionary (for strategy code).
 
@@ -217,7 +219,7 @@ class ConfigWrapper:
         return self._values
 
     @property
-    def raw(self) -> dict[str, Any]:
+    def raw(self) -> dict[str, object]:
         """
         Return original config dictionary (for UI/schema).
 
@@ -228,59 +230,59 @@ class ConfigWrapper:
 
     # Convenience properties for common sections
     @property
-    def strategy(self) -> dict[str, Any]:
+    def strategy(self) -> dict[str, object]:
         """Get strategy metadata."""
-        return self._values.get("strategy", {})
+        return cast(dict[str, object], self._values.get("strategy", {}))
 
     @property
-    def parameters(self) -> dict[str, Any]:
+    def parameters(self) -> dict[str, object]:
         """Get strategy parameters."""
-        return self._values.get("parameters", {})
+        return cast(dict[str, object], self._values.get("parameters", {}))
 
     @property
-    def trading(self) -> dict[str, Any]:
+    def trading(self) -> dict[str, object]:
         """Get trading configuration."""
-        return self._values.get("trading", {})
+        return cast(dict[str, object], self._values.get("trading", {}))
 
     @property
-    def position(self) -> dict[str, Any]:
+    def position(self) -> dict[str, object]:
         """Get position configuration."""
-        return self._values.get("position", {})
+        return cast(dict[str, object], self._values.get("position", {}))
 
     @property
-    def risk(self) -> dict[str, Any]:
+    def risk(self) -> dict[str, object]:
         """Get risk configuration."""
-        return self._values.get("risk", {})
+        return cast(dict[str, object], self._values.get("risk", {}))
 
     @property
-    def filters(self) -> dict[str, Any]:
+    def filters(self) -> dict[str, object]:
         """Get filter configuration."""
-        return self._values.get("filters", {})
+        return cast(dict[str, object], self._values.get("filters", {}))
 
     @property
-    def platforms(self) -> dict[str, Any]:
+    def platforms(self) -> dict[str, object]:
         """Get platform-specific configuration."""
-        return self._values.get("platforms", {})
+        return cast(dict[str, object], self._values.get("platforms", {}))
 
     @property
-    def backtesting(self) -> dict[str, Any]:
+    def backtesting(self) -> dict[str, object]:
         """Get backtesting configuration."""
-        return self._values.get("backtesting", {})
+        return cast(dict[str, object], self._values.get("backtesting", {}))
 
     @property
-    def logging(self) -> dict[str, Any]:
+    def logging(self) -> dict[str, object]:
         """Get logging configuration."""
-        return self._values.get("logging", {})
+        return cast(dict[str, object], self._values.get("logging", {}))
 
     @property
-    def warmup(self) -> dict[str, Any] | None:
+    def warmup(self) -> dict[str, object] | None:
         """Get warmup configuration."""
-        return self._values.get("warmup")
+        return cast(dict[str, object] | None, self._values.get("warmup"))
 
     @property
-    def snapshot(self) -> dict[str, Any] | None:
+    def snapshot(self) -> dict[str, object] | None:
         """Get snapshot persistence configuration."""
-        return self._values.get("snapshot")
+        return cast(dict[str, object] | None, self._values.get("snapshot"))
 
 
 # =============================================================================
@@ -288,7 +290,7 @@ class ConfigWrapper:
 # =============================================================================
 
 
-def deep_merge(base: dict, override: dict) -> dict:
+def deep_merge(base: dict[str, object], override: dict[str, object]) -> dict[str, object]:
     """
     Deep merge two dictionaries, with override taking precedence.
 
@@ -302,7 +304,9 @@ def deep_merge(base: dict, override: dict) -> dict:
     result = base.copy()
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
+            result[key] = deep_merge(
+                cast(dict[str, object], result[key]), cast(dict[str, object], value)
+            )
         else:
             result[key] = value
     return result
@@ -333,12 +337,12 @@ def load_config(strategy_config_path: str | Path) -> ConfigWrapper:
     base_path = Path(__file__).parent / "base_config.yaml"
 
     # Load base config
-    base_config: dict[str, Any] = {}
+    base_config: dict[str, object] = {}
     if base_path.exists():
         with open(base_path, encoding="utf-8") as f:
             content = _normalize_yaml_indent(f.read())
             try:
-                base_config = yaml.safe_load(content) or {}
+                base_config = cast(dict[str, object], yaml.safe_load(content) or {})
             except yaml.YAMLError as e:
                 raise ValueError(f"Invalid YAML in base config {base_path}: {e}") from e
         logger.debug(f"Loaded base config from {base_path}")
@@ -346,12 +350,12 @@ def load_config(strategy_config_path: str | Path) -> ConfigWrapper:
         logger.warning(f"Base config not found at {base_path}")
 
     # Load strategy config
-    strategy_config: dict[str, Any] = {}
+    strategy_config: dict[str, object] = {}
     if strategy_path.exists():
         with open(strategy_path, encoding="utf-8") as f:
             content = _normalize_yaml_indent(f.read())
             try:
-                strategy_config = yaml.safe_load(content) or {}
+                strategy_config = cast(dict[str, object], yaml.safe_load(content) or {})
             except yaml.YAMLError as e:
                 raise ValueError(f"Invalid YAML in strategy config {strategy_path}: {e}") from e
         logger.debug(f"Loaded strategy config from {strategy_path}")
@@ -360,14 +364,13 @@ def load_config(strategy_config_path: str | Path) -> ConfigWrapper:
 
     # Merge: strategy overrides base
     merged = deep_merge(base_config, strategy_config)
-    logger.info(
-        f"Loaded merged config for strategy: {strategy_config.get('strategy', {}).get('name', 'unknown')}"
-    )
+    strategy_section = config_section(strategy_config, "strategy")
+    logger.info(f"Loaded merged config for strategy: {strategy_section.get('name', 'unknown')}")
 
     return ConfigWrapper(merged)
 
 
-def load_yaml_file(path: str | Path) -> dict[str, Any]:
+def load_yaml_file(path: str | Path) -> dict[str, object]:
     """
     Load a single YAML file without merging.
 
@@ -388,7 +391,7 @@ def load_yaml_file(path: str | Path) -> dict[str, Any]:
     with open(path, encoding="utf-8") as f:
         content = _normalize_yaml_indent(f.read())
         try:
-            return yaml.safe_load(content) or {}
+            return cast(dict[str, object], yaml.safe_load(content) or {})
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML in {path}: {e}") from e
 
@@ -398,7 +401,7 @@ def load_yaml_file(path: str | Path) -> dict[str, Any]:
 # =============================================================================
 
 
-def to_hummingbot_config(wrapper: ConfigWrapper, pair: str | None = None) -> dict[str, Any]:
+def to_hummingbot_config(wrapper: ConfigWrapper, pair: str | None = None) -> dict[str, object]:
     """
     Convert ConfigWrapper to Hummingbot SuperTrendConfig format.
 
@@ -417,19 +420,32 @@ def to_hummingbot_config(wrapper: ConfigWrapper, pair: str | None = None) -> dic
     position = wrapper.position
     risk = wrapper.risk
     filters = wrapper.filters
-    platforms = wrapper.values.get("platforms", {})
-    hb_platform = platforms.get("hummingbot", {})
+    platforms = config_section(wrapper.values, "platforms")
+    hb_platform = config_section(platforms, "hummingbot")
+    position_limits = config_section(position, "limits")
+    risk_trade = config_section(risk, "trade")
+    risk_global = config_section(risk, "global")
+    stop_loss = config_section(risk_trade, "stop_loss")
+    stop_loss_atr = config_section(stop_loss, "atr")
+    stop_loss_fixed = config_section(stop_loss, "fixed")
+    stop_loss_trailing = config_section(stop_loss, "trailing")
+    take_profit = config_section(risk_trade, "take_profit")
+    take_profit_atr = config_section(take_profit, "atr")
+    take_profit_fixed = config_section(take_profit, "fixed")
+    volatility_filter = config_section(filters, "volatility_filter")
+    adx_filter = config_section(filters, "adx_filter")
+    volume_filter = config_section(filters, "volume_filter")
 
     # Select trading pair
-    trading_pair = pair or (trading.get("pairs", ["BTC-USDT"])[0])
+    trading_pair = pair or config_value(trading, "pairs", ["BTC-USDT"])[0]
 
     # Convert direction to enable_long/enable_short
-    direction = trading.get("direction", "both").lower()
+    direction = config_value(trading, "direction", "both").lower()
     enable_long = direction in ("both", "long")
     enable_short = direction in ("both", "short")
 
     # Build flat config dict
-    config = {
+    config: dict[str, object] = {
         # Exchange settings
         "exchange": trading.get("connector", "binance_perpetual"),
         "trading_pair": trading_pair,
@@ -450,57 +466,35 @@ def to_hummingbot_config(wrapper: ConfigWrapper, pair: str | None = None) -> dic
         # Position management
         "position_size_type": position.get("size_type", "percentage"),
         "position_size_value": position.get("size_value", 0.1),
-        "max_positions_per_pair": position.get("limits", {}).get("max_positions_per_pair", 1),
-        "min_order_size": position.get("limits", {}).get("min_order_size", 10),
+        "max_positions_per_pair": position_limits.get("max_positions_per_pair", 1),
+        "min_order_size": position_limits.get("min_order_size", 10),
         # Risk management - from trade section
-        "stop_loss_atr_multiplier": risk.get("trade", {})
-        .get("stop_loss", {})
-        .get("atr", {})
-        .get("multiplier", 2.0),
-        "take_profit_atr_multiplier": risk.get("trade", {})
-        .get("take_profit", {})
-        .get("atr", {})
-        .get("multiplier", 6.0),
+        "stop_loss_atr_multiplier": stop_loss_atr.get("multiplier", 2.0),
+        "take_profit_atr_multiplier": take_profit_atr.get("multiplier", 6.0),
         # Risk management - Fixed SL/TP
-        "use_fixed_sl": risk.get("trade", {}).get("stop_loss", {}).get("method") == "fixed",
-        "stop_loss": risk.get("trade", {}).get("stop_loss", {}).get("fixed", {}).get("value", 0.02),
-        "use_fixed_tp": risk.get("trade", {}).get("take_profit", {}).get("method") == "fixed",
-        "take_profit": risk.get("trade", {})
-        .get("take_profit", {})
-        .get("fixed", {})
-        .get("value", 0.04),
-        "time_limit": risk.get("trade", {}).get("time_limit", 604800),
+        "use_fixed_sl": stop_loss.get("method") == "fixed",
+        "stop_loss": stop_loss_fixed.get("value", 0.02),
+        "use_fixed_tp": take_profit.get("method") == "fixed",
+        "take_profit": take_profit_fixed.get("value", 0.04),
+        "time_limit": risk_trade.get("time_limit", 604800),
         # Trailing stop
-        "trailing_stop_enabled": risk.get("trade", {})
-        .get("stop_loss", {})
-        .get("trailing", {})
-        .get("enabled", False),
-        "trailing_stop_activation_pct": risk.get("trade", {})
-        .get("stop_loss", {})
-        .get("trailing", {})
-        .get("activation_pct", 0.02),
-        "trailing_stop_trailing_pct": risk.get("trade", {})
-        .get("stop_loss", {})
-        .get("trailing", {})
-        .get("trailing_pct", 0.015),
+        "trailing_stop_enabled": stop_loss_trailing.get("enabled", False),
+        "trailing_stop_activation_pct": stop_loss_trailing.get("activation_pct", 0.02),
+        "trailing_stop_trailing_pct": stop_loss_trailing.get("trailing_pct", 0.015),
         # Risk limits - from global section
-        "max_loss_per_trade_pct": risk.get("trade", {}).get("max_loss_pct", 0.02),
-        "max_daily_loss": risk.get("global", {}).get("max_daily_loss", 0.05),
-        "consecutive_loss_pause": risk.get("global", {}).get("consecutive_loss_pause", 3),
+        "max_loss_per_trade_pct": risk_trade.get("max_loss_pct", 0.02),
+        "max_daily_loss": risk_global.get("max_daily_loss", 0.05),
+        "consecutive_loss_pause": risk_global.get("consecutive_loss_pause", 3),
         # Signal filters
-        "volatility_filter_enabled": filters.get("volatility_filter", {}).get("enabled", True),
-        "volatility_filter_min_atr_pct": filters.get("volatility_filter", {}).get(
-            "min_atr_pct", 0.003
-        ),
-        "volatility_filter_max_atr_pct": filters.get("volatility_filter", {}).get(
-            "max_atr_pct", 0.05
-        ),
-        "adx_filter_enabled": filters.get("adx_filter", {}).get("enabled", False),
-        "adx_period": filters.get("adx_filter", {}).get("period", 14),
-        "adx_threshold": filters.get("adx_filter", {}).get("threshold", 25),
-        "volume_filter_enabled": filters.get("volume_filter", {}).get("enabled", False),
-        "volume_filter_ma_period": filters.get("volume_filter", {}).get("ma_period", 20),
-        "volume_filter_threshold": filters.get("volume_filter", {}).get("threshold", 1.2),
+        "volatility_filter_enabled": volatility_filter.get("enabled", True),
+        "volatility_filter_min_atr_pct": volatility_filter.get("min_atr_pct", 0.003),
+        "volatility_filter_max_atr_pct": volatility_filter.get("max_atr_pct", 0.05),
+        "adx_filter_enabled": adx_filter.get("enabled", False),
+        "adx_period": adx_filter.get("period", 14),
+        "adx_threshold": adx_filter.get("threshold", 25),
+        "volume_filter_enabled": volume_filter.get("enabled", False),
+        "volume_filter_ma_period": volume_filter.get("ma_period", 20),
+        "volume_filter_threshold": volume_filter.get("threshold", 1.2),
     }
 
     return config

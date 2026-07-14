@@ -14,13 +14,16 @@ re-protection), TradeEventHandler (cancel on close), and the bar pipeline
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
+from custos_toolkit.signals.types import Signal
 from nautilus_trader.common.enums import LogColor
 from nautilus_trader.model.enums import OrderSide
+
 from custos_toolkit_nautilus.adapter.event_publisher import make_signal_tag
+from custos_toolkit_nautilus.adapter.orders import StopLossSubmitter, TakeProfitSubmitter
+from custos_toolkit_nautilus.adapter.runtime_types import Order, Position
 from custos_toolkit_nautilus.adapter.sltp_mode import SLTPMode
-from custos_toolkit.signals.types import Signal
 
 if TYPE_CHECKING:
     from custos_toolkit_nautilus.adapter.pair_context import PairContext
@@ -36,7 +39,7 @@ class SLTPCoordinator:
     def __init__(self, strategy: NautilusTradingStrategy) -> None:
         self._strategy = strategy
 
-    def _link_order_to_signal(self, order: object, ctx: PairContext) -> None:
+    def _link_order_to_signal(self, order: Order, ctx: PairContext) -> None:
         """Link an SL/TP order to the open position's entry signal.
 
         Registered in ``_order_signal_map``; the SSE on_order_* publish_order path
@@ -61,7 +64,9 @@ class SLTPCoordinator:
             return [make_signal_tag(ctx.active_signal_id)]
         return None
 
-    def move_stop_to_break_even(self, ctx: PairContext, position, entry_price: Decimal) -> None:
+    def move_stop_to_break_even(
+        self, ctx: PairContext, position: Position, entry_price: Decimal
+    ) -> None:
         """Move stop loss to break-even (entry price) for a specific pair."""
         s = self._strategy
         instrument = s.cache.instrument(ctx.instrument_id)
@@ -90,7 +95,7 @@ class SLTPCoordinator:
         # alignment does not change the trigger; the primitive's side-aware
         # rounding only differs from nearest if entry is ever sub-tick.
         side = OrderSide.SELL if position.is_long else OrderSide.BUY
-        new_sl = ctx.sl_submitter.create_order_from_price(
+        new_sl = cast(StopLossSubmitter, ctx.sl_submitter).create_order_from_price(
             instrument_id=ctx.instrument_id,
             side=side,
             quantity=position.quantity,
@@ -180,7 +185,7 @@ class SLTPCoordinator:
         if position is None:
             return
 
-        order = ctx.sl_submitter.create_order(
+        order = cast(StopLossSubmitter, ctx.sl_submitter).create_order(
             instrument_id=ctx.instrument_id,
             signal=signal,
             entry_price=entry_price,
@@ -213,7 +218,7 @@ class SLTPCoordinator:
         entry_atr = ctx.position_tracker.pending_entry_atr
 
         if tp_config.method == "scaled" and tp_config.scaled:
-            orders = ctx.tp_submitter.create_scaled_orders(
+            orders = cast(TakeProfitSubmitter, ctx.tp_submitter).create_scaled_orders(
                 instrument_id=ctx.instrument_id,
                 signal=signal,
                 entry_price=entry_price,
@@ -234,7 +239,7 @@ class SLTPCoordinator:
                 entry_price, signal.direction, entry_atr
             )
 
-            order = ctx.tp_submitter.create_single_order(
+            single_order = cast(TakeProfitSubmitter, ctx.tp_submitter).create_single_order(
                 instrument_id=ctx.instrument_id,
                 signal=signal,
                 entry_price=entry_price,
@@ -243,12 +248,12 @@ class SLTPCoordinator:
                 position=position,
                 tags=self._signal_tags(ctx),  # TP order carries signal_id tag
             )
-            if order:
-                ctx.order_tracker.add_tp_order(order.client_order_id)
-                s.submit_order(order)
-                self._link_order_to_signal(order, ctx)
+            if single_order:
+                ctx.order_tracker.add_tp_order(single_order.client_order_id)
+                s.submit_order(single_order)
+                self._link_order_to_signal(single_order, ctx)
                 s.log.info(
-                    f"[{ctx.pair}] TAKE_PROFIT: submitted (id={order.client_order_id})",
+                    f"[{ctx.pair}] TAKE_PROFIT: submitted (id={single_order.client_order_id})",
                     color=LogColor.GREEN,
                 )
 
@@ -274,7 +279,7 @@ class SLTPCoordinator:
 
         # Build via the StopLossSubmitter shared primitive (side-aware tick alignment +
         # reduce-only), eliminating hand-rolled order_factory.stop_market inconsistency.
-        order = ctx.sl_submitter.create_order_from_price(
+        order = cast(StopLossSubmitter, ctx.sl_submitter).create_order_from_price(
             instrument_id=ctx.instrument_id,
             side=OrderSide.SELL if position.is_long else OrderSide.BUY,
             quantity=position.quantity,
@@ -293,7 +298,7 @@ class SLTPCoordinator:
             color=LogColor.RED,
         )
 
-    def submit_native_trailing(self, ctx: PairContext, signal: Signal) -> object | None:
+    def submit_native_trailing(self, ctx: PairContext, signal: Signal) -> Order | None:
         """Submit an exchange-managed trailing stop for native_trailing mode.
 
         The TrailingStopMarketOrder is itself the venue-managed protective stop:

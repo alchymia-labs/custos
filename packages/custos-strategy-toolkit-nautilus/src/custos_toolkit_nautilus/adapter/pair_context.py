@@ -6,13 +6,14 @@ Encapsulates all state for a single trading pair within a multi-pair strategy.
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from custos_toolkit.position import PositionTracker
 from nautilus_trader.model.data import BarType
 from nautilus_trader.model.identifiers import InstrumentId
+
 from custos_toolkit_nautilus.adapter.orders import OrderTracker
 from custos_toolkit_nautilus.adapter.tick_monitor import TickMonitorManager
-from custos_toolkit.position import PositionTracker
 
 if TYPE_CHECKING:
     from custos_toolkit_nautilus.adapter.execution import ExecutionManager
@@ -67,7 +68,7 @@ class PairContext:
     filter_manager: "FilterManager | None" = None
 
     # Indicator references (managed by concrete strategy)
-    indicators: dict[str, Any] = field(default_factory=dict)
+    indicators: dict[str, object] = field(default_factory=dict)
 
     # Position size factor (dynamic, set by per-pair filters, reset after each use)
     size_reduction_factor: float = 1.0
@@ -94,7 +95,7 @@ class PairContext:
     active_signal_id: str | None = None
 
     # Stale-order sweep rate guard: client_order_id -> last cancel attempt (ns)
-    stale_cancel_attempts: dict[Any, int] = field(default_factory=dict)
+    stale_cancel_attempts: dict[object, int] = field(default_factory=dict)
 
     # native_trailing protection rebuild cooldown (ns).
     # Guards the per-bar self-heal against a reject->rebuild->reject flood when the

@@ -6,8 +6,19 @@ including trailing stop logic with activation thresholds and
 scaled take profit handling.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from .config.risk import TradeRiskConfig
+
+
+class _TakeProfitLevel(TypedDict):
+    target_pct: Decimal
+    exit_pct: Decimal
 
 
 @dataclass
@@ -267,7 +278,7 @@ class TickMonitorManager:
         mode: str = "tick",
         tp_method: str = "fixed",
         tp_fixed_pct: Decimal | None = None,
-        tp_levels: list[dict] | None = None,
+        tp_levels: list[_TakeProfitLevel] | None = None,
         trailing_activation_pct: Decimal | None = None,
         trailing_pct: Decimal | None = None,
     ) -> None:
@@ -463,7 +474,7 @@ class TickMonitorManager:
         return Decimal(str(value))
 
     @classmethod
-    def from_config(cls, config, mode: str) -> "TickMonitorManager":
+    def from_config(cls, config: TradeRiskConfig, mode: str) -> TickMonitorManager:
         """
         Create TickMonitorManager from TradeRiskConfig.
 
@@ -495,7 +506,7 @@ class TickMonitorManager:
         # Scaled take profit
         if tp_method == "scaled":
             scaled_config = tp_config.scaled
-            levels = []
+            levels: list[_TakeProfitLevel] = []
             for i in range(1, scaled_config.levels + 1):
                 level_config = getattr(scaled_config, f"level_{i}", None)
                 if level_config:
