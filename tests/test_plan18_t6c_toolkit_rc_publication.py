@@ -32,8 +32,10 @@ OBJECT_FIELDS = (
     "sbom",
     "contract_schema",
     "contract_asset_index",
+    "dependency_lock_evidence",
+    "slsa_provenance",
     "sigstore_attestation",
-    "t4b_zero_rewrite_receipt",
+    "t4_zero_rewrite_receipt",
     "t4b_typing_closure_receipt",
     "t5_pre_import_verifier_receipt",
 )
@@ -148,7 +150,7 @@ def _candidate_inputs(root: Path, version: str) -> CandidateInputs:
                 nautilus_version=None if is_base else "1.230.0",
                 top_level_modules=("custos_toolkit" if is_base else "custos_toolkit_nautilus",),
                 dependencies=dependencies,
-                source_repository="https://github.com/the-alephain-guild/custos",
+                source_repository="https://github.com/alchymia-labs/custos",
                 source_commit=SOURCE_COMMIT,
                 **bindings,
             )

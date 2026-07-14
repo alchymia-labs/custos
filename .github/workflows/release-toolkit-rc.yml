@@ -1,0 +1,104 @@
+name: Protected toolkit RC release runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_version:
+        description: Immutable candidate version in the form 0.1.0rcN
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release-candidate:
+    if: github.repository == 'alchymia-labs/custos' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, custos-release]
+    environment: toolkit-rc-release
+    env:
+      SOURCE_DATE_EPOCH: '1704067200'
+      CUSTOS_TOOLKIT_RELEASE_ENVIRONMENT: toolkit-rc-release
+      CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL: ${{ vars.TOOLKIT_ARTIFACT_SERVICE_URL }}
+      CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN: ${{ secrets.TOOLKIT_ARTIFACT_SERVICE_TOKEN }}
+      EXPECTED_SIGSTORE_IDENTITY: >-
+        https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main
+      EXPECTED_SIGSTORE_ISSUER: https://token.actions.githubusercontent.com
+    steps:
+      - name: Check out the exact protected-main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate immutable operator input and pre-provisioned tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ inputs.candidate_version }}" =~ ^0\.1\.0rc[1-9][0-9]*$ ]]
+          test "$GITHUB_REPOSITORY" = "alchymia-labs/custos"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test -n "$CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL"
+          test -n "$CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN"
+          command -v uv
+          command -v sigstore
+          uv --version
+          sigstore --version
+
+      - name: Rebuild and compare both toolkit distributions offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/toolkit_rc_build.py \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --source-date-epoch "$SOURCE_DATE_EPOCH" \
+            --candidate-version "${{ inputs.candidate_version }}" \
+            --output-root "$RUNNER_TEMP/toolkit-rc-build"
+
+      - name: Generate formal SBOM lock and provenance inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/toolkit_rc_release_readiness.py prepare \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --build-root "$RUNNER_TEMP/toolkit-rc-build" \
+            --output-root "$RUNNER_TEMP/toolkit-rc-readiness"
+
+      - name: Sign and verify the complete SLSA provenance with OIDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          provenance="$RUNNER_TEMP/toolkit-rc-readiness/toolkit-rc.intoto.json"
+          bundle="$RUNNER_TEMP/toolkit-rc-provenance.sigstore.json"
+          sigstore sign --bundle "$bundle" "$provenance"
+          sigstore verify identity \
+            --bundle "$bundle" \
+            --cert-identity "$EXPECTED_SIGSTORE_IDENTITY" \
+            --cert-oidc-issuer "$EXPECTED_SIGSTORE_ISSUER" \
+            "$provenance"
+
+      - name: Assemble digest-pinned T6a and T6c inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/toolkit_rc_release_readiness.py assemble \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --build-root "$RUNNER_TEMP/toolkit-rc-build" \
+            --readiness-root "$RUNNER_TEMP/toolkit-rc-readiness" \
+            --sigstore-bundle "$RUNNER_TEMP/toolkit-rc-provenance.sigstore.json" \
+            --output-root "$RUNNER_TEMP/toolkit-rc-publication-inputs"
+
+      - name: Atomically publish and verify remote digest readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/toolkit_rc_publish.py \
+            --manifest "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-manifest.json" \
+            --build-manifest "$RUNNER_TEMP/toolkit-rc-build/toolkit-rc-build-manifest-input.json" \
+            --object-sources "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-object-sources.json" \
+            --artifact-service-url "$CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL" \
+            --pending-receipt "$RUNNER_TEMP/toolkit-rc-remote-publication-pending.json" \
+            --production-release-runner
+          sha256sum "$RUNNER_TEMP/toolkit-rc-remote-publication-pending.json"

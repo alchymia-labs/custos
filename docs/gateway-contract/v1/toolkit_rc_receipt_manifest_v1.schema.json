@@ -79,6 +79,9 @@
           "title": "Dependencies",
           "type": "array"
         },
+        "dependency_lock_evidence": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
         "distribution_name": {
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
           "title": "Distribution Name",
@@ -110,6 +113,9 @@
         "sigstore_attestation": {
           "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
         },
+        "slsa_provenance": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
         "source_commit": {
           "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
           "title": "Source Commit",
@@ -120,10 +126,10 @@
           "title": "Source Repository",
           "type": "string"
         },
-        "t4b_typing_closure_receipt": {
+        "t4_zero_rewrite_receipt": {
           "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
         },
-        "t4b_zero_rewrite_receipt": {
+        "t4b_typing_closure_receipt": {
           "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
         },
         "t5_pre_import_verifier_receipt": {
@@ -159,10 +165,12 @@
         "sbom",
         "contract_schema",
         "contract_asset_index",
+        "dependency_lock_evidence",
+        "slsa_provenance",
         "sigstore_attestation",
         "source_repository",
         "source_commit",
-        "t4b_zero_rewrite_receipt",
+        "t4_zero_rewrite_receipt",
         "t4b_typing_closure_receipt",
         "t5_pre_import_verifier_receipt"
       ],

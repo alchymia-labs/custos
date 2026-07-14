@@ -75,10 +75,12 @@ class ToolkitRcMemberV1(_StrictFrozenModel):
     sbom: ImmutableToolkitArtifactBindingV1
     contract_schema: ImmutableToolkitArtifactBindingV1
     contract_asset_index: ImmutableToolkitArtifactBindingV1
+    dependency_lock_evidence: ImmutableToolkitArtifactBindingV1
+    slsa_provenance: ImmutableToolkitArtifactBindingV1
     sigstore_attestation: ImmutableToolkitArtifactBindingV1
     source_repository: NonEmptyString
     source_commit: SourceCommit
-    t4b_zero_rewrite_receipt: ImmutableToolkitArtifactBindingV1
+    t4_zero_rewrite_receipt: ImmutableToolkitArtifactBindingV1
     t4b_typing_closure_receipt: ImmutableToolkitArtifactBindingV1
     t5_pre_import_verifier_receipt: ImmutableToolkitArtifactBindingV1
 
@@ -96,6 +98,8 @@ class ToolkitRcMemberV1(_StrictFrozenModel):
 
     @model_validator(mode="after")
     def validate_distribution_policy(self) -> Self:
+        if self.source_repository != "https://github.com/alchymia-labs/custos":
+            raise ValueError("toolkit RC source repository identity differs")
         if self.role is ToolkitRcMemberRole.BASE_CONTRACTS_WHEEL:
             if (
                 self.distribution_name != "custos-strategy-toolkit"
@@ -145,10 +149,90 @@ class ToolkitRcReceiptManifestV1(_StrictFrozenModel):
         return self
 
 
+class ToolkitRcCycloneDxSbomV1(_StrictFrozenModel):
+    role: ToolkitRcMemberRole
+    distribution_name: DistributionName
+    wheel_sha256: Sha256Hex
+    format: Literal["CycloneDX 1.6"] = "CycloneDX 1.6"
+    artifact: ImmutableToolkitArtifactBindingV1
+
+
+class ToolkitRcT6dPendingReceiptV1(_StrictFrozenModel):
+    """Contract-only readiness evidence before the protected release runner executes."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        title="ToolkitRcT6dPendingReceiptV1",
+        json_schema_extra={
+            "$id": (
+                "https://custos.the-alephain-guild/contracts/"
+                "toolkit-rc-t6d-pending-receipt-v1.schema.json"
+            )
+        },
+    )
+
+    schema_version: Literal[1] = 1
+    contract_version: Literal["alephain.custos.toolkit-rc-t6d-pending-receipt.v1"] = (
+        "alephain.custos.toolkit-rc-t6d-pending-receipt.v1"
+    )
+    status: Literal["PENDING_T6D_RELEASE_RUNNER"] = "PENDING_T6D_RELEASE_RUNNER"
+    ready: Literal[False] = False
+    candidate_version: RcVersion
+    source_repository: Literal["https://github.com/alchymia-labs/custos"] = (
+        "https://github.com/alchymia-labs/custos"
+    )
+    source_commit: SourceCommit
+    source_date_epoch: StrictInt = Field(ge=315_532_800)
+    release_environment: Literal["toolkit-rc-release"] = "toolkit-rc-release"
+    workflow_identity: Literal[
+        "https://github.com/alchymia-labs/custos/.github/workflows/"
+        "release-toolkit-rc.yml@refs/heads/main"
+    ] = (
+        "https://github.com/alchymia-labs/custos/.github/workflows/"
+        "release-toolkit-rc.yml@refs/heads/main"
+    )
+    oidc_issuer: Literal["https://token.actions.githubusercontent.com"] = (
+        "https://token.actions.githubusercontent.com"
+    )
+    build_manifest: ImmutableToolkitArtifactBindingV1
+    dependency_lock_evidence: ImmutableToolkitArtifactBindingV1
+    cyclonedx_sboms: tuple[ToolkitRcCycloneDxSbomV1, ...] = Field(min_length=2, max_length=2)
+    provenance_statement: ImmutableToolkitArtifactBindingV1
+    formal_sboms_complete: Literal[True] = True
+    dependency_locks_complete: Literal[True] = True
+    provenance_complete: Literal[True] = True
+    production_credentials_used: Literal[False] = False
+    production_signature_verified: Literal[False] = False
+    remote_publication_verified: Literal[False] = False
+    final_receipt_published: Literal[False] = False
+    final_blockers: tuple[
+        Literal[
+            "execute the protected production release runner with credentials and "
+            "register its verified remote receipt"
+        ],
+        ...,
+    ] = Field(min_length=1, max_length=1)
+
+    @model_validator(mode="after")
+    def validate_sbom_matrix(self) -> Self:
+        if {sbom.role for sbom in self.cyclonedx_sboms} != set(ToolkitRcMemberRole):
+            raise ValueError("T6d pending receipt requires one SBOM per toolkit member")
+        expected = {
+            ToolkitRcMemberRole.BASE_CONTRACTS_WHEEL: "custos-strategy-toolkit",
+            ToolkitRcMemberRole.NAUTILUS_WHEEL: "custos-strategy-toolkit-nautilus",
+        }
+        if any(sbom.distribution_name != expected[sbom.role] for sbom in self.cyclonedx_sboms):
+            raise ValueError("T6d pending SBOM distribution matrix differs")
+        return self
+
+
 __all__ = [
     "ImmutableToolkitArtifactBindingV1",
     "LockedToolkitDependencyV1",
     "ToolkitRcMemberRole",
     "ToolkitRcMemberV1",
     "ToolkitRcReceiptManifestV1",
+    "ToolkitRcCycloneDxSbomV1",
+    "ToolkitRcT6dPendingReceiptV1",
 ]

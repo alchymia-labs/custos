@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,8 +31,10 @@ BINDING_FIELDS: Final = (
     "sbom",
     "contract_schema",
     "contract_asset_index",
+    "dependency_lock_evidence",
+    "slsa_provenance",
     "sigstore_attestation",
-    "t4b_zero_rewrite_receipt",
+    "t4_zero_rewrite_receipt",
     "t4b_typing_closure_receipt",
     "t5_pre_import_verifier_receipt",
 )
@@ -38,6 +42,14 @@ BUILD_DISTRIBUTIONS: Final = frozenset(
     {"custos-strategy-toolkit", "custos-strategy-toolkit-nautilus"}
 )
 LOOPBACK_HOSTS: Final = frozenset({"127.0.0.1", "::1", "localhost"})
+PRODUCTION_WORKFLOW_REF: Final = (
+    "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
+)
+PRODUCTION_WORKFLOW_IDENTITY: Final = (
+    "https://github.com/alchymia-labs/custos/.github/workflows/"
+    "release-toolkit-rc.yml@refs/heads/main"
+)
+PRODUCTION_OIDC_ISSUER: Final = "https://token.actions.githubusercontent.com"
 
 
 class ArtifactPublicationError(RuntimeError):
@@ -71,6 +83,27 @@ class PendingPublicationEvidence:
     manifest_sha256: str
     build_manifest_sha256: str
     pending_receipt_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionArtifactServiceAuthorization:
+    bearer_token: str
+    workflow_ref: str
+    release_environment: str
+    oidc_request_url: str
+    oidc_request_token: str
+
+    def __post_init__(self) -> None:
+        if (
+            not self.bearer_token
+            or self.workflow_ref != PRODUCTION_WORKFLOW_REF
+            or self.release_environment != "toolkit-rc-release"
+            or not self.oidc_request_url.startswith("https://")
+            or not self.oidc_request_token
+        ):
+            raise ArtifactPublicationError(
+                "production artifact-service authorization context differs"
+            )
 
 
 def _sha256(value: bytes) -> str:
@@ -251,14 +284,72 @@ def _binding_objects(
     return list(objects.values())
 
 
-class _LocalArtifactServiceClient:
-    def __init__(self, base_url: str) -> None:
+def _verify_production_attestation(
+    *,
+    manifest: ToolkitRcReceiptManifestV1,
+    object_sources: Mapping[str, Path],
+    authorization: ProductionArtifactServiceAuthorization | None,
+) -> bool:
+    if authorization is None:
+        return False
+    provenance_coordinates = {member.slsa_provenance.coordinate for member in manifest.members}
+    bundle_coordinates = {member.sigstore_attestation.coordinate for member in manifest.members}
+    if len(provenance_coordinates) != 1 or len(bundle_coordinates) != 1:
+        raise ArtifactPublicationError(
+            "production members must share one complete signed provenance"
+        )
+    provenance_path = object_sources[next(iter(provenance_coordinates))]
+    bundle_path = object_sources[next(iter(bundle_coordinates))]
+    try:
+        verification = subprocess.run(
+            [
+                "sigstore",
+                "verify",
+                "identity",
+                "--bundle",
+                str(bundle_path),
+                "--cert-identity",
+                PRODUCTION_WORKFLOW_IDENTITY,
+                "--cert-oidc-issuer",
+                PRODUCTION_OIDC_ISSUER,
+                str(provenance_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise ArtifactPublicationError(
+            f"production Sigstore verification command is unavailable: {exc}"
+        ) from exc
+    if verification.returncode != 0:
+        raise ArtifactPublicationError(
+            f"production Sigstore provenance verification failed: {verification.stderr.strip()}"
+        )
+    return True
+
+
+class _ArtifactServiceClient:
+    def __init__(
+        self,
+        base_url: str,
+        authorization: ProductionArtifactServiceAuthorization | None,
+    ) -> None:
         parsed = urlparse(base_url)
-        if parsed.scheme != "http" or parsed.hostname not in LOOPBACK_HOSTS:
-            raise ArtifactPublicationError("T6c artifact service must be a loopback HTTP endpoint")
+        is_loopback = parsed.scheme == "http" and parsed.hostname in LOOPBACK_HOSTS
+        is_production = parsed.scheme == "https" and authorization is not None
+        if not is_loopback and not is_production:
+            raise ArtifactPublicationError(
+                "T6c requires loopback HTTP or an authorized production HTTPS endpoint"
+            )
+        if is_loopback and authorization is not None:
+            raise ArtifactPublicationError(
+                "production authorization must not be sent to a loopback service"
+            )
         if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
             raise ArtifactPublicationError("artifact service URL must contain only its origin")
         self._base_url = base_url.rstrip("/")
+        self._authorization = authorization
 
     def _request(
         self,
@@ -271,6 +362,8 @@ class _LocalArtifactServiceClient:
         content_type: str | None = None,
     ) -> tuple[int, bytes]:
         headers = {} if content_type is None else {"Content-Type": content_type}
+        if self._authorization is not None:
+            headers["Authorization"] = f"Bearer {self._authorization.bearer_token}"
         request = Request(
             f"{self._base_url}{path}",
             data=content,
@@ -439,13 +532,14 @@ def publish_toolkit_rc_candidate(
     object_sources: Mapping[str, Path],
     artifact_service_url: str,
     pending_receipt_path: Path,
+    production_authorization: ProductionArtifactServiceAuthorization | None = None,
 ) -> PendingPublicationEvidence:
     """Publish one candidate atomically to a loopback service and emit PENDING evidence."""
 
     pending_receipt_path = pending_receipt_path.resolve()
     if pending_receipt_path.exists():
         raise ArtifactPublicationError("pending publication evidence must not be overwritten")
-    client = _LocalArtifactServiceClient(artifact_service_url)
+    client = _ArtifactServiceClient(artifact_service_url, production_authorization)
     manifest_content, manifest_document = _read_json(manifest_path, "T6a manifest")
     try:
         manifest = ToolkitRcReceiptManifestV1.model_validate(manifest_document)
@@ -454,6 +548,11 @@ def publish_toolkit_rc_candidate(
     build_content, build_document = _read_json(build_manifest_path, "T6b build manifest")
     _validate_build_evidence(manifest, build_document)
     objects = _binding_objects(manifest=manifest, object_sources=object_sources)
+    production_attestation_verified = _verify_production_attestation(
+        manifest=manifest,
+        object_sources=object_sources,
+        authorization=production_authorization,
+    )
     objects.extend(
         (
             _provenance_object(
@@ -497,8 +596,8 @@ def publish_toolkit_rc_candidate(
         "publication_atomic": True,
         "puback_verified": True,
         "readback_verified": True,
-        "production_credentials_used": False,
-        "production_attestation_verified": False,
+        "production_credentials_used": production_authorization is not None,
+        "production_attestation_verified": production_attestation_verified,
         "objects": [
             {
                 "coordinate": artifact.coordinate,
@@ -550,7 +649,24 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--artifact-service-url", required=True)
     parser.add_argument("--pending-receipt", required=True, type=Path)
+    parser.add_argument(
+        "--production-release-runner",
+        action="store_true",
+        help="Require the protected GitHub Actions production authorization context.",
+    )
     return parser
+
+
+def _production_authorization_from_environment() -> ProductionArtifactServiceAuthorization:
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        raise ArtifactPublicationError("production publication is restricted to GitHub Actions")
+    return ProductionArtifactServiceAuthorization(
+        bearer_token=os.environ.get("CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN", ""),
+        workflow_ref=os.environ.get("GITHUB_WORKFLOW_REF", ""),
+        release_environment=os.environ.get("CUSTOS_TOOLKIT_RELEASE_ENVIRONMENT", ""),
+        oidc_request_url=os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL", ""),
+        oidc_request_token=os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", ""),
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -572,6 +688,11 @@ def main(argv: list[str] | None = None) -> int:
         object_sources=object_sources,
         artifact_service_url=arguments.artifact_service_url,
         pending_receipt_path=arguments.pending_receipt,
+        production_authorization=(
+            _production_authorization_from_environment()
+            if arguments.production_release_runner
+            else None
+        ),
     )
     print(
         json.dumps(
@@ -591,6 +712,7 @@ __all__ = [
     "ArtifactCoordinateExistsError",
     "ArtifactPublicationError",
     "PendingPublicationEvidence",
+    "ProductionArtifactServiceAuthorization",
     "publish_toolkit_rc_candidate",
 ]
 

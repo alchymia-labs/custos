@@ -906,6 +906,103 @@ def verify_plan_18_task_3_distribution_receipt(
     return len(errors) == initial_error_count
 
 
+def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors: list[str]) -> None:
+    expected_entries = (
+        {
+            "role": "toolkit_rc_t6d_pending_receipt_schema_v1_contract_only",
+            "path": ("docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"),
+            "contract_only": True,
+            "ready_receipt_published": False,
+        },
+        {
+            "role": "toolkit_rc_t6d_release_readiness_runner",
+            "path": "scripts/toolkit_rc_release_readiness.py",
+            "contract_only": True,
+            "ready_receipt_published": False,
+        },
+        {
+            "role": "toolkit_rc_t6d_production_release_workflow",
+            "path": ".github/workflows/release-toolkit-rc.yml",
+            "contract_only": True,
+            "ready_receipt_published": False,
+        },
+    )
+    entries = manifest.get("authority_documents", [])
+    for entry in expected_entries:
+        if entry not in entries:
+            errors.append(f"authority manifest lacks T6d contract-only entry {entry['role']}")
+
+    pending_schema_path = resolve(
+        "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
+    )
+    if pending_schema_path.is_file():
+        pending_schema = load_json(pending_schema_path)
+        properties = pending_schema.get("properties", {})
+        expected_constants = {
+            "status": "PENDING_T6D_RELEASE_RUNNER",
+            "ready": False,
+            "production_credentials_used": False,
+            "production_signature_verified": False,
+            "remote_publication_verified": False,
+            "final_receipt_published": False,
+        }
+        for name, value in expected_constants.items():
+            if not isinstance(properties.get(name), dict) or (
+                properties[name].get("const") != value
+            ):
+                errors.append(f"T6d pending schema does not fail closed for {name}")
+
+    manifest_schema_path = resolve(
+        "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
+    )
+    if manifest_schema_path.is_file():
+        manifest_schema = load_json(manifest_schema_path)
+        member_properties = (
+            manifest_schema.get("$defs", {}).get("ToolkitRcMemberV1", {}).get("properties", {})
+        )
+        required_bindings = {
+            "t4_zero_rewrite_receipt",
+            "t4b_typing_closure_receipt",
+            "dependency_lock_evidence",
+            "slsa_provenance",
+        }
+        if not required_bindings.issubset(member_properties):
+            errors.append("T6a manifest schema lacks corrected T4/T4b/T6d bindings")
+        if "t4b_zero_rewrite_receipt" in member_properties:
+            errors.append("T6a manifest schema retains obsolete T4b zero-rewrite alias")
+
+    workflow_path = resolve(".github/workflows/release-toolkit-rc.yml")
+    if workflow_path.is_file():
+        workflow = workflow_path.read_text(encoding="utf-8")
+        required_phrases = (
+            "workflow_dispatch:",
+            "permissions:\n  contents: read\n  id-token: write",
+            "environment: toolkit-rc-release",
+            (
+                "https://github.com/alchymia-labs/custos/.github/workflows/"
+                "release-toolkit-rc.yml@refs/heads/main"
+            ),
+            "sigstore sign --bundle",
+            "sigstore verify identity",
+            "--production-release-runner",
+        )
+        for phrase in required_phrases:
+            if phrase not in workflow:
+                errors.append(f"T6d production workflow lacks {phrase!r}")
+        for forbidden in (
+            "packages: write",
+            "contents: write",
+            "actions/upload-artifact",
+            "softprops/action-gh-release",
+            "skip-existing",
+        ):
+            if forbidden in workflow:
+                errors.append(f"T6d production workflow contains forbidden {forbidden!r}")
+
+    if resolve("docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json").exists():
+        errors.append("T6d readiness must not publish a READY toolkit RC receipt")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -915,6 +1012,7 @@ def main() -> int:
         path = resolve(entry["path"])
         if not path.is_file():
             errors.append(f"missing {entry['role']}: {path}")
+    verify_plan_18_task_6_release_readiness(manifest, errors)
     snapshot_path = resolve("docs/authority/ecosystem-authority.json")
     if snapshot_path.is_file():
         snapshot = load_json(snapshot_path)

@@ -53,12 +53,14 @@ def _member(role: ToolkitRcMemberRole, **overrides: object) -> ToolkitRcMemberV1
         "sbom": _artifact(f"{role.value}.spdx.json", DIGESTS[1]),
         "contract_schema": _artifact(f"{role.value}.schema.json", DIGESTS[2]),
         "contract_asset_index": _artifact(f"{role.value}.index.json", DIGESTS[3]),
-        "sigstore_attestation": _artifact(f"{role.value}.sigstore.json", DIGESTS[4]),
-        "source_repository": "https://github.com/the-alephain-guild/custos",
+        "dependency_lock_evidence": _artifact(f"{role.value}.dependency-locks.json", DIGESTS[4]),
+        "slsa_provenance": _artifact(f"{role.value}.intoto.json", DIGESTS[5]),
+        "sigstore_attestation": _artifact(f"{role.value}.sigstore.json", DIGESTS[6]),
+        "source_repository": "https://github.com/alchymia-labs/custos",
         "source_commit": "a" * 40,
-        "t4b_zero_rewrite_receipt": _artifact(f"{role.value}.t4b-zero.json", DIGESTS[5]),
-        "t4b_typing_closure_receipt": _artifact(f"{role.value}.t4b-typing.json", DIGESTS[6]),
-        "t5_pre_import_verifier_receipt": _artifact(f"{role.value}.t5.json", DIGESTS[7]),
+        "t4_zero_rewrite_receipt": _artifact(f"{role.value}.t4-zero.json", DIGESTS[7]),
+        "t4b_typing_closure_receipt": _artifact(f"{role.value}.t4b-typing.json", DIGESTS[8]),
+        "t5_pre_import_verifier_receipt": _artifact(f"{role.value}.t5.json", DIGESTS[9]),
     }
     values.update(overrides)
     return ToolkitRcMemberV1.model_validate(values)
@@ -96,6 +98,11 @@ def test_receipt_manifest_requires_exact_base_and_nautilus_member_matrix() -> No
         _member(ToolkitRcMemberRole.BASE_CONTRACTS_WHEEL, python_requires=">=3.12")
     with pytest.raises(ValidationError, match="Nautilus member policy"):
         _member(ToolkitRcMemberRole.NAUTILUS_WHEEL, nautilus_version="1.231.0")
+    with pytest.raises(ValidationError, match="source repository identity differs"):
+        _member(
+            ToolkitRcMemberRole.BASE_CONTRACTS_WHEEL,
+            source_repository="https://github.com/the-alephain-guild/custos",
+        )
 
 
 def test_member_evidence_is_complete_digest_pinned_and_registry_locked() -> None:
@@ -124,9 +131,11 @@ def test_member_evidence_is_complete_digest_pinned_and_registry_locked() -> None
         "sbom",
         "contract_schema",
         "contract_asset_index",
+        "dependency_lock_evidence",
+        "slsa_provenance",
         "sigstore_attestation",
         "source_commit",
-        "t4b_zero_rewrite_receipt",
+        "t4_zero_rewrite_receipt",
         "t4b_typing_closure_receipt",
         "t5_pre_import_verifier_receipt",
     ):

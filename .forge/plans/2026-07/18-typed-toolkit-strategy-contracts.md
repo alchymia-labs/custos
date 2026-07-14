@@ -515,8 +515,9 @@ Plan 19 runtime invocation and PS Plan 56 are not T6 START gates.
 T6a defines only the Custos-owned immutable toolkit RC receipt/manifest contract and
 generated JSON schema. `ToolkitRcReceiptManifestV1` requires exactly one base-contracts
 wheel and one Nautilus wheel. Every member binds its immutable coordinate/digest,
-SBOM, contract schema/index, Sigstore attestation, source commit, T4b zero-rewrite and
-typing-closure receipts, and T5 pre-import verifier receipt. Base is fixed to Python
+SBOM, contract schema/index, dependency-lock evidence, signed SLSA provenance, source
+commit, T4 zero-rewrite and T4b typing-closure receipts, and T5 pre-import verifier
+receipt. Base is fixed to Python
 `>=3.11`; Nautilus is fixed to Python `>=3.12,<3.13` and NT `1.230.0`.
 
 The validator rejects legacy top-level `shared`/`pandas_ta`, editable/path dependencies,
@@ -614,6 +615,63 @@ semantics, deterministic final SPDX or CycloneDX SBOMs, production Sigstore prov
 that binds the staged metadata transform/source/epoch/digests, remote digest readback,
 resolved exact dependency evidence, and final authority receipt registration. Two
 independent PyPI uploads alone do not satisfy this atomic contract.
+
+#### T6d: Production release-runner readiness
+
+T6d closes the implementation and authority prerequisites for the protected production
+runner without executing it. The previously unpublished T6a contract is corrected before
+consumer use: zero-rewrite now binds `t4_zero_rewrite_receipt`, T4b binds only
+`t4b_typing_closure_receipt`, and no compatibility alias remains. Each member also binds
+exact dependency-lock evidence and the SLSA provenance object that its Sigstore bundle
+signs. Source authority is pinned to `https://github.com/alchymia-labs/custos`; the stale
+`the-alephain-guild/custos` fallback and logical workspace path are forbidden.
+
+The readiness seam resolves every ranged direct wheel requirement through committed
+`uv.lock` into exact `name==version` evidence plus registry artifact hashes. Current
+resolution is base `pydantic==2.13.4` and `pyyaml==6.0.3`; Nautilus locks the matching
+base `0.1.0rcN`, `nautilus-trader==1.230.0`, `packaging==26.2`, and
+`pyyaml==6.0.3`. It generates deterministic CycloneDX 1.6 SBOMs rather than rebranding
+the T6b file inventory as an SBOM.
+
+One deterministic in-toto Statement v1 / SLSA provenance v1 object binds the exact source
+commit, fixed `SOURCE_DATE_EPOCH`, uv.lock, both wheels, both formal SBOMs, T6a schema,
+v2 contract index, T4 zero-rewrite receipt, T4b typing-closure receipt, T5 verifier
+receipt, and dependency-lock evidence. Both `assemble` and production T6c execute
+`sigstore verify identity` against the exact protected-main workflow identity and GitHub
+OIDC issuer; structurally plausible or test/fake bundles cannot enter publication inputs.
+
+The dedicated `.github/workflows/release-toolkit-rc.yml` is manual `0.1.0rcN` input only,
+restricted to `alchymia-labs/custos` protected main and environment
+`toolkit-rc-release`. Permissions are only `contents: read` and `id-token: write`. It
+re-runs T6b with the fixed epoch, prepares T6d evidence, performs OIDC Sigstore sign and
+exact identity verification, assembles T6a/T6c inputs, then invokes authenticated T6c
+atomic publication and remote digest readback. It does not reuse root `release.yml`, root
+wheel signing, GitHub Release upload, `skip-existing`, GHCR, or the legacy release lane.
+
+The source-generated `ToolkitRcT6dPendingReceiptV1` and authority checker fail closed on
+all production flags. It records complete formal SBOM/lock/provenance readiness while
+requiring `ready=false`, no production credentials/signature/remote publication, and no
+final receipt. The repository contains only the contract schema; generated PENDING
+instances remain ephemeral and no READY receipt exists.
+
+RED -> GREEN evidence:
+
+- RED: `ToolkitRcT6dPendingReceiptV1` and the release-readiness seam were absent, so the
+  focused suite failed during import.
+- RED: a direct test build correctly hit T6b's clean-source gate because the unpublished
+  T6a schema correction differed from HEAD; T6d retained that gate and uses isolated
+  double-build fixtures while the committed T6b suite remains its real-build authority.
+- RED: the dedicated production workflow did not exist.
+- GREEN: T6d SBOM/lock/provenance/PENDING/workflow/failure suite is `7 passed`; combined
+  T6a/T6c/T6d focused contracts are `18 passed in 3.84s`. Ruff format/lint,
+  source-generator drift, `make check-authority`, extraction `241/241`, T4b strict-zero,
+  wheel-tamper fail-before-output, and unverified Sigstore fail-before-assembly all PASS.
+
+No remote endpoint, production credential, OIDC signature or binary publication was used
+in T6d readiness. There is now exactly one remaining T6 blocker: execute the protected
+production release runner with real credentials, verify its immutable remote receipt,
+and register that receipt in the authority chain. Until that operational action occurs,
+T6 remains open and no toolkit RC READY claim is allowed.
 
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
@@ -715,7 +773,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
 | T6c Atomic publication protocol | [x] | 2026-07-15 | Local-only artifact-service contract validates exact T6a/T6b/object bytes, preflights every immutable rcN coordinate, requires atomic staging ACK + complete PubAck + digest readback, and emits PENDING-only evidence; fake HTTP failure/retry matrix passes, while production service/credentials/signatures/SBOM/final receipt remain T6d |
-| T6 Toolkit candidate | [ ] | — | START gate open; Custos-owned immutable base/Nautilus toolkit RC receipt only; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not START gates |
+| T6d Production runner readiness | [x] | 2026-07-15 | Deterministic CycloneDX 1.6, exact uv.lock dependency evidence, complete in-toto/SLSA provenance, exact alchymia-labs OIDC identity, protected manual workflow, production Sigstore re-verification, source-generated PENDING schema and fail-closed authority gates are implemented without remote/signature/binary execution |
+| T6 Toolkit candidate | [ ] | — | Exactly one blocker remains: execute the protected production release runner with real credentials and register its verified immutable remote receipt; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not T6 START gates |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
@@ -743,6 +802,9 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | SAFETY | T5 scoped handoff | Exact reviews, implementation and clean full verification advance only schema + production verifier library to `READY_PRE_IMPORT_VERIFIER`; loaded/engine/runtime/production remain false, while Plan19 runtime invocation does not block T6 | Closed 2026-07-15 |
 | OWNERSHIP | T6 toolkit RC | Custos publishes only the immutable toolkit RC receipt; PS54 owns strategy artifact/manifest/full `StrategyReleaseBomV1`, PS56 is not a T6 START gate, and the legacy Python lane is unchanged | Accepted 2026-07-15 |
 | SAFETY | T6c publication ceiling | Local transaction/PubAck/readback proof may emit PENDING-only evidence; only T6d production runner, credentials, final SBOM, Sigstore provenance and remote readback may create the final authority receipt | Accepted 2026-07-15 |
+| CONTRACT | T4/T4b receipt naming | Corrected unpublished `t4b_zero_rewrite_receipt` to `t4_zero_rewrite_receipt`; T4b remains typing closure only and no alias is retained | Accepted 2026-07-15 |
+| IDENTITY | T6 GitHub/OIDC authority | Pinned source and workflow identity to actual `alchymia-labs/custos` protected main; stale guild fallback and workspace-logical repository names are forbidden | Accepted 2026-07-15 |
+| READINESS | T6d final blocker | Formal SBOM, exact locks, provenance, workflow, Sigstore verification and authority gates are complete; only real protected-runner execution plus verified remote receipt registration remains | Accepted 2026-07-15 |
 
 ## Slice 18a handoff and Task 2 READY provenance
 
