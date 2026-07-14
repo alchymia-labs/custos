@@ -123,6 +123,12 @@
       "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json"
     },
     {
+      "role": "toolkit_rc_receipt_manifest_schema_v1_contract_foundation",
+      "path": "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json",
+      "contract_only": true,
+      "ready_receipt_published": false
+    },
+    {
       "role": "local_telemetry",
       "path": "docs/design/telemetry_actor.md"
     },

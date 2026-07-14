@@ -28,6 +28,7 @@ from custos_toolkit.contracts.strategy_execution import (
     canonical_json_digest,
     canonical_model_digest,
 )
+from custos_toolkit.contracts.toolkit_rc import ToolkitRcReceiptManifestV1
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_MODEL = (
@@ -54,6 +55,7 @@ V2_NEGATIVE_PATH = "docs/authority/strategy-artifact-pre-import-lifecycle-negati
 V2_INDEX_PATH = "docs/authority/strategy-contract-assets-v2.json"
 V2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
 V1_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+TOOLKIT_RC_SCHEMA_PATH = "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
 V2_PRODUCER_COMMIT = "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2"
 V2_CANDIDATE_RECEIPT_SHA256 = "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
 V2_REQUIREMENTS_REVIEWS = {
@@ -533,6 +535,14 @@ def build_assets() -> dict[str, bytes]:
     return assets
 
 
+def build_toolkit_rc_foundation_assets() -> dict[str, bytes]:
+    return {
+        TOOLKIT_RC_SCHEMA_PATH: json_bytes(
+            ToolkitRcReceiptManifestV1.model_json_schema(mode="validation")
+        )
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
@@ -558,6 +568,7 @@ def main() -> int:
             print(f"accepted Task 2 v2 requirements review byte drifted: {relative}")
         return 1
     assets = build_assets()
+    assets.update(build_toolkit_rc_foundation_assets())
     drift: list[str] = []
     for relative, expected in assets.items():
         path = ROOT / relative

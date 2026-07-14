@@ -510,6 +510,30 @@ git commit -m "feat(toolkit): verify signed strategy artifacts"
 START gate is the scoped T5 `READY_PRE_IMPORT_VERIFIER` receipt. It is now open;
 Plan 19 runtime invocation and PS Plan 56 are not T6 START gates.
 
+#### T6a: Toolkit RC contract foundation
+
+T6a defines only the Custos-owned immutable toolkit RC receipt/manifest contract and
+generated JSON schema. `ToolkitRcReceiptManifestV1` requires exactly one base-contracts
+wheel and one Nautilus wheel. Every member binds its immutable coordinate/digest,
+SBOM, contract schema/index, Sigstore attestation, source commit, T4b zero-rewrite and
+typing-closure receipts, and T5 pre-import verifier receipt. Base is fixed to Python
+`>=3.11`; Nautilus is fixed to Python `>=3.12,<3.13` and NT `1.230.0`.
+
+The validator rejects legacy top-level `shared`/`pandas_ta`, editable/path dependencies,
+mutable or digest-mismatched coordinates, overwrite, and any loaded/engine/runtime/
+production/strategy-BOM claim. The schema is registered as contract-only authority;
+T6a does not build or publish wheels, create a READY RC receipt, or modify either
+strategy-contract asset index.
+
+RED -> GREEN evidence:
+
+- RED: public `ToolkitRcReceiptManifestV1` import failed; generated schema was absent.
+- RED: member types were absent, mutable coordinates were accepted, forbidden legacy
+  modules were accepted, and the authority manifest lacked the contract-only entry.
+- GREEN close-out: focused public-contract suite `5 passed`; generator `--check`,
+  `make check-authority`, Ruff format/lint and JSON schema gates PASS; immutable v1/v2
+  strategy-contract indexes remain exactly `d87d6fc2...` / `6fd49708...`.
+
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
 2. 发布不可覆盖的 toolkit `0.1.0rcN` artifacts；失败时递增 rc，不覆盖旧制品。
@@ -607,6 +631,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T4 Zero-rewrite extraction | [x] | 2026-07-15 | exact implementation `b5ff7ee9cea0e78f4462a478bafa42f8f6e18805`; clean exact-HEAD focused `91 passed, 1 skipped`; 241/241 extraction、parity、authority、English and lint gates PASS; receipt `VERIFIED_EXTRACTION_ONLY`, handoff false because T4b/T5 remain open |
 | T4b Extracted typing closure | [x] | 2026-07-15 | exact implementation `5a19a816d4f6d90e7d3fbde80d39f562decd8c4b`; clean exact-HEAD `make verify` 508 passed, 4 skipped, 1 xfailed; assets/extraction 241/241/authority/closure PASS; strict mypy 0/40 base and 0/59 adapter; receipt `READY_TYPING_CLOSURE`, handoff limited to T4b; T5/T6 still block 18b production readiness |
 | T5 Verifier/attestation | [x] | 2026-07-15 | Scoped `READY_PRE_IMPORT_VERIFIER`: producer `f3adde2...`, index `6fd49708...`, schema `d6e21b0a...`, Crucible review `3f41f32...`, PS review `267e23b...`, implementation `560e9f5...`, and exact verification HEAD `a856455...` (528 passed/4 skipped/1 xfailed; all authority/typing/extraction gates PASS); handoff covers schema + verifier library only, while loaded/engine/runtime/production remain false and runtime invocation stays Plan19 |
+| T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
 | T6 Toolkit candidate | [ ] | — | START gate open; Custos-owned immutable base/Nautilus toolkit RC receipt only; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not START gates |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
