@@ -4,7 +4,7 @@ Reverses the deliberate avoidance in ``test_nt_trading_node_host_integration.py`
 (which loads a self-contained ``MinimalSupertrendStrategy`` fixture to keep the
 host lifecycle path free of runtime ``philosophers-stone/shared/`` coupling).
 Here we load the real ``SuperTrendStrategy`` from a permanent in-repo mirror at
-``tests/fixtures/real_supertrend/`` — its ``from shared.<pkg>`` imports resolve
+``tests/fixtures/real_supertrend/`` — its ``from custos_toolkit.<pkg>`` imports resolve
 through the vendored toolkit substrate (``import custos.engines.nautilus.toolkit``
 prepends ``toolkit/`` to ``sys.path``), so no sibling ps repo checkout is needed
 at test time. Independent-clone reproducible by construction.
@@ -46,10 +46,9 @@ pytest.importorskip("nautilus_trader")
 from nautilus_trader.live.node import TradingNode  # noqa: E402
 
 # Bootstrap the vendored toolkit's sys.path before importing the loader — the
-# ``shared.*`` imports in the fixture strategy are resolved during dynamic load,
-# and the loader itself lazy-imports ``shared.nautilus.registry`` when the
+# ``custos_toolkit.*`` imports in the fixture strategy are resolved during dynamic load,
+# and the loader itself lazy-imports ``custos_toolkit_nautilus.adapter.registry`` when the
 # registry-name check runs. Ordering here is load-bearing.
-import custos.engines.nautilus.toolkit  # noqa: F401, I001 — vendored dep bootstrap
 from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
 
 _FIXTURE_DIR = Path(__file__).resolve().parent.parent.parent / "fixtures" / "real_supertrend"
@@ -83,7 +82,7 @@ def _cleanup_supertrend_registry():
     modules.
     """
     yield
-    from shared.nautilus import registry as ps_registry
+    from custos_toolkit_nautilus.adapter import registry as ps_registry
 
     if ps_registry.is_registered("supertrend"):
         ps_registry.unregister_strategy("supertrend")
@@ -92,11 +91,11 @@ def _cleanup_supertrend_registry():
 def _load_strategy_config() -> dict:
     """Load the pinned SuperTrend config.yaml via the vendored toolkit loader.
 
-    Uses ``shared.config.load_yaml_file`` (resolved through the toolkit sys.path
+    Uses ``custos_toolkit.config.load_yaml_file`` (resolved through the toolkit sys.path
     bootstrap at module top) so the fixture goes through the same YAML loading
     path production uses; keeps the fixture parity honest.
     """
-    from shared.config import load_yaml_file
+    from custos_toolkit.config import load_yaml_file
 
     return load_yaml_file(_REAL_SUPERTREND_CONFIG)
 
@@ -217,7 +216,7 @@ async def test_real_supertrend_loads_and_deploys_sandbox(monkeypatch) -> None:
         # Registry-binding introspection: the loader accepted
         # strategy_registry_name="supertrend" (no ValueError raised), and the
         # registry maps that name back to the exact class the deploy loaded.
-        from shared.nautilus import registry as ps_registry
+        from custos_toolkit_nautilus.adapter import registry as ps_registry
 
         info = ps_registry.get_strategy_info("supertrend")
         assert info["strategy_class"] is type(strategy), (

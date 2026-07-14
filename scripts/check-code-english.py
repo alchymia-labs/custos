@@ -24,14 +24,20 @@ Exit:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import subprocess
 import sys
+from pathlib import Path
+from typing import Any
 
 CJK_PATTERN = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3000-\u303f\uff00-\uffef]")
 NOQA_PATTERN = re.compile(r"noqa:\s*(language|lang|zh)\b", re.IGNORECASE)
 
 TARGET_SUFFIXES = (".py", ".rs", ".ts", ".tsx")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+EXTRACTION_MANIFEST_PATH = REPO_ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
 
 # Paths inside repo that are documentation / planning / i18n bundles — do not
 # scan even if they happen to be `.ts`/`.py` (rare but possible for i18n).
@@ -48,10 +54,6 @@ EXEMPT_PATH_SUBSTRINGS = (
     "/.planning/",
     "/docs/",
     "/grimoire/",
-    # Vendored upstream trees inside custos are byte-identical snapshots and
-    # cannot be language-swept without breaking the provenance-sync workflow.
-    "/toolkit/shared/",
-    "/toolkit/vendor/",
     # This script's own CJK_PATTERN Unicode range literal is a tool
     # implementation detail (defines what counts as CJK), not user-facing
     # text subject to the English-only discipline it enforces.
@@ -116,6 +118,97 @@ def _violates(content: str) -> bool:
     return bool(CJK_PATTERN.search(content))
 
 
+def _sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def _load_extraction_manifest() -> dict[str, Any]:
+    return json.loads(EXTRACTION_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+
+def _repo_target_path(target_path: str) -> str | None:
+    target = Path(target_path)
+    if not target.parts or target.is_absolute() or ".." in target.parts:
+        return None
+    if target.parts[0] == "custos_toolkit":
+        return (Path("packages/custos-strategy-toolkit/src") / target).as_posix()
+    if target.parts[0] == "custos_toolkit_nautilus":
+        return (Path("packages/custos-strategy-toolkit-nautilus/src") / target).as_posix()
+    return None
+
+
+def _git_blob(object_name: str) -> bytes:
+    return subprocess.run(
+        ["git", "show", object_name],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        check=True,
+    ).stdout
+
+
+def _exact_relocation_exemption(
+    path: str,
+    cjk_lines: list[tuple[int, str]],
+    manifest: dict[str, Any],
+) -> tuple[bool, str | None]:
+    """Prove CJK lines are unchanged bytes from one exact inventory relocation."""
+    record = next(
+        (
+            item
+            for item in manifest.get("files", [])
+            if _repo_target_path(item.get("target_path", "")) == path
+        ),
+        None,
+    )
+    if record is None:
+        return False, None
+
+    source_commit = manifest.get("source_commit")
+    legacy_path = record.get("legacy_path")
+    legacy_sha256 = record.get("legacy_sha256")
+    target_sha256 = record.get("target_sha256")
+    if not (
+        isinstance(source_commit, str)
+        and re.fullmatch(r"[0-9a-f]{40}", source_commit)
+        and isinstance(legacy_path, str)
+        and isinstance(legacy_sha256, str)
+        and re.fullmatch(r"[0-9a-f]{64}", legacy_sha256)
+        and isinstance(target_sha256, str)
+        and re.fullmatch(r"[0-9a-f]{64}", target_sha256)
+    ):
+        return False, None
+
+    try:
+        source_blob = _git_blob(f"{source_commit}:{legacy_path}")
+        staged_blob = _git_blob(f":{path}")
+        current_blob = (REPO_ROOT / path).read_bytes()
+    except (OSError, subprocess.CalledProcessError):
+        return False, None
+
+    if _sha256(source_blob) != legacy_sha256:
+        return False, None
+    if _sha256(staged_blob) != target_sha256 or _sha256(current_blob) != target_sha256:
+        return False, None
+
+    try:
+        source_lines = source_blob.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        return False, None
+    if any(
+        line_no < 1 or line_no > len(source_lines) or source_lines[line_no - 1] != content
+        for line_no, content in cjk_lines
+    ):
+        return False, None
+
+    note = (
+        f"[check-code-english] EXEMPT exact relocated file: {path}; "
+        f"{len(cjk_lines)} pre-existing CJK line(s) match "
+        f"{legacy_path}@{source_commit[:12]}; source sha256={legacy_sha256[:12]}..., "
+        f"staged/current target sha256={target_sha256[:12]}..."
+    )
+    return True, note
+
+
 def main() -> int:
     try:
         files = _staged_target_files()
@@ -127,14 +220,35 @@ def main() -> int:
         return 0
 
     violations: list[tuple[str, int, str]] = []
+    exemption_notes: list[str] = []
+    extraction_manifest: dict[str, Any] | None = None
     for path in files:
         try:
-            for line_no, content in _staged_added_lines(path):
-                if _violates(content):
-                    violations.append((path, line_no, content.rstrip()))
+            cjk_lines = [
+                (line_no, content)
+                for line_no, content in _staged_added_lines(path)
+                if _violates(content)
+            ]
         except subprocess.CalledProcessError as e:
             print(f"[check-code-english] git diff failed for {path}: {e}", file=sys.stderr)
             return 2
+        if not cjk_lines:
+            continue
+
+        if extraction_manifest is None:
+            try:
+                extraction_manifest = _load_extraction_manifest()
+            except (OSError, json.JSONDecodeError):
+                extraction_manifest = {}
+        exempt, note = _exact_relocation_exemption(path, cjk_lines, extraction_manifest)
+        if exempt:
+            if note is not None:
+                exemption_notes.append(note)
+            continue
+        violations.extend((path, line_no, content.rstrip()) for line_no, content in cjk_lines)
+
+    for note in exemption_notes:
+        print(note)
 
     if not violations:
         return 0

@@ -26,7 +26,6 @@ from custos_toolkit.contracts.strategy_execution import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-LEGACY_TOOLKIT_ROOT = ROOT / "src/custos/engines/nautilus/toolkit"
 SOURCE_MODEL = (
     ROOT / "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
 )
@@ -51,87 +50,6 @@ def json_bytes(value: object) -> bytes:
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def classify_toolkit_file(path: Path) -> dict[str, str]:
-    relative = path.relative_to(LEGACY_TOOLKIT_ROOT).as_posix()
-    if relative.startswith("vendor/pandas_ta/"):
-        category = "private_vendor"
-        target_distribution = "custos-strategy-toolkit-nautilus"
-        target_path = "custos_toolkit_nautilus/_vendor/" + relative.removeprefix("vendor/")
-        reason = "third-party engine dependency remains private"
-    elif relative.startswith("shared/nautilus/"):
-        category = "nautilus_specific"
-        target_distribution = "custos-strategy-toolkit-nautilus"
-        target_path = "custos_toolkit_nautilus/adapter/" + relative.removeprefix("shared/nautilus/")
-        reason = "imports or implements Nautilus-specific behavior"
-    elif relative.startswith("shared/hummingbot/"):
-        category = "ps_owned_hummingbot"
-        target_distribution = "none"
-        target_path = ""
-        reason = "not part of the Custos Nautilus execution closure"
-    elif relative.startswith("shared/"):
-        category = "platform_neutral"
-        target_distribution = "custos-strategy-toolkit"
-        target_path = "custos_toolkit/" + relative.removeprefix("shared/")
-        reason = "engine-neutral contract or strategy helper"
-    else:
-        category = "delete"
-        target_distribution = "none"
-        target_path = ""
-        reason = "legacy wrapper outside the extraction source roots"
-    return {
-        "legacy_path": path.relative_to(ROOT).as_posix(),
-        "category": category,
-        "target_distribution": target_distribution,
-        "target_path": target_path,
-        "migration_action": "extract_zero_rewrite" if target_path else "do_not_publish",
-        "canonical_owner_after_cutover": "custos",
-        "classification_reason": reason,
-    }
-
-
-def build_inventory() -> dict[str, object]:
-    allowed_names = {"LICENSE"}
-    files = sorted(
-        path
-        for path in LEGACY_TOOLKIT_ROOT.rglob("*")
-        if path.is_file()
-        and "__pycache__" not in path.parts
-        and (path.suffix in {".py", ".yaml"} or path.name in allowed_names)
-        and (
-            "shared" in path.relative_to(LEGACY_TOOLKIT_ROOT).parts
-            or "vendor" in path.relative_to(LEGACY_TOOLKIT_ROOT).parts
-        )
-    )
-    entries = [classify_toolkit_file(path) for path in files]
-    categories = [
-        "platform_neutral",
-        "nautilus_specific",
-        "private_vendor",
-        "ps_owned_strategy",
-        "ps_owned_hummingbot",
-        "delete",
-    ]
-    counts = {
-        category: sum(entry["category"] == category for entry in entries) for category in categories
-    }
-    return {
-        "inventory_schema_version": 1,
-        "source_root": "src/custos/engines/nautilus/toolkit",
-        "tracked_source_semantics": "all deterministic source inputs below shared/ and vendor/",
-        "file_count": len(entries),
-        "category_counts": counts,
-        "current_canonical_source": "legacy Custos vendored snapshot until Plan 18 consumer cutover",
-        "cutover_rule": "each file has one target authority; legacy source is removed only after receipt-backed cutover",
-        "legacy_aliases_must_retire": ["shared", "pandas_ta"],
-        "forbidden_migration_mechanisms": [
-            "sys.path mutation",
-            "fake pkg_resources distribution",
-            "two writable canonical copies",
-        ],
-        "files": entries,
-    }
 
 
 def member(
@@ -308,7 +226,10 @@ def build_assets() -> dict[str, bytes]:
         path: json_bytes(model.model_json_schema(mode="validation"))
         for path, model in MODEL_ASSETS.items()
     }
-    assets[INVENTORY_PATH] = json_bytes(build_inventory())
+    # The Task 2 inventory is an immutable historical classification receipt.
+    # Task 4 verifies its extracted targets separately rather than regenerating
+    # the inventory from a legacy source tree which no longer exists.
+    assets[INVENTORY_PATH] = (ROOT / INVENTORY_PATH).read_bytes()
     assets[GOLDEN_PATH] = json_bytes(build_lifecycle_golden())
     index_entries = [
         {"path": path, "sha256": sha256(data), "size_bytes": len(data)}

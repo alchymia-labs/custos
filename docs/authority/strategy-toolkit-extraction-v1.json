@@ -1,0 +1,1950 @@
+{
+  "allowed_transformations": [
+    "shared namespace to custos_toolkit/custos_toolkit_nautilus.adapter",
+    "top-level pandas_ta namespace to custos_toolkit_nautilus._vendor.pandas_ta",
+    "pkg_resources distribution lookup to fixed vendored version metadata"
+  ],
+  "category_counts": {
+    "delete": 0,
+    "nautilus_specific": 55,
+    "platform_neutral": 36,
+    "private_vendor": 150,
+    "ps_owned_hummingbot": 0,
+    "ps_owned_strategy": 0
+  },
+  "extraction_schema_version": 1,
+  "file_count": 241,
+  "files": [
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/__init__.py",
+      "legacy_sha256": "886ec8db1d52163392e7ec9fe25c312cfe214c331af0c7efce5e426ed0a3da9f",
+      "target_path": "custos_toolkit/config/__init__.py",
+      "target_sha256": "073f9b3957b57306b732e664ca4251e547ec4edfc50ade554b0cf78d752f470a",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/base_config.yaml",
+      "legacy_sha256": "0152c7dba5e58637f2c423fcbd6d2abd709486dae05481da2009242a6dba1279",
+      "target_path": "custos_toolkit/config/base_config.yaml",
+      "target_sha256": "0152c7dba5e58637f2c423fcbd6d2abd709486dae05481da2009242a6dba1279",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/loader.py",
+      "legacy_sha256": "69cfe4a3bd1efca308972393992a9a68adc852e1064d47bd61f21962b8d8b649",
+      "target_path": "custos_toolkit/config/loader.py",
+      "target_sha256": "69cfe4a3bd1efca308972393992a9a68adc852e1064d47bd61f21962b8d8b649",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/config/validator.py",
+      "legacy_sha256": "74ace639c58b69dd1f01c713fdf3833bee8e4c45de82e4b377ddf921d2d6c308",
+      "target_path": "custos_toolkit/config/validator.py",
+      "target_sha256": "74ace639c58b69dd1f01c713fdf3833bee8e4c45de82e4b377ddf921d2d6c308",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/__init__.py",
+      "legacy_sha256": "7e70d26ec047a8f7914bf358f2460ec2187b911dcf328d00ec9207dbf86febe4",
+      "target_path": "custos_toolkit/filters/__init__.py",
+      "target_sha256": "7e70d26ec047a8f7914bf358f2460ec2187b911dcf328d00ec9207dbf86febe4",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/adx.py",
+      "legacy_sha256": "f53204ed28e558183181361e69069ec6367474d75e87aaeed27181aa43b1e674",
+      "target_path": "custos_toolkit/filters/adx.py",
+      "target_sha256": "f53204ed28e558183181361e69069ec6367474d75e87aaeed27181aa43b1e674",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/base.py",
+      "legacy_sha256": "86c2a45125eacd69d5a2572ba3f4c990b9b152bb0e4545a1faa2bddf12f2a5f6",
+      "target_path": "custos_toolkit/filters/base.py",
+      "target_sha256": "86c2a45125eacd69d5a2572ba3f4c990b9b152bb0e4545a1faa2bddf12f2a5f6",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/cooldown.py",
+      "legacy_sha256": "2ae7a792267f15c1647dd9ed62c090ea7bb0f0ec6873fbafb718135948bc49f6",
+      "target_path": "custos_toolkit/filters/cooldown.py",
+      "target_sha256": "2ae7a792267f15c1647dd9ed62c090ea7bb0f0ec6873fbafb718135948bc49f6",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/momentum.py",
+      "legacy_sha256": "d6e24a81b293c19e0b7942b5b40da6a2e648cf9cd9c3431ea717d198ad9eb93e",
+      "target_path": "custos_toolkit/filters/momentum.py",
+      "target_sha256": "d6e24a81b293c19e0b7942b5b40da6a2e648cf9cd9c3431ea717d198ad9eb93e",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/mtf.py",
+      "legacy_sha256": "47858467cd01419ffda07706e8319e39b0441e00dd2718883b520cc84b51ce5b",
+      "target_path": "custos_toolkit/filters/mtf.py",
+      "target_sha256": "47858467cd01419ffda07706e8319e39b0441e00dd2718883b520cc84b51ce5b",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/regime.py",
+      "legacy_sha256": "06e7d3918451b871081d59d3c38b89078d47bd6db7ab0d153d51b6d4081778e6",
+      "target_path": "custos_toolkit/filters/regime.py",
+      "target_sha256": "06e7d3918451b871081d59d3c38b89078d47bd6db7ab0d153d51b6d4081778e6",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/registry.py",
+      "legacy_sha256": "8ad5c32bbf834ed068b13d51f1ed62f01efe76f45a8a9742c94dc6cb94386392",
+      "target_path": "custos_toolkit/filters/registry.py",
+      "target_sha256": "8ad5c32bbf834ed068b13d51f1ed62f01efe76f45a8a9742c94dc6cb94386392",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/time_filter.py",
+      "legacy_sha256": "6b4d32fd654b03fa0ffa35519d30db4d8422f67ddd7ebd614ad7b5de048e1260",
+      "target_path": "custos_toolkit/filters/time_filter.py",
+      "target_sha256": "6b4d32fd654b03fa0ffa35519d30db4d8422f67ddd7ebd614ad7b5de048e1260",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/volatility.py",
+      "legacy_sha256": "6e62b4c41229925379ebc66af5b5f01f30826b0d80ecf7fa0e020e2df4264bb7",
+      "target_path": "custos_toolkit/filters/volatility.py",
+      "target_sha256": "6e62b4c41229925379ebc66af5b5f01f30826b0d80ecf7fa0e020e2df4264bb7",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/filters/volume.py",
+      "legacy_sha256": "21a051938bb45adc3397a5efa8e2ee753cc4d65487667a104a07820c5801dce3",
+      "target_path": "custos_toolkit/filters/volume.py",
+      "target_sha256": "21a051938bb45adc3397a5efa8e2ee753cc4d65487667a104a07820c5801dce3",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/indicators/__init__.py",
+      "legacy_sha256": "2f55ee68069e87f82d85136e71c3fcd51984b4dff26b2b2af4b3ed27f38985b8",
+      "target_path": "custos_toolkit/indicators/__init__.py",
+      "target_sha256": "b6ec7c08dd19c6ee70c9be992d8553b8a4f1275f88a4131ce1b666b07513d68c",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/__init__.py",
+      "legacy_sha256": "8ed0a1126d127cdff912aa5722e50510219fde1cadb67f2ed417ced31c19b0eb",
+      "target_path": "custos_toolkit_nautilus/adapter/__init__.py",
+      "target_sha256": "8ed0a1126d127cdff912aa5722e50510219fde1cadb67f2ed417ced31c19b0eb",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/capital_allocator.py",
+      "legacy_sha256": "8aa099161cb8ac60333ff6e1358527564c45bc0e5a950da896eb878a65e7bb31",
+      "target_path": "custos_toolkit_nautilus/adapter/capital_allocator.py",
+      "target_sha256": "cd5914a678a6d7ce85dfa233b502423c0f632d35cad5cb5f305a7db62a47bd8c",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/__init__.py",
+      "legacy_sha256": "461c0599652107d017a86f5aefc7ccbb9c16e0759d8e78fd689c7ae4e923ea24",
+      "target_path": "custos_toolkit_nautilus/adapter/config/__init__.py",
+      "target_sha256": "461c0599652107d017a86f5aefc7ccbb9c16e0759d8e78fd689c7ae4e923ea24",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/allocation.py",
+      "legacy_sha256": "29cbea40ae9d23282a1d26b61e0fcb7c25ac00191dc3b88b0c8d4d9ccfe3e5bf",
+      "target_path": "custos_toolkit_nautilus/adapter/config/allocation.py",
+      "target_sha256": "29cbea40ae9d23282a1d26b61e0fcb7c25ac00191dc3b88b0c8d4d9ccfe3e5bf",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/backtesting.py",
+      "legacy_sha256": "5a183e1a027f5b512f7d6e8787b60d36c8d9ea06e381ee13181855f8e6d2d852",
+      "target_path": "custos_toolkit_nautilus/adapter/config/backtesting.py",
+      "target_sha256": "5a183e1a027f5b512f7d6e8787b60d36c8d9ea06e381ee13181855f8e6d2d852",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/filters.py",
+      "legacy_sha256": "adf943f692cd617a0e587a217aa2f2f20dab55d8cedb74ba447ee8ba2b39c31a",
+      "target_path": "custos_toolkit_nautilus/adapter/config/filters.py",
+      "target_sha256": "adf943f692cd617a0e587a217aa2f2f20dab55d8cedb74ba447ee8ba2b39c31a",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/platforms.py",
+      "legacy_sha256": "66777392399ceff6c429787bef24c7630e8a9602f9bc2819215f5ab478a7902a",
+      "target_path": "custos_toolkit_nautilus/adapter/config/platforms.py",
+      "target_sha256": "c80f7679e48ec1e293e702cd140727b31bc0d266bf9d4a79f00ff0088c9c412f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/position.py",
+      "legacy_sha256": "3c31f42dd38df4050ba211b80a40fa614e5769a5a340fcf6bc1e4562c3fcae45",
+      "target_path": "custos_toolkit_nautilus/adapter/config/position.py",
+      "target_sha256": "3c31f42dd38df4050ba211b80a40fa614e5769a5a340fcf6bc1e4562c3fcae45",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/risk.py",
+      "legacy_sha256": "404bb8fe41f9a938553d32c11f41c54af217aa4d9b97f81861876db3453bc36f",
+      "target_path": "custos_toolkit_nautilus/adapter/config/risk.py",
+      "target_sha256": "404bb8fe41f9a938553d32c11f41c54af217aa4d9b97f81861876db3453bc36f",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/signal.py",
+      "legacy_sha256": "c7f2d9379cbf054ff522c285ad8633bbcce53870e2fafd0814a96632c744645e",
+      "target_path": "custos_toolkit_nautilus/adapter/config/signal.py",
+      "target_sha256": "c7f2d9379cbf054ff522c285ad8633bbcce53870e2fafd0814a96632c744645e",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/snapshot.py",
+      "legacy_sha256": "df7884fa051ce6354262c2403eb1fc647f0d8692c6cb73864fc694cd70b7fea3",
+      "target_path": "custos_toolkit_nautilus/adapter/config/snapshot.py",
+      "target_sha256": "df7884fa051ce6354262c2403eb1fc647f0d8692c6cb73864fc694cd70b7fea3",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/config/trading.py",
+      "legacy_sha256": "0f2ffddce9d042b6abf7527a7ac40cc0ff55afffe4562141cadc5636007c35fd",
+      "target_path": "custos_toolkit_nautilus/adapter/config/trading.py",
+      "target_sha256": "0f2ffddce9d042b6abf7527a7ac40cc0ff55afffe4562141cadc5636007c35fd",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/__init__.py",
+      "legacy_sha256": "6e9941d85f42508f556d0f6a43c93ce51fec56bb4b85ed65141ba2b23ad4bffa",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/__init__.py",
+      "target_sha256": "3f011404d0ba45f810e44daf5cba6d2cadc84da425bd9aa5ad3f5e37a0e5a9c5",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/config_summary_logger.py",
+      "legacy_sha256": "72a75968789c7c7a52d4b8434bbb1953f0c1334acb00988810b5459581fd1e04",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/config_summary_logger.py",
+      "target_sha256": "0444455f0aa413e1483390fc876fe94ef45cf5d0d03dc960ecd8efdc2caa470f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/equity_provider.py",
+      "legacy_sha256": "6cc395cc4063d26e1939bd97a6f970bbfb1d4801fbc8c5eb95d97faaad289c90",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/equity_provider.py",
+      "target_sha256": "e625ca88423920626db6cd8680ad0a645b38fc239453b1e07fb61aa5796714e3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/execution.py",
+      "legacy_sha256": "167f5dfe4bb170a5db1b08ca70f0be670d24042e8fe54367ca128126d56506b4",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/execution.py",
+      "target_sha256": "ac6f734334f572669b747b0dddff7642a1daef2181eeb9955d59a442978bd4a4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/filter.py",
+      "legacy_sha256": "4e7e4428e978073096cf35a53d28f7f1bda9c3e4c4462a7559c7801945a3de3b",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/filter.py",
+      "target_sha256": "2eebebcc8cdaa086a141cf3f817147d7db83f513678eff7c8be68c75c06d8ab9",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/order_reconciler.py",
+      "legacy_sha256": "3f275b0a0e8468a2027e91ecb917f3bf3a0f425e288aa7f0c85d0e1f80252705",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py",
+      "target_sha256": "f84a0fe52770f5eee7a72314e0d811b0edb2a486aef72e79d405ff4110a87551",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/pair_context.py",
+      "legacy_sha256": "dd1ffae86b812bf85cbb248b070a1eeca803464a56244cd754788113d36acdbf",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/pair_context.py",
+      "target_sha256": "e00340cf93a03662eb8d7e870b65895e50511536628918e8dc1e10ba347a89f3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/risk_control.py",
+      "legacy_sha256": "eb858f083ffb6acec1df3b4d764095286b9bcdc851f67923647c4c678635ac57",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/risk_control.py",
+      "target_sha256": "e7084d3012c3907dc5629af2e2df3dac656b940e3646604cf59854e2db447d06",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/signal_execution.py",
+      "legacy_sha256": "2b9382bb978b634e2306d57d64bbd0cd79d5a77664fe6768c3dfa9adee337998",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/signal_execution.py",
+      "target_sha256": "c2901d2193637bb3a5021ee2d87c063e28647955ee342a62c01d9651152eefd8",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/sizing.py",
+      "legacy_sha256": "6db606db729689cfbc0b05ec3a290d13114694fb32726f8fbc7a81becc9c7503",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/sizing.py",
+      "target_sha256": "dc41668c0f3c607a60a929e523572c7fdd0887a5294d0d508db0363147acec37",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/sltp.py",
+      "legacy_sha256": "7ea92330042add617498c844a58d742e930d7b71ea54a6b04c29d03712f30d5a",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/sltp.py",
+      "target_sha256": "ae8e4640b3ca5b5b8df7e85d2ed177708357fdfd4a47651852d2fe05b462a63f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/snapshot.py",
+      "legacy_sha256": "0071d6723fe7b30c47544c4f441ef4915920bc0759e4c50e5693b61c6a1539f7",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/snapshot.py",
+      "target_sha256": "ab48bdeb40d08248839325e62afa184e2c3796ca4063fa11033b4612bbcf097a",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/startup_validator.py",
+      "legacy_sha256": "dc1b36aff19552f5d47af119981afe60c6e8006f1a7cba45b6086dab9524b9c5",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/startup_validator.py",
+      "target_sha256": "6473fb9d1bfe457a52f17e0e319573400966a653e804eccb761a32dbac0d4aa6",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/trade_event_handler.py",
+      "legacy_sha256": "a4ea2a944a4bc527f2a164b3ecbf2581b21d72cb60bf44e8e30a5393206b08ee",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py",
+      "target_sha256": "e12dd7d2402d1fc84292ced915949dc8ab6a9179e5b3ab08ecc0eb6b6371bed3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/coordinators/warmup.py",
+      "legacy_sha256": "9c80adfa1b71777c474daae2f6f1133fefa53eea85d6ee7c1afdd8e4f81bb096",
+      "target_path": "custos_toolkit_nautilus/adapter/coordinators/warmup.py",
+      "target_sha256": "64a82c9ff046ee8f228153f11ed451552809b501e17a9fbc907e6b9554c85b5f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/event_publisher.py",
+      "legacy_sha256": "d74ac2975601c4cb19fcdfea2129ed4a607e8f87b6656379d5edbda8f95fd886",
+      "target_path": "custos_toolkit_nautilus/adapter/event_publisher.py",
+      "target_sha256": "d74ac2975601c4cb19fcdfea2129ed4a607e8f87b6656379d5edbda8f95fd886",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/execution.py",
+      "legacy_sha256": "7c5650207a88289768a99ed68bfb59e68b56187b84147bd3482a949407975e1f",
+      "target_path": "custos_toolkit_nautilus/adapter/execution.py",
+      "target_sha256": "4f61e182c81e6880c5ef7848a9ea1d2ff745362073b6c5318d3f38e0b92fbbd3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filter_manager.py",
+      "legacy_sha256": "932298a25828ac28b9faeb793a506c5d2ded82d216997866b6a52699372812ac",
+      "target_path": "custos_toolkit_nautilus/adapter/filter_manager.py",
+      "target_sha256": "b8c96522bb16bada205f76c78e57e09886e2055a558d7abe010773ed7adff304",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/__init__.py",
+      "legacy_sha256": "d72cc061131d9b4f0adcda0f4c100a327f34e68ede41f4d779e5b3528650d061",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/__init__.py",
+      "target_sha256": "f541453d990a901b820e4b18295bd4b56e91ee4ae0da4cf1dae34049fe4895c7",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/adx.py",
+      "legacy_sha256": "65aaabdac8bedc0d81f1cce9875171b01505c8aad8daed112ca0948016318323",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/adx.py",
+      "target_sha256": "0f507ffb32df72787474b67f02e613f0b7021234930ef9c7119a99374d5117d2",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/momentum.py",
+      "legacy_sha256": "1a638fd02c568098da589eeeaeb74c0272bae9e5c3c03b34446d03e1463e7643",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/momentum.py",
+      "target_sha256": "08bf49e273e266a0001bff24bb9c812215fa5a9b9b506e713ce73b65b75f5cfa",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/regime.py",
+      "legacy_sha256": "639e83960feae0be52b063f18f3569cd8f21487ecaedde63224df47e92d8813f",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/regime.py",
+      "target_sha256": "b4507d89053da952e779452db49c18f40f44ffb6820d90e872bedb517153c0c8",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/volatility.py",
+      "legacy_sha256": "1962f77d8b244c5cd40292a8828efc933e825d00537fab1f9b775c43b6f5e71d",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/volatility.py",
+      "target_sha256": "dd193db9ce0337906c5f7a5428c65b874021f1f681159e5dfb4add740535adcf",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/filters/volume.py",
+      "legacy_sha256": "d985cc86e74900d2a789f1ebff8a1f3eeb83a02d38c9b6940e92f5118f9c9e0e",
+      "target_path": "custos_toolkit_nautilus/adapter/filters/volume.py",
+      "target_sha256": "34dd35b983b0e16714154320ebecd67ea1aed3193062378f07b17a54c9aa797b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/__init__.py",
+      "legacy_sha256": "e18ef280b2564478b6578a2fd021fa1e719d705c692f9e960d6ffaa35e9f76a3",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/__init__.py",
+      "target_sha256": "c1440867d094b86e3f674a074443f8664fc4a82ecab9796806dd8210f427cd5f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/adx.py",
+      "legacy_sha256": "1bc229d74fa60c7629018bc496182616af5870fbb733f83cc1c8c43c5886fc8e",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/adx.py",
+      "target_sha256": "0967d85ff137e943c79b5ac679cfe7d88326435b154e145f3df0d10e7857b153",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/atr.py",
+      "legacy_sha256": "9573966332951dcafb1460787fcfa28ec05b6e6a4463a3c70f38ce5035e7666c",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/atr.py",
+      "target_sha256": "3bc5b654979bab670d69fc68428a67373e524b80c07a71af50eee70667f5b58b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/macd.py",
+      "legacy_sha256": "adac45f4d6809661736e58ce584e557b3a07de5096f3881818edbfd54df9f49d",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/macd.py",
+      "target_sha256": "fa2e024671d218fc96152c35b3fc26f729cf7be6038e714806e71675d8d9f514",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/rsi.py",
+      "legacy_sha256": "9857fa82a7ac847e134c5ea47d846ab9be1521ebe88f28ac8b3587913d421cf3",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/rsi.py",
+      "target_sha256": "651a06dadc6a8d6cdef4c20ebe409f48c386179260ca6a00da929ed88bf23ed8",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/indicators/supertrend.py",
+      "legacy_sha256": "15227a7881c3309ca36dfeb36e2c3aadcf82a1d3b27dc28f4d45a542218a49b3",
+      "target_path": "custos_toolkit_nautilus/adapter/indicators/supertrend.py",
+      "target_sha256": "1daec05231980d46b5eeb742baf6f712b57a0cc7221f03cfe4beabcd2c550913",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/orders.py",
+      "legacy_sha256": "cce2600c3864b0148bf9dae15abf3789611f794914edebe95df595a35440c433",
+      "target_path": "custos_toolkit_nautilus/adapter/orders.py",
+      "target_sha256": "d5228a2202fb2e9496d81be4177623e569aca091150288880b66b1c23fe0c14d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/pair_context.py",
+      "legacy_sha256": "f034bddaf0559c3c5164ca615d7432186579b43d6112c6a6586d261a1644aae2",
+      "target_path": "custos_toolkit_nautilus/adapter/pair_context.py",
+      "target_sha256": "a2fba9dffc2cf1a6851ace13f2498e15f4b52a25b7f275b44181e7a077bd4543",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/registry.py",
+      "legacy_sha256": "fabc43641c54a3f1b56e6341c5e1e7c361c867f5267b5287b6ad43efe98ae851",
+      "target_path": "custos_toolkit_nautilus/adapter/registry.py",
+      "target_sha256": "7c90f1592de13251faac3876c2d22320d0c5fa12038d2e984a7c134de7d92dcb",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/signal_processor.py",
+      "legacy_sha256": "7a626f1aa2a7be4bf5aa9642cb9b0eae13f86ac5798b13239e1bc9674157fa84",
+      "target_path": "custos_toolkit_nautilus/adapter/signal_processor.py",
+      "target_sha256": "cba8920e355bbb3190c4d21740d4116876e341b7df6a79ec301ee21db037b0c0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/sizing.py",
+      "legacy_sha256": "35a00264244fe20de9e9867f50aa75c3137cb30a423d80b484930a1c28fd999b",
+      "target_path": "custos_toolkit_nautilus/adapter/sizing.py",
+      "target_sha256": "35a00264244fe20de9e9867f50aa75c3137cb30a423d80b484930a1c28fd999b",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/sltp_mode.py",
+      "legacy_sha256": "8bc7d535221eadaefacf0147ea82ada6cbca091ad25948e4ab8087696d0c7418",
+      "target_path": "custos_toolkit_nautilus/adapter/sltp_mode.py",
+      "target_sha256": "ba71f888d49824a80dbaf31b10e91f3960b8399d1328296dc4609a8a09903c61",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/state_persistence.py",
+      "legacy_sha256": "59544920cfddff9dfe5b88909f3444461f47b78afdeb7537615b817211276e16",
+      "target_path": "custos_toolkit_nautilus/adapter/state_persistence.py",
+      "target_sha256": "59544920cfddff9dfe5b88909f3444461f47b78afdeb7537615b817211276e16",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/strategy_core.py",
+      "legacy_sha256": "19cebde9c26df8a87aa1cb7825ebd2bd3fecf4c4f1c4e218af019cdccd08f130",
+      "target_path": "custos_toolkit_nautilus/adapter/strategy_core.py",
+      "target_sha256": "bb4d55e93d3f2d9f9c3fc279cffc2f6b16c70662b56161ddb1e42cc679a7b22c",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/tick_monitor.py",
+      "legacy_sha256": "76db25958db98ac8b468cd44dbf0ab7921f5b227fa93d0b912f93f228a9360ac",
+      "target_path": "custos_toolkit_nautilus/adapter/tick_monitor.py",
+      "target_sha256": "76db25958db98ac8b468cd44dbf0ab7921f5b227fa93d0b912f93f228a9360ac",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/trading_config.py",
+      "legacy_sha256": "a9c7c095e72999742e3dd607cf9074d12a78e8a7d60546a611950fc94427cf9a",
+      "target_path": "custos_toolkit_nautilus/adapter/trading_config.py",
+      "target_sha256": "c88a5d400a836561b08ef18449af31a7c9152efd83dbfc79e72c9f1d150e2b09",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/trading_strategy.py",
+      "legacy_sha256": "063f11c4134a50d6a9d14701531994bf28afae63cb7ade001334bd6c482e8c02",
+      "target_path": "custos_toolkit_nautilus/adapter/trading_strategy.py",
+      "target_sha256": "8ab3bbb3016ab6239c4a288c2d5f1d1a838c6dee924fc621d66f8307e74b1adb",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/utils.py",
+      "legacy_sha256": "1572f2aa272e07632124f2e56915c5ab3c7114188bc020dbe6abe5cc4af5c7d6",
+      "target_path": "custos_toolkit_nautilus/adapter/utils.py",
+      "target_sha256": "dfa6e55b4162930c335f5b213845187a839c2d4c2f14f13d6622e548353610c4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "nautilus_specific",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/nautilus/warmup_manager.py",
+      "legacy_sha256": "bcc11ad0bf18ab3ed7050900c9153ff0087a5486da35d89b812541899b454fbc",
+      "target_path": "custos_toolkit_nautilus/adapter/warmup_manager.py",
+      "target_sha256": "ec9d0cd1ca2b36f2e92eed55dcdb7127d402ce6d2ed806cd4f8db7aece4c9a91",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/position/__init__.py",
+      "legacy_sha256": "c61b2a1fe60e1d726c90089f16a8933d88ecede91d90e8aae1c0f88f65329359",
+      "target_path": "custos_toolkit/position/__init__.py",
+      "target_sha256": "c61b2a1fe60e1d726c90089f16a8933d88ecede91d90e8aae1c0f88f65329359",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/position/sizer.py",
+      "legacy_sha256": "44cdeae68929e3de9cb55aaa750136b03020194a1be25c1f8a345859ae346f18",
+      "target_path": "custos_toolkit/position/sizer.py",
+      "target_sha256": "44cdeae68929e3de9cb55aaa750136b03020194a1be25c1f8a345859ae346f18",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/position/tracker.py",
+      "legacy_sha256": "eb21965762c88c047d4261cd4137c1ccc9d81d60b5bdc4c39794f1e6ad6e5be1",
+      "target_path": "custos_toolkit/position/tracker.py",
+      "target_sha256": "a77ea9bbeb93f023b2ffd06bb736c4ff016c21f408a1b5e339567501ac5a51fc",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/protocols/__init__.py",
+      "legacy_sha256": "efe2906ff31092b0457480b1956a8e33cb78c45843daaf65b6b589bf0752ccca",
+      "target_path": "custos_toolkit/protocols/__init__.py",
+      "target_sha256": "efe2906ff31092b0457480b1956a8e33cb78c45843daaf65b6b589bf0752ccca",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/protocols/bar.py",
+      "legacy_sha256": "6666966560a7fedba344ec0dd5c5ffd3f287a663def4d39b38d8855b768a96ab",
+      "target_path": "custos_toolkit/protocols/bar.py",
+      "target_sha256": "6666966560a7fedba344ec0dd5c5ffd3f287a663def4d39b38d8855b768a96ab",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/protocols/filter.py",
+      "legacy_sha256": "e51b670a2e858f98e60d3d78c5c360e561523857034840d72b0d5ffd876e0c73",
+      "target_path": "custos_toolkit/protocols/filter.py",
+      "target_sha256": "e51b670a2e858f98e60d3d78c5c360e561523857034840d72b0d5ffd876e0c73",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/__init__.py",
+      "legacy_sha256": "33117f779eb3cbccde047fb5916aefa09ff4dbf35c570b4f2eecb270c917fd0f",
+      "target_path": "custos_toolkit/risk/__init__.py",
+      "target_sha256": "33117f779eb3cbccde047fb5916aefa09ff4dbf35c570b4f2eecb270c917fd0f",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/controller.py",
+      "legacy_sha256": "ed759494e8f40ae908a71860eed1b765cd2e789c87ed96a6aa369932ac68cfd4",
+      "target_path": "custos_toolkit/risk/controller.py",
+      "target_sha256": "ed759494e8f40ae908a71860eed1b765cd2e789c87ed96a6aa369932ac68cfd4",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/equity.py",
+      "legacy_sha256": "a8d319f16d08df9822fe5a5c840bb8508e98995310bf91fa7d4502a5c655220d",
+      "target_path": "custos_toolkit/risk/equity.py",
+      "target_sha256": "a8d319f16d08df9822fe5a5c840bb8508e98995310bf91fa7d4502a5c655220d",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/exchange_errors.py",
+      "legacy_sha256": "af149b8400f89eaad6a71b238ebdf1b1b4f7d639e885a7417d58d9d21fe6b251",
+      "target_path": "custos_toolkit/risk/exchange_errors.py",
+      "target_sha256": "af149b8400f89eaad6a71b238ebdf1b1b4f7d639e885a7417d58d9d21fe6b251",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/manager.py",
+      "legacy_sha256": "dcd15d05ff0f0635da3ee6588027e76946038cdd4effb935e69afde80468e366",
+      "target_path": "custos_toolkit/risk/manager.py",
+      "target_sha256": "dcd15d05ff0f0635da3ee6588027e76946038cdd4effb935e69afde80468e366",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/risk/orders.py",
+      "legacy_sha256": "4e6eb5638d03e3849e364d14c3989fd310730a8dc2f69b14eb4aadcf9a292ab7",
+      "target_path": "custos_toolkit/risk/orders.py",
+      "target_sha256": "4e6eb5638d03e3849e364d14c3989fd310730a8dc2f69b14eb4aadcf9a292ab7",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/signals/__init__.py",
+      "legacy_sha256": "36fe81e094d00b34e5d4c10d104f3b7859bfb7084877c589f19122bec0cf47c8",
+      "target_path": "custos_toolkit/signals/__init__.py",
+      "target_sha256": "36fe81e094d00b34e5d4c10d104f3b7859bfb7084877c589f19122bec0cf47c8",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/signals/resolver.py",
+      "legacy_sha256": "095df918a54a640ead84154194de53085f673e6db4869f47409fbe8fdb290444",
+      "target_path": "custos_toolkit/signals/resolver.py",
+      "target_sha256": "eade33601e31615a65851b2011bce44470dafbc54eadca1c07f0f9e523f77eb3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/signals/types.py",
+      "legacy_sha256": "95f29d00020984231d154f791efb0882ba1c73237e82e11d97b929c2309a8cb5",
+      "target_path": "custos_toolkit/signals/types.py",
+      "target_sha256": "95f29d00020984231d154f791efb0882ba1c73237e82e11d97b929c2309a8cb5",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/__init__.py",
+      "legacy_sha256": "148cf09413d68fa7e8590d8c800d01ea30327a142f99a2838afecfb982725818",
+      "target_path": "custos_toolkit/warmup/__init__.py",
+      "target_sha256": "cea6bbacbc100b0e294f5242756a4500c4688f4d56e6d7a2ee66c84a0ca3d5a1",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/exceptions.py",
+      "legacy_sha256": "6976e6cf738d87579194eddb81dfa88f4138bf36f3d2b964a1a06c15031df83b",
+      "target_path": "custos_toolkit/warmup/exceptions.py",
+      "target_sha256": "6976e6cf738d87579194eddb81dfa88f4138bf36f3d2b964a1a06c15031df83b",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/protocol.py",
+      "legacy_sha256": "5c4649898fbcbba62a2bd158ef57d9b4a925848ccbe82b52f1053b07854fe0d3",
+      "target_path": "custos_toolkit/warmup/protocol.py",
+      "target_sha256": "5c4649898fbcbba62a2bd158ef57d9b4a925848ccbe82b52f1053b07854fe0d3",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/snapshot.py",
+      "legacy_sha256": "8f16c4158a19c139779a54d2e967af7af3848b8a546fd31a3d8a6d8bf7387d0d",
+      "target_path": "custos_toolkit/warmup/snapshot.py",
+      "target_sha256": "8f16c4158a19c139779a54d2e967af7af3848b8a546fd31a3d8a6d8bf7387d0d",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "platform_neutral",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/shared/warmup/warmer.py",
+      "legacy_sha256": "072ba642b4ce33b3541266fac17277815e2f631fab331bfd17454739e98e2dd3",
+      "target_path": "custos_toolkit/warmup/warmer.py",
+      "target_sha256": "a846ef28c63d63f835a743aee52b69dda4eeac4e1ef9b4051bab7da882a8bb90",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/LICENSE",
+      "legacy_sha256": "7ab8a0bc966cb9ed1ed08e043ad687cdbeeaca4e0d232f9ab498d2b3c5960326",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/LICENSE",
+      "target_sha256": "7ab8a0bc966cb9ed1ed08e043ad687cdbeeaca4e0d232f9ab498d2b3c5960326",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/__init__.py",
+      "legacy_sha256": "a400fea4177746ccfc5571864a596770d5f70200194313e8cbf2c0eadf1f71be",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/__init__.py",
+      "target_sha256": "385d392f279d7ee7aca6c6c141934ab20ca2b46c084aa84f2e2aca4edd36719d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/__init__.py",
+      "legacy_sha256": "007b4c9b3bc2ec6a2318840d06247e5f0dc911ce5f46601ecc600683783adc3b",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/__init__.py",
+      "target_sha256": "007b4c9b3bc2ec6a2318840d06247e5f0dc911ce5f46601ecc600683783adc3b",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/cdl_doji.py",
+      "legacy_sha256": "25a588ac1b54e3a31fd84532181c12bec397f7c64d942e5bf2397528e049e1c5",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/cdl_doji.py",
+      "target_sha256": "222c257d661e6c21b5e3c2f342fd791fcf15c8c80a065679e91288845a1b4582",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/cdl_inside.py",
+      "legacy_sha256": "d1b1f46ab85de224044a0f77b42afb18ba7403565d72a15f5c3838faaf6727b3",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/cdl_inside.py",
+      "target_sha256": "52e3facaa9627faa182744b7c8ccdbb72ae3f3d8110e56fc688792d329b8ae22",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/candles/ha.py",
+      "legacy_sha256": "50760acf41768298760e31b3e6460483b11642fa7a841466d5cd692a6fd46e57",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/candles/ha.py",
+      "target_sha256": "d1263e95120b7ec816aaf2bcfffe6d9f4aaa61354c690192e8124724e56ecef3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/core.py",
+      "legacy_sha256": "834e3d5c2502477add14c6b24369559ae6a8c8c1cc889cd895207cc03023545d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/core.py",
+      "target_sha256": "fe30d25633dc456d70c9c13ac87798d68f401dce3e5cb611c51d17948c547ed0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/cycles/__init__.py",
+      "legacy_sha256": "b0380abde91c64c948387841109d0c9e04b5d3a9bc9010378f86f1b2c1be8df3",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/cycles/__init__.py",
+      "target_sha256": "b0380abde91c64c948387841109d0c9e04b5d3a9bc9010378f86f1b2c1be8df3",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/cycles/ebsw.py",
+      "legacy_sha256": "ddb58d36a92c785480f91e02f0e616baa56f0f45e375ac5fa6a2d125683cbf60",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/cycles/ebsw.py",
+      "target_sha256": "11e368ce24aa331e225084f5237d7dc7d11f0b7386f9cff5270cc7bfc4ccc37b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/__init__.py",
+      "legacy_sha256": "03f6badcb2e516bdc02359226864656d784667c2f4265273d0aff38c00f2d22b",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/__init__.py",
+      "target_sha256": "03f6badcb2e516bdc02359226864656d784667c2f4265273d0aff38c00f2d22b",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/ao.py",
+      "legacy_sha256": "2ed2f69a06c133e5c92a15e0ed52c079aebb1ab1db191e3dfb307faa4dfbf928",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/ao.py",
+      "target_sha256": "44971dd387f81242e47e8933c29744c1dd9b33c5e4e77338be978de2f1cae395",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/apo.py",
+      "legacy_sha256": "504bca3688e878f5943928007f4bcc65501a2dc0ef31db7454a255b76276a2a7",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/apo.py",
+      "target_sha256": "3de55698db2ca50479b77bb5baab2befcce4383ec63ca5d7503665da7cd8860f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/bias.py",
+      "legacy_sha256": "483029c585ea4484190105f252cf32c1f6807bb8da8eff4343b60a14f2060831",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/bias.py",
+      "target_sha256": "3f81348e979cfdc73b993fec7e50adc9ff12223b939a0a53e49f3f3baa41b390",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/bop.py",
+      "legacy_sha256": "0c315481e1406b15210d63d5a76e35a92c8fa93b25fbb41e94c3d8772157089d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/bop.py",
+      "target_sha256": "b627c5476432ddba9e300832870ba0de9932a319569521cac95ed1cd45f378e6",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/brar.py",
+      "legacy_sha256": "1c4fbaad7415bcda7f936a18dd4eab6bd9f3dd80c155ada5ddfb5fd17d36a053",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/brar.py",
+      "target_sha256": "7e15097f98b4ed2dd701a318ae9595ff03902b66c407e3241f081310a7c717c6",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cci.py",
+      "legacy_sha256": "7e8a9eef62af8a1f56fb6ae234a71e5137ecfd674572f30c2ff647854f2545db",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cci.py",
+      "target_sha256": "93deda06c774921a77de4cf18af16246027cf2940bd9ca09956f764f1e68a817",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cfo.py",
+      "legacy_sha256": "906c764330b6802709d6584f143da40bc2e73c3d49f13dedd724e6362546586e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cfo.py",
+      "target_sha256": "1b860b753719ad84ae8673775f7a85ac36e9b83f933fdd212bddaf0841b32b5c",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cg.py",
+      "legacy_sha256": "021568129194f3c5ccd2d475a325f2425d0977e94a7b135dd90519cc0963e4f8",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cg.py",
+      "target_sha256": "70e56c9cadbf302f5d01eb296240800da75370fbc6cae7a0dbfef04f84a72694",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/cmo.py",
+      "legacy_sha256": "5f254211a03aae92043121fde15cc1d70b39adc69c879cdca7405eddcba7764c",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/cmo.py",
+      "target_sha256": "33c1910338671578e534993f783c815e4447104075734b082429acecee03e56b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/coppock.py",
+      "legacy_sha256": "99a8af0dad6d9134719399950ffa23a4c3886136b08ec891b209cb6c41ded114",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/coppock.py",
+      "target_sha256": "d2cf42e1d543bc4fa21bf0fe6488b130e5f40fd70d4ade2e16dfff4fa0228eae",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/er.py",
+      "legacy_sha256": "b81923f5d35386ac7ae550716e8f50b543015cd262c5a328a317d2ff96c90d05",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/er.py",
+      "target_sha256": "186a3b45a3b087b696ab861f9c09281cb59d1989b30c2391e2c03865933e70f4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/eri.py",
+      "legacy_sha256": "cdcc1366e3b4d42ae45cab32ff829958115efa028181acdc511f0e7a64f33ec8",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/eri.py",
+      "target_sha256": "822c0f374ce367414f7f0d8a1c7d90f414da6e52e0267925d69f969d11232e0d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/fisher.py",
+      "legacy_sha256": "1eaaffea3698935a02cda61f20ebcb41a999b6a75eff29a4a84923242b223015",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/fisher.py",
+      "target_sha256": "04e593ad621c8c7c37cae77d045a1753d9507f66920bf5cf2fdc15488f99b192",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/inertia.py",
+      "legacy_sha256": "11c0a9dd11b60abbc9bacca29118b37b4c4a4ac9b758d60fc01cf773071953bb",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/inertia.py",
+      "target_sha256": "9bbf60cbac5c997b56e1b53dc8c42cd83d34719edfce9b258610a87891d9b86d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/kdj.py",
+      "legacy_sha256": "85a9b5fd6333dc57047715bf26f8058713aaa063be0aa91e95c93eaf534c0304",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/kdj.py",
+      "target_sha256": "6a5724c2511dc4635ab36144abb12944efb8c5d285b62bc522f173dad89b4f2f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/kst.py",
+      "legacy_sha256": "5c5595aac621d72bb0ba06b92fb986e3c9b680fc6693f584ebea99064dd2c545",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/kst.py",
+      "target_sha256": "d470c21f02b8df32920d301d86f946561eea4931a28c43f110f3dfcca8ed663b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/macd.py",
+      "legacy_sha256": "330aeae227ddcb720402be4f5390317c8f711d600ddc778eb60b17f29ba1b488",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/macd.py",
+      "target_sha256": "d0656099f83bd137b0398786c2ef94cf37a82f3d6b840484943b157db408163e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/mom.py",
+      "legacy_sha256": "6074176122018165bcef48d23d829a113eafa763b37b3ce5a650f3baeea1e7d4",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/mom.py",
+      "target_sha256": "a056e3afcb13ac5dce02b62be241dedcc40b10fb43651899582eb12bacc0542a",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/pgo.py",
+      "legacy_sha256": "3432e64a523808ff522393c2418420f1bbf5756a45ec20842f237b64db9d836b",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/pgo.py",
+      "target_sha256": "455ded38cd474c152bb197e93d4bc2171c4777b3060097d9a1b2cc3d8c401761",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/ppo.py",
+      "legacy_sha256": "9d88afca42c0104d00ff1f4f2cd385f36059c0160b93923cb9d6250edacfcdb3",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/ppo.py",
+      "target_sha256": "22dacc4d00eb1759b2ba71dee2e7f8835da5ec4ade5477b815df95fa9d453a69",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/psl.py",
+      "legacy_sha256": "6d7183e20b61ba0590edaae65a365c8cb8adc7f3b1b8411bb4455264b443ab67",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/psl.py",
+      "target_sha256": "b56bcce52a618a5e88aa4a162d50515bb7aa138f25d8f1d00fc31e3db2280e9f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/pvo.py",
+      "legacy_sha256": "06ccbbfc71c207ab9fd5488c497d9329f747389e7229af913fcb46cdcb6eac2a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/pvo.py",
+      "target_sha256": "772f13773197163a8f92bb1377ee7c4b88a9944d6d584cbc1ac0fcd896991714",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/qqe.py",
+      "legacy_sha256": "2252e6ac288ae88fec2d9244bfa0fcf45914deb599f9341ff3c030dc16ab8a23",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/qqe.py",
+      "target_sha256": "24893d47477133125b7399db2696ca9c8b204b2ba5d41faafc23128deb129827",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/roc.py",
+      "legacy_sha256": "bb27637bd8a238c470d9c4137e32f16dc33a1599f5ff7615bebe1675b0618ea9",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/roc.py",
+      "target_sha256": "54a14501eedd2054ddba168085f1b0a57cc15425bf0983928bf611c0421fd15e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/rsi.py",
+      "legacy_sha256": "04405e3b33f3fb395d3ca880a8aabca1de9cc1788b0bb0eb70cfa60811cfd812",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/rsi.py",
+      "target_sha256": "c4d5f838056a14448f5c1c09a984d048d04c01ece9c83643558bd92c6184cf41",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/rsx.py",
+      "legacy_sha256": "15fc90241ccb947c88988f852ddca0d107862c5b5b489d710cf52a485036ddf5",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/rsx.py",
+      "target_sha256": "074f67190847b47826700ce9de617658a3f32e3f5cb736851e720b900b67ff3a",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/rvgi.py",
+      "legacy_sha256": "ee414ee5bf45d22fccd54c772ac515850317b6ace9b0c9d29f385a08a3ed6ba6",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/rvgi.py",
+      "target_sha256": "48b279a32b8014fca37c34778d36b9ca8615eff5e8b2c5512da386c72d5297a3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/slope.py",
+      "legacy_sha256": "01dcf972bb74f3b50da78a3dfbac16364b94e4c3955f53935561eebcc40b7c21",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/slope.py",
+      "target_sha256": "05fa810f7228452dd60e96e4359d7d99c8bd0a2073d39b8c19b728198e140fc3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/smi.py",
+      "legacy_sha256": "1a621d346b1c7cb89c67d0930275704bf93266463a9f387a717c1908d5cb8c66",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/smi.py",
+      "target_sha256": "27eeb3b6ed9705e05176bb06760a131a160cb13fa020fc2c4bcc653909d60cc4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/squeeze.py",
+      "legacy_sha256": "42076bb9894b7df005c8d66d81d26fe216c8b95c2f8ade3a1614d205ef4d2a50",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/squeeze.py",
+      "target_sha256": "f6fa24013607863f3e5473e62d86377ca467e3e92c99f488ff13bdf52f9bea3c",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/stoch.py",
+      "legacy_sha256": "f19a11c0eea0307d3bc75b33602ec376f7a8eadefc12a312371af1c7dcc14803",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/stoch.py",
+      "target_sha256": "167a1f3f124c3556fa88f730f3e8c00a7146b2559f2ee20232580c68962b692a",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/stochrsi.py",
+      "legacy_sha256": "226b05a070d4aea41db0f7f72137562b347df4a558ec59bf0a121f71d2a27ccb",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/stochrsi.py",
+      "target_sha256": "cdc7e35d4fe14de6402fdb28837705a7fa47dfe439deaee83ef950a9a3a59eec",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/td_seq.py",
+      "legacy_sha256": "00855350ceaa1e001164e115e0c98956e75612554a52197bd4a0f8ca2b0541b2",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/td_seq.py",
+      "target_sha256": "7739d2a5022fcdace142471d9ea040386effeb6e5f667ff7c4f53cb8bd0546df",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/trix.py",
+      "legacy_sha256": "d4a68bd10fdc495b97b3d223dc535400ed7342f4cd5ac6b60414ac3cb6b16bc1",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/trix.py",
+      "target_sha256": "9196c76a27e5c02b02ea11b95314a199fdbd9321d22b37567d5dcd1ae20d33ec",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/tsi.py",
+      "legacy_sha256": "df6d5fdfa3405c27550b298b6863287fd3c5165277891c85b6be85b06bfe8170",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/tsi.py",
+      "target_sha256": "f3fa4c018c8e4e9c262f3b396a7f5dbdf585a29f0006b683ca9e913e16739f61",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/uo.py",
+      "legacy_sha256": "3d8a16047c9b940c53b4775af6621060b44825419ca7acaa3b64c2577d96e93d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/uo.py",
+      "target_sha256": "aaffccc1ba4543dbd06c2eef1e04e28d6eb5a7246b9cc9a798cea628ddceeebe",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/momentum/willr.py",
+      "legacy_sha256": "10fbfdfeacc71e193ddc2fe3eee26870d85c295dc161cec746161eb3de99705a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/momentum/willr.py",
+      "target_sha256": "2d5a56809ef605e3807486103a286c96448d330b12c4f1baefe6a26f58ed7d55",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/__init__.py",
+      "legacy_sha256": "291254e460d483a36f4e26563507425df6f6153bf6900035b172435645b5340b",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/__init__.py",
+      "target_sha256": "291254e460d483a36f4e26563507425df6f6153bf6900035b172435645b5340b",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/alma.py",
+      "legacy_sha256": "5c0ca93637e0ddcdbe71c0153067a223d8bda2d18438c1510aca00214d0518ac",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/alma.py",
+      "target_sha256": "2fc708e8acd7c394b9e71c08c044051dd276a21067dca908f4cea310f2e3762d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/dema.py",
+      "legacy_sha256": "05de4b5b0b7ec825be3a43778adf7f3f8f05e7bb390fb8c2e4adaad53c03671f",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/dema.py",
+      "target_sha256": "2c2c805707f565a3a3f7c477fc9d44c8f32daead148428537ed12df1a0682ce5",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ema.py",
+      "legacy_sha256": "143a509d32f46de9dc51ef2c35b3c743a73c977fe2d4a569d2f8b5edafcdac24",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ema.py",
+      "target_sha256": "0195674cb7a058249123741a59fd1b2a654d42f14e3f538019465f35b3d6ec75",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/fwma.py",
+      "legacy_sha256": "d77dee5259743be7d4914adbbdae73ac5308457eccbe43a0eabf8e34f43b39f9",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/fwma.py",
+      "target_sha256": "a4915013e597a33faef433e4886d7c9ead095ec4227f0140a0518bf0f0227b48",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hilo.py",
+      "legacy_sha256": "baca8d1ab8583048a64f69b1c9129a3b3964a39a4158681cbf0978ea5eb937a3",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hilo.py",
+      "target_sha256": "a79bd78c1727a5fa2151393094ccfb2d633961f4c1faad1daab00f8b531c2ee0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hl2.py",
+      "legacy_sha256": "54810c0f432f215431ecfbe8837fcb0d0546a92e6481ecfaba6624ef867a9b86",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hl2.py",
+      "target_sha256": "7c29917e9f9d0ff1157b4d8cec7c0755c609c7bc99c4da638260edc4dace47f1",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hlc3.py",
+      "legacy_sha256": "08c834730104a5fc0fba79f0921afe058dd6d3c8a01c207a28ad3c91f605bd4f",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hlc3.py",
+      "target_sha256": "be0ef8272d1ab45236ace76ce6a13f7bc7627fd4c90beb6ccb7e23f01af1bcbd",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hma.py",
+      "legacy_sha256": "1a94c3212b228ef14c8c12232c59cf26b46360cfe6733adca52c24a9209227c1",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hma.py",
+      "target_sha256": "f01fb0da1e87f9f61c251877bfc948df970afbe25eaa92c0bd96286176ccdc72",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/hwma.py",
+      "legacy_sha256": "0969afb6a5a2712c15352e4fbc4bf4832f7cce14103737bf999bda9198e29e5a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/hwma.py",
+      "target_sha256": "3a78142bd7abeff29bf6324d8de5043028bebc948e417eef859f384cc5a93182",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ichimoku.py",
+      "legacy_sha256": "4a55092eb6e7921970c1a7b8973f34ade0000aba3baaa94f12e0bf231bffcb2a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ichimoku.py",
+      "target_sha256": "99d2704e3c049888d821042899bdde7c43e5d27d275a3f3c4061ad3baa95586f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/kama.py",
+      "legacy_sha256": "a58ffef68a8ee914c044d3c3a463084180c04758c3582711a877a7627c5c9036",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/kama.py",
+      "target_sha256": "066db0894f5876bbfa8ca7ec7fbd84027367bb3f3d8b91e5e387b68fa7ac59fd",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/linreg.py",
+      "legacy_sha256": "bbaaa21cc66a04bdfddf445e6601d3b1d2ab6936e2fd82487971d6057d8752b4",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/linreg.py",
+      "target_sha256": "bde3284a4538db6eedc9563fb2b2b7009947d9466f4e426cfac64b7575f19f15",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ma.py",
+      "legacy_sha256": "d87bd54a28f6abfcd049b9c266e31505cc85c8f8985c6fc7c06cc25266b1910d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ma.py",
+      "target_sha256": "d87bd54a28f6abfcd049b9c266e31505cc85c8f8985c6fc7c06cc25266b1910d",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/mcgd.py",
+      "legacy_sha256": "7ab161151dd3e9251a23134bb8f02b9143c601f5c5aa29291aa3757f6114111f",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/mcgd.py",
+      "target_sha256": "577041f79a1a0439ed2739a3c746b98b0e46b91e92d2e5480b0bf175e23e3cd9",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/midpoint.py",
+      "legacy_sha256": "46599cbce6ad86e828f187e20b523aa850aefd534746423ed7af4552e616775a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/midpoint.py",
+      "target_sha256": "648007dea07359ead06e77df697d503c3cb9d4c358613d0f007fc92b34457dad",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/midprice.py",
+      "legacy_sha256": "7f0219a522e247760de5fb2614615c5a9aecca0c8380206ec5dd96f440b024b8",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/midprice.py",
+      "target_sha256": "6d78cdef0f54359cda160105b71d1dcb4269f6ef64399d8fc141d2e7c2c52b4d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ohlc4.py",
+      "legacy_sha256": "0a9f26536bc7ce8b85adcf2ffccc0bb81fcbafffbb9b66040d8cf1dbb1481c5e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ohlc4.py",
+      "target_sha256": "471d7bc03b323ecff029fbad85b9cc50484fb49590b9752eb0998fe7a46f5307",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/pwma.py",
+      "legacy_sha256": "9e8fa031a56a58657ebdda1572eb6b9dc48a28d6f0e68a32712454b80adccbfb",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/pwma.py",
+      "target_sha256": "571057dfd612df23b134285956a9fe52f20cf8d6c6bede9a51cfcfe0fb0dff11",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/rma.py",
+      "legacy_sha256": "45530172c76d5c63db46e0aec94b2d60a8c1275f6ec023184067d93f2060449d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/rma.py",
+      "target_sha256": "ab172e1d9e2d0b20d4e0ac845125a2fd522a4f8f63fe47710ce5937028120edc",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/sinwma.py",
+      "legacy_sha256": "f90061ab7133b380479266f5f55d5f89fef2b7cbc0ac9102511116de4d122a8c",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/sinwma.py",
+      "target_sha256": "923447c87119776bf51005f25a9fd40cf368aab2ca53cf2a21333e701bd15cb4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/sma.py",
+      "legacy_sha256": "1103a7e5bbd24c94fcee129a87e25d749a5c36dd82b7da41cb27569d89a9f4f7",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/sma.py",
+      "target_sha256": "7d4950f95242f68cf256a7355b5eda2fe638bba19005f80e03c0921f6c7fb5c7",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/ssf.py",
+      "legacy_sha256": "df6ce6857ab0910babf4df4c11813fff892a012bdb0e4e05b7f83f01db2ffe12",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/ssf.py",
+      "target_sha256": "73f3174d949813950e56b43635bff16a1b40046ff0f19d265647051eb329ca69",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/supertrend.py",
+      "legacy_sha256": "75206fae824a9c1e44538071c1693846d9d9796dd7beae6befc24fac982a1778",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/supertrend.py",
+      "target_sha256": "fe66b1ad0aa0fdefb46876cf0292cece599d95a3522f8b28bd6bac6c2c7567dc",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/swma.py",
+      "legacy_sha256": "70067c89e54a9e3f4de2c8018cf0f08184028fca1806bf55d204b2d2329dbf86",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/swma.py",
+      "target_sha256": "bca539b8c3b8a4fd73276b62664fbe5bc8925a88148fc5e3f5427359eb3d3a6f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/t3.py",
+      "legacy_sha256": "9db85271529bbdc3f683d37ad808352628a0c6e52b77655a320f2dce6275fe32",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/t3.py",
+      "target_sha256": "2ca5db05512c8dd90540fa1164376e71f5107811ee6dae1c081e8557d027e384",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/tema.py",
+      "legacy_sha256": "cb0aff8665a325b42f8db51badb8b957fc8c34b078f3bffb2380faec9cdb6d7e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/tema.py",
+      "target_sha256": "171dd3d75d59cfa7998b527af3077719cb4a999fa035682d8340c43a0bbdb3a1",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/trima.py",
+      "legacy_sha256": "b58d55595db1dd86e64d034ea4d82e9cbe294e34033ca0a76aee11d24b338760",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/trima.py",
+      "target_sha256": "ff6e43a45d02f714212b11394d7125501ec4e23b4178f4f806ff7198276f8bce",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/vidya.py",
+      "legacy_sha256": "6ca0253d8854800512f302c10266fbdc81114a691ff13415ab0602953a9a5616",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/vidya.py",
+      "target_sha256": "870619620689cb275ee1ff28347e0628e37e87ebb11de9c500ab7514f33dc858",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/vwap.py",
+      "legacy_sha256": "50e4e45bfcb4fe94360586dbc359e675682acd78ae2557c5df29e73a48303f4f",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/vwap.py",
+      "target_sha256": "1d6903ceef9d09ddc3eaa227170a9abbbe8b76b75405252c0a1eb15e2e20d820",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/vwma.py",
+      "legacy_sha256": "c8caa7c803c03a07849f8d9d563716ac9369511c63c0a2c513a2b4c77fe1d03e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/vwma.py",
+      "target_sha256": "ee8d54d1cb4893cc6f640f404806839ddf072ab363f4674a84ae2991b2ebfd47",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/wcp.py",
+      "legacy_sha256": "c3b84cd650aa834bb75e202de85c170d75b3a798bfbcd8cb86e82f835d506405",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/wcp.py",
+      "target_sha256": "6bc58dd453918fdefe8892ee4c99b66cecf518ad433922800464852353a59979",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/wma.py",
+      "legacy_sha256": "7473805eab9c808a3a0d279e0c20198d0d09d92c517b337adafb18636016d7ee",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/wma.py",
+      "target_sha256": "ae6057727bf9b059fbfeffeae7804f47efca8c5bae373b28848dab3195fcadc4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/zlma.py",
+      "legacy_sha256": "152edb6ec400780ffe87132d764daf1bc60fc9421373e23560a53623a41c267a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/overlap/zlma.py",
+      "target_sha256": "888448bd8325fca7b78357cead6a42049081d275575efecc9a40c0da54d6c02e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/__init__.py",
+      "legacy_sha256": "f9c853e210b2d5ed77b4a3339d262123b6c301abf53f5a7b6ea9a33dcbad36ab",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/__init__.py",
+      "target_sha256": "f9c853e210b2d5ed77b4a3339d262123b6c301abf53f5a7b6ea9a33dcbad36ab",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/drawdown.py",
+      "legacy_sha256": "c9e81edcdeea589a8d5c922029f9b0dc8178f63fb0d3530bbad4d54ca205ce14",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/drawdown.py",
+      "target_sha256": "4d1683ffa5d43579c729993fde209299c6c50d00b66ca8093fe862c1ff46ff78",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/log_return.py",
+      "legacy_sha256": "9fad14add441548cae29f2b3b4b8d17ee2a0f3500dd7e506263fe3f30395d6b6",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/log_return.py",
+      "target_sha256": "0a4bd19647b95807b6c154bdbf1761e9c4d376bb8958924b062d11b5d9a79bd7",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/percent_return.py",
+      "legacy_sha256": "d4d35a5814255da609e6904e58bcaea3b624e0a18e14f7c499017e88ebe0b501",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/percent_return.py",
+      "target_sha256": "4a5eaf4f6317ed4a39dd3189d419e2aeead69c7b73dae51c2409cf538e7b8fb3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/performance/trend_return.py",
+      "legacy_sha256": "9ecc99b527ceef8cf5ee282bf0aeb9add367fe1f434270eaae077417008bce5d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/performance/trend_return.py",
+      "target_sha256": "3f07de8bdef2bb32b71a839808436aa6c0df6138059cab343fad14f3e29f41f0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/__init__.py",
+      "legacy_sha256": "87e195af11b37ac5529bb960b918641caacc1d1d3ca8733a443e701be110cdbd",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/__init__.py",
+      "target_sha256": "87e195af11b37ac5529bb960b918641caacc1d1d3ca8733a443e701be110cdbd",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/entropy.py",
+      "legacy_sha256": "ac9616f91f55af637e34c977f406834737572ccd91ea81aafbd3dae31c793409",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/entropy.py",
+      "target_sha256": "2c7f23e5fc0739874e19b8c9c6b2d72aa8e5ae5ed258cd8e6d530ee6b10d56d6",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/kurtosis.py",
+      "legacy_sha256": "246cf1bb87df027aa9a82d49578fb2547c990be73743d1626acc5329f0aec4ca",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/kurtosis.py",
+      "target_sha256": "3a714194ddd8ae817b0ad95d65e1c4721758ecbf2e449cecf0e5f6ee6fb57032",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/mad.py",
+      "legacy_sha256": "057a284d93e87967d3de8468e913e4689861bb34e8e23e9f9419b385c534855f",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/mad.py",
+      "target_sha256": "710064e4f6576c6cd5225ac57e0c4ba7b2d5447f90e59e9fc378ce339ca718eb",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/median.py",
+      "legacy_sha256": "232a29862acbc0e1ee0d7436ee953a9acb93526a75f95f23f277b3052c5a2bf8",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/median.py",
+      "target_sha256": "d714abc4a21ad8f83f2b00490be1f0aaa664844d7b8ea201d20bf5c22d46ce42",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/quantile.py",
+      "legacy_sha256": "c88f18f5633f552ff88cb931b041be4814d75573b849087469fa11785c96a847",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/quantile.py",
+      "target_sha256": "d05641a1fa99ce9ec088391a4749e7ec8fa13ae32baf23fd32556dcd64f4c9e3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/skew.py",
+      "legacy_sha256": "159062dc1ce9387ad856eb293deef2f89f3f40f4db4d592cdbe78cc510f386d9",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/skew.py",
+      "target_sha256": "4174dc49d8756b9863948b0241a0336ecc7481d0c0b30ce1c0a93ae666f631b0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/stdev.py",
+      "legacy_sha256": "a2467ecad7d1fc5474cccbfeb81e21b01a82454f8f16e9d40f5cb9302d300e7a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/stdev.py",
+      "target_sha256": "f574599c9adae1fee05c49bb1181a7ee60fe683f3198b9aa704c98b84c3cf7df",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/variance.py",
+      "legacy_sha256": "02aaf840c69f93b03b95dfbe0be2765497810b9a295c0177eef6bb8b4b7e001a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/variance.py",
+      "target_sha256": "af515ded57e511e5973179d9a28ada40e477f556c1e97249d0047ed5a85c5e5b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/statistics/zscore.py",
+      "legacy_sha256": "e3b332b0366a298073ed820dff0ebae1ebdf88e926c2d06ae4c0ac9c473eda59",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/statistics/zscore.py",
+      "target_sha256": "b36c60d1ba1fab2487a2ebb5a06a529c67ab5bf7c775bc7c112c7f082b3c0e93",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/__init__.py",
+      "legacy_sha256": "f10871bb9b561887bfa2bf5cb59603243e3d54c6284af4ac0ec4c93c15e22c94",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/__init__.py",
+      "target_sha256": "f10871bb9b561887bfa2bf5cb59603243e3d54c6284af4ac0ec4c93c15e22c94",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/adx.py",
+      "legacy_sha256": "5c5eb5f03b2a2b42ff095bc8ee59decf36f56d5a4062321dd8bd0377424873f9",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/adx.py",
+      "target_sha256": "81a3daeb7e74d100f223127a26520faaf9d36f20fe2fec3ff9ff84c954e662aa",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/amat.py",
+      "legacy_sha256": "768bd65837bfac56879f3d1a6ef81822f814edcc8d310155571f6986b6124dc5",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/amat.py",
+      "target_sha256": "7cfc9693644d2790e6d46e8f8453e37168013bfa3690f5dc5d11ab2c01f688e3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/aroon.py",
+      "legacy_sha256": "b8ed64e9d5b4fd5467e04dde106c1d0cc74ebb0768ff7ee695c219588e22b7bb",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/aroon.py",
+      "target_sha256": "7378aeeaa04b0b8986cb046c30e87439cada57d9a9c6fb53f508224cd002f767",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/chop.py",
+      "legacy_sha256": "2026666161b1e0258e59d5de1d7226325388cf00740bf835d393686acdcdc9a5",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/chop.py",
+      "target_sha256": "99b3d2e381d177932485a328bd21ec42595e90459655e7d0b328fc5f7ce7846b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/cksp.py",
+      "legacy_sha256": "5577d40df715fddc84a3ff0acadc2d6c8bfb47012a8ff8ed4b6213928bcac895",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/cksp.py",
+      "target_sha256": "892580f365ec745bcff6ee1c0bf20b1c7883601de53b8e7427f7a42db4fc6b60",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/decay.py",
+      "legacy_sha256": "4a6ba342bb0a3233ef0e801125267ca7dfea5589375bb546ec8efdecd71fd858",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/decay.py",
+      "target_sha256": "4835e09844584534271ca494aa349b3e3a2c456b2e20554faf3cdbf83e225649",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/decreasing.py",
+      "legacy_sha256": "6bbf4eb05f0233c545f4acea50c90e6100a57bb4c5dc5be8b21fb776e7a4ab4d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/decreasing.py",
+      "target_sha256": "b8de337e0f53ea19d4ac40e4d5fdfd9d10289ac1505b9fd3d4573aa7a81dfe6d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/dpo.py",
+      "legacy_sha256": "d146528840543eb1d033ccf0e3bd0af4ca8051ba06015d13b55d342d61b70272",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/dpo.py",
+      "target_sha256": "0f286b1e145e0794aad2d9c29feafb586fead56fa9d23b6b5b15b42bbdcb8e1d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/increasing.py",
+      "legacy_sha256": "1b069166e9e20a9f13648c952bcaed24ab1ae5e5ed835d823f3d7d4d687692ea",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/increasing.py",
+      "target_sha256": "2932b146cbf557f0818e310f67977d41d5ed91d7faf9312c8cf94a22e9e2b2d2",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/long_run.py",
+      "legacy_sha256": "b0814f7b59e72cfea3d02fcabacd7c6c28e509d85cd7c4977131a3958a2f252e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/long_run.py",
+      "target_sha256": "d975979e4cb640c43759175f034cc00f2df61b50c22c47f0c031deeea97e6217",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/psar.py",
+      "legacy_sha256": "58dfbacd2291a9f75e595ad4aefa65b6b736922afad41f0f9d5e83bad31d6673",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/psar.py",
+      "target_sha256": "f7968097a6212a19fe11eed5cafeb2492b94ded2c9f8b757f668a0de67572046",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/qstick.py",
+      "legacy_sha256": "0623e6390b9662fe93d97e87cf6d84662c24ca4d14db622f09ab6e6348ce0142",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/qstick.py",
+      "target_sha256": "53f83d72fbbd9b66016fa914ac480d9653eca03fda6d81f620bd892b8fc69bb2",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/short_run.py",
+      "legacy_sha256": "a554f74877304f48bf3fbbd5382bb620d307285ccc833926d318a4710ac1b41a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/short_run.py",
+      "target_sha256": "072b821f145776c1256a4a1a5e703eb94f412f4b6dfb3bc53aaf3fa083c344cf",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/ttm_trend.py",
+      "legacy_sha256": "9fc245fc5c3cf62bd7d88056016d04681cc677f642ba77089d0cfd264c613ff7",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/ttm_trend.py",
+      "target_sha256": "294e981faf321b8b73eb742cc9d7d2c940a474c420c030ff068869faffd4209e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/trend/vortex.py",
+      "legacy_sha256": "5d6463b927ccfcbcceea98850d2981f813ef45b970417bc3b71a786de06ab218",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/trend/vortex.py",
+      "target_sha256": "07b3e9c2c93034575c366b83b781770171276e1930925c0dc7e6796a10590ac7",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/__init__.py",
+      "legacy_sha256": "3d4d73db11f84e63981b85df86c2f1378ab5078ab4ec94a016f3cfd791fad461",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/__init__.py",
+      "target_sha256": "3d4d73db11f84e63981b85df86c2f1378ab5078ab4ec94a016f3cfd791fad461",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_candles.py",
+      "legacy_sha256": "8ab30dbfb05597d944c47015181a1986f9eae6074d755ada7496cc56e2724c7a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_candles.py",
+      "target_sha256": "8ab30dbfb05597d944c47015181a1986f9eae6074d755ada7496cc56e2724c7a",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_core.py",
+      "legacy_sha256": "47fcc11b14de6fb4629dfb006ab87002253dcc4641204053aa6c7bb1e26f786e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_core.py",
+      "target_sha256": "47fcc11b14de6fb4629dfb006ab87002253dcc4641204053aa6c7bb1e26f786e",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_data.py",
+      "legacy_sha256": "c5751c2e9899ee001b78c3532dca65fc835b86cf6cf17c0577ad29ac050696b5",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_data.py",
+      "target_sha256": "8c3bbd0b0631d64dfa39e21430600788cf706a2e91f451cb06870462de71e82e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_math.py",
+      "legacy_sha256": "e045f04a54e17b17cd4ccb3bd7c433eed1f8ca4df9cecc7ed8a89f6a84ea90f0",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_math.py",
+      "target_sha256": "2db1bf6fa528227b9f3bae58b3ce1b77cc2a7a2bdff5d186f7d5c2e02ca216b3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_metrics.py",
+      "legacy_sha256": "af4ecb9e0ef08a663f02cfb1aa9d2c0fdd4c5b72ed8c5c9aa170d4375fec4074",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_metrics.py",
+      "target_sha256": "5d63f06cef65840752fd8f12c2a99727ef0e73e781b7684530abe3a96000119f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_signals.py",
+      "legacy_sha256": "184b6e64f40a5ff12150dba4448fb3f496c34bbbf53d22fed94c0b59eaf10240",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_signals.py",
+      "target_sha256": "184b6e64f40a5ff12150dba4448fb3f496c34bbbf53d22fed94c0b59eaf10240",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/utils/_time.py",
+      "legacy_sha256": "a519cbee997a8b5a100013f7edaf5d73f5c6df182bf360b1589b3904f6c28f6a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/utils/_time.py",
+      "target_sha256": "2ccc3ba4cab020310184adb94c53fb0a400104799f99d2ababf0104138827f99",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/__init__.py",
+      "legacy_sha256": "1acc28a8b376a6dd8e96153be22bca2784102b9e35c4aca6aefe93a917065d70",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/__init__.py",
+      "target_sha256": "1acc28a8b376a6dd8e96153be22bca2784102b9e35c4aca6aefe93a917065d70",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/aberration.py",
+      "legacy_sha256": "918b51acfd53e45d699913c90fc01031a8d42e003b42c1984bcd46608aac58b4",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/aberration.py",
+      "target_sha256": "99cbf9efe62bac2aedc7989f45cac9bcbe03e5dcd1f5b6734fb4eb94fbd0d683",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/accbands.py",
+      "legacy_sha256": "685c8e5dcdfb7ab2c170c9810726f7898fd135e38bd9e17d66d6da53ae48c62a",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/accbands.py",
+      "target_sha256": "a7d02ac2a99955ce63fd43773745c50099a2d95708ee7a4f61e02f74f550a929",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/atr.py",
+      "legacy_sha256": "fe392290e7a4670f97f9b34924f6a7fd1c678153a3975c5595512c4848faa495",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/atr.py",
+      "target_sha256": "5dd37172e96b9d103dee4807c8b0dd4ebf431731f0491e7d0863dc7a1f6a8d06",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/bbands.py",
+      "legacy_sha256": "e5d3ee6e65b6252cc0beb846993c6e40516c68d1643eba63a658e6f02631a39d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/bbands.py",
+      "target_sha256": "ee6a06553da8a4f3259c3857dcffd5c0ec6f68c9fbd6969464e4b06796bfa0f9",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/donchian.py",
+      "legacy_sha256": "0bbb15077bfd5e9c658d99632850eec51020daa4fba86d8f527f6aaff9a770d3",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/donchian.py",
+      "target_sha256": "b3adb8ea8e8365ed51b494efc22ba1d9bd19785b2f13d9fcbbf3b829e2ab9c80",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/hwc.py",
+      "legacy_sha256": "685362176db3efe65daef91585de4ea224328a01f6913d51a08be7eb3a773996",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/hwc.py",
+      "target_sha256": "49600386aa176cbafe6b7581ec2e5925ddefaa96dfcb9c8872c5b71a3a68ee15",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/kc.py",
+      "legacy_sha256": "d0e6fabac1819f33c317d99ed1e380f2ea206f2e01110957a73c45c7212e6087",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/kc.py",
+      "target_sha256": "994205aa632a54d412812d19fdfbd56aff10eea176cabdad8654aec8e21ee15f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/massi.py",
+      "legacy_sha256": "88dc80225a9cef5a59f85d895f774fea21b60daa4f8796e0aa910aea4b996454",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/massi.py",
+      "target_sha256": "ad139f75a3dcc55f3ed5f0d384bb6a4827fee8b192e5d1783c50d6d6c02d1f6f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/natr.py",
+      "legacy_sha256": "2f9a945b98b3510188d1f71a638206562eddab798654c0047ddc772974e34cb4",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/natr.py",
+      "target_sha256": "4031b105ee24b4769039612d486c936a6fa5aac7cc360ec21d3b949fdd4ccc30",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/pdist.py",
+      "legacy_sha256": "8bc11835749236f64261f3d7ca7dd7e3738dc267eabc2c50d9433d2545dad267",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/pdist.py",
+      "target_sha256": "96fa76be2676f19449baad76d2bee85e4264dc43f8bc30f6c1da5f2a879901c9",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/rvi.py",
+      "legacy_sha256": "a714c2a577accc47d490b31a29da047402e1d77852a2e395be562dc50c6b4ea7",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/rvi.py",
+      "target_sha256": "c9ed7a214d9f344a1fa414b563feabeaea3fa676be18e36127a8e6d7c0e67602",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/thermo.py",
+      "legacy_sha256": "35c09253507a511149d96688538a17adebdaca987826d957020fff7a4561cb42",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/thermo.py",
+      "target_sha256": "dab2c772ed511d553e376bc460f650dded45747aefa885694bd78ff8afd4cd23",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/true_range.py",
+      "legacy_sha256": "d2621878fbd6df3bb5e8038a6a1eee5e23c151217b482218e62cb3043803d332",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/true_range.py",
+      "target_sha256": "d1373039d071afae4616f7326d05a24818ed2c04ef3916c340e520a1e43fc5e0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volatility/ui.py",
+      "legacy_sha256": "85452b12da9b10de8302a990f69de7fa86a88a066e24cd4e7c5ac28091700b75",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volatility/ui.py",
+      "target_sha256": "fedd61468b1e0707ad756db032ba7972df0b2e7c5bdfb1d806b13c6ea364954e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/__init__.py",
+      "legacy_sha256": "b537e026265a46b45eca6b606013e24358f4b1f6d3698b0025737e130f7f38e0",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/__init__.py",
+      "target_sha256": "b537e026265a46b45eca6b606013e24358f4b1f6d3698b0025737e130f7f38e0",
+      "transformation_profile": "byte_identical"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/ad.py",
+      "legacy_sha256": "d51ef48d46a46b692efbf73e6b79af017e7b4e63d9138b640929e1293ad01efd",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/ad.py",
+      "target_sha256": "148599b9601ca4ec413963192e226fd99f2a4321f06a1ec823bf69f09461870b",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/adosc.py",
+      "legacy_sha256": "e9df1edd58ad9bc6b825c00591eb59220eb416a2cf3cf5251783926198c7403e",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/adosc.py",
+      "target_sha256": "63811df19306877a839734524f6c7796967badd8a57c80af63c4b4cfc005295f",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/aobv.py",
+      "legacy_sha256": "3d0c3bff1de5e94f267e8b13c5fa195b956086e38626bcae92367d468f03c99d",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/aobv.py",
+      "target_sha256": "783fb73f7215af37ecd284761464a457e59fffcb4a6e1d6a9a7ede6435caa2d6",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/cmf.py",
+      "legacy_sha256": "86d48ae87f9d486bb49cd47b04752e3d9f0a52d7e7e5ae5984b698d361643844",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/cmf.py",
+      "target_sha256": "78ced1f855508c9442062e944168e2b8b3939d659a7b19d317545bb00c9ea787",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/efi.py",
+      "legacy_sha256": "a2064abb186ca2553f577e7123685d086e6acc967cd8b9adf226fac5290e418f",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/efi.py",
+      "target_sha256": "49e1c3e7bbbc5ae9a25ed0c25b35be52bc4e6c9d6b3be567f14e673097654681",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/eom.py",
+      "legacy_sha256": "4ef8e3164edcf1f85794531bbfdb8343d4cf45fe9b7b9201de0ab0c01f88fb57",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/eom.py",
+      "target_sha256": "37d055a8faef6fe30f53b05902c1bf4f4a9718c5274ff79ed1e9834f053362e4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/mfi.py",
+      "legacy_sha256": "821dcda655b9b88b1e9841d26b5e89840da51be7ca3ce0c8e6bc3ccf5105b068",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/mfi.py",
+      "target_sha256": "42e02b29b7f82a70815407c1ca71caf91af4b329ce7308899c09bc17eedc1fb4",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/nvi.py",
+      "legacy_sha256": "6269e6a0be45d85eedb115f74a6804cda697e91ed1f244cebcb42aca460bb0ce",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/nvi.py",
+      "target_sha256": "fc134f6b329197d06d32f16e96d59993d0fe2e2f98fcaa8e256e15c5f4fc494d",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/obv.py",
+      "legacy_sha256": "51ec03664fee519558971234ee6b6e66a93e1acec97bfb47af1452347d96f491",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/obv.py",
+      "target_sha256": "5917f6a8cff17454f87d142dc0191624bd0cb48ef96f360330b7574a8187fd72",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvi.py",
+      "legacy_sha256": "647ce540edc1315eb2f7258064ef34a2966776fd1732c92f95b3a29a90df2ad9",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvi.py",
+      "target_sha256": "a573fb2cc0a48dc28388d6ec0b3870ef95af7ed5bd0ad03e339333408a1646e3",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvol.py",
+      "legacy_sha256": "31b467efb0d666bcaa913aa2931c4f4fd598270e353e214179e450f0ef6839a9",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvol.py",
+      "target_sha256": "de44376ec0f9bb6d1214d81e8043b6c237b77d0ac4896037521aa12b8f4ed69a",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvr.py",
+      "legacy_sha256": "abebc27a2ff139596202f80ca0998b238c2ea98255a9228e21120f88912dd273",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvr.py",
+      "target_sha256": "389ab3f3b67e3857d596e1cd508dc6750ac4883452230b3b65f477662a685271",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/pvt.py",
+      "legacy_sha256": "7d596887ed99adb65bd5446efab7d90c632f6b446ebf18e3ea446277bd80f046",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/pvt.py",
+      "target_sha256": "9d29178b2324495e5a2f0caf46be84c87aa8b85111d14669fad68d90fc09a6d0",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    },
+    {
+      "category": "private_vendor",
+      "legacy_path": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/volume/vp.py",
+      "legacy_sha256": "d183ee687376c278a8e3cc7a4a390efad449d3dce95f61833ddb1986954de617",
+      "target_path": "custos_toolkit_nautilus/_vendor/pandas_ta/volume/vp.py",
+      "target_sha256": "b8fc8d107cb7e64f359fc99845c2d686ffe09159ec817be016dcb9fe9ba45f1e",
+      "transformation_profile": "namespace_or_private_vendor_packaging"
+    }
+  ],
+  "inventory_path": "docs/authority/strategy-toolkit-inventory-v1.json",
+  "inventory_sha256": "98dba9e60e906c4943c3b768465b66ddb38c42e2bde0bae6ffbadfc7fe6eef68",
+  "source_commit": "efc01da67b432e9b35beee3498415efc1bc46b98"
+}

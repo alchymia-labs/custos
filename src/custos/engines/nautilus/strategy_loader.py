@@ -78,7 +78,7 @@ def load_strategy_class(
     identity and can pin it.
 
     Any ``ModuleNotFoundError`` during the strategy import — including the
-    ps ``shared.*`` dependency graph reaching outside the vendored toolkit's
+    ps ``custos_toolkit.*`` dependency graph reaching outside the vendored toolkit's
     supported closure — surfaces as a structured
     ``strategy_toolkit_import_failed`` event before it propagates, so it
     isn't a silent degradation.
@@ -139,7 +139,7 @@ def _verify_registry_binding(name: str, strategy_cls: type, strategy_path: Path)
     lazily keeps the loader usable when the toolkit isn't required (unit
     tests with a stub strategy).
     """
-    from shared.nautilus import registry as ps_registry
+    from custos_toolkit_nautilus.adapter import registry as ps_registry
 
     if not ps_registry.is_registered(name):
         available = ps_registry.list_strategies()

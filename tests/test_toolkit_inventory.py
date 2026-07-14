@@ -1,64 +1,95 @@
 from __future__ import annotations
 
+import hashlib
 import json
-from pathlib import Path, PurePosixPath
+from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-INVENTORY = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
-TOOLKIT = ROOT / "src/custos/engines/nautilus/toolkit"
+INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
+EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
+INDEX_PATH = ROOT / "docs/authority/strategy-contract-assets-v1.json"
+TASK_4_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+BASE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
+NAUTILUS_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
 
 
-def _source_paths() -> set[str]:
-    return {
-        path.relative_to(ROOT).as_posix()
-        for path in TOOLKIT.rglob("*")
-        if path.is_file()
-        and "__pycache__" not in path.parts
-        and (path.suffix in {".py", ".yaml"} or path.name == "LICENSE")
-        and (
-            "shared" in path.relative_to(TOOLKIT).parts
-            or "vendor" in path.relative_to(TOOLKIT).parts
-        )
+def _load(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _target(relative: str) -> Path:
+    path = Path(relative)
+    if path.parts[0] == "custos_toolkit":
+        return BASE_ROOT / path
+    if path.parts[0] == "custos_toolkit_nautilus":
+        return NAUTILUS_ROOT / path
+    raise AssertionError(f"unsupported target namespace: {relative}")
+
+
+def test_frozen_inventory_cardinality_and_classification_are_immutable() -> None:
+    inventory = _load(INVENTORY_PATH)
+    files = inventory["files"]
+
+    assert inventory["inventory_schema_version"] == 1
+    assert inventory["file_count"] == len(files) == 241
+    assert inventory["category_counts"]["platform_neutral"] == 36
+    assert inventory["category_counts"]["nautilus_specific"] == 55
+    assert inventory["category_counts"]["private_vendor"] == 150
+    assert {entry["migration_action"] for entry in files} == {"extract_zero_rewrite"}
+
+
+def test_inventory_maps_each_legacy_path_to_one_physical_target() -> None:
+    files = _load(INVENTORY_PATH)["files"]
+    legacy_paths = [entry["legacy_path"] for entry in files]
+    targets = [entry["target_path"] for entry in files]
+
+    assert len(set(legacy_paths)) == len(legacy_paths)
+    assert len(set(targets)) == len(targets)
+    assert all(not (ROOT / path).exists() for path in legacy_paths)
+    assert all(_target(path).is_file() for path in targets)
+
+
+def test_extraction_manifest_has_the_same_one_to_one_mapping() -> None:
+    inventory = _load(INVENTORY_PATH)
+    extraction = _load(EXTRACTION_PATH)
+
+    expected = {
+        (entry["legacy_path"], entry["target_path"], entry["category"])
+        for entry in inventory["files"]
+    }
+    actual = {
+        (entry["legacy_path"], entry["target_path"], entry["category"])
+        for entry in extraction["files"]
     }
 
-
-def test_inventory_covers_each_deterministic_source_once() -> None:
-    inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
-    recorded = [entry["legacy_path"] for entry in inventory["files"]]
-    assert len(recorded) == len(set(recorded))
-    assert set(recorded) == _source_paths()
-    assert inventory["file_count"] == len(recorded)
+    assert extraction["extraction_schema_version"] == 1
+    assert extraction["file_count"] == 241
+    assert actual == expected
 
 
-def test_inventory_has_one_explicit_disposition_per_file() -> None:
-    inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
-    allowed = {
-        "platform_neutral",
-        "nautilus_specific",
-        "private_vendor",
-        "ps_owned_strategy",
-        "ps_owned_hummingbot",
-        "delete",
-    }
-    assert set(inventory["category_counts"]) == allowed
-    assert sum(inventory["category_counts"].values()) == inventory["file_count"]
-    assert inventory["legacy_aliases_must_retire"] == ["shared", "pandas_ta"]
+def test_task_2_asset_index_still_binds_the_immutable_inventory_bytes() -> None:
+    inventory_bytes = INVENTORY_PATH.read_bytes()
+    indexed = {entry["path"]: entry for entry in _load(INDEX_PATH)["assets"]}
+    record = indexed["docs/authority/strategy-toolkit-inventory-v1.json"]
+
+    assert record["sha256"] == hashlib.sha256(inventory_bytes).hexdigest()
+    assert record["size_bytes"] == len(inventory_bytes)
 
 
-def test_inventory_future_published_target_paths_are_unique() -> None:
-    inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
-    target_paths = [entry["target_path"] for entry in inventory["files"] if entry["target_path"]]
+def test_task_4_receipt_is_verified_but_cannot_handoff_before_commit() -> None:
+    receipt = _load(TASK_4_RECEIPT_PATH)
+    extraction = _load(EXTRACTION_PATH)
 
-    assert len(target_paths) == len(set(target_paths))
-
-
-def test_inventory_future_targets_forbid_legacy_top_level_aliases() -> None:
-    inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
-    target_paths = [entry["target_path"] for entry in inventory["files"] if entry["target_path"]]
-    target_top_levels = {PurePosixPath(path).parts[0] for path in target_paths}
-
-    # This is a target-inventory policy only. Runtime alias and sys.path
-    # retirement remain outside Plan 18 T1/T2.
-    assert target_top_levels.isdisjoint({"shared", "pandas_ta"})
-    assert inventory["legacy_aliases_must_retire"] == ["shared", "pandas_ta"]
-    assert "sys.path mutation" in inventory["forbidden_migration_mechanisms"]
+    assert receipt["receipt_status"] == "VERIFIED_PENDING_COMMIT"
+    assert receipt["handoff_ready"] is False
+    assert receipt["implementation"]["implementation_commit"] is None
+    assert receipt["implementation"]["worktree_clean"] is False
+    assert receipt["extraction"]["status"] == "PASS_241_OF_241_ZERO_REWRITE"
+    assert (
+        receipt["extraction"]["sha256"] == hashlib.sha256(EXTRACTION_PATH.read_bytes()).hexdigest()
+    )
+    assert receipt["parity"]["oracle_source_commit"] == extraction["source_commit"]
+    assert receipt["typing"]["extracted_implementation"] == ("ACK_EXACT_BASELINE_NOT_STRICT")
+    assert receipt["typing"]["production_ready"] is False
+    assert receipt["typing"]["closure_task"] == "Custos Plan 18 Task 4b"

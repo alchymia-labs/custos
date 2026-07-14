@@ -11,7 +11,7 @@ Usage:
     python main.py --strategy supertrend --mode live
 """
 
-from shared.nautilus.indicators import SuperTrend
+from custos_toolkit_nautilus.adapter.indicators import SuperTrend
 
 from .strategy import SuperTrendStrategy, SuperTrendStrategyConfig
 

@@ -7,7 +7,6 @@ dependencies = [
     "custos-strategy-toolkit==0.1.0",
     "nautilus-trader==1.230.0",
     "pyyaml>=6",
-    "setuptools>=50,<70",
     "packaging",
 ]
 
@@ -23,3 +22,4 @@ strict = true
 python_version = "3.12"
 mypy_path = "src"
 files = ["src/custos_toolkit_nautilus"]
+exclude = ["src/custos_toolkit_nautilus/_vendor/"]

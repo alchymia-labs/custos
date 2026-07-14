@@ -5,6 +5,7 @@ description = "Custos-owned strategy execution contracts and platform-neutral to
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.5",
+    "pyyaml>=6",
 ]
 
 [build-system]
@@ -23,3 +24,8 @@ disable_error_code = ["redundant-cast"]
 python_version = "3.11"
 mypy_path = "src"
 files = ["src/custos_toolkit"]
+
+[[tool.mypy.overrides]]
+module = ["hummingbot", "hummingbot.*", "nautilus_trader", "nautilus_trader.*"]
+follow_imports = "skip"
+ignore_missing_imports = true

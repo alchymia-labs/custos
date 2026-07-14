@@ -58,13 +58,16 @@ Python 3.11 resolution must fail rather than omit NT.
 
 `docs/authority/strategy-toolkit-inventory-v1.json` classifies every current
 deterministic input below legacy `shared/` and `vendor/`. There are 241 inputs:
-91 shared and 150 private-vendor files. Earlier Plan prose counted 459 general
-filesystem entries; that is not the deterministic extraction set.
+36 platform-neutral, 55 Nautilus-specific, and 150 private-vendor files. Earlier
+Plan prose counted 459 general filesystem entries; that is not the deterministic
+extraction set.
 
-Task 1 moves no production source. The vendored tree remains the single runtime
-authority until receipt-backed cutover. Extraction may not retain top-level
-`shared`/`pandas_ta`, mutate `sys.path`, fake a distribution, or leave two
-writable canonical copies.
+Plan 18 T4 maps those inputs one-to-one into `custos_toolkit`,
+`custos_toolkit_nautilus.adapter`, and the private
+`custos_toolkit_nautilus._vendor.pandas_ta` namespace. The legacy implementation
+tree is removed; its package marker is implementation-free. Extraction may not
+publish top-level `shared`/`pandas_ta`, mutate `sys.path`, fake a distribution,
+or leave two writable canonical copies. Runtime verifier activation remains T5.
 
 Plan 18 T3 moves the exact reviewed execution-contract source bytes to
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.
@@ -73,8 +76,21 @@ the separate Task 3 distribution receipt declares the current canonical path and
 proves byte continuity. `src/custos/contracts/strategy_execution.py` is only a
 temporary implementation-free re-export shim.
 
-Run `make strategy-contract-assets` to generate schema, inventory, golden, and
-digest-index assets. `make check-strategy-contract-assets` detects drift.
+The Task 2 inventory is immutable historical evidence. Run
+`make strategy-contract-assets` to generate schemas, lifecycle golden, and the
+digest index without regenerating that inventory. `make check-toolkit-extraction`
+reconstructs every T4 target from the pinned T3 Git blob, and
+`strategy-toolkit-parity-golden-v1.json` independently freezes pre-move fixed-input
+signal/order-intent and private-vendor indicator behavior.
+
+`make toolkit-typecheck` reports two distinct results: Custos-owned contracts and
+package shell must pass strict mypy, while inventory-extracted implementation is
+checked against the machine-readable exact debt baseline in
+`strategy-toolkit-typing-baseline-v1.json`. The current 75 platform-neutral and
+289 Nautilus-adapter errors are acknowledged debt, not a strict PASS. Plan 18
+Task 4b must reduce that baseline to zero before the distributions or 18b may be
+called strict or production-ready. Private third-party vendor code stays outside
+mypy and remains guarded by exact digests plus fixed-input parity.
 
 The canonical handoff name is `Custos Plan 18 Task 2 schema receipt`. Its draft
 must remain pending until exact producer commit, clean-worktree state,

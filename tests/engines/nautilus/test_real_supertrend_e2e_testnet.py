@@ -52,9 +52,8 @@ from nautilus_trader.adapters.binance.config import BinanceExecClientConfig  # n
 from nautilus_trader.live.node import TradingNode  # noqa: E402
 
 # Vendored toolkit sys.path bootstrap must precede any load of the fixture
-# strategy — its ``from shared.<pkg>`` imports are resolved at dynamic-load
+# strategy — its ``from custos_toolkit.<pkg>`` imports are resolved at dynamic-load
 # time.
-import custos.engines.nautilus.toolkit  # noqa: F401, I001 — vendored dep bootstrap
 from custos.engines.nautilus import venue_binance as venue  # noqa: E402
 from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
 
@@ -79,14 +78,14 @@ def _cleanup_supertrend_registry():
     modules that load the ps repo's own strategy.
     """
     yield
-    from shared.nautilus import registry as ps_registry
+    from custos_toolkit_nautilus.adapter import registry as ps_registry
 
     if ps_registry.is_registered("supertrend"):
         ps_registry.unregister_strategy("supertrend")
 
 
 def _load_strategy_config() -> dict:
-    from shared.config import load_yaml_file
+    from custos_toolkit.config import load_yaml_file
 
     return load_yaml_file(_REAL_SUPERTREND_CONFIG)
 

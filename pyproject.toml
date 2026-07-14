@@ -17,6 +17,7 @@ dev = [
     "jsonschema>=4.20",
     "mypy>=1.15",
     "pyyaml>=6",
+    "types-PyYAML>=6",
     "pytest>=8",
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
@@ -112,12 +113,21 @@ markers = [
 # Existing custos code is also at ~100 to avoid unnecessary format churn after subtree split.
 line-length = 100
 target-version = "py311"
-# Vendored trees under toolkit/ are byte-identical snapshots of upstream
-# projects (philosophers-stone shared/, MIT-licensed pandas_ta). Reformatting or
-# linting them would drift them from the pinned upstreams and defeat the
-# provenance-sync workflow (see TOOLKIT_PROVENANCE.md). Auditors read them as
-# their own upstreams, not as custos code.
-extend-exclude = ["src/custos/engines/nautilus/toolkit/shared", "src/custos/engines/nautilus/toolkit/vendor"]
+# Inventory-extracted implementation files retain upstream formatting. Custos
+# contracts and package shells remain linted; the deterministic extraction gate
+# verifies the excluded implementation files against their pinned Git blobs.
+extend-exclude = [
+    "packages/custos-strategy-toolkit/src/custos_toolkit/config",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/filters",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/indicators",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/position",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/protocols",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/risk",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/signals",
+    "packages/custos-strategy-toolkit/src/custos_toolkit/warmup",
+    "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter",
+    "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/_vendor",
+]
 
 [tool.ruff.lint]
 select = [

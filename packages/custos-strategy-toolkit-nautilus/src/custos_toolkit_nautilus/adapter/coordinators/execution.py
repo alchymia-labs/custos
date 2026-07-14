@@ -1,0 +1,189 @@
+"""Tick-driven execution component.
+
+Holds the tick-monitor execution path: routing trade/quote ticks to the correct
+pair context, and executing the exit actions the tick monitor produces (partial
+reduce-only exits and full position closes with reduce-only flood protection).
+Injects a strategy reference and reaches ``cache`` / ``log`` / ``clock`` /
+``order_factory`` / ``submit_order`` / ``close_position`` plus ``_mode`` /
+``_get_context_from_instrument`` / ``_sltp_coordinator`` through it.
+
+The nautilus tick callbacks (``on_core_trade_tick`` / ``on_core_quote_tick``)
+stay on the Strategy class -- the core dispatches them by name -- their thin
+shells delegate the body to this component's ``handle_*`` methods.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from nautilus_trader.common.enums import LogColor
+from custos_toolkit_nautilus.adapter.orders import _CLOSE_INFLIGHT_TIMEOUT_NS
+
+if TYPE_CHECKING:
+    from nautilus_trader.model.data import QuoteTick, TradeTick
+    from custos_toolkit_nautilus.adapter.pair_context import PairContext
+    from custos_toolkit_nautilus.adapter.tick_monitor import ExitAction
+    from custos_toolkit_nautilus.adapter.trading_strategy import NautilusTradingStrategy
+
+
+class ExecutionCoordinator:
+    """Tick-monitor execution path.
+
+    Dependencies are reached through ``self._strategy``.
+    """
+
+    def __init__(self, strategy: NautilusTradingStrategy) -> None:
+        self._strategy = strategy
+
+    def handle_trade_tick(self, tick: TradeTick) -> None:
+        """Handle trade tick - route to correct pair context."""
+        s = self._strategy
+        ctx = s._get_context_from_instrument(tick.instrument_id)
+        if ctx is None:
+            return
+
+        # native_trailing/exchange: SL/TP is venue-managed, no tick-path exit
+        if not s._mode.uses_tick_monitor:
+            return
+
+        if not ctx.tick_monitor or not ctx.tick_monitor.is_active:
+            return
+
+        positions = s.cache.positions_open(instrument_id=ctx.instrument_id)
+        if not positions:
+            return
+
+        current_price = Decimal(str(tick.price))
+        action = ctx.tick_monitor.check(current_price)
+
+        if action:
+            self._execute_exit_action_for_pair(ctx, action, positions[0])
+
+    def handle_quote_tick(self, tick: QuoteTick) -> None:
+        """Handle quote tick - route to correct pair context."""
+        s = self._strategy
+        ctx = s._get_context_from_instrument(tick.instrument_id)
+        if ctx is None:
+            return
+
+        # native_trailing/exchange: SL/TP is venue-managed, no tick-path exit
+        if not s._mode.uses_tick_monitor:
+            return
+
+        if not ctx.tick_monitor or not ctx.tick_monitor.is_active:
+            return
+
+        positions = s.cache.positions_open(instrument_id=ctx.instrument_id)
+        if not positions:
+            return
+
+        mid_price = (Decimal(str(tick.bid_price)) + Decimal(str(tick.ask_price))) / 2
+        action = ctx.tick_monitor.check(mid_price)
+
+        if action:
+            self._execute_exit_action_for_pair(ctx, action, positions[0])
+
+    def _execute_exit_action_for_pair(self, ctx: PairContext, action: ExitAction, position) -> None:
+        """Execute exit action from tick monitor for a specific pair."""
+        self._strategy.log.info(
+            f"[{ctx.pair}] TICK EXIT: {action.exit_type} | {action.reason}",
+            color=LogColor.MAGENTA,
+        )
+
+        if action.partial_pct:
+            self._execute_partial_exit_for_pair(ctx, position, action.partial_pct, action.reason)
+        else:
+            self._execute_trailing_stop_exit_for_pair(ctx, action.price, action.reason)
+
+    def _execute_partial_exit_for_pair(
+        self, ctx: PairContext, position, exit_pct: Decimal, reason: str
+    ) -> None:
+        """Execute partial position exit for a specific pair."""
+        s = self._strategy
+        exit_qty = Decimal(str(position.quantity)) * exit_pct
+
+        instrument = s.cache.instrument(ctx.instrument_id)
+        if instrument:
+            exit_qty = instrument.make_qty(exit_qty)
+
+        if exit_qty <= 0:
+            return
+
+        from nautilus_trader.model.enums import OrderSide, TimeInForce
+
+        order = s.order_factory.market(
+            instrument_id=ctx.instrument_id,
+            order_side=OrderSide.SELL if position.is_long else OrderSide.BUY,
+            quantity=exit_qty,
+            time_in_force=TimeInForce.IOC,
+            reduce_only=True,
+        )
+
+        s.submit_order(order)
+        s.log.info(
+            f"[{ctx.pair}] PARTIAL EXIT: {reason} | qty={exit_qty} ({exit_pct * 100:.0f}%)",
+            color=LogColor.MAGENTA,
+        )
+
+    def _execute_trailing_stop_exit_for_pair(
+        self, ctx: PairContext, current_price: Decimal, reason: str
+    ) -> None:
+        """Execute full position exit (tick SL/TP/trailing) for a specific pair.
+
+        Roots out reduce-only close flooding (-2022). Three layers of protection:
+        1. In-flight / cooldown gate -- while a close is in flight or within the
+           post-rejection backoff, do not re-send every tick.
+        2. Cancel serialization -- if the venue still has resting reduce_only
+           orders (hybrid safety SL / exchange SL/TP), cancel them first and
+           **skip the close this tick** (close on the next tick once the cancel
+           is confirmed), so a new close order and the resting orders don't add
+           up past the position size and get rejected.
+        3. With no resting reduce_only, submit a **single** full-close order and
+           arm the in-flight gate.
+        """
+        s = self._strategy
+        positions = s.cache.positions_open(instrument_id=ctx.instrument_id)
+        if not positions:
+            return
+
+        # Protection 1: in-flight / cooldown gate
+        now_ns = s.clock.timestamp_ns()
+        if not ctx.order_tracker.can_submit_close(now_ns):
+            return
+
+        position = positions[0]
+
+        # Protection 2: decide whether resting reduce_only orders remain using the
+        # venue's actual open-order state (not the local tracker). If so, cancel
+        # first, skip the close this tick, and close on the next tick once the
+        # cancel takes effect.
+        resting_reduce_only = [
+            o for o in s.cache.orders_open(instrument_id=ctx.instrument_id) if o.is_reduce_only
+        ]
+        if resting_reduce_only:
+            s._sltp_coordinator.cancel_sl_tp_orders(ctx)
+            s.log.info(
+                f"[{ctx.pair}] TICK EXIT pending: cancelling "
+                f"{len(resting_reduce_only)} resting reduce-only order(s) before close",
+                color=LogColor.MAGENTA,
+            )
+            return
+
+        # Protection 3: no contention -> use native close_position() to submit a
+        # single full-close order and arm the in-flight gate. close_position
+        # auto-reverses side, closes the full position.quantity, and is idempotent
+        # for an already-closed position (is_closed_c). Pass IOC explicitly
+        # (default GTC) + reduce_only=True to keep the current semantics.
+        from nautilus_trader.model.enums import TimeInForce
+
+        s.close_position(
+            position,
+            time_in_force=TimeInForce.IOC,
+            reduce_only=True,
+        )
+        ctx.order_tracker.mark_closing(now_ns, _CLOSE_INFLIGHT_TIMEOUT_NS)
+        s.log.info(
+            f"[{ctx.pair}] TICK EXIT: {reason} at {current_price}",
+            color=LogColor.MAGENTA,
+        )

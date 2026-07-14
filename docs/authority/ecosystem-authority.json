@@ -1,18 +1,40 @@
 {
   "schema_version": 1,
-  "snapshot_version": "2026-07-14",
+  "snapshot_version": "2026-07-15",
   "topology": [
     "ARX authorizes actor intent and issues ActorAssertion",
     "Crucible owns business workflows, DeploymentSpec, DeploymentInstance, and canonical facts",
     "Custos verifies signed desired state, executes locally, and emits signed RunnerFacts"
   ],
   "ownership": {
-    "arx": ["identity", "tenant", "RBAC", "TOTP", "resource policy", "ActorAssertion"],
-    "crucible-rust": ["business approvals", "risk policy", "DeploymentSpec", "DeploymentInstance", "canonical lifecycle"],
-    "custos": ["local credentials", "engine process", "venue interaction", "local safety", "runner observations"]
+    "arx": [
+      "identity",
+      "tenant",
+      "RBAC",
+      "TOTP",
+      "resource policy",
+      "ActorAssertion"
+    ],
+    "crucible-rust": [
+      "business approvals",
+      "risk policy",
+      "DeploymentSpec",
+      "DeploymentInstance",
+      "canonical lifecycle"
+    ],
+    "custos": [
+      "local credentials",
+      "engine process",
+      "venue interaction",
+      "local safety",
+      "runner observations"
+    ]
   },
   "runtime_identity": "deployment_instance_id",
-  "provenance_identity": ["deployment_spec_id", "deployment_spec_digest"],
+  "provenance_identity": [
+    "deployment_spec_id",
+    "deployment_spec_digest"
+  ],
   "command_events": [
     "DeploymentSpecReadyForRunner.<runner_id>.<deployment_instance_id>",
     "DeploymentInstanceDesiredStateChanged.<runner_id>.<deployment_instance_id>"
@@ -57,7 +79,16 @@
     "nautilus_trader": "1.230.0",
     "asset_index": "docs/authority/strategy-contract-assets-v1.json",
     "task_2_receipt": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
-    "legacy_python_lane": "independently supported, non-gating, and never a v1.team fallback"
+    "legacy_python_lane": "independently supported, non-gating, and never a v1.team fallback",
+    "task_4_extraction_receipt": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
+    "task_4_extraction_receipt_status": "VERIFIED_PENDING_COMMIT",
+    "task_4_handoff_ready": false,
+    "extraction_manifest": "docs/authority/strategy-toolkit-extraction-v1.json",
+    "parity_golden": "docs/authority/strategy-toolkit-parity-golden-v1.json",
+    "typing_baseline": "docs/authority/strategy-toolkit-typing-baseline-v1.json",
+    "whole_distribution_typing_status": "ACK_BASELINE_NOT_STRICT",
+    "typing_closure_task": "Custos Plan 18 Task 4b",
+    "production_ready": false
   },
   "migration_heads": {
     "arx": "0068",

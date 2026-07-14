@@ -2,7 +2,7 @@
 
 The target diffs the vendored ps `shared/` subset against a local upstream
 checkout (`PS_ROOT`, required). The pinned commit to diff from normally comes
-from `TOOLKIT_PROVENANCE.md`, but can be overridden via `PINNED_PS_SHA` for
+from `docs/authority/strategy-toolkit-provenance.md`, but can be overridden via `PINNED_PS_SHA` for
 tests — that seam keeps these tests hermetic (a synthetic local git fixture,
 not a dependency on any real philosophers-stone checkout being present on
 the machine running the tests, matching independent-repo self-sufficiency).

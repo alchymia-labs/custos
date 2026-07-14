@@ -140,17 +140,21 @@ lifecycle 则上报 `phase="stopped"`。`phase` 表示生命周期实际态，`h
 
 ## Toolkit sync discipline
 
-`nautilus_host` 运行时依赖的策略代码（`SuperTrendStrategy` 等）经由
-`src/custos/engines/nautilus/toolkit/` 加载 —— 该目录是 philosophers-stone
-`shared/` 依赖闭包的**权威**（body-of-truth），非只读镜像。
+`nautilus_host` 运行时从两个正式 distribution 消费策略工具链：Python 3.11
+兼容的 `custos_toolkit`，以及 Python 3.12 Nautilus lane 的
+`custos_toolkit_nautilus`。241 个实现文件的唯一物理落点、源 commit 和 digest
+记录在 `docs/authority/strategy-toolkit-inventory-v1.json` 与
+`strategy-toolkit-extraction-v1.json`；`make check-toolkit-extraction` 逐文件重建
+期望内容并 fail closed。`src/custos/engines/nautilus/toolkit/` 只保留无副作用的
+deprecation marker，不再承载实现或修改 `sys.path`。
 
-- **权威声明**：custos toolkit 是共享代码的权威来源；philosophers-stone
-  `shared/` 是研究侧副本（团队实验性指标 / 新信号代码），稳定后经 sync-check
-  流回 custos toolkit（见 `TOOLKIT_PROVENANCE.md` §Sync procedure）。
-- **同步检查机制**：`make toolkit-sync-check`（`PS_ROOT` 必填）对比 vendored
-  子集与本地 ps checkout 的差异，周检节奏（weekly cadence）—— custos 目前无
-  CI，落地为 ops runbook 手动 / cron 周跑，drift 结果记入
-  `TOOLKIT_PROVENANCE.md` §Drift audit log。
+- **权威声明**：Custos package source 是 execution toolkit 的 body of truth；
+  philosophers-stone 继续拥有策略研究源和 canonical BOM producer 职责，不是
+  Custos runtime import path。
+- **同步检查机制**：`make toolkit-sync-check`（`PS_ROOT` 必填）用于显式发现研究
+  源与冻结提取物的 drift。任何采纳都必须生成新版本 inventory/extraction，不能
+  原地改写 v1 evidence；规则见
+  `docs/authority/strategy-toolkit-provenance.md`。
 - **crucible Docker preservation window（硬约束）**：`the-crucible` 生产
   supervisor 对 ps `shared/*.py` **零直接 import**（纯 HTTP 编排，走
   `crucible_engine/supervisor.py` 的 `httpx.AsyncClient` 到 sidecar），但 ps
@@ -167,7 +171,7 @@ lifecycle 则上报 `phase="stopped"`。`phase` 表示生命周期实际态，`h
   （`crucible-runtime-migration`），解锁后才能真正让 ps `shared/` 收敛为纯
   研究副本。
 - **收敛流向**：ps `shared/` 中稳定下来的代码，经 sync-check 流回 custos
-  toolkit；custos toolkit 不会反向依赖 ps 的未稳定代码。
+  toolkit 的新版本提取计划；custos toolkit 不会运行时反向依赖 ps checkout。
 - **no-destructive-delete 保证**：在 crucible Docker preservation window
   存续期间，ps `shared/` 与 `deploy/` **不得**被删除或破坏性移动 —— 无论
   采纳哪个 curation / convergence 选项。
@@ -175,14 +179,16 @@ lifecycle 则上报 `phase="stopped"`。`phase` 表示生命周期实际态，`h
 **决策落地（CEO 已裁定）**：
 
 - **Curation scope**：保持 06a 全 9 子包 vendor 现状（详见
-  `TOOLKIT_PROVENANCE.md` §Curation decision）。
+  `strategy-toolkit-inventory-v1.json`）；T4 物理落点为 36 个 base、55 个
+  Nautilus adapter 和 150 个 private vendor 文件。
 - **ps convergence timing**：短期保留 ps Docker-buildable `shared/` +
   `deploy/`，直至 crucible→custos 运行时迁移落地；该迁移是独立候选 plan，非
   本次交付范围。
 - **Sync-check cadence**：周检（weekly diff review），custos 无 CI 前走 ops
   runbook 强制执行。
-- **pandas_ta governance**：保持 vendored fork 现状 + 正式化升级触发条件
-  （详见 `TOOLKIT_PROVENANCE.md` §pandas_ta governance）。
+- **pandas_ta governance**：保持 private vendored fork，只能从
+  `custos_toolkit_nautilus._vendor.pandas_ta` 导入；禁止发布顶层 `pandas_ta`
+  alias。升级必须新建 versioned inventory/extraction evidence。
 
 ## PS supertrend migration
 
@@ -194,22 +200,19 @@ the philosophers-stone (ps) side keeps, and where the residual tech-debt sits.
 
 ### Integration path
 
-Real ps `SuperTrendStrategy` loads on custos through the vendored toolkit
-substrate at `src/custos/engines/nautilus/toolkit/`. The load path is:
+The extracted `SuperTrendStrategy` fixture loads through the published toolkit
+namespaces. The production load path is:
 
 1. `custos.engines.nautilus.strategy_loader.load_strategy_class` reads the
    strategy source file and passes it through the code_hash gate (dir-hash
    layer 3 in production, skipped in sandbox).
-2. The public loader imports `custos.engines.nautilus.toolkit` immediately
-   after the code-hash gate and before it executes strategy code. The toolkit
-   bootstrap prepends `toolkit/` and `toolkit/vendor/` to `sys.path` so the
-   strategy module's `from shared.<pkg>` and `import pandas_ta` imports resolve
-   without rewriting any vendored source. Callers must not need a separate
-   bootstrap import; strategy loading is independent of incidental
-   module-import order.
+2. Strategy code imports platform-neutral helpers from `custos_toolkit` and
+   engine adapters from `custos_toolkit_nautilus.adapter`. Private indicator
+   code resolves only below `custos_toolkit_nautilus._vendor`; there is no
+   path bootstrap or top-level compatibility alias.
 3. `load_strategy_class(..., expected_registry_name="supertrend")` invokes
    the loader's post-load registry binding check
-   (`shared.nautilus.registry.get_strategy_info`) to assert the module the
+   (`custos_toolkit_nautilus.adapter.registry.get_strategy_info`) to assert the module the
    loader picked matches the class registered under the operator-supplied
    name.
 4. `NtTradingNodeHost._instantiate_strategy` calls the ps
@@ -249,10 +252,10 @@ would be incorrect and would break crucible production if acted on.
 ### Toolkit vs G6 code_hash scope
 
 The toolkit substrate is covered by custos's supply-chain integrity layer
-(`TOOLKIT_PROVENANCE.md` pin + custos release signing), not by the
+(`strategy-toolkit-extraction-v1.json` + wheel receipt + Custos release signing), not by the
 per-deploy G6 code_hash gate. G6 layer 3 (dir-hash) hashes only the
 strategy directory the operator's spec points at, not the transitive
-`toolkit/shared/*` closure. This split is deliberate: the toolkit is
+packaged toolkit closure. This split is deliberate: the toolkit is
 compiled into custos releases and audited as part of the release
 provenance chain, while the strategy directory is what changes per-deploy
 and needs the per-deploy gate. Together the two layers form the

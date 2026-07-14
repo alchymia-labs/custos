@@ -29,9 +29,10 @@ fmt-check:  ## Check formatting (ruff format --check, no file changes)
 lint:  ## Lint check (ruff check)
 	uv run --package custos-runner ruff check src/ tests/ scripts/ packages/
 
-toolkit-typecheck:  ## Strict mypy for the two Plan 18 distributions
-	uv run --package custos-runner mypy --config-file packages/custos-strategy-toolkit/pyproject.toml packages/custos-strategy-toolkit/src/custos_toolkit
-	uv run --package custos-runner mypy --config-file packages/custos-strategy-toolkit-nautilus/pyproject.toml packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus
+toolkit-typecheck:  ## Strict contracts plus exact extracted-source debt baseline
+	uv run --package custos-runner --extra dev mypy --config-file packages/custos-strategy-toolkit/pyproject.toml packages/custos-strategy-toolkit/src/custos_toolkit/contracts
+	uv run --package custos-runner --extra dev --extra nautilus mypy --config-file packages/custos-strategy-toolkit-nautilus/pyproject.toml packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/__init__.py
+	uv run --package custos-runner --extra dev --extra nautilus python scripts/check-toolkit-typing-baseline.py
 
 check: fmt-check lint  ## Combined formatting check and lint
 
@@ -136,7 +137,7 @@ toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ opt
 		echo "   usage: PS_ROOT=/path/to/philosophers-stone make toolkit-sync-check" >&2; \
 		exit 1; \
 	fi; \
-	PROVENANCE=src/custos/engines/nautilus/toolkit/TOOLKIT_PROVENANCE.md; \
+	PROVENANCE=docs/authority/strategy-toolkit-provenance.md; \
 	PS_PINNED=$${PINNED_PS_SHA:-$$(awk -F'`' '/\*\*Upstream commit\*\*/{print $$2; exit}' "$$PROVENANCE")}; \
 	if [ -z "$$PS_PINNED" ]; then \
 		echo "❌ ps upstream commit not recorded in $$PROVENANCE" >&2; \
@@ -188,9 +189,14 @@ check-strategy-contract-assets:  ## Fail when generated Plan 18 contract assets 
 
 # Architecture authority and document drift gate.
 .PHONY: check-authority
-check-authority: check-strategy-contract-assets
+check-toolkit-extraction:
+	uv run python scripts/check-toolkit-extraction.py
+
+check-authority: check-strategy-contract-assets check-toolkit-extraction
 	@/usr/bin/python3 scripts/check-authority-docs.py
 
 verify: check-authority
 
 verify: toolkit-typecheck
+
+.PHONY: check-toolkit-extraction

@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3 complete, T4-T5 open; T6-T9 open
+> **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3 complete, T4 verified pending commit, T4b-T5 open; T6-T9 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Task 3 READY handoff
+> **Revised**: 2026-07-15 after Task 4 extraction verification and typing-debt discovery
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -295,11 +295,11 @@ PS build-image.sh ───────────> Crucible Python image publi
 | Slice | Tasks | 独立 DoD | Stop gate |
 |---|---|---|---|
 | 18a Contract authority | T1-T2 | inventory、authority docs、source-generated schemas、lossless lifecycle mapping、Task 2 receipt 和 `make check-authority` 全部 PASS | schema/receipt commit 与 handoff packet 未记录前不得开始 18b |
-| 18b Extraction and verification | T3-T5 | 两个 distributions 可独立构建；3.11 negative install、zero-rewrite、deep-frozen config、attestation-before-import gates PASS | 18a exact Task 2 receipt 未锁定，或任一 migration batch 未有 parity evidence 时停止 |
+| 18b Extraction and verification | T3-T5 + T4b | 两个 distributions 可独立构建；3.11 negative install、zero-rewrite、typing closure、deep-frozen config、attestation-before-import gates PASS | 18a exact Task 2 receipt 未锁定，任一 migration batch 未有 parity evidence，或 extracted typing baseline 未清零时停止 production-ready 声明 |
 | 18c Immutable RC | T6 | reproducible RC、完整 release BOM、签名、SBOM、local trust-policy binding PASS | RC BOM/成员 digests 未固定前不得请求 consumer receipt |
 | 18d Consumer cutover | T7-T9 | PS Plan 54、Crucible Plan 88 和 Custos verifier/runtime candidate/final receipts、final BOM、旧 authority 删除、close-out gates PASS | 仅 v1.team artifact-chain BOM/receipt 不匹配会停止并发布新 RC；不得等待 Speculum |
 
-18b 的 production-ready 声明只在 T3-T5 整体 DoD 全部满足后成立。T3 单独完成只建立
+18b 的 production-ready 声明只在 T3-T5 与 T4b 整体 DoD 全部满足后成立。T3 单独完成只建立
 distribution 和 typing boundary，不得标记 18b production-ready，也不得冒充 artifact verifier
 或 runtime cutover 已完成。
 
@@ -413,6 +413,27 @@ git commit -m "feat(toolkit): create typed strategy toolkit distribution"
 - 记录 semantic diff 与 fixed-input behavior parity；
 - 独立提交，避免 241 个 source inputs 一次性不可审查迁移。
 
+T4 执行时确认 namespace cutover 必须保持原子性，否则任一中间 commit 都会同时缺失旧路径
+和部分新路径。审查粒度因此由 `strategy-toolkit-extraction-v1.json` 的 241 条逐文件
+source/target digest records 提供，而不是制造不可运行的 partial-move commits。冻结 parity
+golden 绑定 T3 exact commit，独立于迁移后 fixture。
+
+### Task 4b: Close extracted-source typing debt without behavior change
+
+T4 首次把 inventory source 纳入 mypy 后，确认 T3 的 strict PASS 只覆盖当时的 4 个 base
+contracts 与 2 个 Nautilus package source，不代表 241 个提取文件 strict。T4b 必须：
+
+1. 保持 Custos-owned contracts/package shell strict PASS；
+2. 以 `strategy-toolkit-typing-baseline-v1.json` 逐条锁定 extracted implementation 的
+   path、line、error code 和 message，任何未审查变化 fail closed；
+3. 当前 baseline 为 platform-neutral 75 errors、Nautilus adapter 289 errors；private vendor
+   是第三方 source，排除 mypy 但继续受 digest 与 fixed-input parity gate 约束；
+4. 只做 no-behavior-change typing closure；每批必须同时通过 zero-rewrite replacement review、
+   fixed-input parity 和 exact debt reduction；
+5. baseline 清零前不得宣称整个 distribution strict、18b production-ready 或 runtime-ready。
+
+T4b 可与 T5 实现并行，但属于 18b close-out hard gate。
+
 ### Task 5: Implement artifact verifier and attestation policy
 
 1. 写失败测试覆盖 forged issuer、wrong workflow、wrong trust policy、digest mismatch、
@@ -519,7 +540,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T1 Inventory/authority | [x] | 2026-07-14 | inventory/authority baseline landed in `877a52a`; current reviewed candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0` passed focused and full authority gates |
 | T2 Coordinated contracts | [x] | 2026-07-14 | READY receipt pins candidate `b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0`, source `71990c6a...`, index `d87d6fc2...`, both exact requirements reviews, and clean verification checkout `f6406ea1...` |
 | T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4-T5 remain open, so 18b is not production-ready |
-| T4 Zero-rewrite extraction | [ ] | — | batch commits required |
+| T4 Zero-rewrite extraction | [ ] | — | 241/241 deterministic extraction、independent parity 和 focused gates verified; receipt `VERIFIED_PENDING_COMMIT`, exact commit/clean checkout pending |
+| T4b Extracted typing closure | [ ] | — | exact baseline: platform-neutral 75, Nautilus adapter 289; zero required before strict/production-ready claim |
 | T5 Verifier/attestation | [ ] | — | production wheel only |
 | T6 Candidate | [ ] | — | immutable rc |
 | T7 Receipts | [ ] | — | four parties |

@@ -2,8 +2,8 @@
 
 These tests read the real philosophers-stone `shared/README.md` and the
 custos-side `docs/design/nautilus_host.md`, verifying the bilateral
-convergence documentation lands: custos toolkit is declared as the shared
-body-of-truth authority, ps `shared/` is documented as a non-destructively
+convergence documentation lands: Custos packages are declared as the execution
+toolkit authority, ps `shared/` is documented as a non-destructively
 preserved research copy, and the crucible Docker preservation hard
 constraint is stated with its Dockerfile-line evidence.
 
@@ -37,7 +37,7 @@ def test_ps_convergence_documentation_no_destructive_delete() -> None:
     text = readme.read_text(encoding="utf-8")
 
     assert "custos" in text.lower(), "ps README must reference custos as the authority"
-    assert "src/custos/engines/nautilus/toolkit/shared" in text, (
+    assert "packages/custos-strategy-toolkit/src/custos_toolkit" in text, (
         "ps README must point at the exact custos authority path"
     )
     assert "no destructive delete" in text.lower(), (

@@ -14,16 +14,16 @@ execution, SL/TP) is inherited from the base class.
 """
 
 import msgspec
-from nautilus_trader.model.data import Bar
-from shared.config import ConfigWrapper
-from shared.nautilus import (
+from custos_toolkit.config import ConfigWrapper
+from custos_toolkit.signals import Signal
+from custos_toolkit_nautilus.adapter import (
     NautilusTradingStrategy,
     NautilusTradingStrategyConfig,
     PairContext,
     register_strategy,
 )
-from shared.nautilus.indicators import SuperTrend
-from shared.signals import Signal
+from custos_toolkit_nautilus.adapter.indicators import SuperTrend
+from nautilus_trader.model.data import Bar
 
 
 # =============================================================================
@@ -397,13 +397,13 @@ def create_strategy(config: dict) -> SuperTrendStrategy:
     Implements the Crucible StrategyFactory protocol: receives the raw
     config.yaml dict (with any overrides already applied) and returns a
     configured strategy instance. Base defaults are merged the same way
-    as shared.config.load_config().
+    as custos_toolkit.config.load_config().
     """
     from pathlib import Path
 
-    from shared.config import deep_merge, load_yaml_file
-    from shared.config import loader as _config_loader
-    from shared.nautilus import create_strategy as _create_registered_strategy
+    from custos_toolkit.config import deep_merge, load_yaml_file
+    from custos_toolkit.config import loader as _config_loader
+    from custos_toolkit_nautilus.adapter import create_strategy as _create_registered_strategy
 
     base_path = Path(_config_loader.__file__).parent / "base_config.yaml"
     base_config = load_yaml_file(base_path) if base_path.exists() else {}

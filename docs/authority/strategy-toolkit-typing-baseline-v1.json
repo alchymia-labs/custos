@@ -1,0 +1,2218 @@
+{
+  "closure_task": "Custos Plan 18 Task 4b",
+  "mypy_version": "mypy 2.3.0 (compiled: yes)",
+  "private_vendor_policy": "excluded third-party source; covered by digest and parity gates",
+  "profiles": {
+    "nautilus_adapter": {
+      "config": "packages/custos-strategy-toolkit-nautilus/pyproject.toml",
+      "errors": [
+        {
+          "code": "import-not-found",
+          "line": 11,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/capital_allocator.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 108,
+          "message": "Returning Any from function declared to return \"Decimal\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/capital_allocator.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 28,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/allocation.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 39,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/backtesting.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 43,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/backtesting.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 160,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/filters.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 163,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/filters.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 62,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/platforms.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 65,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/platforms.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 120,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/position.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 123,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/position.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 192,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/risk.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 195,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/risk.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 31,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/signal.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 34,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/signal.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 30,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/snapshot.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 34,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/snapshot.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 62,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/trading.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 73,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/config/trading.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 53,
+          "message": "Function is missing a return type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/equity_provider.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 68,
+          "message": "Call to untyped function \"_primary_instrument_id\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/equity_provider.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 84,
+          "message": "Returning Any from function declared to return \"Decimal\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/equity_provider.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 123,
+          "message": "Call to untyped function \"_primary_instrument_id\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/equity_provider.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 24,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/execution.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 87,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/execution.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 99,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/execution.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 19,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/filter.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 72,
+          "message": "Function is missing a return type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/filter.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 115,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/filter.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 141,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/filter.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 106,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 127,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 129,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 131,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 152,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 185,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 189,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 199,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 201,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 253,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 270,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 339,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 438,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/order_reconciler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 37,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/pair_context.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 58,
+          "message": "Call to untyped function \"PositionTracker\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/pair_context.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 74,
+          "message": "Call to untyped function \"ExecutionManager\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/pair_context.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 84,
+          "message": "Call to untyped function \"NativeTrailingStopSubmitter\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/pair_context.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 55,
+          "message": "Item \"None\" of \"RiskController | None\" has no attribute \"check_limits\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/risk_control.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 25,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 166,
+          "message": "Item \"None\" of \"ExecutionManager | None\" has no attribute \"create_entry_order\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 197,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 204,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 229,
+          "message": "Item \"None\" of \"ExecutionManager | None\" has no attribute \"create_exit_order\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 237,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/signal_execution.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 49,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 64,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 93,
+          "message": "Item \"None\" of \"StopLossSubmitter | None\" has no attribute \"create_order_from_price\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 104,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 106,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 112,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"trigger_price\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 183,
+          "message": "Item \"None\" of \"StopLossSubmitter | None\" has no attribute \"create_order\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 192,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 196,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 216,
+          "message": "Item \"None\" of \"TakeProfitSubmitter | None\" has no attribute \"create_scaled_orders\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 237,
+          "message": "Item \"None\" of \"TakeProfitSubmitter | None\" has no attribute \"create_single_order\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 247,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 251,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 277,
+          "message": "Item \"None\" of \"StopLossSubmitter | None\" has no attribute \"create_order_from_price\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 287,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 291,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"trigger_price\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 292,
+          "message": "Item \"object\" of \"object | Any\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 344,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 349,
+          "message": "\"object\" has no attribute \"client_order_id\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/sltp.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 35,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/snapshot.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 127,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/snapshot.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 37,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 67,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 116,
+          "message": "Item \"None\" of \"RiskController | None\" has no attribute \"update_peak_equity\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 135,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 151,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 185,
+          "message": "Item \"None\" of \"RiskController | None\" has no attribute \"record_trade\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 227,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/trade_event_handler.py"
+        },
+        {
+          "code": "import-untyped",
+          "line": 17,
+          "message": "Library stubs not installed for \"pandas\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 19,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 30,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 89,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 119,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 126,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 162,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/coordinators/warmup.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 71,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 86,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 115,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 147,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 177,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 278,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 340,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/event_publisher.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 12,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 13,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.objects\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 53,
+          "message": "Function is missing a type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 66,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 131,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 153,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 210,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/execution.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 94,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filter_manager.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 107,
+          "message": "Returning Any from function declared to return \"bool\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filter_manager.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 366,
+          "message": "Item \"None\" of \"BehaviorConfig | None\" has no attribute \"reduce_size_factor\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filter_manager.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 411,
+          "message": "Returning Any from function declared to return \"bool\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filter_manager.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 26,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.averages\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/adx.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 27,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.trend\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/adx.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 28,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.volatility\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/adx.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 20,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.averages\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 21,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.momentum\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 22,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.trend\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 94,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 95,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 97,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 98,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 100,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 101,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 102,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 102,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 103,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 118,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 132,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 147,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 164,
+          "message": "Returning Any from function declared to return \"float | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 164,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 169,
+          "message": "Returning Any from function declared to return \"float | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 169,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 171,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 174,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 175,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/momentum.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 20,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.averages\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 21,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.momentum\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 22,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.trend\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 23,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.volatility\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 86,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 87,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 90,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 96,
+          "message": "Item \"None\" of \"deque[float] | None\" has no attribute \"append\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 97,
+          "message": "Argument 1 to \"len\" has incompatible type \"deque[float] | None\"; expected \"Sized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 108,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 109,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 110,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 110,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 115,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"pos\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 115,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 116,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"neg\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 116,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 119,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"update_raw\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 120,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"initialized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 121,
+          "message": "Item \"None\" of \"Any | None\" has no attribute \"value\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "union-attr",
+          "line": 121,
+          "message": "Item \"None\" of \"deque[float] | None\" has no attribute \"append\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 123,
+          "message": "Argument 1 to \"len\" has incompatible type \"deque[float] | None\"; expected \"Sized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 132,
+          "message": "Argument 1 to \"len\" has incompatible type \"deque[float] | None\"; expected \"Sized\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "index",
+          "line": 134,
+          "message": "Value of type \"deque[float] | None\" is not indexable",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 138,
+          "message": "Argument 1 to \"list\" has incompatible type \"deque[float] | None\"; expected \"Iterable[float]\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 191,
+          "message": "Returning Any from function declared to return \"float | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/regime.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 15,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.volatility\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/volatility.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 89,
+          "message": "Returning Any from function declared to return \"float | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/volatility.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 16,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.averages\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/filters/volume.py"
+        },
+        {
+          "code": "import-untyped",
+          "line": 3,
+          "message": "Library stubs not installed for \"pandas\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/adx.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 5,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.base\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/adx.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 6,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/adx.py"
+        },
+        {
+          "code": "misc",
+          "line": 9,
+          "message": "Class cannot subclass \"Indicator\" (has type \"Any\")",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/adx.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 115,
+          "message": "Module has no attribute \"adx\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/adx.py"
+        },
+        {
+          "code": "import-untyped",
+          "line": 3,
+          "message": "Library stubs not installed for \"pandas\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/atr.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 5,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.base\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/atr.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 6,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/atr.py"
+        },
+        {
+          "code": "misc",
+          "line": 9,
+          "message": "Class cannot subclass \"Indicator\" (has type \"Any\")",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/atr.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 93,
+          "message": "Module has no attribute \"atr\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/atr.py"
+        },
+        {
+          "code": "import-untyped",
+          "line": 3,
+          "message": "Library stubs not installed for \"pandas\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/macd.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 5,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.base\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/macd.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 6,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/macd.py"
+        },
+        {
+          "code": "misc",
+          "line": 9,
+          "message": "Class cannot subclass \"Indicator\" (has type \"Any\")",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/macd.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 123,
+          "message": "Module has no attribute \"macd\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/macd.py"
+        },
+        {
+          "code": "import-untyped",
+          "line": 3,
+          "message": "Library stubs not installed for \"pandas\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/rsi.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 5,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.base\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/rsi.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 6,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/rsi.py"
+        },
+        {
+          "code": "misc",
+          "line": 9,
+          "message": "Class cannot subclass \"Indicator\" (has type \"Any\")",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/rsi.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 109,
+          "message": "Module has no attribute \"rsi\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/rsi.py"
+        },
+        {
+          "code": "import-untyped",
+          "line": 11,
+          "message": "Library stubs not installed for \"pandas\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 13,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.indicators.base\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 14,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "misc",
+          "line": 36,
+          "message": "Class cannot subclass \"Indicator\" (has type \"Any\")",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "attr-defined",
+          "line": 186,
+          "message": "Module has no attribute \"supertrend\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 318,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 353,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/indicators/supertrend.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 19,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 20,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.objects\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 191,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 195,
+          "message": "Missing type arguments for generic type \"set\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 308,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 329,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 377,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 412,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 472,
+          "message": "Function is missing a type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 485,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 557,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 585,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 606,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 659,
+          "message": "Returning Any from function declared to return \"object | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 669,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 677,
+          "message": "Missing type arguments for generic type \"list\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/orders.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 11,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/pair_context.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 12,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/pair_context.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 106,
+          "message": "Call to untyped function \"PositionTracker\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/pair_context.py"
+        },
+        {
+          "code": "call-arg",
+          "line": 285,
+          "message": "Unexpected keyword argument \"parameters\" for \"NautilusTradingStrategyConfig\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/registry.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 291,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/registry.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 14,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/signal_processor.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 66,
+          "message": "Call to untyped function \"SignalResolver\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/signal_processor.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 149,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/signal_processor.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 12,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.objects\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/sizing.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 13,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.risk.sizing\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/sizing.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 114,
+          "message": "Argument \"entry_atr\" to \"init_position\" of \"TickMonitorManager\" has incompatible type \"object\"; expected \"Decimal | float | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/sltp_mode.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 28,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 29,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 33,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 49,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 54,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 73,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 108,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 113,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 122,
+          "message": "Returning Any from function declared to return \"dict[Any, Any] | None\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/state_persistence.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 30,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.trading.strategy\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "misc",
+          "line": 41,
+          "message": "Class cannot subclass \"Strategy\" (has type \"Any\")",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 91,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 127,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 145,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 163,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 199,
+          "message": "Function is missing a type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 207,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 253,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 262,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 270,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 278,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 280,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 282,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 284,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/strategy_core.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 270,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/tick_monitor.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 466,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/tick_monitor.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 17,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_config.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 197,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_config.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 37,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 38,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 79,
+          "message": "Call to untyped function \"__init_subclass__\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 116,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 119,
+          "message": "Call to untyped function \"__init_subclass__\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "unused-ignore",
+          "line": 140,
+          "message": "Unused \"type: ignore\" comment",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 178,
+          "message": "Call to untyped function \"deep_asdict\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 232,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 317,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 334,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 350,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 529,
+          "message": "Call to untyped function \"_get_tick_monitoring_config\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 550,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 693,
+          "message": "Function is missing a return type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 699,
+          "message": "Returning Any from function declared to return \"bool\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 699,
+          "message": "Call to untyped function \"_get_tick_monitoring_config\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 747,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 757,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 767,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 777,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 787,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 797,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 810,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 839,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "name-defined",
+          "line": 894,
+          "message": "Name \"BarType\" is not defined",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "name-defined",
+          "line": 901,
+          "message": "Name \"BarType\" is not defined",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/trading_strategy.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 11,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 12,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 136,
+          "message": "Function is missing a type annotation",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 160,
+          "message": "Call to untyped function \"deep_asdict\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 162,
+          "message": "Call to untyped function \"deep_asdict\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 164,
+          "message": "Call to untyped function \"deep_asdict\" in typed context",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 169,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 194,
+          "message": "Returning Any from function declared to return \"int\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 196,
+          "message": "Returning Any from function declared to return \"int\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 198,
+          "message": "Returning Any from function declared to return \"int\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/utils.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 16,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.data\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "import-not-found",
+          "line": 21,
+          "message": "Cannot find implementation or library stub for module named \"nautilus_trader.model.identifiers\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 33,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 37,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 41,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 63,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 106,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 149,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 243,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 290,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter/warmup_manager.py"
+        }
+      ],
+      "expected_error_count": 289,
+      "paths": [
+        "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter"
+      ]
+    },
+    "platform_neutral": {
+      "config": "packages/custos-strategy-toolkit/pyproject.toml",
+      "errors": [
+        {
+          "code": "type-arg",
+          "line": 44,
+          "message": "Missing type arguments for generic type \"Match\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 147,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "assignment",
+          "line": 169,
+          "message": "Incompatible types in assignment (expression has type \"Any | None\", variable has type \"dict[str, Any]\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "assignment",
+          "line": 193,
+          "message": "Incompatible types in assignment (expression has type \"Any | None\", variable has type \"dict[str, Any]\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 233,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 238,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 243,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 248,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 253,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 258,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 263,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 268,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 273,
+          "message": "Returning Any from function declared to return \"dict[str, Any]\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 291,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/loader.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 150,
+          "message": "Returning Any from function declared to return \"str\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/config/validator.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 35,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/adx.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 21,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/base.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 30,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/cooldown.py"
+        },
+        {
+          "code": "assignment",
+          "line": 81,
+          "message": "Incompatible types in assignment (expression has type \"float\", variable has type \"int\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/cooldown.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 77,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/momentum.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 248,
+          "message": "Argument 1 to \"append\" of \"list\" has incompatible type \"float\"; expected \"int\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/momentum.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 322,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/momentum.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 38,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/mtf.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 81,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/mtf.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 93,
+          "message": "Function is missing a type annotation for one or more parameters",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/mtf.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 37,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/regime.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 42,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/registry.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 70,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/time_filter.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 38,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/volatility.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 33,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/filters/volume.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 32,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/position/sizer.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 150,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/position/sizer.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 44,
+          "message": "Function is missing a return type annotation",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/position/tracker.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 172,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/position/tracker.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 42,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/controller.py"
+        },
+        {
+          "code": "return-value",
+          "line": 52,
+          "message": "Incompatible return value type (got \"tuple[Decimal | None, None]\", expected \"tuple[Decimal, str | None]\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/equity.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 37,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 81,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 104,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "operator",
+          "line": 137,
+          "message": "Unsupported operand types for * (\"Decimal\" and \"float\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "operator",
+          "line": 139,
+          "message": "Unsupported operand types for * (\"Decimal\" and \"float\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "operator",
+          "line": 171,
+          "message": "Unsupported operand types for * (\"Decimal\" and \"float\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "operator",
+          "line": 173,
+          "message": "Unsupported operand types for * (\"Decimal\" and \"float\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "operator",
+          "line": 218,
+          "message": "Unsupported operand types for * (\"Decimal\" and \"float\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "operator",
+          "line": 227,
+          "message": "Unsupported operand types for * (\"Decimal\" and \"float\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/manager.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 20,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/risk/orders.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 38,
+          "message": "Function is missing a type annotation",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 108,
+          "message": "Returning Any from function declared to return \"str\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "arg-type",
+          "line": 117,
+          "message": "Argument 2 to \"get\" of \"dict\" has incompatible type \"object\"; expected \"str\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "return-value",
+          "line": 119,
+          "message": "Incompatible return value type (got \"object\", expected \"str\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 138,
+          "message": "Returning Any from function declared to return \"str\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "return-value",
+          "line": 140,
+          "message": "Incompatible return value type (got \"object\", expected \"str\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "return-value",
+          "line": 150,
+          "message": "Incompatible return value type (got \"object\", expected \"Decimal\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 158,
+          "message": "Returning Any from function declared to return \"int\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "return-value",
+          "line": 160,
+          "message": "Incompatible return value type (got \"object\", expected \"int\")",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "no-any-return",
+          "line": 168,
+          "message": "Returning Any from function declared to return \"str | None\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/signals/resolver.py"
+        },
+        {
+          "code": "no-untyped-def",
+          "line": 115,
+          "message": "Function is missing a type annotation",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 130,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 138,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 143,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 144,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 150,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 158,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 159,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 160,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 161,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 162,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 172,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 174,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "type-arg",
+          "line": 193,
+          "message": "Missing type arguments for generic type \"dict\"",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 200,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 202,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 203,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 204,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        },
+        {
+          "code": "no-untyped-call",
+          "line": 217,
+          "message": "Call to untyped function \"_extract_value\" in typed context",
+          "path": "packages/custos-strategy-toolkit/src/custos_toolkit/warmup/snapshot.py"
+        }
+      ],
+      "expected_error_count": 75,
+      "paths": [
+        "packages/custos-strategy-toolkit/src/custos_toolkit/config",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/filters",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/indicators",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/position",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/protocols",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/risk",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/signals",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/warmup"
+      ]
+    }
+  },
+  "scope": "inventory-extracted implementation typing debt; not a strict PASS",
+  "typing_baseline_schema_version": 1
+}

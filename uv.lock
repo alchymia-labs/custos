@@ -211,6 +211,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pyyaml" },
     { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
 lts = [
     { name = "pytest-docker" },
@@ -237,6 +238,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
     { name = "sigstore", marker = "extra == 'lts'", specifier = ">=3.0,<4.0" },
     { name = "structlog", specifier = ">=24" },
+    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6" },
     { name = "uuid6", specifier = ">=2024.1.12" },
 ]
 provides-extras = ["dev", "nautilus", "hummingbot", "freqtrade", "athanor", "nt-rust", "all-engines", "lts"]
@@ -247,10 +249,14 @@ version = "0.1.0"
 source = { editable = "packages/custos-strategy-toolkit" }
 dependencies = [
     { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.5" }]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.5" },
+    { name = "pyyaml", specifier = ">=6" },
+]
 
 [[package]]
 name = "custos-strategy-toolkit-nautilus"
@@ -261,7 +267,6 @@ dependencies = [
     { name = "nautilus-trader" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "setuptools" },
 ]
 
 [package.metadata]
@@ -270,7 +275,6 @@ requires-dist = [
     { name = "nautilus-trader", specifier = "==1.230.0" },
     { name = "packaging" },
     { name = "pyyaml", specifier = ">=6" },
-    { name = "setuptools", specifier = ">=50,<70" },
 ]
 
 [[package]]
@@ -970,15 +974,6 @@ wheels = [
 ]
 
 [[package]]
-name = "setuptools"
-version = "69.5.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d6/4f/b10f707e14ef7de524fe1f8988a294fb262a29c9b5b12275c7e188864aed/setuptools-69.5.1.tar.gz", hash = "sha256:6c1fccdac05a97e598fb0ae3bbed5904ccb317337a51139dcd51453611bbb987", size = 2291314, upload-time = "2024-04-13T21:06:28.589Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f7/29/13965af254e3373bceae8fb9a0e6ea0d0e571171b80d6646932131d6439b/setuptools-69.5.1-py3-none-any.whl", hash = "sha256:c636ac361bc47580504644275c9ad802c50415c7522212252c033bd15f301f32", size = 894566, upload-time = "2024-04-13T21:06:23.256Z" },
-]
-
-[[package]]
 name = "sigstore"
 version = "3.6.7"
 source = { registry = "https://pypi.org/simple" }
@@ -1077,6 +1072,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/25/b5/377a566dfa8286b2ca27ddbc792ab1645de0b6c65dd5bf03027b3bf8cc8f/tuf-6.0.0.tar.gz", hash = "sha256:9eed0f7888c5fff45dc62164ff243a05d47fb8a3208035eb268974287e0aee8d", size = 271268, upload-time = "2025-03-11T10:48:45.489Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/3d/161ab4fec446048707cb13e8ba22220e05a6c4a6587d3631feeb5715037e/tuf-6.0.0-py3-none-any.whl", hash = "sha256:458f663a233d95cc76dde0e1a3d01796516a05ce2781fefafebe037f7729601a", size = 54774, upload-time = "2025-03-11T10:48:44.188Z" },
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20260518"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/83/4a1afc3fbfcf5b8d46fc390cd95ed6b0dc9010a265f4e9f46314efffa37a/types_pyyaml-6.0.12.20260518.tar.gz", hash = "sha256:d917f83fb38462550338c1297faedd860b3ec83912b96b1e3d73255f7473e466", size = 17850, upload-time = "2026-05-18T06:01:58.675Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/a2/c01db32be2ae7d6a1689972f3c492b149ee4e164b12fdfd9f64b50888215/types_pyyaml-6.0.12.20260518-py3-none-any.whl", hash = "sha256:d2150f75a231c9fe9c7463bd29487d93e60bac90400287351384bc2284eba7cd", size = 20312, upload-time = "2026-05-18T06:01:57.368Z" },
 ]
 
 [[package]]

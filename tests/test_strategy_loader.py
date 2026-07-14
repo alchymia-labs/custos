@@ -104,7 +104,7 @@ def test_loader_bootstraps_vendored_toolkit_in_fresh_process(tmp_path: Path) -> 
         tmp_path,
         body=textwrap.dedent(
             """
-            from shared.config import ConfigWrapper
+            from custos_toolkit.config import ConfigWrapper
 
 
             class ToolkitProbeStrategy:

@@ -1,0 +1,44 @@
+{
+  "golden_schema_version": 1,
+  "oracle_source_commit": "efc01da67b432e9b35beee3498415efc1bc46b98",
+  "oracle_modules": {
+    "signal": "src/custos/engines/nautilus/toolkit/shared/signals/types.py",
+    "resolver": "src/custos/engines/nautilus/toolkit/shared/signals/resolver.py",
+    "supertrend": "src/custos/engines/nautilus/toolkit/vendor/pandas_ta/overlap/supertrend.py"
+  },
+  "signal_order_intent": {
+    "input": {
+      "direction": "enter_long",
+      "price": "42000.5",
+      "strength": 1.0,
+      "timestamp_ns": 1784051618850929920,
+      "pair": "BTC-USDT",
+      "amount": "12.5",
+      "order_type": "limit",
+      "order_price_offset": "0.25"
+    },
+    "expected": {
+      "action": "ENTER_LONG",
+      "instrument": "BTC-USDT-SWAP",
+      "timestamp": "2026-07-14T17:53:38.850Z",
+      "maxLag": "60",
+      "investmentType": "percentage_investment",
+      "amount": "12.5",
+      "orderType": "limit",
+      "orderPriceOffset": "0.25"
+    }
+  },
+  "private_vendor_supertrend": {
+    "input": {
+      "high": [10, 11, 12, 13, 12, 14, 15, 16, 15, 17],
+      "low": [8, 9, 10, 11, 10, 12, 13, 14, 13, 15],
+      "close": [9, 10, 11, 12, 11, 13, 14, 15, 14, 16],
+      "length": 3,
+      "multiplier": 2.0
+    },
+    "expected": {
+      "SUPERT_3_2.0": [0.0, null, null, 8.0, 8.0, 8.23222749, 9.51278195, 10.68528412, 10.68528412, 11.18032445],
+      "SUPERTd_3_2.0": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    }
+  }
+}

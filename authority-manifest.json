@@ -2,32 +2,129 @@
   "schema_version": 1,
   "project": "custos",
   "authority_documents": [
-    {"role": "ecosystem_snapshot", "path": "docs/authority/ecosystem-authority.json"},
-    {"role": "runner_command_golden", "path": "docs/authority/runner-deployment-command-golden-v1.json"},
-    {"role": "local_domain", "path": "docs/domain.md"},
-    {"role": "local_reconciliation", "path": "docs/design/reconcile.md"},
-    {"role": "local_engine_protocol", "path": "docs/design/engine_protocol.md"},
-    {"role": "strategy_toolkit_authority", "path": "docs/design/strategy-toolkit.md"},
-    {"role": "strategy_toolkit_inventory", "path": "docs/authority/strategy-toolkit-inventory-v1.json"},
-    {"role": "strategy_contract_asset_index", "path": "docs/authority/strategy-contract-assets-v1.json"},
-    {"role": "strategy_artifact_lifecycle_golden", "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"},
-    {"role": "plan_18_task_2_receipt", "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"},
-    {"role": "plan_18_task_3_distribution_receipt", "path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"},
-    {"role": "plan_18_task_2_crucible_requirements_review", "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"},
-    {"role": "plan_18_task_2_ps_requirements_review", "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"},
-    {"role": "strategy_execution_context_schema", "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json"},
-    {"role": "strategy_manifest_schema", "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json"},
-    {"role": "strategy_artifact_ref_schema", "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"},
-    {"role": "strategy_execution_command_binding_schema", "path": "docs/gateway-contract/v1/strategy_execution_command_binding_v1.schema.json"},
-    {"role": "strategy_artifact_verification_receipt_schema", "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json"},
-    {"role": "local_telemetry", "path": "docs/design/telemetry_actor.md"},
-    {"role": "local_nats_contract", "path": "docs/design/nats_client.md"}
+    {
+      "role": "ecosystem_snapshot",
+      "path": "docs/authority/ecosystem-authority.json"
+    },
+    {
+      "role": "runner_command_golden",
+      "path": "docs/authority/runner-deployment-command-golden-v1.json"
+    },
+    {
+      "role": "local_domain",
+      "path": "docs/domain.md"
+    },
+    {
+      "role": "local_reconciliation",
+      "path": "docs/design/reconcile.md"
+    },
+    {
+      "role": "local_engine_protocol",
+      "path": "docs/design/engine_protocol.md"
+    },
+    {
+      "role": "strategy_toolkit_authority",
+      "path": "docs/design/strategy-toolkit.md"
+    },
+    {
+      "role": "strategy_toolkit_inventory",
+      "path": "docs/authority/strategy-toolkit-inventory-v1.json"
+    },
+    {
+      "role": "strategy_contract_asset_index",
+      "path": "docs/authority/strategy-contract-assets-v1.json"
+    },
+    {
+      "role": "strategy_artifact_lifecycle_golden",
+      "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"
+    },
+    {
+      "role": "plan_18_task_2_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
+    },
+    {
+      "role": "plan_18_task_3_distribution_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
+    },
+    {
+      "role": "plan_18_task_2_crucible_requirements_review",
+      "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"
+    },
+    {
+      "role": "plan_18_task_2_ps_requirements_review",
+      "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"
+    },
+    {
+      "role": "strategy_execution_context_schema",
+      "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json"
+    },
+    {
+      "role": "strategy_manifest_schema",
+      "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json"
+    },
+    {
+      "role": "strategy_artifact_ref_schema",
+      "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"
+    },
+    {
+      "role": "strategy_execution_command_binding_schema",
+      "path": "docs/gateway-contract/v1/strategy_execution_command_binding_v1.schema.json"
+    },
+    {
+      "role": "strategy_artifact_verification_receipt_schema",
+      "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json"
+    },
+    {
+      "role": "local_telemetry",
+      "path": "docs/design/telemetry_actor.md"
+    },
+    {
+      "role": "local_nats_contract",
+      "path": "docs/design/nats_client.md"
+    },
+    {
+      "role": "strategy_toolkit_provenance",
+      "path": "docs/authority/strategy-toolkit-provenance.md"
+    },
+    {
+      "role": "strategy_toolkit_extraction",
+      "path": "docs/authority/strategy-toolkit-extraction-v1.json"
+    },
+    {
+      "role": "strategy_toolkit_parity_golden",
+      "path": "docs/authority/strategy-toolkit-parity-golden-v1.json"
+    },
+    {
+      "role": "strategy_toolkit_typing_baseline",
+      "path": "docs/authority/strategy-toolkit-typing-baseline-v1.json"
+    },
+    {
+      "role": "plan_18_task_4_extraction_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+    }
   ],
   "external_optional_documents": [
-    {"role": "workspace_migration_rollout", "path": "../../the-alephain-guild/codex/projects/arx/00-core/authority-migration-rollout.md", "must_contain": ["0068", "0026", "0114", "0115", "0116"]},
-    {"role": "workspace_architecture", "path": "../../the-alephain-guild/codex/projects/arx/00-core/architecture.md"}
+    {
+      "role": "workspace_migration_rollout",
+      "path": "../../the-alephain-guild/codex/projects/arx/00-core/authority-migration-rollout.md",
+      "must_contain": [
+        "0068",
+        "0026",
+        "0114",
+        "0115",
+        "0116"
+      ]
+    },
+    {
+      "role": "workspace_architecture",
+      "path": "../../the-alephain-guild/codex/projects/arx/00-core/architecture.md"
+    }
   ],
-  "expected_migration_heads": {"arx": "0068", "crucible_control": "0026", "crucible_mode": "0115"},
+  "expected_migration_heads": {
+    "arx": "0068",
+    "crucible_control": "0026",
+    "crucible_mode": "0115"
+  },
   "crucible_mode_migration_contract": {
     "checked_in_expected_current_head": "0115",
     "predecessor_authority_schema": "0114",
@@ -66,11 +163,24 @@
       "tests/test_toolkit_contracts.py",
       "tests/test_toolkit_inventory.py",
       "scripts/generate_strategy_contract_assets.py",
-      "scripts/check-authority-docs.py"
+      "scripts/check-authority-docs.py",
+      "Makefile",
+      "docs/design/strategy-toolkit.md",
+      "docs/design/nautilus_host.md",
+      "docs/authority/strategy-toolkit-provenance.md",
+      "docs/authority/strategy-toolkit-extraction-v1.json",
+      "docs/authority/strategy-toolkit-parity-golden-v1.json",
+      "docs/authority/strategy-toolkit-typing-baseline-v1.json",
+      "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
+      "packages/custos-strategy-toolkit/pyproject.toml",
+      "packages/custos-strategy-toolkit-nautilus/pyproject.toml",
+      "scripts/check-toolkit-extraction.py",
+      "scripts/check-toolkit-typing-baseline.py",
+      "tests/test_toolkit_zero_rewrite.py"
     ],
     "forbidden_regex": [
       "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",
-      "Custos\\s*(<->|->|↔).*ARX",
+      "Custos\\s*(<->|->|\u2194).*ARX",
       "DeploymentMessage\\.create",
       "publish_deployment_status",
       "standalone_nats",
@@ -79,14 +189,83 @@
     ]
   },
   "required_claims": [
-    {"path": "docs/authority/ecosystem-authority.json", "must_contain": ["deployment_instance_id", "sha256-canonical-json-v1", "RunnerDeploymentLifecycleFact.v1", "facts[].seq"]},
-    {"path": "docs/authority/runner-deployment-command-golden-v1.json", "must_contain": ["DeploymentSpecReadyForRunner", "DeploymentInstanceDesiredStateChanged", "\"mode\": \"sandbox\""]},
-    {"path": "docs/domain.md", "must_contain": ["DeploymentSpec", "DeploymentInstance", "RunnerFact"]},
-    {"path": "docs/design/nats_client.md", "must_contain": ["exact subject", "Crucible", "ARX"]},
-    {"path": "docs/design/strategy-toolkit.md", "must_contain": ["deployment_instance_id", "StrategyReleaseBomV1", "custos-strategy-toolkit-nautilus", "independent compatibility lane"]},
-    {"path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json", "must_contain": ["Custos Plan 18 Task 2 schema receipt", "\"execution_abi_owner\": \"custos\"", "\"artifact_schema_owner\": \"custos\"", "\"contract_schema_version\": 1"]},
-    {"path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
-    {"path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json", "must_contain": ["ACCEPTED_REQUIREMENTS_REVIEW", "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0", "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"]},
-    {"path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json", "must_contain": ["Custos Plan 18 Task 3 distribution and canonical-source receipt", "\"receipt_status\": \"READY\"", "efc01da67b432e9b35beee3498415efc1bc46b98", "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py", "custos-strategy-toolkit-nautilus", "nautilus-trader==1.230.0"]}
+    {
+      "path": "docs/authority/ecosystem-authority.json",
+      "must_contain": [
+        "deployment_instance_id",
+        "sha256-canonical-json-v1",
+        "RunnerDeploymentLifecycleFact.v1",
+        "facts[].seq"
+      ]
+    },
+    {
+      "path": "docs/authority/runner-deployment-command-golden-v1.json",
+      "must_contain": [
+        "DeploymentSpecReadyForRunner",
+        "DeploymentInstanceDesiredStateChanged",
+        "\"mode\": \"sandbox\""
+      ]
+    },
+    {
+      "path": "docs/domain.md",
+      "must_contain": [
+        "DeploymentSpec",
+        "DeploymentInstance",
+        "RunnerFact"
+      ]
+    },
+    {
+      "path": "docs/design/nats_client.md",
+      "must_contain": [
+        "exact subject",
+        "Crucible",
+        "ARX"
+      ]
+    },
+    {
+      "path": "docs/design/strategy-toolkit.md",
+      "must_contain": [
+        "deployment_instance_id",
+        "StrategyReleaseBomV1",
+        "custos-strategy-toolkit-nautilus",
+        "independent compatibility lane"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+      "must_contain": [
+        "Custos Plan 18 Task 2 schema receipt",
+        "\"execution_abi_owner\": \"custos\"",
+        "\"artifact_schema_owner\": \"custos\"",
+        "\"contract_schema_version\": 1"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json",
+      "must_contain": [
+        "ACCEPTED_REQUIREMENTS_REVIEW",
+        "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
+        "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json",
+      "must_contain": [
+        "ACCEPTED_REQUIREMENTS_REVIEW",
+        "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
+        "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json",
+      "must_contain": [
+        "Custos Plan 18 Task 3 distribution and canonical-source receipt",
+        "\"receipt_status\": \"READY\"",
+        "efc01da67b432e9b35beee3498415efc1bc46b98",
+        "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+        "custos-strategy-toolkit-nautilus",
+        "nautilus-trader==1.230.0"
+      ]
+    }
   ]
 }
