@@ -111,6 +111,8 @@ class DeploymentSpec(BaseModel):
     )
 
     spec_id: SafeId
+    deployment_instance_id: UUID
+    deployment_spec_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     generation: StrictInt = Field(ge=1)
     trading_mode: TradingMode
     lifecycle_state: LifecycleState

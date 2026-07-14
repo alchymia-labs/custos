@@ -4,6 +4,7 @@ version = "0.3.0"
 description = "Custos: non-custodial self-hosted runner for the Alephain Guild ecosystem (NautilusTrader-adjacent, declarative reconcile + telemetry actor + local key vault)"
 requires-python = ">=3.11"
 dependencies = [
+    "cryptography>=42",
     "nats-py>=2.9",
     "pydantic>=2.5",
     "structlog>=24",

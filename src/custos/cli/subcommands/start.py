@@ -1,9 +1,4 @@
-"""``arx-runner start`` handler.
-
-Reads ``~/.arx/runner.toml``, builds a runtime namespace with per-key
-vault + WAL + reconciler defaults, then delegates to the extracted
-``custos.cli._daemon.run_daemon`` coroutine.
-"""
+"""Fail-closed ``arx-runner start`` composition."""
 
 from __future__ import annotations
 
@@ -12,93 +7,87 @@ import asyncio
 import sys
 from pathlib import Path
 
+from custos.core.machine_credential_vault import (
+    MachineCredentialError,
+    MachineCredentialVault,
+)
 from custos.core.runner_toml import RunnerToml
 
 DEFAULT_RUNNER_TOML = Path.home() / ".arx" / "runner.toml"
 DEFAULT_WAL_PATH = Path.home() / ".arx" / "state" / "telemetry-wal.db"
-DEFAULT_ENROLLMENT_PATH = Path.home() / ".arx" / "enrollment.json"
 DEFAULT_VAULT_DIR = Path.home() / ".arx" / "vault"
 DEFAULT_READY_FILE = Path.home() / ".arx" / "state" / "runner-ready.json"
+DEFAULT_RUNNER_CAPABILITY = Path.home() / ".arx" / "runner-capability.json"
+DEFAULT_RUNNER_FACT_OUTBOX = Path.home() / ".arx" / "state" / "runner-fact-outbox.db"
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser(
-        "start",
-        help="Start the reconcile / telemetry / heartbeat runtime loop.",
+        "start", help="Start only after machine authority passes fail-closed verification."
     )
     parser.add_argument(
-        "--runner-toml",
-        dest="runner_toml_path",
+        "--runner-toml", dest="runner_toml_path", type=Path, default=DEFAULT_RUNNER_TOML
+    )
+    parser.add_argument(
+        "--machine-vault",
         type=Path,
-        default=DEFAULT_RUNNER_TOML,
-        help="Long-term credential envelope written by `arx-runner enroll`.",
+        default=None,
+        help="Optional exact override; must equal runner.toml machine_vault_path.",
     )
     parser.add_argument("--nats-url", default="nats://localhost:4222")
-    parser.add_argument("--heartbeat-interval", type=float, default=10.0)
-    parser.add_argument(
-        "--enrollment-path",
-        type=Path,
-        default=DEFAULT_ENROLLMENT_PATH,
-    )
-    parser.add_argument("--enrollment-token", default=None)
-    parser.add_argument(
-        "--vault-dir",
-        type=Path,
-        default=DEFAULT_VAULT_DIR,
-        help="Per-key vault directory (default: ~/.arx/vault/).",
-    )
-    parser.add_argument(
-        "--reconcile-strategy-id",
-        default=None,
-        help="Enable deployment reconciler bound to this strategy_id.",
-    )
+    parser.add_argument("--vault-dir", type=Path, default=DEFAULT_VAULT_DIR)
+    parser.add_argument("--reconcile-strategy-id", default=None)
     parser.add_argument("--engine", choices=["nautilus", "noop"], default="nautilus")
     parser.add_argument("--ready-file", type=Path, default=DEFAULT_READY_FILE)
-    parser.add_argument(
-        "--wal-path",
-        type=Path,
-        default=DEFAULT_WAL_PATH,
-    )
-    parser.add_argument("--snapshot-interval-secs", type=float, default=10.0)
+    parser.add_argument("--wal-path", type=Path, default=DEFAULT_WAL_PATH)
+    parser.add_argument("--runner-capability", type=Path, default=DEFAULT_RUNNER_CAPABILITY)
+    parser.add_argument("--runner-fact-outbox", type=Path, default=DEFAULT_RUNNER_FACT_OUTBOX)
+    parser.add_argument("--runner-fact-snapshot-interval-secs", type=float, default=10.0)
+    parser.add_argument("--runner-fact-period-secs", type=int, default=86_400)
+    parser.add_argument("--runner-fact-period-retry-secs", type=float, default=30.0)
     parser.set_defaults(handler=run)
 
 
 def run(args: argparse.Namespace) -> int:
-    """Read runner.toml → build runtime namespace → delegate to run_daemon.
-
-    On any missing / partial / world-readable runner.toml this fails fast
-    with a clear stderr message and non-zero exit, never opening the
-    daemon path. The caller (subcommand dispatcher) unwraps a coroutine
-    return via ``asyncio.run``; keeping this handler synchronous means
-    the daemon coroutine gets its own event loop and the parser stays
-    testable without asyncio machinery.
-    """
+    args.ready_file.expanduser().resolve().unlink(missing_ok=True)
     try:
-        record = RunnerToml.read(args.runner_toml_path)
-    except FileNotFoundError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    except PermissionError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
+        metadata = RunnerToml.read(args.runner_toml_path)
+        bound_vault_path = Path(metadata.machine_vault_path).expanduser().resolve()
+        if (
+            args.machine_vault is not None
+            and args.machine_vault.expanduser().resolve() != bound_vault_path
+        ):
+            raise MachineCredentialError(
+                "--machine-vault differs from runner.toml authority binding"
+            )
+        credential = MachineCredentialVault(bound_vault_path).load()
+        credential.assert_binding(metadata)
+    except (OSError, ValueError, MachineCredentialError) as exc:
+        print(f"Runner startup authority check failed: {exc}", file=sys.stderr)
         return 1
 
-    ns = argparse.Namespace(
-        tenant_id=record.tenant_id,
-        runner_id=record.runner_id,
+    namespace = argparse.Namespace(
+        tenant_id=metadata.tenant_id,
+        runner_id=metadata.runner_id,
+        runner_toml_path=args.runner_toml_path.expanduser().resolve(),
+        machine_vault=bound_vault_path,
         nats_url=args.nats_url,
-        heartbeat_interval=args.heartbeat_interval,
-        enrollment_path=args.enrollment_path,
-        enrollment_token=args.enrollment_token,
         vault_dir=args.vault_dir,
         reconcile_strategy_id=args.reconcile_strategy_id,
         engine=args.engine,
         ready_file=args.ready_file,
         wal_path=args.wal_path,
-        snapshot_interval_secs=args.snapshot_interval_secs,
+        runner_capability=args.runner_capability,
+        runner_fact_outbox=args.runner_fact_outbox,
+        runner_fact_snapshot_interval_secs=args.runner_fact_snapshot_interval_secs,
+        runner_fact_period_secs=args.runner_fact_period_secs,
+        runner_fact_period_retry_secs=args.runner_fact_period_retry_secs,
     )
     from custos.cli._daemon import run_daemon
 
-    return asyncio.run(run_daemon(ns))
+    try:
+        return asyncio.run(run_daemon(namespace))
+    except (OSError, ValueError, MachineCredentialError, RuntimeError) as exc:
+        args.ready_file.expanduser().resolve().unlink(missing_ok=True)
+        print(f"Runner startup failed closed: {exc}", file=sys.stderr)
+        return 1

@@ -1,18 +1,8 @@
-"""Long-term runner credential persistence at ``~/.arx/runner.toml``.
+"""Public runner authority metadata persisted at ``~/.arx/runner.toml``.
 
-Written by ``arx-runner enroll`` after the backend returns a long-term
-credential; consumed by ``arx-runner start`` to build a runtime namespace.
-
-Invariants (non-custodial red line 0.1 — Key/KEK never leaves the runner
-host; the long-term credential is authentication material, not decrypted
-key material, but still sensitive enough to warrant 0600):
-
-- File mode is 0600 on write and refused on read if world-readable.
-- Parent directory (``~/.arx/``) is auto-created at mode 0700.
-- Write is atomic: tmpfile + fsync + rename; a mid-rename crash leaves the
-  prior file (or nothing) intact rather than a partial write.
-- Read raises ``FileNotFoundError`` with a clear ``arx-runner enroll`` hint
-  rather than a silent ``None``.
+The file contains only non-secret binding metadata.  The opaque machine
+credential and Ed25519 private key live together in the sops+age machine
+vault referenced by ``machine_vault_path``.
 """
 
 from __future__ import annotations
@@ -20,122 +10,114 @@ from __future__ import annotations
 import os
 import stat
 import tomllib
+import urllib.parse
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 _DIR_MODE = 0o700
 _FILE_MODE = 0o600
 _WORLD_GROUP_BITS = 0o077
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RunnerToml:
-    """The long-term credential envelope returned by the backend at enroll time.
-
-    ``long_term_credential`` is the authentication token used by subsequent
-    ``arx-runner start`` invocations to open the backend connection. It is
-    sensitive but is *not* the exchange API key (that stays in the per-key
-    ``~/.arx/vault/<key-id>.enc`` files).
-    """
-
     tenant_id: str
     runner_id: str
     backend_url: str
-    long_term_credential: str
-    enrolled_at_ns: int
+    credential_id: str
+    credential_version: int
+    credential_valid_until: str
+    machine_key_id: str
+    machine_vault_path: str
+    enrolled_at: str
+
+    def __post_init__(self) -> None:
+        if not self.tenant_id or any(character.isspace() for character in self.tenant_id):
+            raise ValueError("tenant_id must be non-empty and contain no whitespace")
+        for field in ("runner_id", "credential_id"):
+            try:
+                parsed = UUID(getattr(self, field))
+            except ValueError as exc:
+                raise ValueError(f"{field} must be a UUID") from exc
+            if parsed.int == 0:
+                raise ValueError(f"{field} must not be nil")
+        if type(self.credential_version) is not int or self.credential_version < 1:
+            raise ValueError("credential_version must be positive")
+        _parse_timestamp(self.credential_valid_until, "credential_valid_until")
+        _parse_timestamp(self.enrolled_at, "enrolled_at")
+        parsed_backend = urllib.parse.urlsplit(self.backend_url)
+        if not parsed_backend.scheme or not parsed_backend.hostname:
+            raise ValueError("backend_url must be an absolute URL")
+        vault_path = Path(self.machine_vault_path).expanduser()
+        if not vault_path.is_absolute():
+            raise ValueError("machine_vault_path must be absolute")
+        if not self.machine_key_id.startswith("ed25519-"):
+            raise ValueError("machine_key_id must identify an Ed25519 key")
 
     @staticmethod
     def write(path: Path, record: RunnerToml) -> None:
-        """Atomically persist ``record`` to ``path`` at mode 0600.
-
-        Creates ``path.parent`` at mode 0700 if missing, then writes a
-        ``.<name>.tmp`` sibling, fsyncs it, chmods to 0600, and renames it
-        onto ``path``. If any step fails after tmpfile creation the tmpfile
-        is unlinked before the exception propagates.
-        """
+        path = path.expanduser().resolve()
         path.parent.mkdir(mode=_DIR_MODE, parents=True, exist_ok=True)
-        # ``mkdir(mode=)`` is masked by umask on some platforms; explicit
-        # chmod ensures the invariant regardless of caller umask.
         os.chmod(path.parent, _DIR_MODE)
-
-        tmp = path.parent / f".{path.name}.tmp"
-        payload = _serialise(record)
+        temporary = path.parent / f".{path.name}.tmp"
         try:
-            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, _FILE_MODE)
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, _FILE_MODE)
             try:
-                os.write(fd, payload.encode("utf-8"))
-                os.fsync(fd)
+                os.write(descriptor, _serialise(record).encode("utf-8"))
+                os.fsync(descriptor)
             finally:
-                os.close(fd)
-            os.chmod(tmp, _FILE_MODE)
-            os.rename(tmp, path)
-        except BaseException:
-            # Best-effort tmpfile cleanup — the caller sees the original error
-            # untouched; the pre-existing ``path`` remains intact because we
-            # only ever wrote through the tmp sibling.
-            try:
-                tmp.unlink()
-            except FileNotFoundError:
-                pass
-            raise
+                os.close(descriptor)
+            os.chmod(temporary, _FILE_MODE)
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     @staticmethod
     def read(path: Path) -> RunnerToml:
-        """Load a previously-written record, enforcing 0600 on the file.
-
-        Raises:
-            FileNotFoundError: when ``path`` does not exist; the message
-                points the operator at ``arx-runner enroll``.
-            PermissionError: when the file mode is world- or group-readable.
-            ValueError: when a required field is missing.
-        """
+        path = path.expanduser().resolve()
         if not path.exists():
             raise FileNotFoundError(
-                f"{path} not found; run `arx-runner enroll` first "
-                "(see arx docs/team-self-hosted-lifecycle.md Phase 0.2)"
+                f"{path} not found; run `arx-runner enroll` before starting the runner"
             )
-        mode = stat.S_IMODE(os.stat(path).st_mode)
+        mode = stat.S_IMODE(path.stat().st_mode)
         if mode & _WORLD_GROUP_BITS:
-            raise PermissionError(
-                f"{path} mode {oct(mode)} is world/group-readable; "
-                "expected 0600. Fix with `chmod 600 {path}` and re-run."
-            )
-        with path.open("rb") as fh:
-            data = tomllib.load(fh)
-        missing = [f for f in _REQUIRED_FIELDS if f not in data]
-        if missing:
-            raise ValueError(
-                f"{path} is missing required field(s): {', '.join(missing)}. "
-                "Re-run `arx-runner enroll` to regenerate."
-            )
-        return RunnerToml(
-            tenant_id=data["tenant_id"],
-            runner_id=data["runner_id"],
-            backend_url=data["backend_url"],
-            long_term_credential=data["long_term_credential"],
-            enrolled_at_ns=int(data["enrolled_at_ns"]),
-        )
+            raise PermissionError(f"{path} must have mode 0600")
+        with path.open("rb") as handle:
+            document = tomllib.load(handle)
+        if set(document) != set(_FIELDS):
+            missing = sorted(set(_FIELDS) - set(document))
+            unexpected = sorted(set(document) - set(_FIELDS))
+            detail = []
+            if missing:
+                detail.append(f"missing {', '.join(missing)}")
+            if unexpected:
+                detail.append(f"unexpected {', '.join(unexpected)}")
+            raise ValueError(f"{path} is not a v2 runner authority document ({'; '.join(detail)})")
+        try:
+            return RunnerToml(**document)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{path} has invalid runner authority metadata: {exc}") from exc
 
 
-_REQUIRED_FIELDS = (
+_FIELDS = (
     "tenant_id",
     "runner_id",
     "backend_url",
-    "long_term_credential",
-    "enrolled_at_ns",
+    "credential_id",
+    "credential_version",
+    "credential_valid_until",
+    "machine_key_id",
+    "machine_vault_path",
+    "enrolled_at",
 )
 
 
 def _serialise(record: RunnerToml) -> str:
-    """Emit a minimal, deterministic TOML document.
-
-    We hand-roll rather than pull ``tomli-w`` in to keep the base install
-    zero-dep beyond ``tomllib`` (stdlib). All fields are scalar strings and
-    a single int — nothing exotic to escape beyond backslash and quote.
-    """
     data = asdict(record)
     lines = []
-    for field in _REQUIRED_FIELDS:
+    for field in _FIELDS:
         value = data[field]
         if isinstance(value, int):
             lines.append(f"{field} = {value}")
@@ -146,3 +128,13 @@ def _serialise(record: RunnerToml) -> str:
 
 def _escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _parse_timestamp(value: str, field: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise ValueError(f"{field} must be RFC3339") from exc
+    if parsed.tzinfo is None:
+        raise ValueError(f"{field} must include a timezone")
+    return parsed.astimezone(UTC)

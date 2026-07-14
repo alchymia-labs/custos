@@ -71,6 +71,7 @@ class NatsEnvelope:
     envelope_version: int = 1
     payload_schema_version: int = 1
     ordering: OrderingMeta | None = None
+    machine_authority: dict | None = None
 
     def to_dict(self) -> dict:
         body = {
@@ -83,6 +84,8 @@ class NatsEnvelope:
         }
         if self.ordering is not None:
             body["ordering"] = asdict(self.ordering)
+        if self.machine_authority is not None:
+            body["machine_authority"] = self.machine_authority
         return body
 
     def to_bytes(self) -> bytes:
@@ -284,6 +287,7 @@ class ArxNatsClient:
     nats_url: str
     tenant_id: str
     runner_id: str
+    machine_credential: Any = field(repr=False)
     wal_path: Path | None = None
     wal_max_rows: int = _OfflineWal._DEFAULT_MAX_ROWS
     wal_max_age_secs: int = _OfflineWal._DEFAULT_MAX_AGE_SECS
@@ -293,6 +297,12 @@ class ArxNatsClient:
     _wal_drain_task: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        self.machine_credential.assert_active()
+        if (
+            self.machine_credential.tenant_id != self.tenant_id
+            or str(self.machine_credential.runner_id) != self.runner_id
+        ):
+            raise ValueError("NATS machine authority does not match tenant/runner binding")
         if self.wal_path is not None:
             self._wal = _OfflineWal(
                 self.wal_path,
@@ -352,6 +362,9 @@ class ArxNatsClient:
             uptime_secs=uptime_secs,
             active_deployments=active_deployments,
         )
+        env.machine_authority = self.machine_credential.nats_authority(
+            kind="heartbeat", event_id=env.event_id, payload=env.payload
+        )
         subject = heartbeat_subject(self.tenant_id, self.runner_id)
         await self.publish_fire_and_forget(subject, env.to_bytes())
 
@@ -374,6 +387,9 @@ class ArxNatsClient:
     async def publish_telemetry_envelope(self, subject: str, envelope: NatsEnvelope) -> None:
         """At-least-once publish via JetStream. When disconnected, stash
         in the offline WAL for replay on next connect()."""
+        envelope.machine_authority = self.machine_credential.nats_authority(
+            kind="telemetry", event_id=envelope.event_id, payload=envelope.payload
+        )
         payload = envelope.to_bytes()
         if self._js is None:
             if self._wal is None:
@@ -425,26 +441,15 @@ class ArxNatsClient:
             occurred_at=_now_rfc3339_nanos(),
             payload=payload,
         )
+        env.machine_authority = self.machine_credential.nats_authority(
+            kind="deployment_status", event_id=env.event_id, payload=env.payload
+        )
         subject = build_subject(
             self.tenant_id,
             "deployment_status",
             self.runner_id,
             spec_id,
         )
-        await self._js.publish(subject, env.to_bytes())
-
-    async def publish_enrollment(self, *, payload: dict) -> None:
-        """At-least-once publish enrollment request to
-        ``arx.{tenant}.enrollment.{runner_id}`` (plan-index §6)."""
-        if self._js is None:
-            raise RuntimeError("publish_enrollment called before connect()")
-        env = NatsEnvelope(
-            event_id=str(uuid6.uuid7()),
-            tenant_id=self.tenant_id,
-            occurred_at=_now_rfc3339_nanos(),
-            payload=payload,
-        )
-        subject = build_subject(self.tenant_id, "enrollment", self.runner_id)
         await self._js.publish(subject, env.to_bytes())
 
     async def _drain_wal(self) -> None:

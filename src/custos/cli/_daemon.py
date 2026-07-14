@@ -4,41 +4,93 @@ Extracted from the legacy flat CLI ``_run`` coroutine so both the
 ``arx-runner start`` subcommand and any future embedding call site can
 enter the runtime by handing in a compatible ``argparse.Namespace``.
 
-The composition is verbatim from the pre-Plan-11 loop: NATS connect,
-optional enrollment publish, optional reconciler + snapshot publisher +
-runtime vault, and a heartbeat task; cancels tasks on stop and closes
-the client cleanly. The only substantive change vs. the legacy body is
-that ``_build_vault`` now returns a ``PerKeyVault`` unconditionally —
-the deleted ``SopsAgeVault`` (multi-credential JSON) has no replacement
-runtime read path, and ``MockVault`` is intentionally kept out of the
-runtime graph (dev/paper users must run ``arx-runner vault put`` before
-``arx-runner start``).
+Startup verifies the age-encrypted machine principal against Crucible
+authority before connecting NATS.  Missing, expired, revoked, or mismatched
+authority therefore cannot leave a stale ready file or start execution.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import logging
 import signal
-import time
-
-import uuid6
+from uuid import UUID
 
 from custos.core.deployment_reconciler import DeploymentReconciler
-from custos.core.enrollment import EnrollmentClient
 from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
+from custos.core.machine_credential_vault import (
+    MachineCredentialError,
+    MachineCredentialHttpClient,
+    MachineCredentialRejectedError,
+    MachineCredentialTransportError,
+    MachineCredentialVault,
+)
 from custos.core.nats_client import ArxNatsClient
 from custos.core.per_key_vault import PerKeyVault
 from custos.core.readiness import ReadinessFile
-from custos.core.state_snapshot import StateSnapshotPublisher
+from custos.core.runner_fact import (
+    RunnerCapabilityReceipt,
+    RunnerFactEmitter,
+    RunnerFactIdentity,
+    RunnerFactJetStreamPublisher,
+    RunnerFactOutbox,
+)
+from custos.core.runner_fact_producer import RunnerFactProductionLoop
+from custos.core.runner_toml import RunnerToml
+from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogRedactor
 from custos.core.zombie_watchdog import ZombieWatchdog
 from custos.engines.nautilus.risk import make_runner_cap_reject_publisher
 
 log = logging.getLogger("custos")
 
 _AVAILABLE_ENGINES = {"nautilus", "noop"}
+
+
+async def _watch_machine_authority(
+    stop: asyncio.Event,
+    *,
+    backend_url: str,
+    machine_credential: object,
+    local_check_secs: float = 1.0,
+    remote_check_secs: float = 30.0,
+) -> None:
+    """Stop on explicit invalidation while tolerating transport outages."""
+    authority = MachineCredentialHttpClient(backend_url, machine_credential)  # type: ignore[arg-type]
+    elapsed = 0.0
+    while not stop.is_set():
+        try:
+            machine_credential.assert_active()  # type: ignore[attr-defined]
+        except MachineCredentialError as exc:
+            log.error(
+                "machine_authority_invalidated",
+                extra={"error_type": type(exc).__name__},
+            )
+            stop.set()
+            return
+        elapsed += local_check_secs
+        if elapsed >= remote_check_secs:
+            elapsed = 0.0
+            try:
+                await asyncio.to_thread(authority.verify_active)
+            except MachineCredentialTransportError as exc:
+                log.warning(
+                    "machine_authority_check_unavailable",
+                    extra={"error_type": type(exc).__name__},
+                )
+            except (MachineCredentialRejectedError, MachineCredentialError) as exc:
+                log.error(
+                    "machine_authority_rejected",
+                    extra={"error_type": type(exc).__name__},
+                )
+                stop.set()
+                return
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=local_check_secs)
+        except TimeoutError:
+            pass
 
 
 def _build_vault(args: argparse.Namespace) -> PerKeyVault:
@@ -57,7 +109,13 @@ def _build_vault(args: argparse.Namespace) -> PerKeyVault:
     )
 
 
-def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
+def _build_host(
+    args: argparse.Namespace,
+    client: ArxNatsClient | None = None,
+    *,
+    fact_emitter: RunnerFactEmitter | None = None,
+    capability_receipt: RunnerCapabilityReceipt | None = None,
+):
     """Pick the execution engine host from the clean-break ``--engine`` enum.
 
     ``nautilus`` selects the real ``NtTradingNodeHost`` and ``noop`` selects
@@ -77,6 +135,8 @@ def _build_host(args: argparse.Namespace, client: ArxNatsClient | None = None):
             telemetry_client=client,
             tenant_id=args.tenant_id,
             runner_id=args.runner_id,
+            runner_fact_emitter=fact_emitter,
+            capability_receipt=capability_receipt,
         )
     if engine == "noop":
         from custos.engines.nautilus.host import NoopHost
@@ -90,6 +150,7 @@ def _build_reconciler(
     client: ArxNatsClient,
     host: object,
     vault: PerKeyVault,
+    runtime_log_emitter: RunnerRuntimeLogEmitter,
     readiness: ReadinessFile | None = None,
 ) -> DeploymentReconciler:
     """Compose the reconciler with the three local guards wired in (non-custodial
@@ -110,37 +171,12 @@ def _build_reconciler(
         runner_id=args.runner_id,
         execution_engine=host,  # type: ignore[arg-type]
         credential_vault=vault,
+        runtime_log_emitter=runtime_log_emitter,
         local_cap=runner_cap,
         fallback_breaker=fallback_breaker,
         zombie_watchdog=zombie_watchdog,
         readiness=readiness,
     )
-
-
-async def _heartbeat_loop(client: ArxNatsClient, interval: float, stop: asyncio.Event) -> None:
-    # Time-ordered UUIDv7 so the session boundary is comparable on the
-    # consumer side (matches the wire contract's session_id timeordering).
-    session_id = str(uuid6.uuid7())
-    started_at = time.monotonic()
-    seq = 0
-    while not stop.is_set():
-        try:
-            await client.publish_heartbeat(
-                health="ok",
-                seq=seq,
-                session_id=session_id,
-                uptime_secs=int(time.monotonic() - started_at),
-                # The fallback heartbeat loop has no NT binding; the
-                # production telemetry actor reports the real count.
-                active_deployments=0,
-            )
-        except Exception as exc:  # noqa: BLE001 — heartbeat loop must survive transient publish errors
-            log.warning("heartbeat_publish_failed", extra={"error": str(exc), "seq": seq})
-        seq += 1
-        try:
-            await asyncio.wait_for(stop.wait(), timeout=interval)
-        except TimeoutError:
-            continue
 
 
 async def run_daemon(args: argparse.Namespace) -> int:
@@ -155,16 +191,60 @@ async def run_daemon(args: argparse.Namespace) -> int:
     # on the next connect. Ensure the parent directory exists so a fresh
     # runner install doesn't fail on first boot.
     args.wal_path.parent.mkdir(parents=True, exist_ok=True)
+    args.ready_file.expanduser().resolve().unlink(missing_ok=True)
+    metadata = RunnerToml.read(args.runner_toml_path)
+    machine_credential = MachineCredentialVault(args.machine_vault).load()
+    machine_credential.assert_binding(metadata)
+    MachineCredentialHttpClient(metadata.backend_url, machine_credential).verify_active()
+    identity = RunnerFactIdentity.from_private_bytes(
+        machine_credential.private_key_bytes,
+        machine_credential.machine_key_id,
+    )
+    capability = RunnerCapabilityReceipt.load(args.runner_capability)
+    runner_id = UUID(args.runner_id)
+    if capability.tenant_id != args.tenant_id or capability.runner_id != runner_id:
+        raise RuntimeError("Runner capability receipt identity does not match runner.toml")
+    if capability.key_id != identity.key_id:
+        raise RuntimeError("Runner capability receipt key_id does not match local identity")
+    public_key_digest = hashlib.sha256(identity.public_key_bytes).hexdigest()
+    if capability.public_key_digest != public_key_digest:
+        raise RuntimeError("Runner capability receipt public key does not match local identity")
+    if capability.binding_status != "validated":
+        raise RuntimeError(
+            "Runner capability bindings are not validated; restart after projection completes"
+        )
+    fact_outbox = RunnerFactOutbox(args.runner_fact_outbox)
+    fact_emitter = RunnerFactEmitter(
+        fact_outbox,
+        identity,
+        machine_credential.assert_active,
+    )
+    runtime_log_emitter = RunnerRuntimeLogEmitter(
+        emitter=fact_emitter,
+        capability=capability,
+        redactor=RuntimeLogRedactor(known_secrets=(machine_credential.machine_credential,)),
+    )
+    fact_publisher = RunnerFactJetStreamPublisher(
+        servers=(args.nats_url,),
+        outbox=fact_outbox,
+        runner_id=runner_id,
+        authority_guard=machine_credential.assert_active,
+    )
     client = ArxNatsClient(
         nats_url=args.nats_url,
         tenant_id=args.tenant_id,
         runner_id=args.runner_id,
+        machine_credential=machine_credential,
         wal_path=args.wal_path,
     )
     readiness = ReadinessFile(
         args.ready_file,
         tenant_id=args.tenant_id,
         runner_id=args.runner_id,
+        credential_id=str(machine_credential.credential_id),
+        credential_version=machine_credential.credential_version,
+        credential_valid_until=metadata.credential_valid_until,
+        machine_key_id=machine_credential.machine_key_id,
     )
     readiness.clear()
     await client.connect()
@@ -179,17 +259,24 @@ async def run_daemon(args: argparse.Namespace) -> int:
         loop.add_signal_handler(sig, stop.set)
 
     tasks: list[asyncio.Task] = []
+    host: object | None = None
     try:
-        # Enrollment (first run): publish hash + persist locally.
-        if args.enrollment_token:
-            enroll_client = EnrollmentClient(
-                nats_client=client,
-                tenant_id=args.tenant_id,
-                runner_id=args.runner_id,
-                enrollment_path=args.enrollment_path,
+        tasks.append(
+            asyncio.create_task(
+                _watch_machine_authority(
+                    stop,
+                    backend_url=metadata.backend_url,
+                    machine_credential=machine_credential,
+                ),
+                name="runner-machine-authority-watch",
             )
-            await enroll_client.enroll(args.enrollment_token)
-
+        )
+        tasks.append(
+            asyncio.create_task(
+                fact_publisher.run(stop),
+                name="crucible-runner-fact-publisher",
+            )
+        )
         # Deployment reconciler (opt-in via --reconcile-strategy-id).
         if args.reconcile_strategy_id:
             vault = _build_vault(args)
@@ -198,32 +285,46 @@ async def run_daemon(args: argparse.Namespace) -> int:
             # NtTradingNodeHost. The real host wires the telemetry + pre-
             # trade reject bridges to each deployment's MessageBus inside
             # deploy() — that is where the bus exists.
-            host = _build_host(args, client)
-            reconciler = _build_reconciler(args, client, host, vault, readiness)
+            host = _build_host(
+                args,
+                client,
+                fact_emitter=fact_emitter,
+                capability_receipt=capability,
+            )
+            reconciler = _build_reconciler(
+                args,
+                client,
+                host,
+                vault,
+                runtime_log_emitter,
+                readiness,
+            )
             tasks.append(
                 asyncio.create_task(
                     reconciler.reconcile_loop(stop, args.reconcile_strategy_id),
                     name="arx-deployment-reconciler",
                 )
             )
-            # State snapshot publisher: polls the engine's Tier-2 methods
-            # on ``interval_secs`` and publishes one envelope per active
-            # spec via the JetStream WAL-backed path. Scheduled once and
-            # dynamically iterates the spec ids the reconciler currently
-            # holds — no re-spawn needed when specs come and go.
-            publisher = StateSnapshotPublisher(
-                engine=host,
-                nats_client=client,
-                tenant_id=args.tenant_id,
-                runner_id=args.runner_id,
-                interval_secs=args.snapshot_interval_secs,
-            )
-            tasks.append(
-                asyncio.create_task(
-                    publisher.run(stop, reconciler.active_spec_ids),
-                    name="arx-state-snapshot-publisher",
+            if args.engine == "nautilus":
+                producer = RunnerFactProductionLoop(
+                    host=host,  # type: ignore[arg-type]
+                    emitter=fact_emitter,
+                    snapshot_interval_secs=args.runner_fact_snapshot_interval_secs,
+                    period_secs=args.runner_fact_period_secs,
+                    period_retry_secs=args.runner_fact_period_retry_secs,
                 )
-            )
+                tasks.extend(
+                    (
+                        asyncio.create_task(
+                            producer.run_observability(stop),
+                            name="crucible-runner-fact-observability",
+                        ),
+                        asyncio.create_task(
+                            producer.run_periods(stop),
+                            name="crucible-runner-fact-periods",
+                        ),
+                    )
+                )
         else:
             readiness.mark_ready(
                 strategy_id=None,
@@ -231,18 +332,17 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 deployment_subscription=False,
             )
 
-        tasks.append(
-            asyncio.create_task(
-                _heartbeat_loop(client, args.heartbeat_interval, stop),
-                name="arx-heartbeat",
-            )
-        )
         await asyncio.gather(*tasks, return_exceptions=True)
     finally:
+        stop.set()
         readiness.clear()
         for t in tasks:
             if not t.done():
                 t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        if host is not None and callable(getattr(host, "close", None)):
+            await host.close()  # type: ignore[attr-defined]
+        await fact_publisher.close()
         await client.close()
         log.info("runner_stopped")
     return 0

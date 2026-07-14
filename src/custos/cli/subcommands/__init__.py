@@ -16,7 +16,16 @@ import argparse
 import asyncio
 import sys
 
-from custos.cli.subcommands import deployment, enroll, health, nats, start, vault
+from custos.cli.subcommands import (
+    credential,
+    deployment,
+    enroll,
+    health,
+    nats,
+    onboard,
+    start,
+    vault,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,10 +57,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(
         dest="cmd",
-        metavar="{deployment,enroll,health,nats,start,vault}",
+        metavar="{credential,deployment,enroll,onboard,health,nats,start,vault}",
     )
+    credential.register(subparsers)
     deployment.register(subparsers)
     enroll.register(subparsers)
+    onboard.register(subparsers)
     health.register(subparsers)
     nats.register(subparsers)
     start.register(subparsers)

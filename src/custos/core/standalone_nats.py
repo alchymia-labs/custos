@@ -55,7 +55,6 @@ def standalone_stream_configs(tenant_id: str) -> tuple[StreamConfig, StreamConfi
             f"arx.{tenant}.telemetry.>",
             f"arx.{tenant}.snapshot.>",
             f"arx.{tenant}.pre_trade_reject.>",
-            f"arx.{tenant}.enrollment.>",
         ],
         storage=StorageType.FILE,
         metadata=metadata,

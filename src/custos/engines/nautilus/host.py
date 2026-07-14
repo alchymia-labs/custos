@@ -29,12 +29,16 @@ from custos.core.engine_protocol import (
 )
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient
-from custos.core.telemetry_actor import (
-    DEFAULT_TELEMETRY_EVENT_TYPES,
-    ArxNatsTelemetryAdapter,
-    NtTelemetryBridge,
-    TelemetryActor,
-    TelemetryActorConfig,
+from custos.core.runner_fact import (
+    SUPPORTED_CURRENCIES,
+    RunnerCapabilityReceipt,
+    RunnerFactAuthority,
+    RunnerFactEmitter,
+)
+from custos.core.runner_fact_producer import (
+    RunnerFactDeployment,
+    RunnerFactMessageBusBridge,
+    VenueLedgerEvidence,
 )
 from custos.engines.nautilus.risk import NtRiskEngineBridge
 from custos.engines.nautilus.strategy_loader import load_strategy_class
@@ -46,6 +50,7 @@ try:
     )
     from nautilus_trader.adapters.sandbox.factory import SandboxLiveExecClientFactory
     from nautilus_trader.config import LiveExecEngineConfig, LoggingConfig, TradingNodeConfig
+    from nautilus_trader.core.rust.model import PriceType
     from nautilus_trader.live.node import TradingNode
     from nautilus_trader.model.identifiers import TraderId
 except ImportError:  # nautilus extra absent (audit / paper install) — deploy fails fast
@@ -57,6 +62,7 @@ except ImportError:  # nautilus extra absent (audit / paper install) — deploy 
     TradingNodeConfig = None
     TradingNode = None
     TraderId = None
+    PriceType = None
 
 __all__ = ["NoopHost", "NtTradingNodeHost"]
 
@@ -184,14 +190,13 @@ class NtTradingNodeHost:
         telemetry_client: ArxNatsClient | None = None,
         tenant_id: str | None = None,
         runner_id: str | None = None,
+        runner_fact_emitter: RunnerFactEmitter | None = None,
+        capability_receipt: RunnerCapabilityReceipt | None = None,
     ) -> None:
         # spec_id -> (TradingNode, background run task). Never holds credentials.
         self._active_nodes: dict[str, tuple] = {}
-        # spec_id -> live TelemetryActor, so stop() drains + cancels its loops.
-        self._telemetry_actors: dict[str, TelemetryActor] = {}
-        # Strong refs to fire-and-forget actor-teardown tasks scheduled from the
-        # sync done-callback, so the loop doesn't GC them mid-shutdown.
-        self._cleanup_tasks: set = set()
+        # deployment_instance_id -> signed fact scope plus independent venue ledger adapter.
+        self._runner_fact_contexts: dict[str, tuple[RunnerFactDeployment, object | None]] = {}
         # Decimal equity high-water mark per spec so get_engine_status can
         # report drawdown percentage over time. Never a float (red line 0.4).
         self._peak_equity: dict[str, Decimal] = {}
@@ -199,6 +204,8 @@ class NtTradingNodeHost:
         self._telemetry_client = telemetry_client
         self._tenant_id = tenant_id
         self._runner_id = runner_id
+        self._runner_fact_emitter = runner_fact_emitter
+        self._capability_receipt = capability_receipt
 
     @staticmethod
     def _ensure_nt_available() -> None:
@@ -284,9 +291,14 @@ class NtTradingNodeHost:
             _log.error("nt_startup_failure", spec_id=spec_id, **_sanitize_exception(exc))
             raise
 
-        # Attach observability once the MessageBus exists (post-build), before
-        # the strategy starts emitting events. Best-effort — see docstring.
-        await self._attach_observability(node, spec_id)
+        fact_context = self._build_runner_fact_context(spec, credential)
+        try:
+            self._attach_runtime_bridges(node, fact_context)
+        except Exception:
+            node.dispose()
+            raise
+        if fact_context is not None:
+            self._runner_fact_contexts[fact_context[0].deployment_instance_id] = fact_context
 
         node.trader.add_strategy(strategy)
 
@@ -335,53 +347,83 @@ class NtTradingNodeHost:
             f"unsupported trading_mode {trading_mode!r} (expected sandbox / testnet / live)"
         )
 
-    async def _attach_observability(self, node, spec_id: str) -> None:
-        """Attach the telemetry + pre-trade-reject bridges to a built node's
-        MessageBus and start the telemetry actor.
-
-        Best-effort: an attach failure degrades to observability loss (logged as
-        ``telemetry_actor_attach_failed``), never aborts the deploy — the trade
-        path is primary and losing the uplink must not stop trading (red line 0.3).
-        No-op when the host was constructed without a telemetry client (G6
-        capability probes / unit tests).
-        """
-        if self._telemetry_client is None:
-            return
-        actor = TelemetryActor(
-            publisher=ArxNatsTelemetryAdapter(self._telemetry_client),
-            tenant_id=self._tenant_id or "",
-            runner_id=self._runner_id or "",
-            config=TelemetryActorConfig(allowed_event_types=DEFAULT_TELEMETRY_EVENT_TYPES),
-        )
-        try:
-            msgbus = node.kernel.msgbus
-            # Start before subscribing so the actor loop owns the loop reference
-            # before the first event can arrive.
-            await actor.start()
-            NtTelemetryBridge(actor=actor).bootstrap(msgbus)
+    def _attach_runtime_bridges(self, node, fact_context) -> None:
+        msgbus = node.kernel.msgbus
+        if fact_context is not None and self._runner_fact_emitter is not None:
+            RunnerFactMessageBusBridge(
+                emitter=self._runner_fact_emitter,
+                deployment=fact_context[0],
+            ).bootstrap(msgbus)
+        if self._telemetry_client is not None:
             NtRiskEngineBridge(
                 client=self._telemetry_client,
                 tenant_id=self._tenant_id or "",
                 runner_id=self._runner_id or "",
             ).bootstrap(msgbus)
-        except Exception as exc:  # noqa: BLE001 — red line 0.3: observability loss must not abort deploy
-            _log.error("telemetry_actor_attach_failed", spec_id=spec_id, **_sanitize_exception(exc))
-            await self._safe_stop_actor(actor)
-            return
-        self._telemetry_actors[spec_id] = actor
-        _log.info(
-            "nt_observability_attached",
-            spec_id=spec_id,
-            telemetry_session_id=actor.session_id,
-        )
 
-    async def _safe_stop_actor(self, actor: TelemetryActor) -> None:
-        try:
-            await actor.stop()
-        except Exception as exc:  # noqa: BLE001 — stop-time cleanup must not raise into caller
-            _log.error("telemetry_actor_stop_failed", error=str(exc))
+    def _build_runner_fact_context(self, spec: dict, credential: dict):
+        if self._runner_fact_emitter is None or self._capability_receipt is None:
+            return None
+        strategy_id = spec.get("strategy_id")
+        if not strategy_id:
+            raise RuntimeError("validated DeploymentSpec lost its canonical strategy_id")
+        spec_id = spec["spec_id"]
+        deployment_instance_id = str(spec.get("deployment_instance_id") or "").strip()
+        deployment_spec_digest = str(spec.get("deployment_spec_digest") or "").strip()
+        if not deployment_instance_id or not deployment_spec_digest:
+            raise RuntimeError(
+                "validated DeploymentSpec lacks explicit DeploymentInstance/spec digest authority"
+            )
+        required_projectors = ["settlement", "risk", "health"]
+        if spec["trading_mode"] in {"testnet", "live"}:
+            required_projectors.append("reconciliation")
+        self._capability_receipt.require_scope_bindings(
+            projectors=required_projectors,
+            trading_mode=str(spec["trading_mode"]),
+            deployment_instance_id=deployment_instance_id,
+            deployment_spec_id=spec_id,
+            deployment_spec_digest=deployment_spec_digest,
+            strategy_id=strategy_id,
+        )
+        authority = RunnerFactAuthority(
+            tenant_id=self._tenant_id or "",
+            trading_mode=str(spec["trading_mode"]),
+            runner_id=self._capability_receipt.runner_id,
+            deployment_instance_id=deployment_instance_id,
+            deployment_spec_id=spec_id,
+            deployment_spec_digest=deployment_spec_digest,
+            strategy_id=strategy_id,
+            capability_version_id=self._capability_receipt.capability_version_id,
+            capability_version=self._capability_receipt.capability_version,
+            capability_manifest_digest=self._capability_receipt.manifest_digest,
+        )
+        pairs = spec.get("pairs") or []
+        currencies = {str(pair).upper().replace("/", "-").split("-")[-1] for pair in pairs}
+        if len(currencies) != 1:
+            raise RuntimeError("RunnerFact v1 requires one settlement currency per deployment")
+        currency = next(iter(currencies))
+        if currency not in SUPPORTED_CURRENCIES:
+            raise RuntimeError(f"settlement currency {currency!r} is outside RunnerFact v1")
+        provider = None
+        if spec["trading_mode"] in {"testnet", "live"}:
+            from custos.engines.nautilus.binance_ledger import BinanceVenueLedgerSource
+
+            provider = BinanceVenueLedgerSource(spec=spec, credential=credential)
+        deployment = RunnerFactDeployment(
+            authority=authority,
+            deployment_instance_id=deployment_instance_id,
+            deployment_spec_id=str(spec_id),
+            deployment_spec_digest=deployment_spec_digest,
+            venue="BINANCE",
+            currency=currency,
+            reconciliation_available=provider is not None,
+        )
+        return deployment, provider
 
     async def stop(self, spec_id: str) -> None:
+        for instance_id, context in tuple(self._runner_fact_contexts.items()):
+            if context[0].deployment_spec_id == str(spec_id):
+                self._runner_fact_contexts.pop(instance_id, None)
         entry = self._active_nodes.pop(spec_id, None)
         if entry is None:
             # Idempotent: stopping an unknown / already-stopped spec is a no-op.
@@ -400,12 +442,73 @@ class NtTradingNodeHost:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001 — reaping the run task
                 pass
-        # Drain + cancel the telemetry actor after the engine has stopped so any
-        # final buffered events still flush.
-        actor = self._telemetry_actors.pop(spec_id, None)
-        if actor is not None:
-            await self._safe_stop_actor(actor)
         _log.info("nt_stop_completed", spec_id=spec_id)
+
+    async def close(self) -> None:
+        for spec_id in tuple(self._active_nodes):
+            await self.stop(spec_id)
+
+    def runner_fact_deployments(self) -> tuple[RunnerFactDeployment, ...]:
+        return tuple(context[0] for context in self._runner_fact_contexts.values())
+
+    async def runner_fact_risk_snapshot(
+        self, deployment_instance_id: str, currency: str
+    ) -> tuple[Decimal, list[dict]]:
+        context = self._runner_fact_contexts.get(deployment_instance_id)
+        entry = (
+            self._active_nodes.get(context[0].deployment_spec_id) if context is not None else None
+        )
+        if entry is None or context is None:
+            raise RuntimeError(
+                f"RunnerFact DeploymentInstance {deployment_instance_id!r} is not active"
+            )
+        node, _task = entry
+        positions = list(node.kernel.cache.positions_open())
+        venue = positions[0].instrument_id.venue if positions else None
+        if venue is None:
+            instrument_ids = sorted(node.kernel.cache.instrument_ids(), key=str)
+            if not instrument_ids:
+                raise RuntimeError("no instrument is cached for risk equity")
+            venue = instrument_ids[0].venue
+        equities = node.kernel.portfolio.equity(venue)
+        if node.kernel.portfolio.missing_price_instruments(venue):
+            raise RuntimeError("portfolio equity is incomplete because mark prices are missing")
+        money = next(
+            (value for key, value in (equities or {}).items() if str(key) == currency),
+            None,
+        )
+        if money is None:
+            raise RuntimeError(f"portfolio equity has no {currency} value")
+        equity = Decimal(str(money.as_decimal()))
+        rows: list[dict] = []
+        for position in positions:
+            mark_update = node.kernel.cache.mark_price(position.instrument_id)
+            raw_mark = getattr(mark_update, "value", None) if mark_update is not None else None
+            if raw_mark is None and PriceType is not None:
+                raw_mark = node.kernel.cache.price(position.instrument_id, PriceType.MID)
+            if raw_mark is None:
+                raise RuntimeError(f"mark price unavailable for {position.instrument_id}")
+            settlement = str(getattr(position, "settlement_currency", currency))
+            signed_quantity = Decimal(str(position.quantity))
+            if bool(position.is_short):
+                signed_quantity = -signed_quantity
+            rows.append(
+                {
+                    "instrument": str(position.instrument_id),
+                    "quantity": str(signed_quantity),
+                    "mark_price": str(raw_mark),
+                    "currency": settlement,
+                }
+            )
+        return equity, rows
+
+    async def runner_fact_venue_ledger(
+        self, deployment_instance_id: str, coverage_from, closed_at
+    ) -> VenueLedgerEvidence:
+        context = self._runner_fact_contexts.get(deployment_instance_id)
+        if context is None or context[1] is None:
+            raise RuntimeError("independent venue ledger is unavailable for this deployment")
+        return await context[1].collect(coverage_from, closed_at)
 
     async def reconfigure(self, spec: dict) -> None:
         """v1 reconfigure: apply runtime-tunable params in place, reject structural.
@@ -616,13 +719,9 @@ class NtTradingNodeHost:
         entry = self._active_nodes.get(spec_id)
         if entry is not None and entry[1] is task:
             self._active_nodes.pop(spec_id, None)
-            # Tear down the telemetry actor for a self-terminated node so its
-            # flush / heartbeat loops don't linger (scheduled: we're on the loop).
-            actor = self._telemetry_actors.pop(spec_id, None)
-            if actor is not None:
-                cleanup = asyncio.ensure_future(self._safe_stop_actor(actor))
-                self._cleanup_tasks.add(cleanup)
-                cleanup.add_done_callback(self._cleanup_tasks.discard)
+            for instance_id, context in tuple(self._runner_fact_contexts.items()):
+                if context[0].deployment_spec_id == str(spec_id):
+                    self._runner_fact_contexts.pop(instance_id, None)
         if task.cancelled():
             return
         exc = task.exception()

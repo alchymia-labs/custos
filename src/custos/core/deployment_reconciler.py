@@ -31,6 +31,8 @@ from custos.core.g6_gate import check_g6_gate
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.log import get_logger
 from custos.core.nats_client import ArxNatsClient, build_subject
+from custos.core.runner_fact import RunnerFactAuthority
+from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogFactError
 from custos.core.zombie_watchdog import ZombieWatchdog
 
 _log = get_logger("custos.deployment_reconciler")
@@ -65,6 +67,8 @@ class _ReconcileState:
     container_id: str | None = None
     drift_strikes: int = 0
     last_spec: dict | None = None
+    strategy_id: str | None = None
+    runtime_log_authority: RunnerFactAuthority | None = None
 
 
 @dataclass
@@ -76,6 +80,7 @@ class DeploymentReconciler:
     runner_id: str
     execution_engine: ExecutionEngineProtocol
     credential_vault: CredentialVaultProtocol
+    runtime_log_emitter: RunnerRuntimeLogEmitter
     drift_threshold: int = 3
     poll_interval_secs: float = 0.5
     # Optional local guards injected at the composition root (cli/main.py). When
@@ -185,7 +190,10 @@ class DeploymentReconciler:
                         message_subject=message.subject,
                     )
                     continue
-                await self.handle_spec(message.spec.model_dump(mode="json"))
+                await self.handle_spec(
+                    message.spec.model_dump(mode="json"),
+                    strategy_id=str(message.envelope.payload["strategy_id"]),
+                )
         finally:
             if self.readiness is not None:
                 self.readiness.clear()
@@ -210,7 +218,7 @@ class DeploymentReconciler:
             except TimeoutError:
                 await self._tick_local_guards()
 
-    async def handle_spec(self, spec: dict) -> None:
+    async def handle_spec(self, spec: dict, *, strategy_id: str | None = None) -> None:
         """Process one DeploymentSpec snapshot with generation idempotency + drift detection."""
         try:
             validated = DeploymentSpec.model_validate(spec)
@@ -236,6 +244,45 @@ class DeploymentReconciler:
             return
 
         state = self._state.setdefault(spec_id, _ReconcileState())
+        if strategy_id is not None:
+            if state.strategy_id is not None and state.strategy_id != strategy_id:
+                _log.error(
+                    "deployment_spec_strategy_identity_changed",
+                    spec_id=spec_id,
+                    previous_strategy_id=state.strategy_id,
+                    strategy_id=strategy_id,
+                )
+                return
+            state.strategy_id = strategy_id
+        effective_strategy_id = state.strategy_id or strategy_id
+        if effective_strategy_id is None:
+            _log.error(
+                "deployment_runtime_log_binding_missing",
+                spec_id=spec_id,
+            )
+            return
+        try:
+            runtime_authority = self.runtime_log_emitter.authority_for_spec(
+                spec,
+                strategy_id=effective_strategy_id,
+            )
+        except RuntimeLogFactError as exc:
+            _log.error(
+                "deployment_runtime_log_binding_rejected",
+                spec_id=spec_id,
+                error_type=type(exc).__name__,
+            )
+            return
+        if (
+            state.runtime_log_authority is not None
+            and state.runtime_log_authority.stream_key != runtime_authority.stream_key
+        ):
+            _log.error(
+                "deployment_runtime_log_binding_changed",
+                spec_id=spec_id,
+            )
+            return
+        state.runtime_log_authority = runtime_authority
         # Keep the latest spec so the watchdog can read lifecycle_state (paused
         # exemption) and report status without re-fetching.
         state.last_spec = spec
@@ -319,12 +366,18 @@ class DeploymentReconciler:
         if not state.container_id:
             cred = self.credential_vault.decrypt(self._credential_ref(spec, spec_id))
             check_g6_gate(self.execution_engine, spec, cred)
-            return await self.execution_engine.deploy(spec, cred)
+            runtime_spec = dict(spec)
+            if state.strategy_id is not None:
+                runtime_spec["strategy_id"] = state.strategy_id
+            return await self.execution_engine.deploy(runtime_spec, cred)
         # Existing deployment: reconfigure. Re-run G6 gate check for host/venue/code_hash;
         # layer-4 scope was already validated at deploy time, so do not re-decrypt
         # credential here.
         check_g6_gate(self.execution_engine, spec, credential=None)
-        await self.execution_engine.reconfigure(spec)
+        runtime_spec = dict(spec)
+        if state.strategy_id is not None:
+            runtime_spec["strategy_id"] = state.strategy_id
+        await self.execution_engine.reconfigure(runtime_spec)
         return state.container_id or ""
 
     def _refresh_risk_config(self, spec: dict) -> None:
@@ -491,6 +544,10 @@ class DeploymentReconciler:
         payload = {
             "status_id": str(uuid.uuid4()),
             "spec_id": spec_id,
+            "deployment_instance_id": spec.get("deployment_instance_id"),
+            "deployment_spec_id": spec_id,
+            "deployment_spec_digest": spec.get("deployment_spec_digest"),
+            "correlation_id": str(uuid.uuid4()),
             "observed_generation": state.observed_generation,
             "container_id": state.container_id,
             "phase": phase,
@@ -499,6 +556,30 @@ class DeploymentReconciler:
         }
         if reason is not None:
             payload["health_reason"] = reason
+        if state.runtime_log_authority is None:
+            raise RuntimeError("runtime log authority is absent for DeploymentStatus")
+        try:
+            await self.runtime_log_emitter.emit(
+                state.runtime_log_authority,
+                level="ERROR" if health == "unhealthy" else "INFO",
+                component="deployment_reconciler",
+                message="Deployment status observed",
+                structured_fields={
+                    "status_id": payload["status_id"],
+                    "phase": phase,
+                    "health": health,
+                    "health_reason": reason,
+                    "observed_generation": state.observed_generation,
+                    "container_id": state.container_id,
+                },
+                correlation_id=payload["correlation_id"],
+            )
+        except Exception as exc:
+            _log.error(
+                "runner_runtime_log_fact_rejected",
+                spec_id=spec_id,
+                error_type=type(exc).__name__,
+            )
         try:
             await self.nats_client.publish_deployment_status(
                 spec_id=spec_id,

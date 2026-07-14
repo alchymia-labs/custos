@@ -311,6 +311,7 @@ name = "custos-runner"
 version = "0.3.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "nats-py" },
     { name = "pydantic" },
     { name = "structlog" },
@@ -344,6 +345,7 @@ nautilus = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=42" },
     { name = "custos-runner", extras = ["nautilus"], marker = "extra == 'all-engines'" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.20" },
     { name = "nats-py", specifier = ">=2.9" },
