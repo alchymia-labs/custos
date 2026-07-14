@@ -13,13 +13,10 @@
     "Custos Plan 18 Task 6 immutable toolkit RC receipt"
   ],
   "engine_ready": false,
-  "handoff_ready": false,
+  "handoff_ready": true,
   "immutable_toolkit_rc_ready": false,
   "loaded": false,
-  "next_scoped_handoff_status": "READY_PRE_IMPORT_VERIFIER",
-  "open_blockers": [
-    "clean current-HEAD full make verify"
-  ],
+  "open_blockers": [],
   "pre_import_receipt_schema": {
     "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
     "sha256": "d6e21b0a9207ed8bdd6e4e21cce53070939d21e2aed1992544f9fa7f41cf3463"
@@ -43,7 +40,7 @@
   },
   "production_ready": false,
   "receipt_schema_version": 2,
-  "receipt_status": "REQUIREMENTS_REVIEWS_ACCEPTED",
+  "receipt_status": "READY_PRE_IMPORT_VERIFIER",
   "requirements_review_status": "ACCEPTED",
   "requirements_reviews": {
     "crucible_rust_plan_88": {
@@ -78,14 +75,59 @@
     "sha256": "83005dc4090c75db8beca0fd8a825b3dc7094bc31fc99e96fb50d416c8f9f9d0"
   },
   "runtime_ready": false,
-  "scope": "T5a requirements intake only; T5b production handoff remains open",
+  "scope": "pre-import schema and production verifier library handoff only",
+  "scoped_handoff": {
+    "excludes": [
+      "runtime invocation caller",
+      "strategy import or loaded entry point",
+      "engine readiness and runtime lifecycle",
+      "immutable toolkit RC",
+      "runtime or production readiness"
+    ],
+    "includes": [
+      "exact pre-import contract schema and candidate assets",
+      "accepted Crucible and Philosophers-Stone requirements reviews",
+      "production pre-import verifier library and typed receipt return"
+    ],
+    "status": "READY_PRE_IMPORT_VERIFIER"
+  },
   "t5b_implementation_evidence": {
     "commit": "560e9f5b80962df3307f855be7ceef70c3585bd7",
-    "current_head_full_make_verify_passed": false,
+    "current_head_full_make_verify_passed": true,
     "focused_tests_passed": 49,
     "production_pre_import_verifier_library_implemented": true,
     "public_pre_import_receipt_library_emission_implemented": true,
     "runtime_invocation_caller_wired": false,
-    "strategy_import_wired": false
+    "strategy_import_wired": false,
+    "verification_head": "a856455d33b5defd05284183023db6d4320f8101"
+  },
+  "verification": {
+    "authority": "PASS",
+    "command": "make verify",
+    "exact_head": "a856455d33b5defd05284183023db6d4320f8101",
+    "extraction": {
+      "total": 241,
+      "verified": 241
+    },
+    "formatted_files": 169,
+    "generator": "PASS",
+    "ruff": "PASS",
+    "status": "PASS",
+    "strict_mypy": {
+      "adapter": {
+        "errors": 0,
+        "modules": 59
+      },
+      "base": {
+        "errors": 0,
+        "modules": 40
+      }
+    },
+    "tests": {
+      "passed": 528,
+      "skipped": 4,
+      "xfailed": 1
+    },
+    "worktree_clean": true
   }
 }

@@ -590,12 +590,13 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
         errors.append(f"missing Plan 18 Task 2 v2 candidate receipt: {receipt_path}")
         return None
     receipt = load_json(receipt_path)
-    if receipt.get("receipt_status") != "REQUIREMENTS_REVIEWS_ACCEPTED":
-        errors.append("Plan 18 Task 2 v2 requirements-review intake status differs")
+    if receipt.get("receipt_status") != "READY_PRE_IMPORT_VERIFIER":
+        errors.append("Plan 18 Task 2 v2 scoped handoff status differs")
     if receipt.get("requirements_review_status") != "ACCEPTED":
         errors.append("Plan 18 Task 2 v2 requirements-review decision differs")
+    if receipt.get("handoff_ready") is not True:
+        errors.append("Plan 18 Task 2 v2 scoped handoff must be ready")
     for field in (
-        "handoff_ready",
         "loaded",
         "engine_ready",
         "runtime_ready",
@@ -665,7 +666,8 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
         "public_pre_import_receipt_library_emission_implemented": True,
         "runtime_invocation_caller_wired": False,
         "strategy_import_wired": False,
-        "current_head_full_make_verify_passed": False,
+        "current_head_full_make_verify_passed": True,
+        "verification_head": "a856455d33b5defd05284183023db6d4320f8101",
     }
     if receipt.get("t5b_implementation_evidence") != expected_t5b_evidence:
         errors.append("Plan 18 Task 2 v2 T5b partial implementation evidence differs")
@@ -745,11 +747,44 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
                 errors=errors,
             )
 
-    expected_blockers = ["clean current-HEAD full make verify"]
+    expected_verification = {
+        "status": "PASS",
+        "command": "make verify",
+        "exact_head": "a856455d33b5defd05284183023db6d4320f8101",
+        "worktree_clean": True,
+        "tests": {"passed": 528, "skipped": 4, "xfailed": 1},
+        "formatted_files": 169,
+        "ruff": "PASS",
+        "generator": "PASS",
+        "authority": "PASS",
+        "extraction": {"verified": 241, "total": 241},
+        "strict_mypy": {
+            "base": {"errors": 0, "modules": 40},
+            "adapter": {"errors": 0, "modules": 59},
+        },
+    }
+    if receipt.get("verification") != expected_verification:
+        errors.append("Plan 18 Task 2 v2 exact-HEAD verification evidence differs")
+    expected_blockers: list[str] = []
     if receipt.get("open_blockers") != expected_blockers:
         errors.append("Plan 18 Task 2 v2 open blocker set differs")
-    if receipt.get("next_scoped_handoff_status") != "READY_PRE_IMPORT_VERIFIER":
-        errors.append("Plan 18 Task 2 v2 next scoped handoff status differs")
+    expected_scoped_handoff = {
+        "status": "READY_PRE_IMPORT_VERIFIER",
+        "includes": [
+            "exact pre-import contract schema and candidate assets",
+            "accepted Crucible and Philosophers-Stone requirements reviews",
+            "production pre-import verifier library and typed receipt return",
+        ],
+        "excludes": [
+            "runtime invocation caller",
+            "strategy import or loaded entry point",
+            "engine readiness and runtime lifecycle",
+            "immutable toolkit RC",
+            "runtime or production readiness",
+        ],
+    }
+    if receipt.get("scoped_handoff") != expected_scoped_handoff:
+        errors.append("Plan 18 Task 2 v2 scoped handoff boundary differs")
     if receipt.get("deferred_to_plan_19") != [
         "runtime invocation caller",
         "strategy import and loaded entry point",

@@ -65,10 +65,12 @@
       "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
     },
     {
-      "role": "plan_18_task_2_receipt_v2_requirements_reviewed",
+      "role": "plan_18_t5_pre_import_verifier_ready",
       "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
-      "receipt_status": "REQUIREMENTS_REVIEWS_ACCEPTED",
-      "handoff_ready": false,
+      "receipt_status": "READY_PRE_IMPORT_VERIFIER",
+      "handoff_ready": true,
+      "loaded": false,
+      "engine_ready": false,
       "runtime_ready": false,
       "production_ready": false
     },

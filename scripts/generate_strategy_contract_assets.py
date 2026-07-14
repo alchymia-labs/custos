@@ -428,10 +428,10 @@ def build_assets() -> dict[str, bytes]:
     receipt = {
         "receipt_schema_version": 2,
         "canonical_name": "Custos Plan 18 Task 2 schema receipt v2",
-        "receipt_status": "REQUIREMENTS_REVIEWS_ACCEPTED",
+        "receipt_status": "READY_PRE_IMPORT_VERIFIER",
         "requirements_review_status": "ACCEPTED",
-        "handoff_ready": False,
-        "scope": "T5a requirements intake only; T5b production handoff remains open",
+        "handoff_ready": True,
+        "scope": "pre-import schema and production verifier library handoff only",
         "predecessor": index["predecessor"],
         "producer": {
             "repository": "tesseract-trading/custos",
@@ -455,7 +455,8 @@ def build_assets() -> dict[str, bytes]:
             "public_pre_import_receipt_library_emission_implemented": True,
             "runtime_invocation_caller_wired": False,
             "strategy_import_wired": False,
-            "current_head_full_make_verify_passed": False,
+            "current_head_full_make_verify_passed": True,
+            "verification_head": "a856455d33b5defd05284183023db6d4320f8101",
         },
         "contract_asset_index": {
             "path": V2_INDEX_PATH,
@@ -484,10 +485,38 @@ def build_assets() -> dict[str, bytes]:
             }
             for name, profile in V2_REQUIREMENTS_REVIEWS.items()
         },
-        "open_blockers": [
-            "clean current-HEAD full make verify",
-        ],
-        "next_scoped_handoff_status": "READY_PRE_IMPORT_VERIFIER",
+        "verification": {
+            "status": "PASS",
+            "command": "make verify",
+            "exact_head": "a856455d33b5defd05284183023db6d4320f8101",
+            "worktree_clean": True,
+            "tests": {"passed": 528, "skipped": 4, "xfailed": 1},
+            "formatted_files": 169,
+            "ruff": "PASS",
+            "generator": "PASS",
+            "authority": "PASS",
+            "extraction": {"verified": 241, "total": 241},
+            "strict_mypy": {
+                "base": {"errors": 0, "modules": 40},
+                "adapter": {"errors": 0, "modules": 59},
+            },
+        },
+        "open_blockers": [],
+        "scoped_handoff": {
+            "status": "READY_PRE_IMPORT_VERIFIER",
+            "includes": [
+                "exact pre-import contract schema and candidate assets",
+                "accepted Crucible and Philosophers-Stone requirements reviews",
+                "production pre-import verifier library and typed receipt return",
+            ],
+            "excludes": [
+                "runtime invocation caller",
+                "strategy import or loaded entry point",
+                "engine readiness and runtime lifecycle",
+                "immutable toolkit RC",
+                "runtime or production readiness",
+            ],
+        },
         "deferred_to_plan_19": [
             "runtime invocation caller",
             "strategy import and loaded entry point",

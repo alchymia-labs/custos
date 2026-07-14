@@ -128,9 +128,9 @@ def test_v2_index_binds_generated_assets_and_sidecars() -> None:
 
 def test_v2_receipt_accepts_reviews_without_claiming_runtime_handoff() -> None:
     receipt = _load(V2_RECEIPT)
-    assert receipt["receipt_status"] == "REQUIREMENTS_REVIEWS_ACCEPTED"
+    assert receipt["receipt_status"] == "READY_PRE_IMPORT_VERIFIER"
     assert receipt["requirements_review_status"] == "ACCEPTED"
-    assert receipt["handoff_ready"] is False
+    assert receipt["handoff_ready"] is True
     assert receipt["loaded"] is False
     assert receipt["engine_ready"] is False
     assert receipt["runtime_ready"] is False
@@ -153,7 +153,8 @@ def test_v2_receipt_accepts_reviews_without_claiming_runtime_handoff() -> None:
         "public_pre_import_receipt_library_emission_implemented": True,
         "runtime_invocation_caller_wired": False,
         "strategy_import_wired": False,
-        "current_head_full_make_verify_passed": False,
+        "current_head_full_make_verify_passed": True,
+        "verification_head": "a856455d33b5defd05284183023db6d4320f8101",
     }
     assert receipt["predecessor"] == {
         "asset_index": {
@@ -185,8 +186,38 @@ def test_v2_receipt_accepts_reviews_without_claiming_runtime_handoff() -> None:
         assert slot["status"] == "ACCEPTED_REQUIREMENTS_REVIEW"
         assert slot["receipt"] == pin
         assert _sha256(ROOT / pin["vendored_path"]) == pin["sha256"]
-    assert receipt["open_blockers"] == ["clean current-HEAD full make verify"]
-    assert receipt["next_scoped_handoff_status"] == "READY_PRE_IMPORT_VERIFIER"
+    assert receipt["verification"] == {
+        "status": "PASS",
+        "command": "make verify",
+        "exact_head": "a856455d33b5defd05284183023db6d4320f8101",
+        "worktree_clean": True,
+        "tests": {"passed": 528, "skipped": 4, "xfailed": 1},
+        "formatted_files": 169,
+        "ruff": "PASS",
+        "generator": "PASS",
+        "authority": "PASS",
+        "extraction": {"verified": 241, "total": 241},
+        "strict_mypy": {
+            "base": {"errors": 0, "modules": 40},
+            "adapter": {"errors": 0, "modules": 59},
+        },
+    }
+    assert receipt["open_blockers"] == []
+    assert receipt["scoped_handoff"] == {
+        "status": "READY_PRE_IMPORT_VERIFIER",
+        "includes": [
+            "exact pre-import contract schema and candidate assets",
+            "accepted Crucible and Philosophers-Stone requirements reviews",
+            "production pre-import verifier library and typed receipt return",
+        ],
+        "excludes": [
+            "runtime invocation caller",
+            "strategy import or loaded entry point",
+            "engine readiness and runtime lifecycle",
+            "immutable toolkit RC",
+            "runtime or production readiness",
+        ],
+    }
     assert receipt["deferred_to_plan_19"] == [
         "runtime invocation caller",
         "strategy import and loaded entry point",

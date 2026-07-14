@@ -487,6 +487,9 @@ Task 5 is a two-stage handoff and remains open until both stages close:
    `handoff_ready=true`. This means only schema + production verifier library are ready
    for T6/consumers; runtime invocation, import/load, engine readiness and runtime
    lifecycle remain Plan 19 work and do not block T6 toolkit RC.
+   Exact verification HEAD `a856455d33b5defd05284183023db6d4320f8101` passed full
+   `make verify`: 528 passed, 4 skipped, 1 xfailed; 169 formatted; Ruff, generator,
+   authority, 241/241 extraction and strict mypy base 0/40 + adapter 0/59 all PASS.
 
 1. 写失败测试覆盖 forged issuer、wrong workflow、wrong trust policy、digest mismatch、
    unsafe archive、entry-point escape 和 source-path live execution。
@@ -503,6 +506,9 @@ git commit -m "feat(toolkit): verify signed strategy artifacts"
 ```
 
 ### Task 6: Publish immutable toolkit RC
+
+START gate is the scoped T5 `READY_PRE_IMPORT_VERIFIER` receipt. It is now open;
+Plan 19 runtime invocation and PS Plan 56 are not T6 START gates.
 
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
@@ -600,8 +606,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T3 Minimal distribution | [x] | 2026-07-15 | implementation `efc01da67b432e9b35beee3498415efc1bc46b98`; independent receipt READY; T4b-T5 remain open, so 18b is not production-ready |
 | T4 Zero-rewrite extraction | [x] | 2026-07-15 | exact implementation `b5ff7ee9cea0e78f4462a478bafa42f8f6e18805`; clean exact-HEAD focused `91 passed, 1 skipped`; 241/241 extraction、parity、authority、English and lint gates PASS; receipt `VERIFIED_EXTRACTION_ONLY`, handoff false because T4b/T5 remain open |
 | T4b Extracted typing closure | [x] | 2026-07-15 | exact implementation `5a19a816d4f6d90e7d3fbde80d39f562decd8c4b`; clean exact-HEAD `make verify` 508 passed, 4 skipped, 1 xfailed; assets/extraction 241/241/authority/closure PASS; strict mypy 0/40 base and 0/59 adapter; receipt `READY_TYPING_CLOSURE`, handoff limited to T4b; T5/T6 still block 18b production readiness |
-| T5 Verifier/attestation | [ ] | — | T5a exact producer `f3adde2...`, index `6fd49708...` and schema `d6e21b0a...` have accepted Crucible `3f41f32...` and PS `267e23b...` requirements reviews; T5b library `560e9f5...` composes production verifier and returns typed pre-import receipt with focused 49 PASS; only clean exact-HEAD full `make verify` blocks scoped library handoff, while runtime invocation/import stays Plan19 and does not block T6; current receipt remains handoff/loaded/engine/runtime/production false |
-| T6 Toolkit candidate | [ ] | — | Custos-owned immutable base/Nautilus toolkit RC receipt only; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; PS56 is not a START gate |
+| T5 Verifier/attestation | [x] | 2026-07-15 | Scoped `READY_PRE_IMPORT_VERIFIER`: producer `f3adde2...`, index `6fd49708...`, schema `d6e21b0a...`, Crucible review `3f41f32...`, PS review `267e23b...`, implementation `560e9f5...`, and exact verification HEAD `a856455...` (528 passed/4 skipped/1 xfailed; all authority/typing/extraction gates PASS); handoff covers schema + verifier library only, while loaded/engine/runtime/production remain false and runtime invocation stays Plan19 |
+| T6 Toolkit candidate | [ ] | — | START gate open; Custos-owned immutable base/Nautilus toolkit RC receipt only; PS54 later owns strategy artifact/manifest/full `StrategyReleaseBomV1`; Plan19 runtime invocation and PS56 are not START gates |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
@@ -626,7 +632,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | SCOPE | Task 2 READY ceiling | READY 仅证明 execution ABI/schema/inventory/golden handoff；不证明 toolkit wheel、BOM、OIDC/signing、runtime verifier、Plan 88 completion 或 production readiness | Recorded 2026-07-15 |
 | EXECUTION | 18b production-ready boundary | 明确 T3 单独只建立 distribution boundary；只有 T3-T5 整体 DoD PASS 才可声明 18b production-ready | Accepted 2026-07-15 |
 | AUTHORITY | T4 canonical move | 241 个 canonical implementations 必须 move 到新 distributions；旧树只能临时保留无实现 shim，并在 T8 删除 | Accepted 2026-07-15 |
-| SAFETY | T5a review intake | Exact consumer reviews advance only to `REQUIREMENTS_REVIEWS_ACCEPTED`; scoped library handoff waits for clean exact-HEAD full `make verify`, while loaded/engine/runtime/production remain false and Plan19-owned runtime invocation does not block T6 | Accepted 2026-07-15 |
+| SAFETY | T5 scoped handoff | Exact reviews, implementation and clean full verification advance only schema + production verifier library to `READY_PRE_IMPORT_VERIFIER`; loaded/engine/runtime/production remain false, while Plan19 runtime invocation does not block T6 | Closed 2026-07-15 |
 | OWNERSHIP | T6 toolkit RC | Custos publishes only the immutable toolkit RC receipt; PS54 owns strategy artifact/manifest/full `StrategyReleaseBomV1`, PS56 is not a T6 START gate, and the legacy Python lane is unchanged | Accepted 2026-07-15 |
 
 ## Slice 18a handoff and Task 2 READY provenance
