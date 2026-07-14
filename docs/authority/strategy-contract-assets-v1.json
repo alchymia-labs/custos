@@ -44,6 +44,6 @@
   ],
   "canonical_name": "Custos Plan 18 Task 2 schema assets",
   "producer_source": "src/custos/contracts/strategy_execution.py",
-  "producer_source_sha256": "6da97b9369cf92e42b9dfcf5b5771fe78491cab4c40459127d08ab4fd3740551",
+  "producer_source_sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3",
   "strategy_release_bom_ownership": "not owned by Custos; only member requirements are consumed"
 }

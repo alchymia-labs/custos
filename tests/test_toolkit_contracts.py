@@ -215,16 +215,16 @@ def test_golden_cross_links_instance_spec_digests_and_bom() -> None:
     members_by_role = {member["role"]: member for member in command["release_bom_members"]}
     assert members_by_role["strategy_wheel"]["sha256"] == artifact_ref["artifact_sha256"]
     assert members_by_role["strategy_manifest"]["sha256"] == artifact_ref["manifest_sha256"]
-    assert members_by_role["attestation_bundle"]["sha256"] == artifact_ref["attestation"][
-        "bundle_sha256"
-    ]
+    assert (
+        members_by_role["attestation_bundle"]["sha256"]
+        == artifact_ref["attestation"]["bundle_sha256"]
+    )
     assert members_by_role["sbom"]["sha256"] == artifact_ref["sbom_sha256"]
-    assert members_by_role["contract_schema"]["sha256"] == artifact_ref[
-        "contract_schema_sha256"
-    ]
-    assert members_by_role["source_tree"]["sha256"] == artifact_ref["attestation"][
-        "normalized_source_tree_sha256"
-    ]
+    assert members_by_role["contract_schema"]["sha256"] == artifact_ref["contract_schema_sha256"]
+    assert (
+        members_by_role["source_tree"]["sha256"]
+        == artifact_ref["attestation"]["normalized_source_tree_sha256"]
+    )
     assert artifact_ref["required_runtime_artifacts"][0] in command["release_bom_members"]
 
 
@@ -242,7 +242,9 @@ def test_lifecycle_golden_is_lossless() -> None:
 @pytest.mark.parametrize(("filename", "model"), SCHEMA_MODELS.items())
 def test_schema_is_source_generated(filename: str, model: type) -> None:
     path = ROOT / "docs/gateway-contract/v1" / filename
-    assert json.loads(path.read_text(encoding="utf-8")) == model.model_json_schema(mode="validation")
+    assert json.loads(path.read_text(encoding="utf-8")) == model.model_json_schema(
+        mode="validation"
+    )
 
 
 def test_lightweight_import_does_not_load_nautilus_or_mutate_path() -> None:
@@ -262,7 +264,6 @@ def test_root_python311_and_nautilus_extra_keep_separate_interpreter_rules() -> 
     assert project["requires-python"] == ">=3.11"
     assert all("nautilus-trader" not in requirement for requirement in project["dependencies"])
     assert any(
-        requirement.startswith("nautilus-trader")
-        and "python_version >= '3.12'" in requirement
+        requirement.startswith("nautilus-trader") and "python_version >= '3.12'" in requirement
         for requirement in nautilus_requirements
     )

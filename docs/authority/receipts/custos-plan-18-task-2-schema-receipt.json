@@ -13,19 +13,21 @@
   "producer": {
     "repository": "tesseract-trading/custos",
     "source": "src/custos/contracts/strategy_execution.py",
-    "candidate_commit": "877a52a59c43ec20d1c9cda1bf309644726d5ee9",
-    "source_sha256": "6da97b9369cf92e42b9dfcf5b5771fe78491cab4c40459127d08ab4fd3740551",
+    "candidate_commit": null,
+    "source_sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3",
     "commit": null,
     "worktree_clean": null
   },
   "contract_asset_index": {
     "path": "docs/authority/strategy-contract-assets-v1.json",
-    "sha256": "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302"
+    "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
   },
   "requirements_reviews": {
     "crucible_rust_plan_88": {
       "required_receipt_name": "Crucible Plan 88 Custos Plan 18 Task 2 requirements-only consumer review",
-      "status": "ACCEPTED_REQUIREMENTS_REVIEW",
+      "status": "PENDING_EXACT_REQUIREMENTS_REVIEW",
+      "stale_for_current_candidate": true,
+      "stale_reason": "review pins the pre-format producer source and asset-index digests",
       "receipt": {
         "source_repository": "tesseract-trading/crucible-rust",
         "source_path": "docs/authority/receipts/crucible-plan-88-custos-task-2-consumer-review.json",
@@ -36,7 +38,9 @@
     },
     "philosophers_stone_plan_54": {
       "required_receipt_name": "Philosophers-Stone Plan 54 Custos Plan 18 Task 2 requirements review",
-      "status": "ACCEPTED_REQUIREMENTS_REVIEW",
+      "status": "PENDING_EXACT_REQUIREMENTS_REVIEW",
+      "stale_for_current_candidate": true,
+      "stale_reason": "review pins the pre-format producer source and asset-index digests",
       "receipt": {
         "source_repository": "alchymia-labs/philosophers-stone",
         "source_path": "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json",

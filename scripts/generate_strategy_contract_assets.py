@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -110,7 +110,9 @@ def build_inventory() -> dict[str, object]:
         "ps_owned_hummingbot",
         "delete",
     ]
-    counts = {category: sum(entry["category"] == category for entry in entries) for category in categories}
+    counts = {
+        category: sum(entry["category"] == category for entry in entries) for category in categories
+    }
     return {
         "inventory_schema_version": 1,
         "source_root": "src/custos/engines/nautilus/toolkit",
@@ -181,15 +183,59 @@ def build_lifecycle_golden() -> dict[str, object]:
         contract_schema_sha256=digests["2"],
     )
     members = (
-        member(ArtifactMemberRole.BASE_CONTRACTS_WHEEL, "custos_strategy_toolkit-1.0.0rc1.whl", "b" * 64, 1000, "application/zip"),
-        member(ArtifactMemberRole.NAUTILUS_WHEEL, "custos_strategy_toolkit_nautilus-1.0.0rc1.whl", "c" * 64, 2000, "application/zip"),
-        member(ArtifactMemberRole.STRATEGY_WHEEL, "supertrend-1.0.0rc1.whl", digests["7"], 4096, "application/zip"),
-        member(ArtifactMemberRole.STRATEGY_MANIFEST, "strategy-manifest-v1.json", digests["8"], 1024, "application/json"),
+        member(
+            ArtifactMemberRole.BASE_CONTRACTS_WHEEL,
+            "custos_strategy_toolkit-1.0.0rc1.whl",
+            "b" * 64,
+            1000,
+            "application/zip",
+        ),
+        member(
+            ArtifactMemberRole.NAUTILUS_WHEEL,
+            "custos_strategy_toolkit_nautilus-1.0.0rc1.whl",
+            "c" * 64,
+            2000,
+            "application/zip",
+        ),
+        member(
+            ArtifactMemberRole.STRATEGY_WHEEL,
+            "supertrend-1.0.0rc1.whl",
+            digests["7"],
+            4096,
+            "application/zip",
+        ),
+        member(
+            ArtifactMemberRole.STRATEGY_MANIFEST,
+            "strategy-manifest-v1.json",
+            digests["8"],
+            1024,
+            "application/json",
+        ),
         runtime_member,
-        member(ArtifactMemberRole.ATTESTATION_BUNDLE, "attestation.sigstore.json", digests["6"], 2048, "application/vnd.dev.sigstore.bundle+json"),
-        member(ArtifactMemberRole.SBOM, "sbom.spdx.json", digests["1"], 3072, "application/spdx+json"),
-        member(ArtifactMemberRole.CONTRACT_SCHEMA, "strategy-contract-assets-v1.json", digests["2"], 1536, "application/json"),
-        member(ArtifactMemberRole.SOURCE_TREE, "source-tree.normalized", digests["3"], 8192, "application/vnd.alephain.source-tree"),
+        member(
+            ArtifactMemberRole.ATTESTATION_BUNDLE,
+            "attestation.sigstore.json",
+            digests["6"],
+            2048,
+            "application/vnd.dev.sigstore.bundle+json",
+        ),
+        member(
+            ArtifactMemberRole.SBOM, "sbom.spdx.json", digests["1"], 3072, "application/spdx+json"
+        ),
+        member(
+            ArtifactMemberRole.CONTRACT_SCHEMA,
+            "strategy-contract-assets-v1.json",
+            digests["2"],
+            1536,
+            "application/json",
+        ),
+        member(
+            ArtifactMemberRole.SOURCE_TREE,
+            "source-tree.normalized",
+            digests["3"],
+            8192,
+            "application/vnd.alephain.source-tree",
+        ),
     )
     member_table = [item.model_dump(mode="json") for item in members]
     ps_owned_bom_fixture = {
@@ -215,7 +261,7 @@ def build_lifecycle_golden() -> dict[str, object]:
     )
     receipt = StrategyArtifactVerificationReceiptV1(
         verification_profile="custos-artifact-verification-v1",
-        verified_at=datetime(2026, 7, 14, tzinfo=timezone.utc),
+        verified_at=datetime(2026, 7, 14, tzinfo=UTC),
         command_binding=command_binding,
         artifact_ref_digest=canonical_model_digest(artifact_ref),
         verified_members=members,

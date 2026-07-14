@@ -15,7 +15,10 @@ def _source_paths() -> set[str]:
         if path.is_file()
         and "__pycache__" not in path.parts
         and (path.suffix in {".py", ".yaml"} or path.name == "LICENSE")
-        and ("shared" in path.relative_to(TOOLKIT).parts or "vendor" in path.relative_to(TOOLKIT).parts)
+        and (
+            "shared" in path.relative_to(TOOLKIT).parts
+            or "vendor" in path.relative_to(TOOLKIT).parts
+        )
     }
 
 

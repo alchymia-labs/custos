@@ -181,7 +181,10 @@ class StrategyManifestV1(_StrictFrozenModel):
 
     @model_validator(mode="after")
     def validate_runtime_artifacts(self) -> Self:
-        if any(member.role is not ArtifactMemberRole.RUNTIME_ARTIFACT for member in self.runtime_artifacts):
+        if any(
+            member.role is not ArtifactMemberRole.RUNTIME_ARTIFACT
+            for member in self.runtime_artifacts
+        ):
             raise ValueError("manifest runtime_artifacts may contain only runtime_artifact members")
         _require_unique_members(self.runtime_artifacts)
         return self
@@ -296,7 +299,9 @@ class StrategyArtifactVerificationReceiptV1(_StrictFrozenModel):
     @model_validator(mode="after")
     def validate_lossless_evidence(self) -> Self:
         if self.verified_members != self.command_binding.release_bom_members:
-            raise ValueError("verified_members must losslessly echo the command release member table")
+            raise ValueError(
+                "verified_members must losslessly echo the command release member table"
+            )
         if self.artifact_ref_digest != canonical_model_digest(self.command_binding.artifact_ref):
             raise ValueError("artifact_ref_digest does not match the command artifact_ref")
         attestation = self.command_binding.artifact_ref.attestation
@@ -419,9 +424,7 @@ def _validate_release_members(
         ArtifactMemberRole.CONTRACT_SCHEMA,
         ArtifactMemberRole.SOURCE_TREE,
     }
-    invalid = sorted(
-        role.value for role in required_singletons if len(by_role.get(role, ())) != 1
-    )
+    invalid = sorted(role.value for role in required_singletons if len(by_role.get(role, ())) != 1)
     if invalid:
         raise ValueError(f"release member projection requires exactly one of each role: {invalid}")
 
@@ -441,7 +444,9 @@ def _validate_release_members(
     for runtime_artifact in artifact_ref.required_runtime_artifacts:
         key = (runtime_artifact.role, runtime_artifact.name, runtime_artifact.sha256)
         if key not in member_keys:
-            raise ValueError("ArtifactRef runtime artifact is absent from release member projection")
+            raise ValueError(
+                "ArtifactRef runtime artifact is absent from release member projection"
+            )
 
 
 def _object_without_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:

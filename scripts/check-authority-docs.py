@@ -16,11 +16,10 @@ TASK_2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-task-2-schema-rece
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 EXPECTED_PRODUCER = {
     "repository": "tesseract-trading/custos",
-    "commit": "877a52a59c43ec20d1c9cda1bf309644726d5ee9",
     "source_path": "src/custos/contracts/strategy_execution.py",
-    "source_sha256": "6da97b9369cf92e42b9dfcf5b5771fe78491cab4c40459127d08ab4fd3740551",
+    "source_sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3",
     "asset_index_path": "docs/authority/strategy-contract-assets-v1.json",
-    "asset_index_sha256": "ab1072fc0dd2839dffdfa364a0439600ef206c12e0e43d9eefc3902efd5ba302",
+    "asset_index_sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07",
 }
 EXPECTED_CONTRACT_SUMMARY = {
     "canonicalization": "sha256-canonical-json-v1",
@@ -36,14 +35,12 @@ REVIEW_PROFILES: dict[str, dict[str, Any]] = {
         ),
         "source_repository": "tesseract-trading/crucible-rust",
         "source_path": (
-            "docs/authority/receipts/"
-            "crucible-plan-88-custos-task-2-consumer-review.json"
+            "docs/authority/receipts/crucible-plan-88-custos-task-2-consumer-review.json"
         ),
         "source_commit": "91863e22202f21faa4038441d4c43d5d2c4a8317",
         "sha256": "7e26b0f371324512f6f57830b235a34f5512d5acb4bdf1f27f5f737a25548370",
         "vendored_path": (
-            "docs/authority/receipts/vendor/"
-            "crucible-plan-88-custos-task-2-requirements-review.json"
+            "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"
         ),
         "decision_path": ("consumer_review_status",),
         "review_schema_path": ("contract_requirements", "schema_version"),
@@ -59,9 +56,7 @@ REVIEW_PROFILES: dict[str, dict[str, Any]] = {
         "assets_path": ("reviewed_assets",),
     },
     "philosophers_stone_plan_54": {
-        "canonical_name": (
-            "Philosophers-Stone Plan 54 Custos Plan 18 Task 2 requirements review"
-        ),
+        "canonical_name": ("Philosophers-Stone Plan 54 Custos Plan 18 Task 2 requirements review"),
         "source_repository": "alchymia-labs/philosophers-stone",
         "source_path": (
             "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json"
@@ -69,8 +64,7 @@ REVIEW_PROFILES: dict[str, dict[str, Any]] = {
         "source_commit": "f0de58e895ffad90071be8033e9178010a9c46b0",
         "sha256": "3a7fe62661f80bb525108dfb5c26dc2af800bb2e85d8e371109f3a36f48e48af",
         "vendored_path": (
-            "docs/authority/receipts/vendor/"
-            "ps-plan-54-custos-task-2-requirements-review.json"
+            "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"
         ),
         "decision_path": ("review_status",),
         "review_schema_path": ("schema_version",),
@@ -192,12 +186,12 @@ def _validate_requirement_review(
     name: str,
     slot: object,
     *,
+    profile: dict[str, Any],
     receipt: dict[str, Any],
     asset_table: dict[str, tuple[str, int]],
     root: Path,
     errors: list[str],
 ) -> None:
-    profile = REVIEW_PROFILES[name]
     if not isinstance(slot, dict):
         errors.append(f"{name} requirements review must be a structured object")
         return
@@ -294,7 +288,13 @@ def verify_strategy_contract_assets(errors: list[str]) -> None:
             errors.append(f"strategy contract asset size differs: {path}")
 
 
-def verify_plan_18_task_2_receipt(errors: list[str], *, root: Path = ROOT) -> None:
+def verify_plan_18_task_2_receipt(
+    errors: list[str],
+    *,
+    root: Path = ROOT,
+    expected_producer: dict[str, Any] = EXPECTED_PRODUCER,
+    review_profiles: dict[str, dict[str, Any]] = REVIEW_PROFILES,
+) -> None:
     receipt_path = resolve(TASK_2_RECEIPT_PATH, root=root)
     if not receipt_path.is_file():
         errors.append(f"missing Plan 18 Task 2 receipt: {receipt_path}")
@@ -320,13 +320,14 @@ def verify_plan_18_task_2_receipt(errors: list[str], *, root: Path = ROOT) -> No
     if not isinstance(producer, dict):
         errors.append("Plan 18 Task 2 receipt producer must be an object")
         return
-    if producer.get("repository") != EXPECTED_PRODUCER["repository"]:
+    if producer.get("repository") != expected_producer["repository"]:
         errors.append("Plan 18 Task 2 producer repository differs")
-    if producer.get("candidate_commit") != EXPECTED_PRODUCER["commit"]:
-        errors.append("Plan 18 Task 2 producer candidate commit differs")
-    if producer.get("source") != EXPECTED_PRODUCER["source_path"]:
+    candidate_commit = producer.get("candidate_commit")
+    if candidate_commit is not None and not re.fullmatch(r"[0-9a-f]{40}", str(candidate_commit)):
+        errors.append("Plan 18 Task 2 producer candidate commit is invalid")
+    if producer.get("source") != expected_producer["source_path"]:
         errors.append("Plan 18 Task 2 producer source path differs")
-    if producer.get("source_sha256") != EXPECTED_PRODUCER["source_sha256"]:
+    if producer.get("source_sha256") != expected_producer["source_sha256"]:
         errors.append("Plan 18 Task 2 producer source digest differs")
     source_path = _resolve_local_file(
         producer.get("source"),
@@ -343,9 +344,9 @@ def verify_plan_18_task_2_receipt(errors: list[str], *, root: Path = ROOT) -> No
     if not isinstance(asset_ref, dict):
         errors.append("Plan 18 Task 2 contract asset index must be an object")
         return
-    if asset_ref.get("path") != EXPECTED_PRODUCER["asset_index_path"]:
+    if asset_ref.get("path") != expected_producer["asset_index_path"]:
         errors.append("Plan 18 Task 2 asset-index path differs")
-    if asset_ref.get("sha256") != EXPECTED_PRODUCER["asset_index_sha256"]:
+    if asset_ref.get("sha256") != expected_producer["asset_index_sha256"]:
         errors.append("Plan 18 Task 2 asset-index pinned digest differs")
     asset_path = _resolve_local_file(
         asset_ref.get("path"),
@@ -370,7 +371,7 @@ def verify_plan_18_task_2_receipt(errors: list[str], *, root: Path = ROOT) -> No
     if not isinstance(reviews, dict):
         errors.append("Plan 18 Task 2 requirements reviews must be an object")
     elif asset_table is not None:
-        for name in REVIEW_PROFILES:
+        for name, profile in review_profiles.items():
             slot = reviews.get(name)
             if status == "READY" or (
                 isinstance(slot, dict) and slot.get("status") == "ACCEPTED_REQUIREMENTS_REVIEW"
@@ -378,6 +379,7 @@ def verify_plan_18_task_2_receipt(errors: list[str], *, root: Path = ROOT) -> No
                 _validate_requirement_review(
                     name,
                     slot,
+                    profile=profile,
                     receipt=receipt,
                     asset_table=asset_table,
                     root=root,
