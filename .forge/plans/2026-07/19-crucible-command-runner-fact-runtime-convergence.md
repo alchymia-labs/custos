@@ -8,7 +8,7 @@
 > **For Claude**: Use `/forge:execute` to implement this plan.
 > **Immediately executable**: Task 1 verification floor only
 > **19d-T8a gate**: 19c STOP only; it produces the immutable RunnerFact candidate before Crucible Plan 90 Phase A
-> **Runtime RC gates**: Crucible Plan 89 signed command producer; Crucible Plan 90 Phase-A schema/golden compatibility receipt; Crucible Plan 99 runner-safety-policy-authority; Custos Plan 18 staged candidate and exact final required by the selected RC/final-candidate BOM
+> **Runtime RC gates**: Crucible Plan 89 migration 0116 signed command producer and `CR89-0116-GENERATION-STORAGE`; Crucible Plan 90 Phase-A schema/golden compatibility receipt; Crucible Plan 99 runner-safety-policy-authority; Custos Plan 18 staged candidate and exact final required by the selected RC/final-candidate BOM
 > **Close-out gates**: Crucible Plan 90 Phase-B real runtime round-trip receipt; PS Plan 56 exact final-candidate acceptance
 > **Original plan-first**: `3ce4048`; this live-plan revision supersedes its erroneous decisions
 
@@ -305,6 +305,7 @@ runtime round-trip receipt：
 6. Custos byte-identical 消费 fixture。
 7. Custos `19d-T8a` 发布 immutable RunnerFact schema/golden/capability candidate；此步不依赖 Plan 90。
 8. Crucible Plan 90 Phase A 证明该 candidate 的双仓 schema/digest/projector compatibility。
+   Phase A must also consume `CR89-0116-GENERATION-STORAGE`; fixture-only compatibility cannot replace the durable generation-storage receipt.
 9. Crucible Plan 90 Phase B 消费 exact Custos runtime RC/final-candidate，证明真实
    command → execution → RunnerFact projector round trip。
 
@@ -528,16 +529,16 @@ R-C18-T2-SCHEMA
   -> R-C18-TOOLKIT-RC -> R-PS54-ARTIFACT-BOM -> R-CR88-STRATEGY-RELEASE
   -> R-CR89-DEPLOYMENT-COMMAND
        -> 19a -> 19b
-       -> Crucible Plan 99 migration 0116 -> R-CR99-RUNNER-POLICY
-  -> 19c -> R-C19-RUNNER-FACT-CANDIDATE -> R-CR90A-FACT-COMPAT
+       -> Crucible Plan 99 migration 0117 -> R-CR99-RUNNER-POLICY
+  -> 19c -> R-C19-RUNNER-FACT-CANDIDATE -> CR89-0116-GENERATION-STORAGE -> R-CR90A-FACT-COMPAT
   -> R-C19-RUNTIME-RC -> R-CR90B-RUNTIME-ROUNDTRIP
   -> R-PS56-EXACT-IMAGE -> R-C19-SAME-DIGEST-PROMOTION
 ```
 
-Crucible Plan 99 migration 0116 is the first Plan 99 runtime slice after the
+Crucible Plan 99 migration 0117 is the first Plan 99 runtime slice after the
 signed-command receipt. It must be applied and verified in each physical mode
 database before policy publication or Custos live-policy consumption. Its receipt
-ID is `R-CR99-M0116`; the completed signed policy receipt is
+ID is `R-CR99-M0117`; the completed signed policy receipt is
 `R-CR99-RUNNER-POLICY`.
 
 ### Slice integration
@@ -546,7 +547,7 @@ ID is `R-CR99-M0116`; the completed signed policy receipt is
 |---|---|---|---|
 | 19a command and provenance | Consume `R-CR89-DEPLOYMENT-COMMAND`; install a runner-local signed trust bundle for command keys with monotonic version, overlap rotation, revocation, expiry and rollback protection; acquire artifacts into a content-addressed cache; verify complete BOM/signature/attestation before making bytes eligible | Command/fingerprint vectors, durable rejection receipt, trust-bundle receipt, verified cache object receipt | Unknown/revoked/expired key, trust-version rollback, digest/BOM mismatch, non-content-addressed path or ACK before durable outcome stops apply and live execution |
 | 19b durable reconcile and lifecycle | Extend the existing SQLite deep module for desired/applied/outcome and artifact activation metadata; atomically activate verified cache content, persist prior generation for rollback, support offline restart and bounded GC; freeze risk-increasing execution and enter quarantine if lifecycle/RunnerFact enqueue is not durable; harden SQLite migration/version, WAL/checkpoint, permissions, disk-full, corruption, backup/restore and power-loss recovery | `commit_applied_and_enqueue_lifecycle()` receipt, atomic activation/rollback receipt, offline restart/GC receipt, crash/power-loss matrix and restored-state receipt | No second journal; disk-full/corrupt/schema mismatch/WAL failure means no ACK and no new apply; enqueue failure freezes and quarantines rather than logging and continuing |
-| 19c portfolio and local safety | Require `R-CR99-M0116` and `R-CR99-RUNNER-POLICY`; verify policy-key trust with the same rotation/revocation/rollback discipline; enforce runner-level cap on every risk-increasing order path; keep live fail closed when policy is absent, expired, revoked or mode-mismatched | Real marked portfolio receipt, signed-policy receipt, order-boundary allow/deny matrix, restart persistence receipt | DeploymentSpec mutable risk config cannot define runner aggregate cap; missing migration/policy or unenforced cap blocks live |
+| 19c portfolio and local safety | Require `R-CR99-M0117` and `R-CR99-RUNNER-POLICY`; verify policy-key trust with the same rotation/revocation/rollback discipline; enforce runner-level cap on every risk-increasing order path; keep live fail closed when policy is absent, expired, revoked or mode-mismatched | Real marked portfolio receipt, signed-policy receipt, order-boundary allow/deny matrix, restart persistence receipt | DeploymentSpec mutable risk config cannot define runner aggregate cap; missing migration/policy or unenforced cap blocks live |
 | 19d facts, runtime RC and promotion | Exercise enqueue-freeze/quarantine and SQLite recovery with real RunnerFacts; pin Docker base image by digest and install dependencies from the committed lock without live transitive resolution; emit metrics for command lag/outcome, desired/applied drift, SQLite/WAL/disk, cache/activation, outbox age, fact PubAck, policy expiry and restart/quarantine; define SLOs, alerts and operator runbook; promote the exact tested and signed digest | RunnerFact candidate, runtime RC with complete BOM/SBOM/signatures/OCI provenance, metrics/SLO/alert evidence, recovery runbook, Phase B/PS56 receipts and same-digest promotion receipt | Unpinned base/dependency, missing observability/runbook, skipped recovery, changed digest, rebuild or stable-tag promotion before CR90B/PS56 stops release and close-out |
 
 ### Artifact cache and activation invariants
