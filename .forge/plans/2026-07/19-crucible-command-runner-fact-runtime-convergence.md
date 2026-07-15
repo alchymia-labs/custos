@@ -1094,7 +1094,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
 | T7 Signed local safety | [~] | 2026-07-15 | T7A contract consumer plus T7B durable/guard `READY_CONTRACT_CONSUMER_CODE_ONLY`; schema v3 uses the same DB/outbox and removes DeploymentSpec risk authority. Native interception, reservation lifecycle, bypass proof and CR99 main/0117/publication/runtime receipts remain open |
-| T8a RunnerFact candidate | [~] | 2026-07-15 | immutable producer bytes/golden/capability/sequence candidate prepared；等待 clean A SHA 与 B authority receipt；Plan 90 compatibility/runtime flags 保持 false |
+| T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；A producer `5f4d991` + B authority receipt；instance-keyed/non-reset、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |
 | T10 Accept/promote/close-out | [ ] | — | Plan 90B + PS 56 exact-candidate receipts；unchanged promotion |
@@ -1119,6 +1119,8 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | POLICY | Runner cap | owner 锁定 Crucible Plan 99；policy/reservation/exposure durable | Accepted 2026-07-14 |
 | DAG | Cross-repo release | T8a 先产 candidate；Plan 90A 只 gate RC；Plan 90B + PS56 gate unchanged promotion/close-out | Accepted 2026-07-14 |
 | HISTORY | `3ce4048` | 保留为 original plan-first，不再代表有效 runtime design approval | Recorded |
+| ATOMIC-RECEIPT | T8a | A producer commit 冻结 bytes；B authority commit 绑定 clean A SHA，避免 self-reference；asset 变化须新 coordinate | Accepted 2026-07-15 |
+| TYPING-BASELINE | T8a gate | broad raw strict mypy 首轮 60 项；修复本轮 UUID 类型后剩 59 项历史 `runner_fact.py`/Nautilus debt；以显式 baseline-profiled scoped 0-error gate 收口，不夹带重构 | Recorded 2026-07-15 |
 
 ## v1.team Scope
 

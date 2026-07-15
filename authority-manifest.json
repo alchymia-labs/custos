@@ -170,6 +170,50 @@
       "path": "docs/design/runner_fact.md"
     },
     {
+      "role": "runner_fact_candidate_asset_index",
+      "path": "docs/authority/runner-fact-contract-candidate-assets-v1.json",
+      "contract_only": true,
+      "ready_receipt_published": true
+    },
+    {
+      "role": "runner_fact_batch_schema_v1",
+      "path": "docs/gateway-contract/v1/runner_fact_batch_v1.schema.json",
+      "contract_only": true
+    },
+    {
+      "role": "runner_fact_batch_golden_v1",
+      "path": "docs/authority/runner-fact-golden-v1.json",
+      "contract_only": true
+    },
+    {
+      "role": "runner_fact_capability_manifest_v1",
+      "path": "docs/authority/runner-fact-capability-manifest-v1.json",
+      "contract_only": true
+    },
+    {
+      "role": "runner_fact_capability_receipt_golden_v1",
+      "path": "docs/authority/runner-fact-capability-receipt-golden-v1.json",
+      "contract_only": true,
+      "runtime_evidence": false
+    },
+    {
+      "role": "runner_fact_runtime_event_parity_matrix_v1",
+      "path": "docs/authority/runner-fact-parity-matrix-v1.json",
+      "contract_only": true
+    },
+    {
+      "role": "runner_fact_sequence_continuation_fixture_v1",
+      "path": "docs/authority/runner-fact-sequence-continuation-v1.json",
+      "contract_only": true
+    },
+    {
+      "role": "plan_19_task_8a_runner_fact_candidate_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
+      "receipt_status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
       "role": "local_nats_contract",
       "path": "docs/design/nats_client.md"
     },

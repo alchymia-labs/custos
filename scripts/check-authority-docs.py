@@ -52,9 +52,7 @@ PLAN_19_T5_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
 PLAN_19_T6_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
 )
-PLAN_19_T7A_INDEX_PATH = (
-    "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
-)
+PLAN_19_T7A_INDEX_PATH = "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
 PLAN_19_T7A_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json"
 )
@@ -62,6 +60,12 @@ PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_polic
 PLAN_19_T7B_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json"
 )
+PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-candidate-assets-v1.json"
+PLAN_19_T8A_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json"
+)
+PLAN_19_T8A_PRODUCER_COMMIT = "5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28"
+PLAN_19_T8A_INDEX_SHA256 = "8c0b9103d0b3f890ac24ea179e6398b1819e876dccfe4387ceecb91a91d0e104"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -1599,9 +1603,7 @@ def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[s
         errors.append("Plan 19 T4 must retain exactly one RunnerFact outbox table")
 
 
-def verify_plan_18_task_5e_corrected_runtime(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
+def verify_plan_18_task_5e_corrected_runtime(manifest: dict[str, Any], errors: list[str]) -> None:
     """Keep the corrected runtime truthful while external positive receipts are absent."""
 
     receipt_path = resolve(TASK_5E_RUNTIME_RECEIPT_PATH)
@@ -1700,9 +1702,7 @@ def verify_plan_18_task_5e_corrected_runtime(
             errors.append(f"Plan 18 T5e corrected runtime contains legacy fallback {forbidden!r}")
 
 
-def verify_plan_19_task_5_engine_lifecycle(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
+def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None:
     """Validate additive lifecycle readiness without promoting blocked runtime."""
 
     receipt_path = resolve(PLAN_19_T5_RECEIPT_PATH)
@@ -1841,14 +1841,14 @@ def verify_plan_19_task_5_engine_lifecycle(
                 errors.append(f"Plan 19 T5 {label} lacks {marker!r}")
     for forbidden in ("sqlite3", "CREATE TABLE", "runner_fact_outbox"):
         if forbidden in lifecycle_source:
-            errors.append(f"Plan 19 T5 lifecycle creates a forbidden persistence seam {forbidden!r}")
+            errors.append(
+                f"Plan 19 T5 lifecycle creates a forbidden persistence seam {forbidden!r}"
+            )
     if store_source.count("CREATE TABLE IF NOT EXISTS runner_fact_outbox") != 1:
         errors.append("Plan 19 T5 must retain exactly one RunnerFact outbox table")
 
 
-def verify_plan_19_task_6_portfolio_semantics(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
+def verify_plan_19_task_6_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = resolve(PLAN_19_T6_RECEIPT_PATH)
     if not receipt_path.is_file():
         errors.append("missing Plan 19 T6 portfolio semantics receipt")
@@ -1860,9 +1860,7 @@ def verify_plan_19_task_6_portfolio_semantics(
         "single_snapshot_provider": "NautilusPortfolioSnapshotProvider",
         "equity_source": "Nautilus portfolio.equity(venue)",
         "position_pnl_source": "Nautilus position.unrealized_pnl(trusted_mark_price)",
-        "open_notional_source": (
-            "absolute quantity multiplied by trusted current mark price"
-        ),
+        "open_notional_source": ("absolute quantity multiplied by trusted current mark price"),
         "missing_mark_unreliable": True,
         "missing_equity_unreliable": True,
         "status_breaker_runner_fact_shared_provider": True,
@@ -1959,9 +1957,7 @@ def verify_plan_19_task_6_portfolio_semantics(
     if "def fail_closed(" not in breaker_source:
         errors.append("Plan 19 T6 breaker lacks fail_closed")
 
-    tick_source = reconciler_source.split("async def _breaker_tick", 1)[-1].split(
-        "\n    @", 1
-    )[0]
+    tick_source = reconciler_source.split("async def _breaker_tick", 1)[-1].split("\n    @", 1)[0]
     for marker in ("status.reliable", "breaker.fail_closed"):
         if marker not in tick_source:
             errors.append(f"Plan 19 T6 breaker tick lacks {marker!r}")
@@ -2086,8 +2082,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
     truth = producer_receipt.get("truth")
     if (
         producer_receipt.get("status") != "READY_CONTRACT_PRODUCER_ONLY"
-        or producer_receipt.get("producer_commit")
-        != "0f8c9afbeccf2435785354ad734c16f18aa339ab"
+        or producer_receipt.get("producer_commit") != "0f8c9afbeccf2435785354ad734c16f18aa339ab"
         or not isinstance(truth, dict)
         or any(
             truth.get(key) is not False
@@ -2109,7 +2104,10 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         )
     )
     golden_truth = golden.get("truth")
-    if not isinstance(golden_truth, dict) or golden_truth.get("synthetic_signature_bytes") is not True:
+    if (
+        not isinstance(golden_truth, dict)
+        or golden_truth.get("synthetic_signature_bytes") is not True
+    ):
         errors.append("Plan 19 T7A must preserve synthetic golden signature truth")
 
     source = source_path.read_text(encoding="utf-8")
@@ -2163,9 +2161,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
                 errors.append(f"runner_safety_policy_consumer {key} differs")
 
 
-def verify_plan_19_task_7b_runner_policy_code(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
+def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = resolve(PLAN_19_T7B_RECEIPT_PATH)
     paths = {
         "store": resolve("src/custos/core/runner_fact.py"),
@@ -2288,6 +2284,284 @@ def verify_plan_19_task_7b_runner_policy_code(
                 errors.append(f"runner_safety_policy_consumer {key} differs")
 
 
+def verify_plan_19_task_8a_runner_fact_candidate(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    index_path = resolve(PLAN_19_T8A_INDEX_PATH)
+    receipt_path = resolve(PLAN_19_T8A_RECEIPT_PATH)
+    if not index_path.is_file() or not receipt_path.is_file():
+        errors.append("Plan 19 T8a candidate authority inventory is incomplete")
+        return
+
+    index_bytes = index_path.read_bytes()
+    index_digest = hashlib.sha256(index_bytes).hexdigest()
+    index = load_json(index_path)
+    receipt = load_json(receipt_path)
+    coordinate = "custos.runner-fact.v1/candidate-2026-07-15.1"
+    expected_truth: dict[str, Any] = {
+        "status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
+        "phase_a_input_ready": True,
+        "crucible_phase_a_compatible": False,
+        "projector_compatibility_ready": False,
+        "runtime_rc": False,
+        "real_runtime_round_trip_ready": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    if index.get("candidate_coordinate") != coordinate:
+        errors.append("Plan 19 T8a candidate coordinate differs")
+    if index_digest != PLAN_19_T8A_INDEX_SHA256:
+        errors.append("Plan 19 T8a candidate asset index digest differs")
+    for key, value in expected_truth.items():
+        if index.get(key) != value:
+            errors.append(f"Plan 19 T8a candidate index {key} differs")
+    if index.get("stream_identity_fields") != [
+        "tenant_id",
+        "trading_mode",
+        "runner_id",
+        "deployment_instance_id",
+    ]:
+        errors.append("Plan 19 T8a stream identity differs")
+    if index.get("signed_fencing_fields") != [
+        "deployment_spec_id",
+        "deployment_spec_digest",
+        "generation",
+    ]:
+        errors.append("Plan 19 T8a signed fencing fields differ")
+    if index.get("cross_language_numeric_policy") != ("integer-or-canonical-decimal-string"):
+        errors.append("Plan 19 T8a numeric canonicalization differs")
+    synthetic = index.get("synthetic_signature")
+    if not isinstance(synthetic, dict) or synthetic.get("runtime_evidence") is not False:
+        errors.append("Plan 19 T8a synthetic signature is promoted as runtime evidence")
+
+    expected_assets = {
+        "runner_fact_batch_schema": (
+            "docs/gateway-contract/v1/runner_fact_batch_v1.schema.json",
+            "7230e275592ba961e83b544c1049d91d30701cd8ea5035cf8b1eb76425add69c",
+            29657,
+        ),
+        "runner_fact_batch_golden": (
+            "docs/authority/runner-fact-golden-v1.json",
+            "5510cd3c98a147a6f59edb5f06402596c0ce8e5e6d5e922ff8d949c1d5a2abfa",
+            6336,
+        ),
+        "runner_fact_capability_manifest": (
+            "docs/authority/runner-fact-capability-manifest-v1.json",
+            "382c97aafdba7f13fe80d4e740f0967339f22b9477fd87d5c800fbf492a159f3",
+            3025,
+        ),
+        "runner_fact_capability_receipt_golden": (
+            "docs/authority/runner-fact-capability-receipt-golden-v1.json",
+            "e669f37d5739ae1861c967479ebd202d52a9eca643890c36584f97c973e3d84b",
+            6221,
+        ),
+        "runtime_event_fact_parity_matrix": (
+            "docs/authority/runner-fact-parity-matrix-v1.json",
+            "87ebb30ceb278bb756a0b6db43cad3dc4a8248d7bf35febe2180ebd44cbbfd2c",
+            3803,
+        ),
+        "instance_stream_sequence_continuation_fixture": (
+            "docs/authority/runner-fact-sequence-continuation-v1.json",
+            "9df395b60ade17e7ae30af75aa19fe7d02fa741267550e40778a076b92bbc58f",
+            6050,
+        ),
+    }
+    actual_assets = {
+        row.get("role"): row
+        for row in index.get("assets", [])
+        if isinstance(row, dict) and isinstance(row.get("role"), str)
+    }
+    if set(actual_assets) != set(expected_assets):
+        errors.append("Plan 19 T8a candidate asset roles differ")
+    for role, (relative_path, expected_digest, expected_size) in expected_assets.items():
+        row = actual_assets.get(role)
+        path = resolve(relative_path)
+        if not isinstance(row, dict) or any(
+            row.get(key) != value
+            for key, value in {
+                "path": relative_path,
+                "sha256": expected_digest,
+                "size_bytes": expected_size,
+            }.items()
+        ):
+            errors.append(f"Plan 19 T8a {role} index entry differs")
+            continue
+        if not path.is_file():
+            errors.append(f"Plan 19 T8a {role} asset is missing")
+            continue
+        payload = path.read_bytes()
+        if len(payload) != expected_size or hashlib.sha256(payload).hexdigest() != expected_digest:
+            errors.append(f"Plan 19 T8a {role} bytes differ")
+        sidecar = path.with_name(f"{path.name}.sha256")
+        expected_sidecar = f"{expected_digest}  {path.name}\n"
+        if not sidecar.is_file() or sidecar.read_text(encoding="ascii") != expected_sidecar:
+            errors.append(f"Plan 19 T8a {role} sidecar differs")
+
+    fact_kind_projectors = {
+        "execution_fill": "settlement",
+        "fill": "settlement",
+        "position_closed": "settlement",
+        "fee": "settlement",
+        "period_closed": "settlement",
+        "equity_snapshot": "risk",
+        "position_snapshot": "risk",
+        "heartbeat": "health",
+        "RunnerRuntimeLogFact.v1": "health",
+        "venue_ledger_snapshot_manifest": "reconciliation",
+        "venue_ledger_snapshot_chunk": "reconciliation",
+        "reconciliation_period_closed": "reconciliation",
+        "RunnerDeploymentLifecycleFact.v1": "deployment_lifecycle",
+    }
+    if index.get("fact_kind_projectors") != fact_kind_projectors:
+        errors.append("Plan 19 T8a 13-kind projector matrix differs")
+    parity = load_json(resolve(expected_assets["runtime_event_fact_parity_matrix"][0]))
+    if (
+        parity.get("unknown_fact_kind") != "terminal_unsupported_contract"
+        or parity.get("unsigned_telemetry_fallback") is not False
+        or parity.get("python_float_payload_allowed") is not False
+    ):
+        errors.append("Plan 19 T8a fail-closed parity evidence differs")
+    sequence = load_json(
+        resolve(expected_assets["instance_stream_sequence_continuation_fixture"][0])
+    )
+    golden = load_json(resolve(expected_assets["runner_fact_batch_golden"][0]))
+    after = sequence.get("after_batch")
+    expected_stream_key = (
+        "acme:sandbox:10000000-0000-4000-8000-000000000001:20000000-0000-4000-8000-000000000002"
+    )
+    if (
+        sequence.get("generation_resets_sequence") is not False
+        or not isinstance(golden, dict)
+        or not isinstance(after, dict)
+        or golden.get("source_seq_end", 0) + 1 != after.get("source_seq_start")
+        or sequence.get("subject") != index.get("golden_subject")
+        or sequence.get("stream_key") != expected_stream_key
+    ):
+        errors.append("Plan 19 T8a instance sequence continuation differs")
+
+    producer = receipt.get("producer")
+    receipt_index = receipt.get("contract_asset_index")
+    expected_receipt_truth = {
+        "receipt_status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
+        "phase_a_input_ready": True,
+        "crucible_phase_a_compatible": False,
+        "projector_compatibility_ready": False,
+        "runtime_rc": False,
+        "real_runtime_round_trip_ready": False,
+        "engine_ready": False,
+        "team_daemon_enabled": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+        "golden_signature_is_runtime_evidence": False,
+        "generation_resets_sequence": False,
+        "python_float_payload_allowed": False,
+    }
+    if receipt.get("candidate_coordinate") != coordinate:
+        errors.append("Plan 19 T8a receipt coordinate differs")
+    if not isinstance(producer, dict) or producer != {
+        "repository": "tesseract-trading/custos",
+        "commit": PLAN_19_T8A_PRODUCER_COMMIT,
+        "worktree_clean_before_receipt": True,
+    }:
+        errors.append("Plan 19 T8a clean producer binding differs")
+    if not isinstance(receipt_index, dict) or any(
+        receipt_index.get(key) != value
+        for key, value in {
+            "path": PLAN_19_T8A_INDEX_PATH,
+            "sha256": index_digest,
+            "size_bytes": len(index_bytes),
+            "asset_count": len(expected_assets),
+        }.items()
+    ):
+        errors.append("Plan 19 T8a receipt asset-index binding differs")
+    for key, value in expected_receipt_truth.items():
+        if receipt.get(key) != value:
+            errors.append(f"Plan 19 T8a receipt {key} differs")
+
+    expected_registrations = {
+        "runner_fact_candidate_asset_index": PLAN_19_T8A_INDEX_PATH,
+        "runner_fact_batch_schema_v1": expected_assets["runner_fact_batch_schema"][0],
+        "runner_fact_batch_golden_v1": expected_assets["runner_fact_batch_golden"][0],
+        "runner_fact_capability_manifest_v1": expected_assets["runner_fact_capability_manifest"][0],
+        "runner_fact_capability_receipt_golden_v1": expected_assets[
+            "runner_fact_capability_receipt_golden"
+        ][0],
+        "runner_fact_runtime_event_parity_matrix_v1": expected_assets[
+            "runtime_event_fact_parity_matrix"
+        ][0],
+        "runner_fact_sequence_continuation_fixture_v1": expected_assets[
+            "instance_stream_sequence_continuation_fixture"
+        ][0],
+        "plan_19_task_8a_runner_fact_candidate_receipt": PLAN_19_T8A_RECEIPT_PATH,
+    }
+    registrations = {
+        entry.get("role"): entry.get("path")
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role") in expected_registrations
+    }
+    if registrations != expected_registrations:
+        errors.append("Plan 19 T8a authority manifest registrations differ")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    state = snapshot.get("runner_fact_contract_candidate")
+    if not isinstance(state, dict):
+        errors.append("ecosystem authority lacks runner_fact_contract_candidate")
+    else:
+        expected_state = {
+            "status": expected_receipt_truth["receipt_status"],
+            "candidate_coordinate": coordinate,
+            "producer_commit": PLAN_19_T8A_PRODUCER_COMMIT,
+            "asset_index": PLAN_19_T8A_INDEX_PATH,
+            "receipt": PLAN_19_T8A_RECEIPT_PATH,
+            "generation_resets_sequence": False,
+            "phase_a_input_ready": True,
+            "crucible_phase_a_compatible": False,
+            "projector_compatibility_ready": False,
+            "runtime_rc": False,
+            "real_runtime_round_trip_ready": False,
+            "golden_signature_is_runtime_evidence": False,
+            "engine_ready": False,
+            "team_daemon_enabled": False,
+            "live_ready": False,
+            "runtime_ready": False,
+            "production_ready": False,
+        }
+        for key, value in expected_state.items():
+            if state.get(key) != value:
+                errors.append(f"runner_fact_contract_candidate {key} differs")
+
+    runner_fact_source = resolve("src/custos/core/runner_fact.py").read_text(encoding="utf-8")
+    lifecycle_test = resolve("tests/test_runner_deployment_lifecycle_fact.py").read_text(
+        encoding="utf-8"
+    )
+    for marker in (
+        "RUNNER_FACT_KIND_PROJECTORS",
+        "deployment_lifecycle_scope_bindings",
+        "unsupported runner fact kind",
+        "validate_runner_fact_payload",
+        "must not contain Python float",
+    ):
+        if marker not in runner_fact_source:
+            errors.append(f"Plan 19 T8a production source lacks {marker!r}")
+    if (
+        "runner-fact-capability-receipt-golden-v1.json" not in lifecycle_test
+        or "class LifecycleCapability" in lifecycle_test
+    ):
+        errors.append("Plan 19 T8a lifecycle test does not use the real capability golden")
+    if resolve("docs/design/telemetry_actor.md").exists():
+        errors.append("Plan 19 T8a retains superseded telemetry_actor.md")
+    active_authority = "\n".join(
+        (
+            resolve("CLAUDE.md").read_text(encoding="utf-8"),
+            resolve("authority-manifest.json").read_text(encoding="utf-8"),
+        )
+    )
+    if "docs/design/telemetry_actor.md" in active_authority:
+        errors.append("Plan 19 T8a active authority still links telemetry_actor.md")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -2339,6 +2613,7 @@ def main() -> int:
     verify_plan_19_task_6_portfolio_semantics(manifest, errors)
     verify_plan_19_task_7a_runner_policy_consumer(manifest, errors)
     verify_plan_19_task_7b_runner_policy_code(manifest, errors)
+    verify_plan_19_task_8a_runner_fact_candidate(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

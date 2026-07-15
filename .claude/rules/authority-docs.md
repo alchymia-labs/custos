@@ -99,6 +99,15 @@ migration 0117 is unexecuted, publication is disabled, and the golden signature
 is synthetic; therefore durable/runtime policy consumption, daemon, live,
 runtime and production remain false.
 
+Plan 19 T8a is `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`. Custos producer commit
+`5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28` freezes the instance-keyed,
+generation-non-reset RunnerFact v1 schema, signed golden, five-projector capability,
+13-kind parity matrix and sequence-continuation fixture. The synthetic signing key
+is golden evidence only. Crucible Phase-A compatibility, runtime RC, real runtime
+round trip, engine/daemon, live/runtime and production remain false until the
+independent receipts named by Plan 19 arrive. Any asset-byte change requires a new
+candidate coordinate and receipt.
+
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.

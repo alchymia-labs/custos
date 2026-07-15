@@ -941,8 +941,8 @@ def main() -> int:
         path.write_bytes(payload)
     if drift:
         print("RunnerFact candidate drift:", file=sys.stderr)
-        for path in drift:
-            print(f"  - {path}", file=sys.stderr)
+        for drift_path in drift:
+            print(f"  - {drift_path}", file=sys.stderr)
         return 1
     if args.check:
         print("RunnerFact candidate assets are exact")

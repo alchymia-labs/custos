@@ -20,6 +20,7 @@ import sys
 import time
 from decimal import Decimal
 from pathlib import Path
+from uuid import UUID
 
 from custos.core.engine_protocol import (
     ConnectivityState,
@@ -436,7 +437,7 @@ class NtTradingNodeHost:
             tenant_id=self._tenant_id or "",
             trading_mode=str(spec["trading_mode"]),
             runner_id=self._capability_receipt.runner_id,
-            deployment_instance_id=deployment_instance_id,
+            deployment_instance_id=UUID(deployment_instance_id),
             deployment_spec_id=spec_id,
             deployment_spec_digest=deployment_spec_digest,
             generation=int(spec["generation"]),

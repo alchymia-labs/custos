@@ -181,12 +181,12 @@ async def test_candidate_is_emitted_by_the_production_outbox_and_continues_gener
     schema = _json(SCHEMA_PATH)
     Draft202012Validator(schema).validate(after)
 
+    outbox = RunnerFactOutbox(tmp_path / "runner-fact-candidate.sqlite3")
     batch_ids = iter((UUID(golden["batch_id"]), UUID(after["batch_id"])))
     emitted_at = iter((golden["emitted_at"], after["emitted_at"]))
     monkeypatch.setattr(runner_fact_module, "uuid4", lambda: next(batch_ids))
     monkeypatch.setattr(runner_fact_module, "_utc_now", lambda: next(emitted_at))
 
-    outbox = RunnerFactOutbox(tmp_path / "runner-fact-candidate.sqlite3")
     identity = RunnerFactIdentity.from_private_bytes(bytes(range(1, 33)), golden["key_id"])
     first_input = [
         {key: value for key, value in fact.items() if key != "seq"} for fact in golden["facts"]
