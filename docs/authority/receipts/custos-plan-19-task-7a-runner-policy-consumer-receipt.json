@@ -1,0 +1,62 @@
+{
+  "receipt_schema_version": 1,
+  "receipt_id": "CUSTOS-PLAN-19-T7A-RUNNER-POLICY-CONSUMER-V1",
+  "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
+  "repository": "tesseract-trading/custos",
+  "plan": "Custos Plan 19",
+  "task": "T7A",
+  "policy_contract_consumer_ready": true,
+  "strict_parser_ready": true,
+  "exact_event_signature_verifier_ready": true,
+  "authority_scope": ["tenant_id", "trading_mode", "runner_id"],
+  "contract_asset_index": {
+    "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
+    "sha256": "1a21511983d15546203424791cdc08a81dbbf2269ad6684bb888e688cc759ca2",
+    "size_bytes": 3874
+  },
+  "consumer_model": {
+    "path": "src/custos/contracts/crucible_runner_safety_policy.py",
+    "sha256": "13c028954b95ec94dd62ec3834e1f30b7e1345d29cbbf0f8f8f1a75808b560cb",
+    "size_bytes": 18885
+  },
+  "crucible_producer": {
+    "repository": "tesseract-trading/crucible-rust",
+    "source_branch": "codex/cr99-runner-policy",
+    "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+    "producer_receipt_commit": "36082e6591b67686df928afda88621629eb6075e",
+    "producer_receipt_sha256": "48f5ab98e9f62c1747949d42cccbdb324d9011da61d067a3d88dfbf25565da92",
+    "producer_main_landed": false,
+    "prepared_storage_commit": "42b77075bd88b01e27783519d4892ce31570842e",
+    "prepared_storage_authority_commit": "6bc3a88d146d992b24faaad40812aef304cf0338",
+    "migration_0117_executed": false,
+    "runtime_publication_enabled": false
+  },
+  "contract_guards": {
+    "rust_struct_order_exact_json": true,
+    "key_sorted_jcs": false,
+    "policy_digest_verified": true,
+    "subject_event_scope_bound": true,
+    "ed25519_exact_event_signature_verified": true,
+    "previous_policy_fence_verified": true,
+    "deployment_spec_risk_config_authority": false,
+    "synthetic_golden_signature_is_runtime_evidence": false
+  },
+  "durable_policy_state_ready": false,
+  "runtime_policy_consumed": false,
+  "runner_policy_capability_ready": false,
+  "team_daemon_enabled": false,
+  "live_ready": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "focused_verification": {
+    "result": "5 passed",
+    "suite": "tests/test_plan19_t7a_runner_policy_contract_consumer.py"
+  },
+  "open_blockers": [
+    "the current CR99 producer chain is not landed on crucible-rust main",
+    "Crucible migration 0117 has no real execution receipt",
+    "Crucible runtime policy repository and publication remain disabled",
+    "Custos T7B durable consumption and local guard code are not implemented",
+    "no real signed runtime policy has been consumed"
+  ]
+}

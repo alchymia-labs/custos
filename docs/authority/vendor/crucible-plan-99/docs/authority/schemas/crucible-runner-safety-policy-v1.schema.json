@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-alephain-guild.invalid/crucible-rust/runner-safety-policy-v1.schema.json",
+  "title": "Crucible Runner Aggregate Cap Policy V1",
+  "description": "Closed Crucible-owned aggregate exposure policy for one tenant, mode, and runner. DeploymentSpec, commands, and Custos cannot override this document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_id",
+    "runner_id",
+    "tenant_id",
+    "trading_mode",
+    "policy_version",
+    "generation",
+    "settlement_currency",
+    "max_order_notional",
+    "max_total_notional",
+    "exposure_model",
+    "breach_action",
+    "risk_reducing_orders",
+    "effective_at",
+    "expires_at",
+    "status",
+    "previous_policy",
+    "policy_digest"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "policy_id": { "$ref": "#/$defs/non_nil_uuid" },
+    "runner_id": { "$ref": "#/$defs/non_nil_uuid" },
+    "tenant_id": { "$ref": "#/$defs/tenant_id" },
+    "trading_mode": {
+      "type": "string",
+      "enum": ["live", "sandbox", "testnet"]
+    },
+    "policy_version": { "type": "integer", "minimum": 1 },
+    "generation": { "type": "integer", "minimum": 1 },
+    "settlement_currency": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{3,12}$"
+    },
+    "max_order_notional": {
+      "type": "string",
+      "pattern": "^(?:[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$|^0\\.[0-9]*[1-9]$"
+    },
+    "max_total_notional": {
+      "type": "string",
+      "pattern": "^(?:[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$|^0\\.[0-9]*[1-9]$"
+    },
+    "exposure_model": { "const": "filled_plus_active_reservations" },
+    "breach_action": { "const": "freeze_risk_increasing" },
+    "risk_reducing_orders": { "const": "always_permitted" },
+    "effective_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "type": "string",
+      "enum": ["active", "superseded", "revoked", "expired"]
+    },
+    "previous_policy": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/previous_policy" }
+      ]
+    },
+    "policy_digest": { "$ref": "#/$defs/sha256_digest" }
+  },
+  "$defs": {
+    "non_nil_uuid": {
+      "type": "string",
+      "format": "uuid",
+      "not": { "const": "00000000-0000-0000-0000-000000000000" }
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "previous_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "policy_version", "generation", "policy_digest"],
+      "properties": {
+        "policy_id": { "$ref": "#/$defs/non_nil_uuid" },
+        "policy_version": { "type": "integer", "minimum": 1 },
+        "generation": { "type": "integer", "minimum": 1 },
+        "policy_digest": { "$ref": "#/$defs/sha256_digest" }
+      }
+    }
+  }
+}

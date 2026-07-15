@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY, T7B/T8-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-15 after Plan 19 T6 reliable-portfolio checkpoint
 > **Project**: Custos
@@ -928,6 +928,17 @@ Hard gate：Crucible Plan 99 runner-safety-policy-authority 的 clean landed sig
 如 NT 1.230.0 无公开不可绕过 seam，Plan 19 保持未完成并另起 upstream adapter
 实现；不得 monkey patch。
 
+Execution checkpoint T7A (2026-07-15):
+
+- Byte-vendored the exact CR99 current branch schema, golden, sidecars and
+  producer-v3 receipt from producer `0f8c9af` / receipt `36082e6`.
+- Added the sole strict consumer for Rust struct-order policy digest, exact event
+  subject/fingerprint/Ed25519 signature and tenant/mode/runner scope.
+- Focused consumer and negative-injection suite is 5 passed.
+- Status is `READY_CONTRACT_CONSUMER_ONLY`. The producer chain is not on
+  crucible-rust main; 0117 is prepared but unexecuted; runtime publication and
+  real policy consumption are false. T7B must retain these blockers.
+
 提交：
 
 ```bash
@@ -1057,7 +1068,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
-| T7 Signed local safety | [ ] | — | live blocked on Crucible Plan 99 |
+| T7 Signed local safety | [~] | 2026-07-15 | T7A `READY_CONTRACT_CONSUMER_ONLY`; exact CR99 assets + strict parser/verifier landed locally; T7B durable consumer/guard cleanup open; CR99 main/0117/publication/runtime receipts block live |
 | T8a RunnerFact candidate | [ ] | — | 19c STOP 后独立生产；不得等待 Plan 90 |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |

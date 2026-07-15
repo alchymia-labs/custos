@@ -356,6 +356,28 @@
       "live_ready": false,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "crucible_runner_safety_policy_consumer_asset_index",
+      "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
+      "status": "READY_CONTRACT_CONSUMER_ONLY",
+      "policy_contract_consumer_ready": true,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "plan_19_task_7a_runner_policy_consumer_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
+      "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
+      "policy_contract_consumer_ready": true,
+      "runner_policy_capability_ready": false,
+      "live_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "local_runner_safety_policy_consumer",
+      "path": "docs/design/runner_safety_policy.md"
     }
   ],
   "external_optional_documents": [
@@ -468,16 +490,27 @@
       "src/custos/engines/nautilus/portfolio_snapshot.py",
       "src/custos/core/fallback_breaker.py",
       "src/custos/core/runner_command_intake.py",
+      "src/custos/contracts/crucible_runner_safety_policy.py",
+      "src/custos/contracts/__init__.py",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+      "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
+      "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
+      "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json",
+      "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json.sha256",
+      "docs/authority/vendor/crucible-plan-99/docs/authority/golden/crucible-runner-safety-policy-v1.json",
+      "docs/authority/vendor/crucible-plan-99/docs/authority/golden/crucible-runner-safety-policy-v1.json.sha256",
+      "docs/authority/vendor/crucible-plan-99/docs/authority/receipts/crucible-plan-99-runner-policy-producer-v3.json",
+      "docs/design/runner_safety_policy.md",
       "docs/design/engine_protocol.md",
       "docs/design/reconcile.md",
       "tests/test_plan18_t5e_corrected_runtime.py",
       "tests/test_plan19_t5_engine_lifecycle.py",
       "tests/test_plan19_t5_daemon_supervision.py",
       "tests/test_plan19_t6_portfolio_snapshot.py",
+      "tests/test_plan19_t7a_runner_policy_contract_consumer.py",
       "tests/engines/nautilus/test_state_snapshot_nautilus_impl.py",
       "tests/test_plan19_t4_runner_state_store.py",
       ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"
@@ -611,6 +644,19 @@
         "Nautilus portfolio.equity(venue)",
         "Nautilus position.unrealized_pnl(trusted_mark_price)",
         "\"runner_safety_policy_ready\": false",
+        "\"live_ready\": false",
+        "\"production_ready\": false"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
+      "must_contain": [
+        "READY_CONTRACT_CONSUMER_ONLY",
+        "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+        "36082e6591b67686df928afda88621629eb6075e",
+        "\"producer_main_landed\": false",
+        "\"migration_0117_executed\": false",
+        "\"runtime_policy_consumed\": false",
         "\"live_ready\": false",
         "\"production_ready\": false"
       ]

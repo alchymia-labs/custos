@@ -1,0 +1,76 @@
+{
+  "asset_index_schema_version": 1,
+  "canonical_name": "Custos Plan 19 T7A CR99 runner safety policy consumer assets",
+  "status": "READY_CONTRACT_CONSUMER_ONLY",
+  "policy_contract_consumer_ready": true,
+  "producer_authority": {
+    "repository": "tesseract-trading/crucible-rust",
+    "source_branch": "codex/cr99-runner-policy",
+    "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+    "producer_receipt_commit": "36082e6591b67686df928afda88621629eb6075e",
+    "prepared_storage_commit": "42b77075bd88b01e27783519d4892ce31570842e",
+    "prepared_storage_authority_commit": "6bc3a88d146d992b24faaad40812aef304cf0338",
+    "producer_main_landed": false,
+    "migration_0117_executed": false,
+    "runtime_publication_enabled": false,
+    "producer_assets": [
+      {
+        "source_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+        "source_path": "docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json",
+        "vendored_path": "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json",
+        "sha256": "8aeb5442542a1e26581264f7f1acf7a498099a096eb246d9785d4b7fc828637a"
+      },
+      {
+        "source_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+        "source_path": "docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json.sha256",
+        "vendored_path": "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json.sha256",
+        "sha256": "f638984bb38a8f41f0d1922a4d40f8b0c1143842a6b66cb683ccb918aa40f7c7"
+      },
+      {
+        "source_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+        "source_path": "docs/authority/golden/crucible-runner-safety-policy-v1.json",
+        "vendored_path": "docs/authority/vendor/crucible-plan-99/docs/authority/golden/crucible-runner-safety-policy-v1.json",
+        "sha256": "290698580bf2ef31e4babe2b9c621e5f74064f7cee4bff5e143823e7bedc5b8e"
+      },
+      {
+        "source_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+        "source_path": "docs/authority/golden/crucible-runner-safety-policy-v1.json.sha256",
+        "vendored_path": "docs/authority/vendor/crucible-plan-99/docs/authority/golden/crucible-runner-safety-policy-v1.json.sha256",
+        "sha256": "c5145b8f7ae467bf34da2bc70f1a79443266e906a66e51fb217ab5b438229c9e"
+      },
+      {
+        "source_commit": "36082e6591b67686df928afda88621629eb6075e",
+        "source_path": "docs/authority/receipts/crucible-plan-99-runner-policy-producer-v3.json",
+        "vendored_path": "docs/authority/vendor/crucible-plan-99/docs/authority/receipts/crucible-plan-99-runner-policy-producer-v3.json",
+        "sha256": "48f5ab98e9f62c1747949d42cccbdb324d9011da61d067a3d88dfbf25565da92"
+      }
+    ]
+  },
+  "consumer_model": {
+    "path": "src/custos/contracts/crucible_runner_safety_policy.py",
+    "public_authenticator": "CrucibleRunnerSafetyPolicyAuthenticator",
+    "public_policy": "RunnerAggregateCapPolicyV1",
+    "sha256": "13c028954b95ec94dd62ec3834e1f30b7e1345d29cbbf0f8f8f1a75808b560cb",
+    "size_bytes": 18885
+  },
+  "consumer_tests": {
+    "path": "tests/test_plan19_t7a_runner_policy_contract_consumer.py",
+    "sha256": "3657394c99ac205339e85c3977b9e3aa51e113597d7f099f3253925d406fd852",
+    "size_bytes": 6855
+  },
+  "contract_guards": {
+    "authority_scope": ["tenant_id", "trading_mode", "runner_id"],
+    "rust_struct_order_exact_json": true,
+    "key_sorted_jcs": false,
+    "exact_subject_event_signature": true,
+    "policy_digest_verified": true,
+    "previous_policy_fence_verified": true,
+    "deployment_spec_risk_config_authority": false,
+    "synthetic_golden_signature_is_runtime_evidence": false
+  },
+  "durable_policy_state_ready": false,
+  "runtime_policy_consumed": false,
+  "live_ready": false,
+  "runtime_ready": false,
+  "production_ready": false
+}

@@ -52,6 +52,13 @@ PLAN_19_T5_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
 PLAN_19_T6_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
 )
+PLAN_19_T7A_INDEX_PATH = (
+    "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
+)
+PLAN_19_T7A_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json"
+)
+PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -1967,6 +1974,191 @@ def verify_plan_19_task_6_portfolio_semantics(
             errors.append(f"Plan 19 T6 must not promote {section_name}")
 
 
+def verify_plan_19_task_7a_runner_policy_consumer(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    index_path = resolve(PLAN_19_T7A_INDEX_PATH)
+    receipt_path = resolve(PLAN_19_T7A_RECEIPT_PATH)
+    source_path = resolve(PLAN_19_T7A_CONSUMER_SOURCE)
+    test_path = resolve("tests/test_plan19_t7a_runner_policy_contract_consumer.py")
+    required_paths = (index_path, receipt_path, source_path, test_path)
+    if not all(path.is_file() for path in required_paths):
+        errors.append("Plan 19 T7A consumer inventory is incomplete")
+        return
+
+    expected_assets = {
+        (
+            "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/"
+            "crucible-runner-safety-policy-v1.schema.json"
+        ): "8aeb5442542a1e26581264f7f1acf7a498099a096eb246d9785d4b7fc828637a",
+        (
+            "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/"
+            "crucible-runner-safety-policy-v1.schema.json.sha256"
+        ): "f638984bb38a8f41f0d1922a4d40f8b0c1143842a6b66cb683ccb918aa40f7c7",
+        (
+            "docs/authority/vendor/crucible-plan-99/docs/authority/golden/"
+            "crucible-runner-safety-policy-v1.json"
+        ): "290698580bf2ef31e4babe2b9c621e5f74064f7cee4bff5e143823e7bedc5b8e",
+        (
+            "docs/authority/vendor/crucible-plan-99/docs/authority/golden/"
+            "crucible-runner-safety-policy-v1.json.sha256"
+        ): "c5145b8f7ae467bf34da2bc70f1a79443266e906a66e51fb217ab5b438229c9e",
+        (
+            "docs/authority/vendor/crucible-plan-99/docs/authority/receipts/"
+            "crucible-plan-99-runner-policy-producer-v3.json"
+        ): "48f5ab98e9f62c1747949d42cccbdb324d9011da61d067a3d88dfbf25565da92",
+    }
+    for relative_path, expected_digest in expected_assets.items():
+        path = resolve(relative_path)
+        if not path.is_file():
+            errors.append(f"Plan 19 T7A missing vendored CR99 asset {relative_path}")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != expected_digest:
+            errors.append(f"Plan 19 T7A vendored CR99 asset differs: {relative_path}")
+
+    index = load_json(index_path)
+    receipt = load_json(receipt_path)
+    expected_source_digest = "13c028954b95ec94dd62ec3834e1f30b7e1345d29cbbf0f8f8f1a75808b560cb"
+    expected_test_digest = "3657394c99ac205339e85c3977b9e3aa51e113597d7f099f3253925d406fd852"
+    if index.get("status") != "READY_CONTRACT_CONSUMER_ONLY":
+        errors.append("Plan 19 T7A asset index status differs")
+    producer = index.get("producer_authority")
+    if not isinstance(producer, dict) or any(
+        producer.get(key) != value
+        for key, value in {
+            "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+            "producer_receipt_commit": "36082e6591b67686df928afda88621629eb6075e",
+            "producer_main_landed": False,
+            "migration_0117_executed": False,
+            "runtime_publication_enabled": False,
+        }.items()
+    ):
+        errors.append("Plan 19 T7A producer authority differs")
+    consumer_model = index.get("consumer_model")
+    consumer_tests = index.get("consumer_tests")
+    if (
+        not isinstance(consumer_model, dict)
+        or consumer_model.get("sha256") != expected_source_digest
+        or hashlib.sha256(source_path.read_bytes()).hexdigest() != expected_source_digest
+    ):
+        errors.append("Plan 19 T7A consumer model differs")
+    if (
+        not isinstance(consumer_tests, dict)
+        or consumer_tests.get("sha256") != expected_test_digest
+        or hashlib.sha256(test_path.read_bytes()).hexdigest() != expected_test_digest
+    ):
+        errors.append("Plan 19 T7A consumer tests differ")
+
+    index_digest = hashlib.sha256(index_path.read_bytes()).hexdigest()
+    expected_receipt = {
+        "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
+        "policy_contract_consumer_ready": True,
+        "strict_parser_ready": True,
+        "exact_event_signature_verifier_ready": True,
+        "durable_policy_state_ready": False,
+        "runtime_policy_consumed": False,
+        "runner_policy_capability_ready": False,
+        "team_daemon_enabled": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    for key, value in expected_receipt.items():
+        if receipt.get(key) != value:
+            errors.append(f"Plan 19 T7A receipt {key} differs")
+    receipt_index = receipt.get("contract_asset_index")
+    if (
+        not isinstance(receipt_index, dict)
+        or receipt_index.get("path") != PLAN_19_T7A_INDEX_PATH
+        or receipt_index.get("sha256") != index_digest
+    ):
+        errors.append("Plan 19 T7A receipt asset index binding differs")
+
+    producer_receipt = load_json(
+        resolve(
+            "docs/authority/vendor/crucible-plan-99/docs/authority/receipts/"
+            "crucible-plan-99-runner-policy-producer-v3.json"
+        )
+    )
+    truth = producer_receipt.get("truth")
+    if (
+        producer_receipt.get("status") != "READY_CONTRACT_PRODUCER_ONLY"
+        or producer_receipt.get("producer_commit")
+        != "0f8c9afbeccf2435785354ad734c16f18aa339ab"
+        or not isinstance(truth, dict)
+        or any(
+            truth.get(key) is not False
+            for key in (
+                "custos_consumer_ready",
+                "migration_0117_executed",
+                "runtime_publication_enabled",
+                "runtime_wiring_ready",
+                "live_capability",
+                "production_ready",
+            )
+        )
+    ):
+        errors.append("Plan 19 T7A producer receipt truth differs")
+    golden = load_json(
+        resolve(
+            "docs/authority/vendor/crucible-plan-99/docs/authority/golden/"
+            "crucible-runner-safety-policy-v1.json"
+        )
+    )
+    golden_truth = golden.get("truth")
+    if not isinstance(golden_truth, dict) or golden_truth.get("synthetic_signature_bytes") is not True:
+        errors.append("Plan 19 T7A must preserve synthetic golden signature truth")
+
+    source = source_path.read_text(encoding="utf-8")
+    for marker in (
+        "class CrucibleRunnerSafetyPolicyAuthenticator",
+        "class RunnerAggregateCapPolicyV1",
+        "CRUCIBLE-DOMAIN-EVENT-V2",
+        "CRUCIBLE-RUNNER-SAFETY-POLICY-V1",
+        "policy digest differs from exact Rust struct-order body bytes",
+        "runner safety policy tenant differs from runner authority",
+    ):
+        if marker not in source:
+            errors.append(f"Plan 19 T7A consumer lacks {marker!r}")
+    if "risk_config" in source:
+        errors.append("Plan 19 T7A consumer must not read DeploymentSpec risk_config")
+
+    registrations = {
+        entry.get("role"): entry
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role")
+        in {
+            "crucible_runner_safety_policy_consumer_asset_index",
+            "plan_19_task_7a_runner_policy_consumer_receipt",
+        }
+    }
+    if set(registrations) != {
+        "crucible_runner_safety_policy_consumer_asset_index",
+        "plan_19_task_7a_runner_policy_consumer_receipt",
+    }:
+        errors.append("Plan 19 T7A manifest registrations differ")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    state = snapshot.get("runner_safety_policy_consumer")
+    if not isinstance(state, dict):
+        errors.append("ecosystem authority lacks runner_safety_policy_consumer")
+    else:
+        for key, value in {
+            "status": "READY_CONTRACT_CONSUMER_ONLY",
+            "producer_main_landed": False,
+            "migration_0117_executed": False,
+            "runtime_publication_enabled": False,
+            "durable_policy_state_ready": False,
+            "runtime_policy_consumed": False,
+            "runner_policy_capability_ready": False,
+            "team_daemon_enabled": False,
+            "live_ready": False,
+            "runtime_ready": False,
+            "production_ready": False,
+        }.items():
+            if state.get(key) != value:
+                errors.append(f"runner_safety_policy_consumer {key} differs")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -2016,6 +2208,7 @@ def main() -> int:
     verify_plan_19_task_4_durable_state(manifest, errors)
     verify_plan_19_task_5_engine_lifecycle(manifest, errors)
     verify_plan_19_task_6_portfolio_semantics(manifest, errors)
+    verify_plan_19_task_7a_runner_policy_consumer(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

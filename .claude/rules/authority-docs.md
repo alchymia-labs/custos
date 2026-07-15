@@ -90,6 +90,15 @@ the breaker fails closed. This receipt does not authorize a runner aggregate cap
 T7 must consume the Crucible Plan 99 signed versioned policy, DeploymentSpec
 `risk_config` cannot override it, and live/runtime/production remain false.
 
+Plan 19 T7A is `READY_CONTRACT_CONSUMER_ONLY`. Custos byte-vendors the exact
+CR99 producer schema/golden/sidecars and producer-v3 receipt and verifies Rust
+struct-order policy digest plus exact-event Ed25519 signature at
+`CrucibleRunnerSafetyPolicyAuthenticator`. Authority is tenant + logical mode +
+runner UUID. The current producer chain is not yet on crucible-rust main,
+migration 0117 is unexecuted, publication is disabled, and the golden signature
+is synthetic; therefore durable/runtime policy consumption, daemon, live,
+runtime and production remain false.
+
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.

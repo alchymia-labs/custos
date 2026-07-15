@@ -1,0 +1,95 @@
+{
+  "receipt_schema_version": 1,
+  "receipt_id": "crucible-plan-99-runner-policy-producer-v3",
+  "plan_id": "99-runner-safety-policy-authority",
+  "producer": "crucible-rust",
+  "contract_name": "crucible-runner-safety-policy-v1",
+  "status": "READY_CONTRACT_PRODUCER_ONLY",
+  "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+  "authority_scope": {
+    "owner": "crucible-rust",
+    "key": ["tenant_id", "trading_mode", "runner_id"],
+    "tenant_id_contract": "TenantId:[A-Za-z0-9_-]{1,64}",
+    "runner_id_contract": "non_nil_uuid",
+    "actor_assertion_jti_contract": "non_nil_uuid",
+    "digest_contract": "lowercase_sha256_64_hex",
+    "logical_trading_modes": ["live", "sandbox", "testnet"],
+    "physical_sim_database_role_is_not_a_trading_mode": true,
+    "immutable_revision": [
+      "policy_id",
+      "policy_version",
+      "policy_digest",
+      "generation",
+      "effective_at",
+      "expires_at"
+    ],
+    "exposure_model": "filled_plus_active_reservations",
+    "breach_action": "freeze_risk_increasing",
+    "risk_reducing_orders": "always_permitted",
+    "custos_role": "consumer_and_local_enforcer_only"
+  },
+  "assets": [
+    {
+      "path": "crates/domain/src/risk/runner_safety_policy.rs",
+      "sha256": "4d71251e05a2896542dcdc7fb59cf0ef4fb6497a616ea598dff6860281393926"
+    },
+    {
+      "path": "crates/domain/tests/runner_safety_policy_contract.rs",
+      "sha256": "cc25eb449d54d726b6eb477a1373c71b87c24551137c45b0aa9ff5964628833c"
+    },
+    {
+      "path": "docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json",
+      "sha256": "8aeb5442542a1e26581264f7f1acf7a498099a096eb246d9785d4b7fc828637a"
+    },
+    {
+      "path": "docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json.sha256",
+      "sha256": "f638984bb38a8f41f0d1922a4d40f8b0c1143842a6b66cb683ccb918aa40f7c7"
+    },
+    {
+      "path": "docs/authority/golden/crucible-runner-safety-policy-v1.json",
+      "sha256": "290698580bf2ef31e4babe2b9c621e5f74064f7cee4bff5e143823e7bedc5b8e"
+    },
+    {
+      "path": "docs/authority/golden/crucible-runner-safety-policy-v1.json.sha256",
+      "sha256": "c5145b8f7ae467bf34da2bc70f1a79443266e906a66e51fb217ab5b438229c9e"
+    }
+  ],
+  "supersession": {
+    "status": "CURRENT",
+    "supersedes": [
+      {
+        "producer_commit": "6915de527bc27f81de02d2c3d3b8a67aa09eea31",
+        "receipt_commit": "c940a91c6c7885dc0c8719dd39ae545a1bada650",
+        "status": "NON_CURRENT",
+        "reason": "tenant_id and logical trading_mode must reuse ecosystem authority types"
+      },
+      {
+        "producer_commit": "ae70eb1a3db6043a0a73e4ce3a080a5a4ffd1d21",
+        "receipt_commit": "858f2dfa095ff2b7b9a9754f04da08b1ccd0ec3c",
+        "status": "NON_CURRENT",
+        "reason": "runner_id, actor_assertion_jti and digest encoding must reuse ecosystem authority types"
+      }
+    ]
+  },
+  "forbidden_authority_sources": [
+    "deployment_spec.risk_config",
+    "deployment_command",
+    "custos_local_default",
+    "toolkit_manifest"
+  ],
+  "consumer_gate": {
+    "required_consumer": "custos",
+    "independent_consumer_receipt_required": true,
+    "missing_or_stale_policy": "fail_closed",
+    "live_capability_before_receipt": false
+  },
+  "truth": {
+    "producer_contract_ready": true,
+    "custos_consumer_ready": false,
+    "migration_0117_executed": false,
+    "runtime_publication_enabled": false,
+    "runtime_wiring_ready": false,
+    "live_capability": false,
+    "production_ready": false
+  }
+}

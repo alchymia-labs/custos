@@ -165,6 +165,26 @@
     "runtime_ready": false,
     "production_ready": false
   },
+  "runner_safety_policy_consumer": {
+    "owner": "crucible-rust",
+    "consumer": "custos",
+    "status": "READY_CONTRACT_CONSUMER_ONLY",
+    "receipt": "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
+    "policy_contract_consumer_ready": true,
+    "authority_scope": ["tenant_id", "trading_mode", "runner_id"],
+    "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
+    "producer_receipt_commit": "36082e6591b67686df928afda88621629eb6075e",
+    "producer_main_landed": false,
+    "migration_0117_executed": false,
+    "runtime_publication_enabled": false,
+    "durable_policy_state_ready": false,
+    "runtime_policy_consumed": false,
+    "runner_policy_capability_ready": false,
+    "team_daemon_enabled": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
   "portfolio_semantics": {
     "owner": "custos",
     "status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
