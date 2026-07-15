@@ -10,10 +10,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from custos.core.runner_command_intake import CommandDeliveryPolicy
+
 try:  # pragma: no cover - production dependency, mocked by unit tests
     import nats
+    from nats.js.api import AckPolicy, ConsumerConfig
 except ImportError as exc:  # pragma: no cover
     nats = None  # type: ignore[assignment]
+    AckPolicy = None  # type: ignore[assignment,misc]
+    ConsumerConfig = None  # type: ignore[assignment,misc]
     _IMPORT_ERROR = exc
 else:
     _IMPORT_ERROR = None
@@ -25,6 +30,7 @@ class CrucibleNatsClient:
     tenant_id: str
     runner_id: str
     machine_credential: Any = field(repr=False)
+    command_delivery_policy: CommandDeliveryPolicy = field(default_factory=CommandDeliveryPolicy)
     _nc: Any = field(default=None, init=False, repr=False)
     _js: Any = field(default=None, init=False, repr=False)
 
@@ -54,4 +60,17 @@ class CrucibleNatsClient:
             raise RuntimeError("subscribe_deployment_spec called before connect()")
         subject = f"crucible_rust.domain.{self.tenant_id}.*.deployment.*.{self.runner_id}.*"
         durable = f"custos-deployment-{self.runner_id}"
-        return await self._js.subscribe(subject, durable=durable, manual_ack=True)
+        consumer_config = ConsumerConfig(
+            durable_name=durable,
+            ack_policy=AckPolicy.EXPLICIT,
+            ack_wait=self.command_delivery_policy.ack_wait_seconds,
+            max_deliver=self.command_delivery_policy.max_deliver,
+            backoff=list(self.command_delivery_policy.backoff_seconds),
+            filter_subject=subject,
+        )
+        return await self._js.subscribe(
+            subject,
+            durable=durable,
+            config=consumer_config,
+            manual_ack=True,
+        )

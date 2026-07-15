@@ -2,11 +2,11 @@
 
 > **Status**: ⏳ In progress
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after CR89 command-consumer STOP
+> **Revised**: 2026-07-15 after Plan 19 T3 intake-policy PREPARED checkpoint
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
-> **Immediately executable**: Task 3 after the contract-only Task 2 STOP; no runtime readiness is implied
+> **Immediately executable**: Task 4 after the Task 3 intake-policy PREPARED checkpoint; no runtime readiness is implied
 > **19d-T8a gate**: 19c STOP only; it produces the immutable RunnerFact candidate before Crucible Plan 90 Phase A
 > **Runtime RC gates**: Crucible Plan 89 migration 0116 signed command producer and `CR89-0116-GENERATION-STORAGE`; Crucible Plan 90 Phase-A schema/golden compatibility receipt; Crucible Plan 99 runner-safety-policy-authority; Custos Plan 18 staged candidate and exact final required by the selected RC/final-candidate BOM
 > **Close-out gates**: Crucible Plan 90 Phase-B real runtime round-trip receipt; PS Plan 56 exact final-candidate acceptance
@@ -67,6 +67,29 @@ verification head is `f3adde2870a53a4bb52cc2a260d2c7c1c852eee2`.
 The receipt's historical `T1 characterization` label is a characterization sub-checkpoint of
 19a. It does not silently replace the numbered Task 1 verification-floor command set below;
 unrecorded commands remain open until separately evidenced.
+
+### 19b/T3 intake-policy checkpoint (2026-07-15)
+
+Task 3 is **PREPARED_FOR_T4_DURABILITY**, not complete runtime wiring. The
+production intake module freezes the Plan 19 command fingerprint separately
+from the CR89 producer fingerprint, verifies exact subject/event bytes and all
+T2 schema/evidence/acceptance bindings before any disposition, and exposes only
+typed inbound ACK/NAK/TERM/in-progress plus a T4 durability port.
+
+- same-generation/same-exact-bytes is idempotent; different exact bytes is a
+  terminal conflict;
+- poison commands TERM only after a typed untrusted-rejection receipt;
+- transient failures use bounded NAK/backoff; exhausted retries TERM only after
+  a typed terminal receipt;
+- long operations renew only the inbound command ACK lease;
+- JetStream subscription now pins ack wait, max deliveries and backoff;
+- no SQLite table, second database/outbox, daemon/reconciler/engine apply or
+  outbound PubAck path is added by T3.
+
+The durability port is intentionally unimplemented in production until Task 4
+adapts it to the sole existing RunnerFact SQLite deep module and its atomic
+RunnerFact lifecycle transaction. Therefore this checkpoint does not claim
+durable outcome, runtime, handoff or production readiness.
 
 ## 目标 (Goal)
 
@@ -750,6 +773,12 @@ git commit -m "feat(custos): consume Crucible runner command contract"
 6. 显式配置 ack wait、max deliveries、backoff 和 quarantine。
 7. inbound ACK 状态不得与 outbound PubAck 混用。
 
+> **Execution status (2026-07-15)**: `PREPARED_FOR_T4_DURABILITY`.
+> Fingerprint/authentication/intake/disposition policy and the focused
+> crash/restart/redelivery matrix are implemented. The production durability
+> adapter remains Task 4; T3 does not ACK a newly prepared command and cannot
+> claim durable/runtime readiness before that adapter exists.
+
 提交：
 
 ```bash
@@ -967,7 +996,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `3ce4048` |
 | T1 Verification floor | [~] | 2026-07-15 | characterization sub-checkpoint READY at `c567f1d`; full `make verify` green at `f3adde2`; remaining verification-floor commands require separate evidence |
 | T2 Crucible producer/consumer | [x] | 2026-07-15 | Same STOP as Plan 18 T5d-B: corrected CR89 A2/B2 bytes, sole consumer parser, full evidence/acceptance bindings and frozen producer fingerprint; contract-only, runtime false |
-| T3 Fingerprint/ACK | [ ] | — | frozen algorithm + durable outcomes |
+| T3 Fingerprint/ACK | [~] | 2026-07-15 | PREPARED_FOR_T4_DURABILITY: frozen algorithm + bounded inbound policy; real durable outcomes remain T4 |
 | T4 Single durable store | [ ] | — | outcomes, generation fence, cap/reservation tables |
 | T5 Engine lifecycle | [ ] | — | additive protocol |
 | T6 Portfolio/equity | [ ] | — | NT 1.230.0 regression |
@@ -990,6 +1019,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | DOCUMENTATION | RunnerFact | `telemetry_actor.md` 改为 atomic rename，不直接删除 | Accepted 2026-07-14 |
 | DURABILITY | Command outcomes | success/terminal/untrusted paths 全部改为 commit-before-ACK/TERM | Accepted 2026-07-14 |
 | FINGERPRINT | Command | 冻结 domain+subject+exact-event-bytes，排除 signature bytes | Accepted 2026-07-14 |
+| TASK-BOUNDARY | T3/T4 | T3 只落 intake policy + durability port；SQLite/outcome/fact transaction 保留给 T4，状态诚实降级 PREPARED | Accepted 2026-07-15 |
 | FENCING | RunnerFact | generation 进入 signed header，但不改变 stream key/sequence | Accepted 2026-07-14 |
 | POLICY | Runner cap | owner 锁定 Crucible Plan 99；policy/reservation/exposure durable | Accepted 2026-07-14 |
 | DAG | Cross-repo release | T8a 先产 candidate；Plan 90A 只 gate RC；Plan 90B + PS56 gate unchanged promotion/close-out | Accepted 2026-07-14 |

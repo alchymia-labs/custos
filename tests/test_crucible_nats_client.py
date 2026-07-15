@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
+from nats.js.api import AckPolicy
 
 from custos.core.nats_client import CrucibleNatsClient
 
@@ -55,11 +56,19 @@ async def test_subscribe_uses_crucible_runner_scoped_subject_and_durable() -> No
     result = await client.subscribe_deployment_spec()
 
     assert result is subscription
-    jetstream.subscribe.assert_awaited_once_with(
-        f"crucible_rust.domain.acme.*.deployment.*.{_RUNNER_ID}.*",
-        durable=f"custos-deployment-{_RUNNER_ID}",
-        manual_ack=True,
-    )
+    jetstream.subscribe.assert_awaited_once()
+    call = jetstream.subscribe.await_args
+    subject = f"crucible_rust.domain.acme.*.deployment.*.{_RUNNER_ID}.*"
+    assert call.args == (subject,)
+    assert call.kwargs["durable"] == f"custos-deployment-{_RUNNER_ID}"
+    assert call.kwargs["manual_ack"] is True
+    config = call.kwargs["config"]
+    assert config.durable_name == f"custos-deployment-{_RUNNER_ID}"
+    assert config.ack_policy is AckPolicy.EXPLICIT
+    assert config.ack_wait == 30.0
+    assert config.max_deliver == 5
+    assert config.backoff == [10.0, 30.0, 60.0, 120.0, 300.0]
+    assert config.filter_subject == subject
 
 
 @pytest.mark.asyncio
