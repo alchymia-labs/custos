@@ -3,12 +3,17 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from custos.contracts.crucible_runner_safety_policy import (
+    RunnerAggregateCapPolicyV1,
+    VerifiedRunnerSafetyPolicy,
+)
 from custos.core.runner_fact import (
     RUNNER_STATE_SCHEMA_VERSION,
     RunnerFactAuthority,
@@ -28,6 +33,39 @@ STRATEGY_ID = UUID("40000000-0000-4000-8000-000000000004")
 CAPABILITY_ID = UUID("50000000-0000-4000-8000-000000000005")
 SHA_A = "a" * 64
 SHA_B = "b" * 64
+POLICY_ID = UUID("60000000-0000-4000-8000-000000000006")
+
+
+def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
+    policy = RunnerAggregateCapPolicyV1(
+        schema_version=1,
+        policy_id=POLICY_ID,
+        runner_id=T4_RUNNER_ID,
+        tenant_id="contract-only-example",
+        trading_mode="sandbox",
+        policy_version=1,
+        generation=1,
+        settlement_currency="USDT",
+        max_order_notional="100",
+        max_total_notional="1000",
+        exposure_model="filled_plus_active_reservations",
+        breach_action="freeze_risk_increasing",
+        risk_reducing_orders="always_permitted",
+        effective_at=datetime(2026, 1, 1, tzinfo=UTC),
+        expires_at=datetime(2027, 1, 1, tzinfo=UTC),
+        status="active",
+        previous_policy=None,
+        policy_digest="c" * 64,
+    )
+    return VerifiedRunnerSafetyPolicy(
+        policy=policy,
+        exact_subject="crucible.v1.contract-only-example.sandbox.runner.runner-policy",
+        exact_event_bytes=b'{"verified":"test-only"}',
+        exact_signed_envelope_bytes=b'{"signature":"test-only"}',
+        signature_key_id="crucible-policy-key",
+        fingerprint="d" * 64,
+        verified_event_bytes_sha256="e" * 64,
+    )
 
 
 def _authority() -> RunnerFactAuthority:
@@ -112,6 +150,7 @@ def test_existing_outbox_database_upgrades_in_place_to_single_state_schema(
         "command_in_progress_lease",
         "artifact_activation",
         "runner_cap_policy",
+        "runner_cap_policy_head",
         "order_reservation",
         "runner_exposure_checkpoint",
         "runner_stream_cutover",
@@ -433,24 +472,14 @@ async def test_applied_commit_is_atomic_with_lifecycle_outbox_and_restart_replay
         artifact_ref_digest=verified.command.artifact_ref_digest,
         artifact_evidence_digest=verified.command.artifact_evidence_digest,
     )
-    await store.record_runner_cap_policy_reference(
-        policy_id="runner-cap-1",
-        policy_revision=1,
-        policy_digest="c" * 64,
-        trading_mode="sandbox",
-        max_notional="1000.00",
-        effective_at_ns=1,
-        expires_at_ns=None,
-        signer_key_id="crucible-policy-key",
-        signed_policy=b"signed-runner-cap-policy",
-    )
+    await store.record_verified_runner_safety_policy(_t4_runner_policy())
     result = await store.commit_applied_and_enqueue_lifecycle(
         delivery_id="delivery-applied",
         verified=verified,
         engine_handle="engine-1",
         observed_status="running",
         artifact_activation_id="activation-1",
-        local_policy_id="runner-cap-1",
+        local_policy_id=str(POLICY_ID),
     )
 
     assert result.committed is True
@@ -632,27 +661,17 @@ async def test_local_reservation_exposure_and_cross_tenant_guards(tmp_path: Path
         command_fingerprint=verified.command_fingerprint,
         verification_receipt=verified.verification_receipt,
     )
-    await store.record_runner_cap_policy_reference(
-        policy_id="runner-cap-1",
-        policy_revision=1,
-        policy_digest="c" * 64,
-        trading_mode="sandbox",
-        max_notional="1000.00",
-        effective_at_ns=1,
-        expires_at_ns=None,
-        signer_key_id="crucible-policy-key",
-        signed_policy=b"signed-runner-cap-policy",
-    )
+    await store.record_verified_runner_safety_policy(_t4_runner_policy())
     await store.record_order_reservation_reference(
         deployment_instance_id=verified.command.deployment_instance_id,
         client_order_id="order-1",
-        policy_id="runner-cap-1",
+        policy_id=str(POLICY_ID),
         reserved_notional="250.00",
         filled_exposure="100.00",
         state="partially_filled",
     )
     await store.record_exposure_checkpoint_reference(
-        policy_id="runner-cap-1",
+        policy_id=str(POLICY_ID),
         open_exposure="100.00",
         reconstructed_at_ns=10,
         source_digest="d" * 64,

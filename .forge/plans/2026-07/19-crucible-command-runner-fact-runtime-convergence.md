@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY, T7B/T8-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable/guard code checkpoint READY-CODE-ONLY; native interception, reservation lifecycle and T8-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-15 after Plan 19 T6 reliable-portfolio checkpoint
 > **Project**: Custos
@@ -907,11 +907,12 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 
 ### Task 7: Enforce signed local safety policy
 
-#### 7A Native per-order safety
+#### 7A CR99 contract consumer and native per-order safety
 
-1. 从 signed Crucible policy 构建 NT public risk config。
-2. 黑盒证明超过单笔上限的 order intent 在 engine boundary 被拒。
-3. missing/invalid live policy fail closed。
+1. 固定并验签 CR99 policy contract，不得把 synthetic golden 当 runtime evidence。
+2. 从 verified signed Crucible policy 构建 NT public risk config。
+3. 黑盒证明超过单笔上限的 order intent 在 engine boundary 被拒。
+4. missing/invalid live policy fail closed。
 
 #### 7B Runner-level aggregate cap
 
@@ -938,6 +939,22 @@ Execution checkpoint T7A (2026-07-15):
 - Status is `READY_CONTRACT_CONSUMER_ONLY`. The producer chain is not on
   crucible-rust main; 0117 is prepared but unexecuted; runtime publication and
   real policy consumption are false. T7B must retain these blockers.
+
+Execution checkpoint T7B code-only (2026-07-15):
+
+- Evolved the existing RunnerFact SQLite store to additive schema v3 and stored
+  verified CR99 policy bytes, signature evidence and one tenant/mode/runner head;
+  no second database or outbox was introduced.
+- Enforced exact generation/version/prior fencing, idempotence and fail-closed
+  stale/conflict/scope/status/effective/expiry handling across restart.
+- Removed DeploymentSpec `risk_config` construction from local cap, fallback
+  breaker and reconciler. Only verified owner policy or explicit sandbox/testnet
+  strictest fallback can configure guards; live without capability fails closed.
+- Focused T7B plus local-cap, breaker, reconciler and durable-store suites are
+  31 passed. Status is `READY_CONTRACT_CONSUMER_CODE_ONLY`.
+- Native engine-boundary interception, full reservation transitions/rebuild,
+  direct-submit bypass proof and real daemon publication consumption remain open.
+  CR99 main/0117/publication and all live/runtime/production flags remain false.
 
 提交：
 
@@ -1068,7 +1085,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
-| T7 Signed local safety | [~] | 2026-07-15 | T7A `READY_CONTRACT_CONSUMER_ONLY`; exact CR99 assets + strict parser/verifier landed locally; T7B durable consumer/guard cleanup open; CR99 main/0117/publication/runtime receipts block live |
+| T7 Signed local safety | [~] | 2026-07-15 | T7A contract consumer plus T7B durable/guard `READY_CONTRACT_CONSUMER_CODE_ONLY`; schema v3 uses the same DB/outbox and removes DeploymentSpec risk authority. Native interception, reservation lifecycle, bypass proof and CR99 main/0117/publication/runtime receipts remain open |
 | T8a RunnerFact candidate | [ ] | — | 19c STOP 后独立生产；不得等待 Plan 90 |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |

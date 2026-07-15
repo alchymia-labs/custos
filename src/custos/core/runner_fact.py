@@ -19,6 +19,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final, Literal
 from uuid import UUID, uuid4, uuid5
@@ -26,6 +27,10 @@ from uuid import UUID, uuid4, uuid5
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from custos.contracts.crucible_runner_safety_policy import (
+    RunnerAggregateCapPolicyV1,
+    VerifiedRunnerSafetyPolicy,
+)
 from custos.core.log import get_logger
 from custos.core.runner_command_intake import (
     CommandIdentityDecision,
@@ -50,7 +55,7 @@ MAX_BATCH_BYTES: Final = 768 * 1024
 MAX_VENUE_LEDGER_CHUNKS: Final = 4096
 MAX_VENUE_LEDGER_ITEMS_PER_CHUNK: Final = 512
 MAX_VENUE_LEDGER_CHUNK_BYTES: Final = 262_144
-RUNNER_STATE_SCHEMA_VERSION: Final = 2
+RUNNER_STATE_SCHEMA_VERSION: Final = 3
 _NATS_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 _LOWER_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _log = get_logger("custos.runner_fact")
@@ -999,14 +1004,42 @@ class RunnerFactOutbox:
                 CREATE TABLE IF NOT EXISTS runner_cap_policy (
                     policy_id TEXT PRIMARY KEY,
                     policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
+                    generation INTEGER NOT NULL CHECK (generation > 0),
                     policy_digest TEXT NOT NULL,
                     tenant_scope TEXT NOT NULL,
                     trading_mode TEXT NOT NULL,
+                    runner_id TEXT NOT NULL,
+                    previous_policy_id TEXT,
+                    previous_policy_revision INTEGER,
+                    previous_generation INTEGER,
+                    previous_policy_digest TEXT,
+                    settlement_currency TEXT NOT NULL,
+                    max_order_notional TEXT NOT NULL,
                     max_notional TEXT NOT NULL,
                     effective_at_ns INTEGER NOT NULL,
-                    expires_at_ns INTEGER,
+                    expires_at_ns INTEGER NOT NULL,
+                    policy_status TEXT NOT NULL,
                     signer_key_id TEXT NOT NULL,
-                    signed_policy BLOB NOT NULL
+                    signature_profile TEXT NOT NULL,
+                    exact_subject TEXT NOT NULL,
+                    fingerprint TEXT NOT NULL,
+                    verified_event_bytes_digest TEXT NOT NULL,
+                    exact_event_bytes BLOB NOT NULL,
+                    signed_policy BLOB NOT NULL,
+                    policy_json TEXT NOT NULL,
+                    consumed_at_ns INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS runner_cap_policy_head (
+                    tenant_scope TEXT NOT NULL,
+                    trading_mode TEXT NOT NULL,
+                    runner_id TEXT NOT NULL,
+                    policy_id TEXT NOT NULL,
+                    policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
+                    generation INTEGER NOT NULL CHECK (generation > 0),
+                    policy_digest TEXT NOT NULL,
+                    updated_at_ns INTEGER NOT NULL,
+                    PRIMARY KEY (tenant_scope, trading_mode, runner_id),
+                    FOREIGN KEY (policy_id) REFERENCES runner_cap_policy(policy_id)
                 );
                 CREATE TABLE IF NOT EXISTS applied_deployments (
                     deployment_instance_id TEXT PRIMARY KEY,
@@ -1110,6 +1143,38 @@ class RunnerFactOutbox:
                 connection.execute(
                     "ALTER TABLE command_in_progress_lease ADD COLUMN last_reason_code TEXT"
                 )
+            policy_columns = {
+                str(row[1]) for row in connection.execute("PRAGMA table_info(runner_cap_policy)")
+            }
+            policy_column_migrations = {
+                "generation": "INTEGER",
+                "runner_id": "TEXT",
+                "previous_policy_id": "TEXT",
+                "previous_policy_revision": "INTEGER",
+                "previous_generation": "INTEGER",
+                "previous_policy_digest": "TEXT",
+                "settlement_currency": "TEXT",
+                "max_order_notional": "TEXT",
+                "policy_status": "TEXT",
+                "signature_profile": "TEXT",
+                "exact_subject": "TEXT",
+                "fingerprint": "TEXT",
+                "verified_event_bytes_digest": "TEXT",
+                "exact_event_bytes": "BLOB",
+                "policy_json": "TEXT",
+                "consumed_at_ns": "INTEGER",
+            }
+            for column, sql_type in policy_column_migrations.items():
+                if column not in policy_columns:
+                    connection.execute(
+                        f"ALTER TABLE runner_cap_policy ADD COLUMN {column} {sql_type}"
+                    )
+            connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS runner_cap_policy_scope_generation
+                ON runner_cap_policy(tenant_scope, trading_mode, runner_id, generation)
+                """
+            )
             connection.execute(
                 """
                 INSERT INTO runner_state_schema (singleton, schema_version, updated_at)
@@ -1516,6 +1581,30 @@ class EngineLifecycleDurableState:
     observed_status: str | None
     restart_count: int
     quarantine_reason: str | None
+
+
+class RunnerPolicyIdentityDecision(StrEnum):
+    NEWER = "newer"
+    IDEMPOTENT = "idempotent"
+
+
+@dataclass(frozen=True, slots=True)
+class RunnerPolicyCommitResult:
+    decision: RunnerPolicyIdentityDecision
+    committed: bool
+    policy_id: UUID
+    policy_digest: str
+
+
+@dataclass(frozen=True, slots=True)
+class DurableRunnerSafetyPolicy:
+    policy: RunnerAggregateCapPolicyV1
+    exact_subject: str
+    exact_event_bytes: bytes
+    exact_signed_envelope_bytes: bytes
+    signature_key_id: str
+    fingerprint: str
+    verified_event_bytes_sha256: str
 
 
 class RunnerStateStore:
@@ -2360,56 +2449,210 @@ class RunnerStateStore:
                 ),
             )
 
-    async def record_runner_cap_policy_reference(
-        self,
-        *,
-        policy_id: str,
-        policy_revision: int,
-        policy_digest: str,
-        trading_mode: str,
-        max_notional: str,
-        effective_at_ns: int,
-        expires_at_ns: int | None,
-        signer_key_id: str,
-        signed_policy: bytes,
-    ) -> None:
-        if type(policy_revision) is not int or policy_revision < 1:
-            raise RunnerStateDurabilityError("policy revision must be positive")
-        _state_digest(policy_digest, "policy_digest")
-        if trading_mode not in {"sandbox", "testnet", "live"}:
-            raise RunnerStateDurabilityError("policy trading mode is invalid")
-        if type(signed_policy) is not bytes or not signed_policy:
-            raise RunnerStateDurabilityError("signed policy bytes are required")
-        with self._outbox._connect() as connection:
+    async def record_verified_runner_safety_policy(
+        self, verified: VerifiedRunnerSafetyPolicy
+    ) -> RunnerPolicyCommitResult:
+        """Advance one verified CR99 scope head or reject the policy fail closed."""
+
+        return await asyncio.to_thread(self._record_verified_runner_safety_policy, verified)
+
+    def _record_verified_runner_safety_policy(
+        self, verified: VerifiedRunnerSafetyPolicy
+    ) -> RunnerPolicyCommitResult:
+        if not isinstance(verified, VerifiedRunnerSafetyPolicy):
+            raise RunnerStateAuthorityError("runner policy must be signature verified")
+        policy = verified.policy
+        if policy.tenant_id != self._tenant_id:
+            raise RunnerStateAuthorityError("runner policy tenant differs from store authority")
+        if policy.runner_id != self._runner_id:
+            raise RunnerStateAuthorityError("runner policy runner differs from store authority")
+
+        connection = self._outbox._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            head = connection.execute(
+                """
+                SELECT * FROM runner_cap_policy_head
+                WHERE tenant_scope = ? AND trading_mode = ? AND runner_id = ?
+                """,
+                (self._tenant_id, policy.trading_mode, str(self._runner_id)),
+            ).fetchone()
+            if head is not None:
+                head_generation = int(head["generation"])
+                head_revision = int(head["policy_revision"])
+                head_digest = str(head["policy_digest"])
+                if policy.generation < head_generation:
+                    raise RunnerStateAuthorityError("runner policy generation is stale")
+                if policy.generation == head_generation:
+                    if policy.policy_digest == head_digest:
+                        connection.rollback()
+                        return RunnerPolicyCommitResult(
+                            decision=RunnerPolicyIdentityDecision.IDEMPOTENT,
+                            committed=False,
+                            policy_id=policy.policy_id,
+                            policy_digest=policy.policy_digest,
+                        )
+                    raise RunnerStateAuthorityError("runner policy generation conflict")
+                previous = policy.previous_policy
+                if (
+                    policy.generation != head_generation + 1
+                    or policy.policy_version != head_revision + 1
+                    or previous is None
+                    or str(previous.policy_id) != head["policy_id"]
+                    or previous.policy_version != head_revision
+                    or previous.generation != head_generation
+                    or previous.policy_digest != head_digest
+                ):
+                    raise RunnerStateAuthorityError("runner policy prior fence differs")
+            elif (
+                policy.generation != 1
+                or policy.policy_version != 1
+                or policy.previous_policy is not None
+            ):
+                raise RunnerStateAuthorityError("runner policy initial fence differs")
+
+            existing_id = connection.execute(
+                "SELECT policy_digest FROM runner_cap_policy WHERE policy_id = ?",
+                (str(policy.policy_id),),
+            ).fetchone()
+            if existing_id is not None:
+                raise RunnerStateAuthorityError("runner policy id conflict")
+
+            previous = policy.previous_policy
+            effective_at_ns = int(policy.effective_at.timestamp() * 1_000_000_000)
+            expires_at_ns = int(policy.expires_at.timestamp() * 1_000_000_000)
+            consumed_at_ns = time.time_ns()
             connection.execute(
                 """
                 INSERT INTO runner_cap_policy (
-                    policy_id, policy_revision, policy_digest, tenant_scope,
-                    trading_mode, max_notional, effective_at_ns, expires_at_ns,
-                    signer_key_id, signed_policy
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(policy_id) DO UPDATE SET
-                    policy_revision = excluded.policy_revision,
-                    policy_digest = excluded.policy_digest,
-                    max_notional = excluded.max_notional,
-                    effective_at_ns = excluded.effective_at_ns,
-                    expires_at_ns = excluded.expires_at_ns,
-                    signer_key_id = excluded.signer_key_id,
-                    signed_policy = excluded.signed_policy
+                    policy_id, policy_revision, generation, policy_digest,
+                    tenant_scope, trading_mode, runner_id, previous_policy_id,
+                    previous_policy_revision, previous_generation,
+                    previous_policy_digest, settlement_currency,
+                    max_order_notional, max_notional, effective_at_ns,
+                    expires_at_ns, policy_status, signer_key_id,
+                    signature_profile, exact_subject, fingerprint,
+                    verified_event_bytes_digest, exact_event_bytes, signed_policy,
+                    policy_json, consumed_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    _non_empty(policy_id, "policy_id"),
-                    policy_revision,
-                    policy_digest,
+                    str(policy.policy_id),
+                    policy.policy_version,
+                    policy.generation,
+                    policy.policy_digest,
                     self._tenant_id,
-                    trading_mode,
-                    _non_empty(max_notional, "max_notional"),
+                    policy.trading_mode,
+                    str(self._runner_id),
+                    str(previous.policy_id) if previous is not None else None,
+                    previous.policy_version if previous is not None else None,
+                    previous.generation if previous is not None else None,
+                    previous.policy_digest if previous is not None else None,
+                    policy.settlement_currency,
+                    policy.max_order_notional,
+                    policy.max_total_notional,
                     effective_at_ns,
                     expires_at_ns,
-                    _non_empty(signer_key_id, "signer_key_id"),
-                    signed_policy,
+                    policy.status,
+                    verified.signature_key_id,
+                    "crucible-domain-event-v2-exact-bytes",
+                    verified.exact_subject,
+                    verified.fingerprint,
+                    verified.verified_event_bytes_sha256,
+                    verified.exact_event_bytes,
+                    verified.exact_signed_envelope_bytes,
+                    policy.model_dump_json(),
+                    consumed_at_ns,
                 ),
             )
+            connection.execute(
+                """
+                INSERT INTO runner_cap_policy_head (
+                    tenant_scope, trading_mode, runner_id, policy_id,
+                    policy_revision, generation, policy_digest, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(tenant_scope, trading_mode, runner_id) DO UPDATE SET
+                    policy_id = excluded.policy_id,
+                    policy_revision = excluded.policy_revision,
+                    generation = excluded.generation,
+                    policy_digest = excluded.policy_digest,
+                    updated_at_ns = excluded.updated_at_ns
+                """,
+                (
+                    self._tenant_id,
+                    policy.trading_mode,
+                    str(self._runner_id),
+                    str(policy.policy_id),
+                    policy.policy_version,
+                    policy.generation,
+                    policy.policy_digest,
+                    consumed_at_ns,
+                ),
+            )
+            connection.commit()
+            return RunnerPolicyCommitResult(
+                decision=RunnerPolicyIdentityDecision.NEWER,
+                committed=True,
+                policy_id=policy.policy_id,
+                policy_digest=policy.policy_digest,
+            )
+        except RunnerFactError:
+            connection.rollback()
+            raise
+        except (sqlite3.Error, TypeError, ValueError) as exc:
+            connection.rollback()
+            raise RunnerStateDurabilityError(
+                f"verified runner policy transaction failed: {type(exc).__name__}"
+            ) from exc
+        finally:
+            connection.close()
+
+    async def load_effective_runner_safety_policy(
+        self, trading_mode: str, *, now: datetime | None = None
+    ) -> DurableRunnerSafetyPolicy:
+        return await asyncio.to_thread(
+            self._load_effective_runner_safety_policy,
+            trading_mode,
+            now or datetime.now(UTC),
+        )
+
+    def _load_effective_runner_safety_policy(
+        self, trading_mode: str, now: datetime
+    ) -> DurableRunnerSafetyPolicy:
+        if trading_mode not in {"sandbox", "testnet", "live"}:
+            raise RunnerStateAuthorityError("runner policy trading mode is invalid")
+        if now.tzinfo is None:
+            raise RunnerStateAuthorityError("runner policy evaluation time must be timezone aware")
+        with self._outbox._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT policy.* FROM runner_cap_policy_head AS head
+                JOIN runner_cap_policy AS policy ON policy.policy_id = head.policy_id
+                WHERE head.tenant_scope = ? AND head.trading_mode = ? AND head.runner_id = ?
+                """,
+                (self._tenant_id, trading_mode, str(self._runner_id)),
+            ).fetchone()
+        if row is None:
+            raise RunnerStateAuthorityError("verified runner policy is missing")
+        policy = RunnerAggregateCapPolicyV1.model_validate_json(str(row["policy_json"]))
+        if policy.status != "active":
+            raise RunnerStateAuthorityError("verified runner policy is not active")
+        if now < policy.effective_at:
+            raise RunnerStateAuthorityError("verified runner policy is not effective")
+        if now >= policy.expires_at:
+            raise RunnerStateAuthorityError("verified runner policy is expired")
+        exact_event_bytes = bytes(row["exact_event_bytes"])
+        if _sha256_hex(exact_event_bytes) != row["verified_event_bytes_digest"]:
+            raise RunnerStateDurabilityError("verified runner policy event bytes changed on disk")
+        return DurableRunnerSafetyPolicy(
+            policy=policy,
+            exact_subject=str(row["exact_subject"]),
+            exact_event_bytes=exact_event_bytes,
+            exact_signed_envelope_bytes=bytes(row["signed_policy"]),
+            signature_key_id=str(row["signer_key_id"]),
+            fingerprint=str(row["fingerprint"]),
+            verified_event_bytes_sha256=str(row["verified_event_bytes_digest"]),
+        )
 
     async def record_order_reservation_reference(
         self,

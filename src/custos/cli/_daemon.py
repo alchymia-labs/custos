@@ -20,7 +20,6 @@ from uuid import UUID
 
 from custos.contracts import CrucibleDomainEventVerifier
 from custos.core.deployment_reconciler import DeploymentReconciler
-from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.machine_credential_vault import (
     MachineCredentialError,
     MachineCredentialHttpClient,
@@ -153,11 +152,12 @@ def _build_reconciler(
     deployment_verifier: CrucibleDomainEventVerifier,
     readiness: ReadinessFile | None = None,
 ) -> DeploymentReconciler:
-    """Compose the reconciler with the three local guards wired in (non-custodial
-    red line 0.3 runtime wire — cap + breaker + watchdog keep guarding when
-    the cloud is unreachable). Cap / breaker configs start at conservative
-    floors; per-spec risk_config refresh is a follow-up."""
-    runner_cap = RunnerNotionalCap(LocalCapConfig.from_spec({}, live=False))
+    """Compose code-only policy guards without claiming CR99 runtime readiness.
+
+    Live reconciliation therefore fails closed. Sandbox/testnet may use the
+    explicit strictest local fallback until a durable verified-policy resolver
+    is composed after real CR99 publication evidence exists.
+    """
     zombie_watchdog = ZombieWatchdog()
     return DeploymentReconciler(
         nats_client=client,
@@ -168,7 +168,7 @@ def _build_reconciler(
         runtime_log_emitter=runtime_log_emitter,
         lifecycle_fact_emitter=lifecycle_fact_emitter,
         deployment_verifier=deployment_verifier,
-        local_cap=runner_cap,
+        safety_policy_resolver=None,
         zombie_watchdog=zombie_watchdog,
         readiness=readiness,
     )

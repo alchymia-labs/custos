@@ -51,10 +51,10 @@
   Tier-2 protocol 与引擎解耦（core 层无 NT 特化）：
   - **NT 本地 per-order RiskEngine** — 单笔 `max_qty` / `max_notional` / `price_collar`
     (`nt_risk_engine.py`, 已存在)。
-  - **Runner 层 soft cap** — `RunnerNotionalCap` 读 host 的 `get_open_notional` +
-    `spec.risk_config.max_notional_per_runner`，超额发 `runner_cap_exceeded`；缺失
-    结构性 floor `paper=200 USD` / `live=1000 USD` (DEV-04-CAP-DEFAULT)，`≤ NAV × 5x`
-    仍是操作侧参考上限。
+  - **Runner 层 soft cap** — `RunnerNotionalCap` 只消费通过 CR99 验签的
+    runner policy，按单笔与 filled+active-reservations 聚合敞口拒绝风险增加订单。
+    DeploymentSpec `risk_config` 不是 authority。仅 sandbox/testnet 可显式使用
+    strictest local fallback；live 缺 owner policy 必须 fail closed。
   - **Runner 层 hard fallback breaker** — `FallbackBreaker` 每 tick 从
     `get_open_notional` + `get_engine_status.current_equity` 计算 drawdown_pct
     (Decimal，红线 0.4)；notional 或 drawdown 超阈 → host 的 `flatten_positions`

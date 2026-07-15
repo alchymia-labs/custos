@@ -376,6 +376,16 @@
       "production_ready": false
     },
     {
+      "role": "plan_19_task_7b_runner_policy_code_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json",
+      "receipt_status": "READY_CONTRACT_CONSUMER_CODE_ONLY",
+      "durable_policy_state_ready": true,
+      "runner_policy_capability_ready": false,
+      "live_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
       "role": "local_runner_safety_policy_consumer",
       "path": "docs/design/runner_safety_policy.md"
     }
@@ -491,11 +501,14 @@
       "src/custos/core/fallback_breaker.py",
       "src/custos/core/runner_command_intake.py",
       "src/custos/contracts/crucible_runner_safety_policy.py",
+      "src/custos/core/runner_safety_policy.py",
+      "src/custos/core/local_cap.py",
       "src/custos/contracts/__init__.py",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json",
       "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
       "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
       "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json",
@@ -511,6 +524,7 @@
       "tests/test_plan19_t5_daemon_supervision.py",
       "tests/test_plan19_t6_portfolio_snapshot.py",
       "tests/test_plan19_t7a_runner_policy_contract_consumer.py",
+      "tests/test_plan19_t7b_runner_policy_runtime_code.py",
       "tests/engines/nautilus/test_state_snapshot_nautilus_impl.py",
       "tests/test_plan19_t4_runner_state_store.py",
       ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"

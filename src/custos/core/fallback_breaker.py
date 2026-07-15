@@ -15,16 +15,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from uuid import UUID
 
+from custos.contracts.crucible_runner_safety_policy import RunnerAggregateCapPolicyV1
+from custos.core.local_cap import (
+    STRICTEST_NON_LIVE_MAX_TOTAL_USD,
+    RunnerSafetyPolicyUnavailableError,
+)
 from custos.core.log import get_logger
 
 _log = get_logger("custos.fallback_breaker")
 
-# Structural hard-limit fallbacks used when the cloud spec carries no explicit
-# breaker config. Deliberately conservative — an operator raises them via
-# risk_config once a runner is trusted.
-DEFAULT_MAX_NOTIONAL_USD = Decimal("1000")
-DEFAULT_MAX_DRAWDOWN_PCT = Decimal("20")
+STRICTEST_LOCAL_MAX_DRAWDOWN_PCT = Decimal("10")
 
 
 @dataclass(frozen=True)
@@ -33,22 +35,37 @@ class FallbackBreakerConfig:
 
     max_notional: Decimal
     max_drawdown_pct: Decimal
+    policy_id: UUID | None = None
+    policy_digest: str | None = None
+    owner_policy: bool = False
+    source: str = "explicit_local_config"
 
     @classmethod
-    def from_spec(cls, spec: dict) -> FallbackBreakerConfig:
-        """Resolve from a ``DeploymentSpec`` dict's
-        ``risk_config.fallback_breaker`` block, falling back to conservative
-        defaults. Parsed via ``Decimal(str(...))`` (red line 0.4)."""
-        raw = spec.get("risk_config", {}).get("fallback_breaker", {})
-        max_notional = raw.get("max_notional")
-        max_drawdown_pct = raw.get("max_drawdown_pct")
+    def from_verified_policy(
+        cls, policy: RunnerAggregateCapPolicyV1
+    ) -> FallbackBreakerConfig:
+        if not isinstance(policy, RunnerAggregateCapPolicyV1):
+            raise TypeError("fallback breaker requires a verified CR99 policy model")
         return cls(
-            max_notional=Decimal(str(max_notional))
-            if max_notional is not None
-            else DEFAULT_MAX_NOTIONAL_USD,
-            max_drawdown_pct=Decimal(str(max_drawdown_pct))
-            if max_drawdown_pct is not None
-            else DEFAULT_MAX_DRAWDOWN_PCT,
+            max_notional=policy.max_total_notional_decimal,
+            max_drawdown_pct=STRICTEST_LOCAL_MAX_DRAWDOWN_PCT,
+            policy_id=policy.policy_id,
+            policy_digest=policy.policy_digest,
+            owner_policy=True,
+            source="verified_crucible_runner_policy",
+        )
+
+    @classmethod
+    def strictest_local_fallback(cls, trading_mode: str) -> FallbackBreakerConfig:
+        if trading_mode not in {"sandbox", "testnet"}:
+            raise RunnerSafetyPolicyUnavailableError(
+                "live fallback breaker has no local policy fallback"
+            )
+        return cls(
+            max_notional=STRICTEST_NON_LIVE_MAX_TOTAL_USD,
+            max_drawdown_pct=STRICTEST_LOCAL_MAX_DRAWDOWN_PCT,
+            owner_policy=False,
+            source="strictest_non_live_local_fallback",
         )
 
 
@@ -76,6 +93,10 @@ class FallbackBreaker:
     @property
     def frozen(self) -> bool:
         return self._frozen
+
+    @property
+    def config(self) -> FallbackBreakerConfig:
+        return self._config
 
     def apply_config(self, new_config: FallbackBreakerConfig) -> bool:
         """Swap the enforced ceilings. Returns True when the value actually

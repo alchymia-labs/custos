@@ -156,10 +156,10 @@ async def test_breakers_are_isolated_per_deployment_instance(monkeypatch) -> Non
     monkeypatch.setattr("custos.core.deployment_reconciler.check_g6_gate", lambda *args: None)
     first = "20000000-0000-4000-8000-000000000002"
     second = "21000000-0000-4000-8000-000000000002"
-    engine = FakeEngine(notionals={first: Decimal("11"), second: Decimal("5")})
+    engine = FakeEngine(notionals={first: Decimal("201"), second: Decimal("5")})
     subject = reconciler(engine, FakeLifecycleEmitter())
-    assert await subject.handle_spec(spec(first, max_notional="10"))
-    assert await subject.handle_spec(spec(second, max_notional="20"))
+    assert await subject.handle_spec(spec(first, max_notional="1"))
+    assert await subject.handle_spec(spec(second, max_notional="999999"))
     await subject._breaker_tick()
     assert set(subject._fallback_breakers) == {first, second}
     assert engine.flatten_calls == [first]

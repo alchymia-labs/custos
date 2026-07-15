@@ -12,9 +12,9 @@ from pydantic import ValidationError
 
 from custos.contracts import CrucibleDomainEventVerifier, DeploymentMessage, DeploymentSpec
 from custos.core.engine_protocol import ExecutionEngineProtocol
-from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
+from custos.core.fallback_breaker import FallbackBreaker
 from custos.core.g6_gate import check_g6_gate
-from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
+from custos.core.local_cap import RunnerNotionalCap
 from custos.core.log import get_logger
 from custos.core.nats_client import CrucibleNatsClient
 from custos.core.runner_deployment_lifecycle_fact import (
@@ -22,6 +22,10 @@ from custos.core.runner_deployment_lifecycle_fact import (
     RunnerDeploymentLifecycleFactEmitter,
 )
 from custos.core.runner_fact import RunnerFactAuthority, RunnerFactError
+from custos.core.runner_safety_policy import (
+    RunnerSafetyPolicyResolver,
+    resolve_runner_safety_limits,
+)
 from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogFactError
 from custos.core.zombie_watchdog import ZombieWatchdog
 
@@ -72,13 +76,14 @@ class DeploymentReconciler:
     deployment_verifier: CrucibleDomainEventVerifier
     drift_threshold: int = 3
     poll_interval_secs: float = 0.5
-    local_cap: RunnerNotionalCap | None = None
+    safety_policy_resolver: RunnerSafetyPolicyResolver | None = None
     zombie_watchdog: ZombieWatchdog | None = None
     readiness: ReadinessProtocol | None = None
     subscribe_backoff_initial_secs: float = 0.25
     subscribe_backoff_max_secs: float = 5.0
     _state: dict[str, _ReconcileState] = field(default_factory=dict)
     _fallback_breakers: dict[str, FallbackBreaker] = field(default_factory=dict)
+    _local_caps: dict[str, RunnerNotionalCap] = field(default_factory=dict)
 
     async def reconcile_loop(self, stop: asyncio.Event) -> None:
         """Verify, apply, durably report, then ACK; local apply failures NAK."""
@@ -235,6 +240,8 @@ class DeploymentReconciler:
 
         state.last_spec = runtime_spec
         try:
+            if str(runtime_spec["lifecycle_state"]) == "running":
+                await self._refresh_instance_guards(instance_id, runtime_spec)
             state.container_id = await self._apply_spec(instance_id, runtime_spec, state)
         except Exception as exc:  # noqa: BLE001
             state.drift_strikes += 1
@@ -251,7 +258,6 @@ class DeploymentReconciler:
                 fields={"generation": generation, "error_type": type(exc).__name__},
             )
             return False
-        self._refresh_instance_guards(instance_id, runtime_spec)
         state.applied_generation = generation
         state.drift_strikes = 0
         if validated.lifecycle_state.value in _TERMINAL_STATES:
@@ -278,16 +284,22 @@ class DeploymentReconciler:
         await self.execution_engine.reconfigure(spec)
         return state.container_id
 
-    def _refresh_instance_guards(self, instance_id: str, spec: dict) -> None:
-        live = spec.get("trading_mode") == "live"
-        if self.local_cap is not None:
-            self.local_cap.apply_config(LocalCapConfig.from_spec(spec, live=live))
-        config = FallbackBreakerConfig.from_spec(spec)
+    async def _refresh_instance_guards(self, instance_id: str, spec: dict) -> None:
+        trading_mode = str(spec["trading_mode"])
+        limits = await resolve_runner_safety_limits(
+            self.safety_policy_resolver,
+            trading_mode,
+        )
+        local_cap = self._local_caps.get(trading_mode)
+        if local_cap is None:
+            self._local_caps[trading_mode] = RunnerNotionalCap(limits.local_cap)
+        else:
+            local_cap.apply_config(limits.local_cap)
         breaker = self._fallback_breakers.get(instance_id)
         if breaker is None:
-            self._fallback_breakers[instance_id] = FallbackBreaker(config)
+            self._fallback_breakers[instance_id] = FallbackBreaker(limits.breaker)
         else:
-            breaker.apply_config(config)
+            breaker.apply_config(limits.breaker)
 
     async def _report_applied_generation(self, state: _ReconcileState, spec: dict) -> bool:
         authority = state.fact_authority

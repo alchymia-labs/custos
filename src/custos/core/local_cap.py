@@ -1,15 +1,9 @@
-"""Runner-level notional cap — the disconnect-resilient soft limit.
+"""Runner aggregate-cap enforcement from verified CR99 policy only.
 
-A structural ceiling on the total open notional a single runner may hold. It
-rejects *new* orders that would push the runner past the cap; it never touches
-existing positions (that is the fallback breaker's job). The decision is made
-locally from the runner's own open-notional view, so it keeps enforcing while
-the cloud control plane is unreachable (the disconnect-resilient red line): a
-cloud reject notification is best-effort, but the local reject holds regardless.
-
-Money is ``Decimal`` end to end (red line 0.4). The cap value comes from the
-cloud ``DeploymentSpec.risk_config`` when present; absent that, a conservative
-per-mode floor applies so a missing config can never mean "no cap".
+The guard rejects risk-increasing orders beyond the signed per-order or total
+ceiling and always permits explicitly risk-reducing orders.  DeploymentSpec is
+not an authority input.  Sandbox/testnet may use an explicit conservative local
+fallback; live has no fallback and fails closed without a verified owner policy.
 """
 
 from __future__ import annotations
@@ -17,62 +11,81 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
+from uuid import UUID
 
+from custos.contracts.crucible_runner_safety_policy import RunnerAggregateCapPolicyV1
 from custos.core.log import get_logger
 
 _log = get_logger("custos.local_cap")
 
-# Conservative structural floors used when the cloud spec carries no explicit
-# per-runner cap (first boot before a spec pull, or a spec that omits the
-# field). Paper stays tiny; live is capped low until an operator raises it via
-# risk_config. These are fail-safe defaults, not recommended live limits.
-PAPER_CAP_FLOOR_USD = Decimal("200")
-LIVE_CAP_FLOOR_USD = Decimal("1000")
+STRICTEST_NON_LIVE_MAX_ORDER_USD = Decimal("50")
+STRICTEST_NON_LIVE_MAX_TOTAL_USD = Decimal("200")
 
-# Called on a cap breach to notify the cloud (symbol, current_open, requested,
-# cap). Best-effort — a failure is logged and swallowed so the local reject
-# still stands during a disconnect.
 RejectPublisher = Callable[[str, Decimal, Decimal, Decimal], Awaitable[None]]
 
 
-@dataclass(frozen=True)
-class LocalCapConfig:
-    """Resolved per-runner notional cap. ``max_notional_per_runner`` is the
-    total open-notional ceiling in the runner's quote currency."""
+class RunnerSafetyPolicyUnavailableError(RuntimeError):
+    """No valid owner policy or explicitly permitted non-live fallback exists."""
 
-    max_notional_per_runner: Decimal
+
+@dataclass(frozen=True, slots=True)
+class LocalCapConfig:
+    max_order_notional: Decimal
+    max_total_notional: Decimal
+    settlement_currency: str
+    policy_id: UUID | None
+    policy_digest: str | None
+    owner_policy: bool
+    source: str
 
     @classmethod
-    def from_spec(cls, spec: dict, *, live: bool) -> LocalCapConfig:
-        """Resolve the cap from a ``DeploymentSpec`` dict. Uses
-        ``risk_config.max_notional_per_runner`` when present (cloud authority),
-        else the conservative per-mode floor. Parsed via ``Decimal(str(...))``
-        so no float ever reaches the value (red line 0.4)."""
-        raw = spec.get("risk_config", {}).get("max_notional_per_runner")
-        if raw is not None:
-            return cls(max_notional_per_runner=Decimal(str(raw)))
-        return cls(max_notional_per_runner=LIVE_CAP_FLOOR_USD if live else PAPER_CAP_FLOOR_USD)
+    def from_verified_policy(cls, policy: RunnerAggregateCapPolicyV1) -> LocalCapConfig:
+        if not isinstance(policy, RunnerAggregateCapPolicyV1):
+            raise TypeError("local cap requires a verified CR99 policy model")
+        return cls(
+            max_order_notional=policy.max_order_notional_decimal,
+            max_total_notional=policy.max_total_notional_decimal,
+            settlement_currency=policy.settlement_currency,
+            policy_id=policy.policy_id,
+            policy_digest=policy.policy_digest,
+            owner_policy=True,
+            source="verified_crucible_runner_policy",
+        )
+
+    @classmethod
+    def strictest_local_fallback(cls, trading_mode: str) -> LocalCapConfig:
+        if trading_mode not in {"sandbox", "testnet"}:
+            raise RunnerSafetyPolicyUnavailableError(
+                "live runner safety policy has no local fallback"
+            )
+        return cls(
+            max_order_notional=STRICTEST_NON_LIVE_MAX_ORDER_USD,
+            max_total_notional=STRICTEST_NON_LIVE_MAX_TOTAL_USD,
+            settlement_currency="USD",
+            policy_id=None,
+            policy_digest=None,
+            owner_policy=False,
+            source="strictest_non_live_local_fallback",
+        )
 
 
 def check_cap(
     current_open: Decimal,
     new_order_notional: Decimal,
     config: LocalCapConfig,
+    *,
+    risk_reducing: bool = False,
 ) -> bool:
-    """True if adding ``new_order_notional`` keeps total open notional within
-    the cap; False if it would breach."""
-    return current_open + new_order_notional <= config.max_notional_per_runner
+    if risk_reducing:
+        return True
+    return (
+        new_order_notional <= config.max_order_notional
+        and current_open + new_order_notional <= config.max_total_notional
+    )
 
 
 class RunnerNotionalCap:
-    """Pre-trade guard enforcing the runner notional cap.
-
-    ``allows`` is the enforcement point: it returns whether a proposed order may
-    proceed. On a breach it emits a structured ``runner_cap_exceeded`` event and
-    best-effort notifies the cloud via ``reject_publisher``; the local reject is
-    returned regardless of whether that notification succeeds, so the cap keeps
-    protecting the runner while disconnected.
-    """
+    """Local enforcement point for one verified or explicit fallback config."""
 
     def __init__(
         self,
@@ -88,12 +101,6 @@ class RunnerNotionalCap:
         return self._config
 
     def apply_config(self, new_config: LocalCapConfig) -> bool:
-        """Swap the enforced config. Returns True when the value actually
-        changed so callers can emit a single structured event per change.
-
-        The reconciler calls this on each accepted spec so cloud-side
-        ``risk_config`` edits take effect on the next loop (docs/domain.md
-        L104), without silently drifting from what the operator set."""
         if new_config == self._config:
             return False
         self._config = new_config
@@ -105,15 +112,23 @@ class RunnerNotionalCap:
         symbol: str,
         current_open: Decimal,
         new_order_notional: Decimal,
+        risk_reducing: bool = False,
     ) -> bool:
-        if check_cap(current_open, new_order_notional, self._config):
+        if check_cap(
+            current_open,
+            new_order_notional,
+            self._config,
+            risk_reducing=risk_reducing,
+        ):
             return True
         _log.warning(
             "runner_cap_exceeded",
             symbol=symbol,
             current_open=str(current_open),
             requested_notional=str(new_order_notional),
-            cap=str(self._config.max_notional_per_runner),
+            max_order_notional=str(self._config.max_order_notional),
+            max_total_notional=str(self._config.max_total_notional),
+            policy_source=self._config.source,
         )
         if self._reject_publisher is not None:
             try:
@@ -121,8 +136,12 @@ class RunnerNotionalCap:
                     symbol,
                     current_open,
                     new_order_notional,
-                    self._config.max_notional_per_runner,
+                    self._config.max_total_notional,
                 )
-            except Exception as exc:  # noqa: BLE001 — cloud notify best-effort; local reject holds (red line 0.3)
-                _log.warning("runner_cap_reject_publish_failed", symbol=symbol, error=str(exc))
+            except Exception as exc:  # noqa: BLE001 - local rejection remains authoritative
+                _log.warning(
+                    "runner_cap_reject_publish_failed",
+                    symbol=symbol,
+                    error_type=type(exc).__name__,
+                )
         return False
