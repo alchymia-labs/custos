@@ -28,8 +28,16 @@ StrategyRelease and artifact selection.
 
 The `Custos Plan 18 Task 5c ArtifactRefV2 producer receipt` is producer-only and
 must keep handoff/runtime/production false until exact PS and Crucible owner
-reviews plus T5d/T5e command/verifier cutover evidence exist. Never invent or
-pre-register downstream review receipts.
+reviews plus T5d-A/T5d-B/T5e evidence-consumer, command-consumer and verifier
+cutover evidence exist. Never invent or pre-register downstream review receipts.
+
+Plan 18 T5d-A is `READY_CONTRACT_CONSUMER_ONLY`. The v4 authority index byte-pins
+the complete PS Plan 54 and Crucible Plan 88 producer assets and their clean source
+commits. `StrategyArtifactPreImportVerificationReceiptV2` external-references the
+owner schemas and adds only Custos-owned digest bindings and an independent
+runner-local policy decision. A Crucible local-policy decision is never a Custos
+runner-local policy decision. This receipt does not change the production
+verifier/parser, start T5d-B or authorize runtime or production readiness.
 
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is

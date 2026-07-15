@@ -1,0 +1,107 @@
+{
+  "asset_pins": [
+    {
+      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+      "sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
+    },
+    {
+      "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json",
+      "sha256": "dc60fa0b50aac5e88362cfadd48f1094c5bae2a7542b746af87fbff3ad543136"
+    },
+    {
+      "path": "docs/authority/strategy-contract-assets-v1.json",
+      "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
+    },
+    {
+      "path": "docs/authority/strategy-toolkit-inventory-v1.json",
+      "sha256": "98dba9e60e906c4943c3b768465b66ddb38c42e2bde0bae6ffbadfc7fe6eef68"
+    },
+    {
+      "path": "docs/gateway-contract/v1/development_source_ref_v1.schema.json",
+      "sha256": "ef05e08599927488e0da67d7620328dac230ea794d5106bbc6bf152a0381e54f"
+    },
+    {
+      "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json",
+      "sha256": "0f9ed02c57cbef30dc1e8a2597abe3cae796540f539ef56f2962db5a40765c6b"
+    },
+    {
+      "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json",
+      "sha256": "7f99d3939ad2a995621c71bee7bbd7d1d735f1f9b7fc090a34cd6800fc858b91"
+    },
+    {
+      "path": "docs/gateway-contract/v1/strategy_execution_command_binding_v1.schema.json",
+      "sha256": "d813bac90b4382f0e8ed4dcfb7805c170d6d79d9afcc42c9674407d216791507"
+    },
+    {
+      "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json",
+      "sha256": "c48980aa2321cb19697ec71c9154a69a642953e45849527a6c9972fbf4a1bda5"
+    },
+    {
+      "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json",
+      "sha256": "70b14149acd718db84ec815da331a2b12b14ea5760fa0d1ac1cd7d23806a5c21"
+    }
+  ],
+  "blocking_gaps": [
+    "PS runtime adapter target is not defined",
+    "PS strategy package Python range is not converged",
+    "PS locked Nautilus version is not converged",
+    "PS strategy still imports the legacy shared namespace",
+    "PS shared mypy gate has not been proven"
+  ],
+  "canonicalization": "sha256-canonical-json-v1",
+  "contract_asset_index": {
+    "path": "docs/authority/vendor/custos-plan-18-task-2/docs/authority/strategy-contract-assets-v1.json",
+    "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07",
+    "upstream_path": "docs/authority/strategy-contract-assets-v1.json"
+  },
+  "contract_producer": {
+    "commit": "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
+    "repository": "tesseract-trading/custos",
+    "source": "src/custos/contracts/strategy_execution.py",
+    "source_sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3",
+    "worktree_clean": true
+  },
+  "current_ps_contract": {
+    "entry_point": "refinement.nautilus.strategy:create_strategy",
+    "entry_point_group": "alephain.strategies",
+    "nautilus_lock": "1.228.0",
+    "requires_python": ">=3.10"
+  },
+  "entry_point_group": "alephain.strategy_runtime.v1",
+  "execution_abi": "alephain.strategy_runtime.v1",
+  "handoff_ready": true,
+  "legacy_python_lane": "independent and non-gating",
+  "non_claims": [
+    "This receipt is not a StrategyRelease approval",
+    "This receipt does not attest or publish artifact bytes",
+    "The legacy Python image lane is unchanged and cannot satisfy this gate"
+  ],
+  "publication": {
+    "commit": "c9394b61e196c1821d421cd57c0bf1162a842fac",
+    "receipt": {
+      "path": "docs/authority/vendor/custos-plan-18-task-2/docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+      "sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
+    },
+    "repository": "tesseract-trading/custos"
+  },
+  "receipt_status": "READY",
+  "required_ps_contract": {
+    "entry_point": null,
+    "entry_point_group": "alephain.strategy_runtime.v1",
+    "nautilus_version": "1.230.0",
+    "requires_python": ">=3.12,<3.13"
+  },
+  "requirements_review": {
+    "path": "docs/authority/receipts/ps-plan-54-custos-task-2-requirements-review.json",
+    "sha256": "0a4d48c9bd1849b8a04b9a72ef6fb97942e0f66bc21b6d7916c2d5eb21650319",
+    "source_commit": "7f07c090ce6d6dd4f2e11986680009a61af0934b",
+    "status": "ACCEPTED_REQUIREMENTS_REVIEW"
+  },
+  "root_legacy_runtime": {
+    "requires_python": ">=3.11",
+    "team_nautilus_pin_is_global": false,
+    "team_python_constraint_is_global": false
+  },
+  "schema_version": "alephain.ps-plan-54-slice-a-contract-lock.v1",
+  "status": "READY"
+}

@@ -263,6 +263,44 @@
       "handoff_ready": false,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "strategy_contract_asset_index_v4_current_contract_consumer",
+      "path": "docs/authority/strategy-contract-assets-v4.json",
+      "status": "READY_CONTRACT_CONSUMER_ONLY",
+      "contract_consumer_ready": true,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "strategy_artifact_pre_import_verification_receipt_v2_schema",
+      "path": "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json",
+      "contract_consumer_ready": true,
+      "runtime_ready": false
+    },
+    {
+      "role": "strategy_artifact_pre_import_verification_receipt_v2_golden",
+      "path": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json"
+    },
+    {
+      "role": "strategy_artifact_pre_import_verification_receipt_v2_golden_sidecar",
+      "path": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json.sha256"
+    },
+    {
+      "role": "strategy_artifact_pre_import_verification_receipt_v2_negative",
+      "path": "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json"
+    },
+    {
+      "role": "strategy_artifact_pre_import_verification_receipt_v2_negative_sidecar",
+      "path": "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json.sha256"
+    },
+    {
+      "role": "plan_18_task_5d_a_evidence_consumer_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json",
+      "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
+      "contract_consumer_ready": true,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [
@@ -355,7 +393,13 @@
       "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
       "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json",
       "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json",
-      "tests/test_plan18_t5c_pre_sign_artifact_ref.py"
+      "tests/test_plan18_t5c_pre_sign_artifact_ref.py",
+      "docs/authority/strategy-contract-assets-v4.json",
+      "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json",
+      "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json",
+      "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json",
+      "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json",
+      "tests/test_plan18_t5d_a_evidence_consumer.py"
     ],
     "forbidden_regex": [
       "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",

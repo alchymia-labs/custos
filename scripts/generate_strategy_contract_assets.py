@@ -12,7 +12,10 @@ from custos_toolkit.contracts.strategy_execution import (
     ArtifactMemberRole,
     ArtifactMemberV1,
     DigestBindingV1,
+    RunnerLocalArtifactPolicyDecisionV1,
+    StrategyArtifactPreImportVerificationReceiptV2,
     StrategyArtifactRefV2,
+    canonical_json_digest,
     canonical_model_digest,
 )
 from custos_toolkit.contracts.toolkit_rc import (
@@ -20,6 +23,7 @@ from custos_toolkit.contracts.toolkit_rc import (
     ToolkitRcReceiptManifestV1,
     ToolkitRcT6dPendingReceiptV1,
 )
+from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_MODEL = (
@@ -44,6 +48,107 @@ V3_INDEX_PATH = "docs/authority/strategy-contract-assets-v3.json"
 V3_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json"
 )
+V4_SCHEMA_PATH = (
+    "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json"
+)
+V4_GOLDEN_PATH = "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json"
+V4_NEGATIVE_PATH = "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json"
+V4_INDEX_PATH = "docs/authority/strategy-contract-assets-v4.json"
+V4_CONSUMER_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json"
+)
+PS_PLAN54_VENDOR_ROOT = "docs/authority/vendor/ps-plan-54"
+PS_PLAN54_SOURCE_COMMIT = "175be5090c1c9708db89921271d7f2b26b2d0a40"
+PS_PLAN54_REVIEWED_FOLLOWUP_COMMIT = "6ce6f553188c04f48a4ee1838efc42bee82deed3"
+PS_PLAN54_AUTHORITY_ASSETS = {
+    "docs/authority/artifact-attestation-ref-v1.golden.json": (
+        "fdfa5fbd9b1e85b6fb58153552807d79127e7e05f8408c949d1a01e491a30dec",
+        651,
+    ),
+    "docs/authority/artifact-attestation-ref-v1.golden.json.sha256": (
+        "97f8f5b84ba5147e1e09522efc5c194e8bee7a2b85b984c6939dc869ef36fd97",
+        65,
+    ),
+    "docs/authority/artifact-attestation-ref-v1.schema.json": (
+        "eeefc23e7744b77689d6467bde39c0d97b71b23ac140a86365ffca32838d57fb",
+        1295,
+    ),
+    "docs/authority/receipts/ps-plan-54-slice-a-contract-lock.json": (
+        "4a717c09c82cd2e95636fc7b093f6f0c70bb4931a950595c3d3347f72f3887b3",
+        4468,
+    ),
+    "docs/authority/receipts/ps-plan-54-task-3-bom-producer-receipt.json": (
+        "44cb830fe69cccf51248b2b7a4cbd08317465709a42f53aca0c46fd2f0865d66",
+        3945,
+    ),
+    "docs/authority/strategy-release-bom-v1.golden.json": (
+        "7322ba18c793bf1d77616b796185c3716df91226d28c6b381b156e75142f9b71",
+        4672,
+    ),
+    "docs/authority/strategy-release-bom-v1.golden.json.sha256": (
+        "f02564f4b4423bc19a17ebe36da71c72d4e52e09bbf199daf5b1aa3134445dc9",
+        65,
+    ),
+    "docs/authority/strategy-release-bom-v1.schema.json": (
+        "7d5ad399060315e10b6866dec07d87a086302f3a9e13092f956a6f43d5d5286a",
+        5145,
+    ),
+    "docs/authority/strategy-release-statement-v1.golden.json": (
+        "082d6cd58676be90ffe563c4648922ec5dc61978026b01341766b0263f5794f5",
+        1820,
+    ),
+    "docs/authority/strategy-release-statement-v1.golden.json.sha256": (
+        "4d72420615ad544b7ce90116984ee2a6dc2b3817daf96db66fba2860f99493d1",
+        65,
+    ),
+    "docs/authority/strategy-release-statement-v1.schema.json": (
+        "9aab6b799f4462af285cbad3e6c40e41b9175e1e1fcb72219e1942fd84645148",
+        4479,
+    ),
+}
+CR_PLAN88_SCHEMA_CANDIDATE_COMMIT = "cd3fb8721c8df557ef57d5ef7ec3ae372b54061c"
+CR_PLAN88_SOURCE_COMMIT = "b761bf7f75f5e19b1161b146c144ce244932b6e3"
+CR_PLAN88_VENDOR_ROOT = "docs/authority/vendor/crucible-plan-88"
+CR_PLAN88_SCHEMA_CANDIDATES = {
+    "docs/authority/schemas/crucible-artifact-acceptance-receipt-v1.schema.json": (
+        "aa4cd2504aecd8faa0ad35bf415bfa06436b89df3083b4349485e56b05ce0b84",
+        1694,
+    ),
+    "docs/authority/schemas/crucible-artifact-evidence-v1.schema.json": (
+        "b005a4106d37a5ce1091ac6a7710f79c2a21bb20aea7ba1b6ab93f46f37493d3",
+        6936,
+    ),
+}
+CR_PLAN88_AUTHORITY_ASSETS = {
+    "docs/authority/golden/crucible-artifact-acceptance-receipt-v1.json": (
+        "27964669627105cfc6664856ee391e426f2a3ceb59cbf14f0042e22c3b0664d4",
+        815,
+    ),
+    "docs/authority/golden/crucible-artifact-acceptance-receipt-v1.json.sha256": (
+        "4c54fdbf51555fd21ba6ac122ae88eda758d39bdca0965e957d51c629ebb0968",
+        65,
+    ),
+    "docs/authority/golden/crucible-artifact-evidence-v1.json": (
+        "b84c1a60ec7f2a2abd5d2c5b678c02bf8528b6493aca30e5f8a6a5255eecd40c",
+        3432,
+    ),
+    "docs/authority/golden/crucible-artifact-evidence-v1.json.sha256": (
+        "45f1d40d7b1d7dcdf1617a9c0a909092b509e22c6d29bee2d49a533f257cb97d",
+        65,
+    ),
+    "docs/authority/receipts/crucible-plan-88-evidence-contract-producer-publication.json": (
+        "98d49d27b2b701a5cf4ef5c29f8716137d9d6e2623b8d4dd179d93eeac4fad1a",
+        1793,
+    ),
+    "docs/authority/schemas/crucible-artifact-acceptance-receipt-v1.schema.json": (
+        "aa4cd2504aecd8faa0ad35bf415bfa06436b89df3083b4349485e56b05ce0b84",
+        1694,
+    ),
+    "docs/authority/schemas/crucible-artifact-evidence-v1.schema.json": (
+        "b005a4106d37a5ce1091ac6a7710f79c2a21bb20aea7ba1b6ab93f46f37493d3",
+        6936,
+    ),
+}
 TOOLKIT_RC_SCHEMA_PATH = "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
 TOOLKIT_RC_T6D_PENDING_SCHEMA_PATH = (
     "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
@@ -250,6 +355,383 @@ def build_v3_artifact_ref_assets() -> dict[str, bytes]:
     return generated
 
 
+def build_v4_evidence_consumer_assets() -> dict[str, bytes]:
+    ps_root = ROOT / PS_PLAN54_VENDOR_ROOT / "docs/authority"
+    cr_root = ROOT / CR_PLAN88_VENDOR_ROOT / "docs/authority"
+    release_bom = json.loads((ps_root / "strategy-release-bom-v1.golden.json").read_bytes())
+    release_statement = json.loads(
+        (ps_root / "strategy-release-statement-v1.golden.json").read_bytes()
+    )
+    detached_ref = json.loads((ps_root / "artifact-attestation-ref-v1.golden.json").read_bytes())
+    evidence = json.loads((cr_root / "golden/crucible-artifact-evidence-v1.json").read_bytes())
+    acceptance = json.loads(
+        (cr_root / "golden/crucible-artifact-acceptance-receipt-v1.json").read_bytes()
+    )
+
+    members_by_role = {item["role"]: item for item in release_bom["members"]}
+    runtime_member = members_by_role["runtime_artifact"]
+    artifact_ref = StrategyArtifactRefV2(
+        artifact_kind="wheel",
+        artifact_coordinate=release_bom["strategy_artifact_coordinate"],
+        artifact_sha256=release_bom["strategy_artifact_sha256"],
+        artifact_size_bytes=members_by_role["strategy_wheel"]["size_bytes"],
+        manifest_sha256=release_bom["strategy_manifest_sha256"],
+        manifest_size_bytes=members_by_role["strategy_manifest"]["size_bytes"],
+        required_runtime_artifacts=(
+            member(
+                ArtifactMemberRole.RUNTIME_ARTIFACT,
+                runtime_member["name"],
+                runtime_member["sha256"],
+                runtime_member["size_bytes"],
+                runtime_member["media_type"],
+            ),
+        ),
+        sbom_sha256=release_bom["toolkit_sbom_sha256"],
+        contract_schema_sha256=release_bom["execution_abi_schema_sha256"],
+        source_repository=release_bom["producer_repository"],
+        source_commit=release_bom["strategy_source_commit"],
+        normalized_source_tree_sha256=release_bom["strategy_source_tree_sha256"],
+        python_version="3.12.4",
+        engine=release_bom["engine"],
+        engine_version=release_bom["engine_version"],
+        base_contracts_version="1.0.0rc1",
+        engine_toolkit_version="1.0.0rc1",
+        build_inputs=(DigestBindingV1(name="build-lock", sha256=release_bom["build_lock_sha256"]),),
+    )
+    release_bom_digest = canonical_json_digest(release_bom)
+    release_statement_digest = canonical_json_digest(release_statement)
+    artifact_ref_digest = canonical_model_digest(artifact_ref)
+    detached_ref_digest = canonical_json_digest(detached_ref)
+
+    evidence.update(
+        {
+            "artifact_ref_digest": artifact_ref_digest,
+            "manifest_digest": artifact_ref.manifest_sha256,
+            "release_bom_digest": release_bom_digest,
+            "statement_digest": release_statement_digest,
+            "attestation_ref_digest": detached_ref_digest,
+            "bundle_sha256": detached_ref["bundle_sha256"],
+        }
+    )
+    evidence_schema = json.loads(
+        (cr_root / "schemas/crucible-artifact-evidence-v1.schema.json").read_bytes()
+    )
+    required_claims = evidence_schema["properties"]["signed_producer_claims"]["required"]
+    evidence["signed_producer_claims"] = {
+        name: release_statement["predicate"][name] for name in required_claims
+    }
+    evidence["sigstore_proof"]["bundle_sha256"] = detached_ref["bundle_sha256"]
+    evidence["sigstore_proof"]["statement_sha256"] = release_statement_digest
+    acceptance["strategy_release_id"] = evidence["strategy_release_id"]
+    acceptance["artifact_evidence_digest"] = evidence["artifact_evidence_digest"]
+
+    owner_documents = {
+        "release_bom": (release_bom, ps_root / "strategy-release-bom-v1.schema.json"),
+        "release_statement": (
+            release_statement,
+            ps_root / "strategy-release-statement-v1.schema.json",
+        ),
+        "detached_attestation_ref": (
+            detached_ref,
+            ps_root / "artifact-attestation-ref-v1.schema.json",
+        ),
+        "crucible_artifact_evidence": (
+            evidence,
+            cr_root / "schemas/crucible-artifact-evidence-v1.schema.json",
+        ),
+        "crucible_artifact_acceptance": (
+            acceptance,
+            cr_root / "schemas/crucible-artifact-acceptance-receipt-v1.schema.json",
+        ),
+    }
+    for document, schema_path in owner_documents.values():
+        Draft202012Validator(json.loads(schema_path.read_bytes())).validate(document)
+
+    policy = RunnerLocalArtifactPolicyDecisionV1(
+        authority="custos-runner-local",
+        policy_id="custos-runner-artifact-live-v1",
+        policy_version=1,
+        policy_digest="6" * 64,
+        evaluated_at="2026-07-15T12:00:01Z",
+        decision="accepted",
+        release_bom_digest=release_bom_digest,
+        artifact_ref_digest=artifact_ref_digest,
+        artifact_evidence_digest=evidence["artifact_evidence_digest"],
+        artifact_acceptance_receipt_digest=acceptance["receipt_digest"],
+    )
+    receipt = StrategyArtifactPreImportVerificationReceiptV2(
+        verification_profile="custos-artifact-pre-import-verification-v2",
+        verified_at="2026-07-15T12:00:01Z",
+        release_bom=release_bom,
+        release_bom_digest=release_bom_digest,
+        release_statement=release_statement,
+        release_statement_digest=release_statement_digest,
+        artifact_ref=artifact_ref,
+        artifact_ref_digest=artifact_ref_digest,
+        detached_attestation_ref=detached_ref,
+        detached_attestation_ref_digest=detached_ref_digest,
+        crucible_artifact_evidence=evidence,
+        crucible_artifact_evidence_digest=evidence["artifact_evidence_digest"],
+        crucible_artifact_acceptance=acceptance,
+        crucible_artifact_acceptance_receipt_digest=acceptance["receipt_digest"],
+        runner_local_policy_decision=policy,
+    )
+    receipt_document = receipt.model_dump(mode="json")
+
+    schema = StrategyArtifactPreImportVerificationReceiptV2.model_json_schema(mode="validation")
+    schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    owner_refs = {
+        "release_bom": (
+            "../../authority/vendor/ps-plan-54/docs/authority/strategy-release-bom-v1.schema.json"
+        ),
+        "release_statement": (
+            "../../authority/vendor/ps-plan-54/docs/authority/"
+            "strategy-release-statement-v1.schema.json"
+        ),
+        "detached_attestation_ref": (
+            "../../authority/vendor/ps-plan-54/docs/authority/"
+            "artifact-attestation-ref-v1.schema.json"
+        ),
+        "crucible_artifact_evidence": (
+            "../../authority/vendor/crucible-plan-88/docs/authority/schemas/"
+            "crucible-artifact-evidence-v1.schema.json"
+        ),
+        "crucible_artifact_acceptance": (
+            "../../authority/vendor/crucible-plan-88/docs/authority/schemas/"
+            "crucible-artifact-acceptance-receipt-v1.schema.json"
+        ),
+    }
+    for field, reference in owner_refs.items():
+        schema["properties"][field] = {"$ref": reference}
+    schema_bytes = json_bytes(schema)
+
+    golden = json_bytes(
+        {
+            "fixture_schema_version": 4,
+            "canonical_name": "Custos Plan 18 T5d-A ReceiptV2 contract consumer golden",
+            "status": "READY_CONTRACT_CONSUMER_ONLY",
+            "contract_consumer_ready": True,
+            "command_consumer_ready": False,
+            "runtime_ready": False,
+            "production_ready": False,
+            "receipt": receipt_document,
+            "receipt_digest": canonical_model_digest(receipt),
+        }
+    )
+    mutations = [
+        {
+            "name": "artifact_ref_bundle_field_forbidden",
+            "mutation": {
+                "operation": "add",
+                "path": ["artifact_ref", "bundle_sha256"],
+                "value": "1" * 64,
+            },
+        },
+        {
+            "name": "artifact_ref_policy_field_forbidden",
+            "mutation": {
+                "operation": "add",
+                "path": ["artifact_ref", "policy_digest"],
+                "value": "2" * 64,
+            },
+        },
+        {
+            "name": "bom_array_forbidden",
+            "mutation": {"operation": "replace", "path": ["release_bom"], "value": []},
+        },
+        {
+            "name": "bundle_self_reference_forbidden",
+            "mutation": {
+                "operation": "replace",
+                "path": ["detached_attestation_ref", "bundle_sha256"],
+                "value": detached_ref_digest,
+            },
+        },
+        {
+            "name": "crucible_policy_reuse_forbidden",
+            "mutation": {
+                "operation": "replace",
+                "path": ["runner_local_policy_decision", "policy_digest"],
+                "value": evidence["local_policy_evaluation"]["policy_digest"],
+            },
+        },
+        {
+            "name": "missing_certificate_proof",
+            "mutation": {
+                "operation": "remove",
+                "path": ["crucible_artifact_evidence", "sigstore_proof", "certificate_sha256"],
+            },
+        },
+        {
+            "name": "missing_checkpoint_proof",
+            "mutation": {
+                "operation": "remove",
+                "path": ["crucible_artifact_evidence", "sigstore_proof", "checkpoint_verified"],
+            },
+        },
+        {
+            "name": "missing_sct_proof",
+            "mutation": {
+                "operation": "remove",
+                "path": ["crucible_artifact_evidence", "sigstore_proof", "sct_verified"],
+            },
+        },
+        {
+            "name": "missing_set_proof",
+            "mutation": {
+                "operation": "remove",
+                "path": ["crucible_artifact_evidence", "sigstore_proof", "set_verified"],
+            },
+        },
+        {
+            "name": "missing_tlog_proof",
+            "mutation": {
+                "operation": "remove",
+                "path": ["crucible_artifact_evidence", "sigstore_proof", "rekor_log_id"],
+            },
+        },
+        {
+            "name": "release_bom_members_alias_forbidden",
+            "mutation": {
+                "operation": "add",
+                "path": ["release_bom_members"],
+                "value": [],
+            },
+        },
+        {
+            "name": "request_selected_policy_forbidden",
+            "mutation": {
+                "operation": "add",
+                "path": ["runner_local_policy_decision", "requested_by_command"],
+                "value": True,
+            },
+        },
+        {
+            "name": "verified_members_alias_forbidden",
+            "mutation": {"operation": "add", "path": ["verified_members"], "value": []},
+        },
+    ]
+    negative = json_bytes(
+        {
+            "fixture_schema_version": 4,
+            "canonical_name": "Custos Plan 18 T5d-A ReceiptV2 negative mutations",
+            "base_golden": V4_GOLDEN_PATH,
+            "base_golden_sha256": sha256(golden),
+            "cases": mutations,
+        }
+    )
+    generated = {
+        V4_SCHEMA_PATH: schema_bytes,
+        V4_GOLDEN_PATH: golden,
+        f"{V4_GOLDEN_PATH}.sha256": _sidecar(V4_GOLDEN_PATH, golden),
+        V4_NEGATIVE_PATH: negative,
+        f"{V4_NEGATIVE_PATH}.sha256": _sidecar(V4_NEGATIVE_PATH, negative),
+    }
+    index_entries = [
+        {"path": path, "sha256": sha256(data), "size_bytes": len(data)}
+        for path, data in sorted(generated.items())
+    ]
+    ps_producer_assets = [
+        {
+            "source_path": source_path,
+            "vendored_path": f"{PS_PLAN54_VENDOR_ROOT}/{source_path}",
+            "sha256": digest,
+            "size_bytes": size_bytes,
+        }
+        for source_path, (digest, size_bytes) in sorted(PS_PLAN54_AUTHORITY_ASSETS.items())
+    ]
+    crucible_producer_assets = [
+        {
+            "source_path": source_path,
+            "vendored_path": f"{CR_PLAN88_VENDOR_ROOT}/{source_path}",
+            "sha256": digest,
+            "size_bytes": size_bytes,
+        }
+        for source_path, (digest, size_bytes) in sorted(CR_PLAN88_AUTHORITY_ASSETS.items())
+    ]
+    crucible_schema_baseline = [
+        {"source_path": source_path, "sha256": digest, "size_bytes": size_bytes}
+        for source_path, (digest, size_bytes) in sorted(CR_PLAN88_SCHEMA_CANDIDATES.items())
+    ]
+    index = json_bytes(
+        {
+            "asset_index_schema_version": 4,
+            "canonical_name": "Custos Plan 18 T5d-A ReceiptV2 contract consumer assets",
+            "status": "READY_CONTRACT_CONSUMER_ONLY",
+            "current_receipt_type": "StrategyArtifactPreImportVerificationReceiptV2",
+            "current_receipt_schema": V4_SCHEMA_PATH,
+            "ps_producer_commit": PS_PLAN54_SOURCE_COMMIT,
+            "crucible_producer_commit": CR_PLAN88_SOURCE_COMMIT,
+            "consumer_source": str(SOURCE_MODEL.relative_to(ROOT)),
+            "consumer_source_sha256": sha256(SOURCE_MODEL.read_bytes()),
+            "producer_authority": {
+                "philosophers_stone": {
+                    "source_repository": "alchymia-labs/philosophers-stone",
+                    "source_commit": PS_PLAN54_SOURCE_COMMIT,
+                    "reviewed_followup_commit": PS_PLAN54_REVIEWED_FOLLOWUP_COMMIT,
+                    "producer_assets": ps_producer_assets,
+                },
+                "crucible_rust": {
+                    "schema_baseline": {
+                        "source_commit": CR_PLAN88_SCHEMA_CANDIDATE_COMMIT,
+                        "schemas": crucible_schema_baseline,
+                    },
+                    "publication": {
+                        "source_repository": "tesseract-trading/crucible-rust",
+                        "source_commit": CR_PLAN88_SOURCE_COMMIT,
+                        "producer_assets": crucible_producer_assets,
+                    },
+                },
+            },
+            "contract_consumer_ready": True,
+            "command_consumer_ready": False,
+            "runtime_ready": False,
+            "production_ready": False,
+            "assets": index_entries,
+        }
+    )
+    generated[V4_INDEX_PATH] = index
+    generated[V4_CONSUMER_RECEIPT_PATH] = json_bytes(
+        {
+            "receipt_schema_version": 1,
+            "canonical_name": "Custos Plan 18 T5d-A evidence consumer receipt",
+            "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
+            "contract_asset_index": {
+                "path": V4_INDEX_PATH,
+                "sha256": sha256(index),
+                "size_bytes": len(index),
+            },
+            "ps_producer": {
+                "repository": "alchymia-labs/philosophers-stone",
+                "commit": PS_PLAN54_SOURCE_COMMIT,
+            },
+            "crucible_producer": {
+                "repository": "tesseract-trading/crucible-rust",
+                "commit": CR_PLAN88_SOURCE_COMMIT,
+                "publication_receipt": (
+                    f"{CR_PLAN88_VENDOR_ROOT}/docs/authority/receipts/"
+                    "crucible-plan-88-evidence-contract-producer-publication.json"
+                ),
+            },
+            "policy_boundary": {
+                "crucible_local_policy_decision_reused": False,
+                "runner_local_policy_decision_required": True,
+            },
+            "strategy_artifact_pre_import_verification_receipt_v2_published": True,
+            "contract_consumer_ready": True,
+            "command_consumer_ready": False,
+            "runtime_ready": False,
+            "production_ready": False,
+            "open_blockers": [
+                "Custos Plan 18 T5d-B exact Crucible Plan 89 command consumer",
+                "Custos Plan 18 T5e production verifier and parser cutover",
+                "Custos Plan 19 durable runtime composition",
+            ],
+        }
+    )
+    return generated
+
+
 def build_toolkit_rc_foundation_assets() -> dict[str, bytes]:
     return {
         TOOLKIT_RC_SCHEMA_PATH: json_bytes(
@@ -291,7 +773,30 @@ def main() -> int:
         for relative in review_drift:
             print(f"accepted Task 2 v2 requirements review byte drifted: {relative}")
         return 1
+    vendor_drift = [
+        f"{PS_PLAN54_VENDOR_ROOT}/{source_path}"
+        for source_path, (expected_digest, expected_size) in (PS_PLAN54_AUTHORITY_ASSETS.items())
+        if not (ROOT / PS_PLAN54_VENDOR_ROOT / source_path).is_file()
+        or (ROOT / PS_PLAN54_VENDOR_ROOT / source_path).stat().st_size != expected_size
+        or sha256((ROOT / PS_PLAN54_VENDOR_ROOT / source_path).read_bytes()) != expected_digest
+    ]
+    if vendor_drift:
+        for relative in vendor_drift:
+            print(f"vendored PS Plan 54 producer authority byte drifted: {relative}")
+        return 1
+    crucible_vendor_drift = [
+        f"{CR_PLAN88_VENDOR_ROOT}/{source_path}"
+        for source_path, (expected_digest, expected_size) in (CR_PLAN88_AUTHORITY_ASSETS.items())
+        if not (ROOT / CR_PLAN88_VENDOR_ROOT / source_path).is_file()
+        or (ROOT / CR_PLAN88_VENDOR_ROOT / source_path).stat().st_size != expected_size
+        or sha256((ROOT / CR_PLAN88_VENDOR_ROOT / source_path).read_bytes()) != expected_digest
+    ]
+    if crucible_vendor_drift:
+        for relative in crucible_vendor_drift:
+            print(f"vendored Crucible Plan 88 producer authority byte drifted: {relative}")
+        return 1
     assets = build_v3_artifact_ref_assets()
+    assets.update(build_v4_evidence_consumer_assets())
     assets.update(build_toolkit_rc_foundation_assets())
     drift: list[str] = []
     for relative, expected in assets.items():

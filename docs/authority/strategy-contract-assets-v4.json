@@ -1,0 +1,182 @@
+{
+  "asset_index_schema_version": 4,
+  "assets": [
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json",
+      "sha256": "f6f3303e5be2fadda85dbb817a3ddb37b26fa047d7ffd8c1e5888ade2476131d",
+      "size_bytes": 16816
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json.sha256",
+      "sha256": "61d326e41ca9400d06139885c1c467d8e278307bf3a243953cc7d4bbedcee5fc",
+      "size_bytes": 123
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json",
+      "sha256": "20170c5fc21abf7e7a637f48d9038cc3f4b730a3751628c941df26ee2896c14b",
+      "size_bytes": 3482
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json.sha256",
+      "sha256": "4a2edcac0716708ed281f490bf9180af55f2ab24eca4e9fe16076b22112c6060",
+      "size_bytes": 125
+    },
+    {
+      "path": "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json",
+      "sha256": "be0092099e3b4dc17f3982f9d85c2473c794178830d5c7d60a7ff8cbe8d08b54",
+      "size_bytes": 10928
+    }
+  ],
+  "canonical_name": "Custos Plan 18 T5d-A ReceiptV2 contract consumer assets",
+  "command_consumer_ready": false,
+  "consumer_source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+  "consumer_source_sha256": "29025c3fbc8345bb3c27176561b1ac2ae0452cc9d18ead5d852f457449c93c3d",
+  "contract_consumer_ready": true,
+  "crucible_producer_commit": "b761bf7f75f5e19b1161b146c144ce244932b6e3",
+  "current_receipt_schema": "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json",
+  "current_receipt_type": "StrategyArtifactPreImportVerificationReceiptV2",
+  "producer_authority": {
+    "crucible_rust": {
+      "publication": {
+        "producer_assets": [
+          {
+            "sha256": "27964669627105cfc6664856ee391e426f2a3ceb59cbf14f0042e22c3b0664d4",
+            "size_bytes": 815,
+            "source_path": "docs/authority/golden/crucible-artifact-acceptance-receipt-v1.json",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/golden/crucible-artifact-acceptance-receipt-v1.json"
+          },
+          {
+            "sha256": "4c54fdbf51555fd21ba6ac122ae88eda758d39bdca0965e957d51c629ebb0968",
+            "size_bytes": 65,
+            "source_path": "docs/authority/golden/crucible-artifact-acceptance-receipt-v1.json.sha256",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/golden/crucible-artifact-acceptance-receipt-v1.json.sha256"
+          },
+          {
+            "sha256": "b84c1a60ec7f2a2abd5d2c5b678c02bf8528b6493aca30e5f8a6a5255eecd40c",
+            "size_bytes": 3432,
+            "source_path": "docs/authority/golden/crucible-artifact-evidence-v1.json",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/golden/crucible-artifact-evidence-v1.json"
+          },
+          {
+            "sha256": "45f1d40d7b1d7dcdf1617a9c0a909092b509e22c6d29bee2d49a533f257cb97d",
+            "size_bytes": 65,
+            "source_path": "docs/authority/golden/crucible-artifact-evidence-v1.json.sha256",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/golden/crucible-artifact-evidence-v1.json.sha256"
+          },
+          {
+            "sha256": "98d49d27b2b701a5cf4ef5c29f8716137d9d6e2623b8d4dd179d93eeac4fad1a",
+            "size_bytes": 1793,
+            "source_path": "docs/authority/receipts/crucible-plan-88-evidence-contract-producer-publication.json",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/receipts/crucible-plan-88-evidence-contract-producer-publication.json"
+          },
+          {
+            "sha256": "aa4cd2504aecd8faa0ad35bf415bfa06436b89df3083b4349485e56b05ce0b84",
+            "size_bytes": 1694,
+            "source_path": "docs/authority/schemas/crucible-artifact-acceptance-receipt-v1.schema.json",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/schemas/crucible-artifact-acceptance-receipt-v1.schema.json"
+          },
+          {
+            "sha256": "b005a4106d37a5ce1091ac6a7710f79c2a21bb20aea7ba1b6ab93f46f37493d3",
+            "size_bytes": 6936,
+            "source_path": "docs/authority/schemas/crucible-artifact-evidence-v1.schema.json",
+            "vendored_path": "docs/authority/vendor/crucible-plan-88/docs/authority/schemas/crucible-artifact-evidence-v1.schema.json"
+          }
+        ],
+        "source_commit": "b761bf7f75f5e19b1161b146c144ce244932b6e3",
+        "source_repository": "tesseract-trading/crucible-rust"
+      },
+      "schema_baseline": {
+        "schemas": [
+          {
+            "sha256": "aa4cd2504aecd8faa0ad35bf415bfa06436b89df3083b4349485e56b05ce0b84",
+            "size_bytes": 1694,
+            "source_path": "docs/authority/schemas/crucible-artifact-acceptance-receipt-v1.schema.json"
+          },
+          {
+            "sha256": "b005a4106d37a5ce1091ac6a7710f79c2a21bb20aea7ba1b6ab93f46f37493d3",
+            "size_bytes": 6936,
+            "source_path": "docs/authority/schemas/crucible-artifact-evidence-v1.schema.json"
+          }
+        ],
+        "source_commit": "cd3fb8721c8df557ef57d5ef7ec3ae372b54061c"
+      }
+    },
+    "philosophers_stone": {
+      "producer_assets": [
+        {
+          "sha256": "fdfa5fbd9b1e85b6fb58153552807d79127e7e05f8408c949d1a01e491a30dec",
+          "size_bytes": 651,
+          "source_path": "docs/authority/artifact-attestation-ref-v1.golden.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/artifact-attestation-ref-v1.golden.json"
+        },
+        {
+          "sha256": "97f8f5b84ba5147e1e09522efc5c194e8bee7a2b85b984c6939dc869ef36fd97",
+          "size_bytes": 65,
+          "source_path": "docs/authority/artifact-attestation-ref-v1.golden.json.sha256",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/artifact-attestation-ref-v1.golden.json.sha256"
+        },
+        {
+          "sha256": "eeefc23e7744b77689d6467bde39c0d97b71b23ac140a86365ffca32838d57fb",
+          "size_bytes": 1295,
+          "source_path": "docs/authority/artifact-attestation-ref-v1.schema.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/artifact-attestation-ref-v1.schema.json"
+        },
+        {
+          "sha256": "4a717c09c82cd2e95636fc7b093f6f0c70bb4931a950595c3d3347f72f3887b3",
+          "size_bytes": 4468,
+          "source_path": "docs/authority/receipts/ps-plan-54-slice-a-contract-lock.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/receipts/ps-plan-54-slice-a-contract-lock.json"
+        },
+        {
+          "sha256": "44cb830fe69cccf51248b2b7a4cbd08317465709a42f53aca0c46fd2f0865d66",
+          "size_bytes": 3945,
+          "source_path": "docs/authority/receipts/ps-plan-54-task-3-bom-producer-receipt.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/receipts/ps-plan-54-task-3-bom-producer-receipt.json"
+        },
+        {
+          "sha256": "7322ba18c793bf1d77616b796185c3716df91226d28c6b381b156e75142f9b71",
+          "size_bytes": 4672,
+          "source_path": "docs/authority/strategy-release-bom-v1.golden.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/strategy-release-bom-v1.golden.json"
+        },
+        {
+          "sha256": "f02564f4b4423bc19a17ebe36da71c72d4e52e09bbf199daf5b1aa3134445dc9",
+          "size_bytes": 65,
+          "source_path": "docs/authority/strategy-release-bom-v1.golden.json.sha256",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/strategy-release-bom-v1.golden.json.sha256"
+        },
+        {
+          "sha256": "7d5ad399060315e10b6866dec07d87a086302f3a9e13092f956a6f43d5d5286a",
+          "size_bytes": 5145,
+          "source_path": "docs/authority/strategy-release-bom-v1.schema.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/strategy-release-bom-v1.schema.json"
+        },
+        {
+          "sha256": "082d6cd58676be90ffe563c4648922ec5dc61978026b01341766b0263f5794f5",
+          "size_bytes": 1820,
+          "source_path": "docs/authority/strategy-release-statement-v1.golden.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/strategy-release-statement-v1.golden.json"
+        },
+        {
+          "sha256": "4d72420615ad544b7ce90116984ee2a6dc2b3817daf96db66fba2860f99493d1",
+          "size_bytes": 65,
+          "source_path": "docs/authority/strategy-release-statement-v1.golden.json.sha256",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/strategy-release-statement-v1.golden.json.sha256"
+        },
+        {
+          "sha256": "9aab6b799f4462af285cbad3e6c40e41b9175e1e1fcb72219e1942fd84645148",
+          "size_bytes": 4479,
+          "source_path": "docs/authority/strategy-release-statement-v1.schema.json",
+          "vendored_path": "docs/authority/vendor/ps-plan-54/docs/authority/strategy-release-statement-v1.schema.json"
+        }
+      ],
+      "reviewed_followup_commit": "6ce6f553188c04f48a4ee1838efc42bee82deed3",
+      "source_commit": "175be5090c1c9708db89921271d7f2b26b2d0a40",
+      "source_repository": "alchymia-labs/philosophers-stone"
+    }
+  },
+  "production_ready": false,
+  "ps_producer_commit": "175be5090c1c9708db89921271d7f2b26b2d0a40",
+  "runtime_ready": false,
+  "status": "READY_CONTRACT_CONSUMER_ONLY"
+}

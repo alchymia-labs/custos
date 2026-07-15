@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alephain.org/crucible/artifact-evidence-v1.schema.json",
+  "title": "Crucible ArtifactEvidenceV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "strategy_release_id",
+    "artifact_ref_digest",
+    "manifest_digest",
+    "release_bom_digest",
+    "statement_digest",
+    "attestation_ref_digest",
+    "bundle_sha256",
+    "signed_producer_claims",
+    "sigstore_proof",
+    "local_policy_evaluation",
+    "verified_at",
+    "artifact_evidence_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "strategy_release_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "artifact_ref_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "manifest_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "release_bom_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "statement_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "attestation_ref_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "bundle_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "signed_producer_claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_repository",
+        "producer_commit",
+        "workflow_identity",
+        "source_date_epoch",
+        "strategy_source_tree_sha256",
+        "execution_abi_schema_sha256",
+        "contract_asset_index_sha256",
+        "toolkit_wheel_sha256",
+        "toolkit_sbom_sha256",
+        "build_lock_sha256",
+        "zero_rewrite_semantic_diff_sha256",
+        "zero_rewrite_characterization_sha256",
+        "engine",
+        "engine_version",
+        "python_requires",
+        "entry_point_group",
+        "entry_point_name"
+      ],
+      "properties": {
+        "producer_repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workflow_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_date_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "strategy_source_tree_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "execution_abi_schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "contract_asset_index_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "toolkit_wheel_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "toolkit_sbom_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "build_lock_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "zero_rewrite_semantic_diff_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "zero_rewrite_characterization_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "engine": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engine_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "python_requires": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry_point_group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry_point_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "sigstore_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "bundle_sha256",
+        "statement_sha256",
+        "certificate_sha256",
+        "issuer",
+        "workflow_identity",
+        "rekor_log_id",
+        "rekor_log_index",
+        "rekor_integrated_time",
+        "checkpoint_sha256",
+        "certificate_chain_verified",
+        "sct_verified",
+        "dsse_signature_verified",
+        "rekor_body_verified",
+        "set_verified",
+        "inclusion_proof_verified",
+        "checkpoint_verified"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bundle_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "statement_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "certificate_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workflow_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rekor_log_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rekor_log_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rekor_integrated_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checkpoint_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "certificate_chain_verified": {
+          "type": "boolean"
+        },
+        "sct_verified": {
+          "type": "boolean"
+        },
+        "dsse_signature_verified": {
+          "type": "boolean"
+        },
+        "rekor_body_verified": {
+          "type": "boolean"
+        },
+        "set_verified": {
+          "type": "boolean"
+        },
+        "inclusion_proof_verified": {
+          "type": "boolean"
+        },
+        "checkpoint_verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "local_policy_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_id",
+        "policy_version",
+        "policy_digest",
+        "evaluated_at",
+        "decision"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "evaluated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision": {
+          "const": "accepted"
+        }
+      }
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifact_evidence_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

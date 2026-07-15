@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — T1-T5b historical slices landed; T5c corrected pre-sign contract landed; T5d-A/T5d-B/T5e plus T6-T9 open
+> **Status**: ⏳ In progress — T1-T5b historical slices and T5c landed; T5d-A is READY at contract-consumer scope only; T5d-B/T5e plus T6-T9 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-15 after Sigstore self-reference and PS BOM type correction
 > **Project**: Custos
@@ -562,6 +562,19 @@ assets and receipts; immutable Custos V2 receipt assets and negative fixtures; a
 all authority gates PASS. T5d-A does not publish or claim ownership of a runner
 command.
 
+> **Execution status (2026-07-15)**: `READY_CONTRACT_CONSUMER_ONLY`. Custos
+> byte-vendored and pinned the PS Plan 54 BOM, statement and detached-attestation
+> assets from clean commit `175be5090c1c9708db89921271d7f2b26b2d0a40`, with
+> unchanged follow-up `6ce6f553188c04f48a4ee1838efc42bee82deed3`, and the
+> Crucible Plan 88 schema/golden/sidecar/publication assets from clean commit
+> `b761bf7f75f5e19b1161b146c144ce244932b6e3` over schema baseline
+> `cd3fb8721c8df557ef57d5ef7ec3ae372b54061c`. The v4 index binds every
+> source path, commit, SHA-256 and byte size. Custos publishes only its additive
+> `StrategyArtifactPreImportVerificationReceiptV2`, external-references the owner
+> schemas, and requires an independent runner-local policy decision. T5d-A STOP is
+> satisfied only for contract consumption. T5d-B command consumption, production
+> verifier/parser cutover, runtime composition and production readiness remain false.
+
 #### T5d-B: Consume the Crucible Plan 89 runner-command contract
 
 START requires T5d-A STOP plus a clean-landed Crucible Plan 89 producer commit
@@ -929,7 +942,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6e Durable evidence/promotion | [x] | 2026-07-15 | Local contract/recovery implementation was verified at `bfa08e4...`; promotion hardening then landed at exact commit `12cdad0b90017d9b33a208bc7f1d3256afbd976d`, where non-sandbox `make verify` passed 559/4/1, 179 formatted, authority/extraction 241/241 and strict mypy 0/41 + 0/59. This is local-only evidence: no remote call or READY receipt |
 | T6 Toolkit candidate | [ ] | — | Four external gates remain: artifact-service immutable receipt recovery support; protected runner/environment/secrets; real OIDC Sigstore plus atomic publish/readback; independent T6e promotion verification plus READY authority commit. T7-T9 and Plan 18 remain uncompleted |
 | T5c ArtifactRefV2 producer ABI | [x] | 2026-07-15 | Additive v3 schema/golden/index and Custos producer receipt; v1/v2 byte-pinned and barred from runtime fallback; receipt remains `PRODUCED_AWAITING_CONSUMER_REVIEWS`, so no handoff/runtime/production claim |
-| T5d-A BOM/evidence consumption | [ ] | — | Consume exact PS Plan 54 BOM/statement/attestation and Crucible Plan 88 evidence/acceptance schemas after clean producer receipts; Custos publishes only its local verification receipt and owns no command schema |
+| T5d-A BOM/evidence consumption | [x] | 2026-07-15 | `READY_CONTRACT_CONSUMER_ONLY`: exact PS and Crucible owner assets byte-vendored with path/commit/hash/size; additive ReceiptV2 schema/golden/negatives and consumer receipt published; T5d-B/runtime/production remain false |
 | T5d-B command consumption / Plan 19 T2 | [ ] | — | After Crucible Plan 89 lands the producer-owned command schema/golden, consume it byte-for-byte and bind the full BOM, detached attestation and accepted evidence; this is the same implementation slice and receipt as Plan 19 Task 2 |
 | T5e verifier/runtime cutover | [ ] | — | Migrate production caller/composition/verifier, reject V1 and historical indexes, source trust only from runner-local signed policy; blocks protected T6 and READY |
 | T7 Receipts | [ ] | — | four parties |

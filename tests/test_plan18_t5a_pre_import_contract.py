@@ -93,10 +93,8 @@ def test_public_pre_import_receipt_is_strict_and_phase_bounded() -> None:
     assert "loaded_entry_point" in StrategyArtifactVerificationReceiptV1.model_fields
 
 
-def test_pre_import_schema_is_generated_from_the_canonical_model() -> None:
-    assert _load(V2_SCHEMA) == StrategyArtifactPreImportVerificationReceiptV1.model_json_schema(
-        mode="validation"
-    )
+def test_pre_import_schema_is_an_immutable_historical_asset() -> None:
+    assert _sha256(V2_SCHEMA) == V2_SCHEMA_SHA256
 
 
 def test_negative_fixtures_reject_unknown_missing_and_cross_field_drift() -> None:

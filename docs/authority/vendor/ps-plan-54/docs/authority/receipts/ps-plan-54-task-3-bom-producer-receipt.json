@@ -1,0 +1,95 @@
+{
+  "blocking_gaps": [
+    "CUSTOS_IMMUTABLE_TOOLKIT_RC_NOT_AVAILABLE",
+    "TEAM_ARTIFACT_TYPING_NOT_PROVEN",
+    "TARGET_RUNTIME_ADAPTER_UNDEFINED",
+    "TEAM_ARTIFACT_IMPORT_NAMESPACE_NOT_REBOUND_TO_CUSTOS_TOOLKIT"
+  ],
+  "canonical_bom": {
+    "canonicalization": "sha256-canonical-json-v1",
+    "member_roles": [
+      "base_contracts_wheel",
+      "contract_schema",
+      "nautilus_wheel",
+      "runtime_artifact",
+      "sbom",
+      "source_tree",
+      "strategy_manifest",
+      "strategy_wheel"
+    ],
+    "sha256": "7322ba18c793bf1d77616b796185c3716df91226d28c6b381b156e75142f9b71"
+  },
+  "custos_authority": {
+    "asset_index_sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07",
+    "producer_commit": "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
+    "producer_source_sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3",
+    "publication_commit": "c9394b61e196c1821d421cd57c0bf1162a842fac",
+    "receipt_sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
+  },
+  "fixture_only": true,
+  "handoff_ready": false,
+  "non_claims": [
+    "schema fixtures are not immutable toolkit or strategy releases",
+    "no wheel or runtime artifact was built",
+    "no attestation was signed",
+    "no StrategyRelease was accepted by Crucible",
+    "the legacy Crucible Python image lane is unchanged"
+  ],
+  "ownership_boundary": {
+    "custos": "execution ABI/schema, extracted toolkit typing, verifier, immutable RC",
+    "legacy_shared_lane": "UNCHANGED_NON_GATING",
+    "philosophers_stone_plan_54_task_4": "deterministic team staging namespace transform and artifact-local concrete StrategyRuntimeAdapterV1 entry point",
+    "philosophers_stone_plan_56": "downstream Docker/runtime acceptance only"
+  },
+  "producer": {
+    "clean_verification_checkout_head": "54ea89628cbeb021c6428193d88a791b7fff3907",
+    "implementation_commit": "54ea89628cbeb021c6428193d88a791b7fff3907",
+    "repository": "alchymia-labs/philosophers-stone",
+    "schema_fixture_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "worktree_clean": true
+  },
+  "schema_version": "alephain.ps-plan-54-task-3-bom-producer-receipt.v1",
+  "status": "VERIFIED_SCHEMA_ONLY",
+  "task_4_start_gate": {
+    "canonical_name": "Custos Plan 18 Task 6 immutable toolkit RC receipt",
+    "includes": [
+      "Custos Plan 18 Task 4b extracted-toolkit typing closure",
+      "Custos Plan 18 Task 5 verifier and attestation evidence"
+    ],
+    "sibling_path_or_editable_consumption": "FORBIDDEN",
+    "status": "BLOCKED_PENDING_IMMUTABLE_RC"
+  },
+  "verification": {
+    "canonical_round_trip": "PASS",
+    "clean_implementation_checkout": "PASS",
+    "custos_authority_binding": "PASS",
+    "generator_check_command": "PYTHONPATH=scripts uv run python scripts/generate_strategy_artifact_contract_assets.py --check",
+    "member_byte_binding": "PASS"
+  },
+  "verified_outputs": [
+    {
+      "path": "docs/authority/strategy-release-bom-v1.schema.json",
+      "sha256": "7d5ad399060315e10b6866dec07d87a086302f3a9e13092f956a6f43d5d5286a"
+    },
+    {
+      "path": "docs/authority/strategy-release-bom-v1.golden.json",
+      "sha256": "7322ba18c793bf1d77616b796185c3716df91226d28c6b381b156e75142f9b71"
+    },
+    {
+      "path": "docs/authority/strategy-release-bom-v1.golden.json.sha256",
+      "sha256": "f02564f4b4423bc19a17ebe36da71c72d4e52e09bbf199daf5b1aa3134445dc9"
+    },
+    {
+      "path": "docs/authority/strategy-release-bom-receipt-v1.schema.json",
+      "sha256": "2e50458126ab4f45d01d20e0b9cb34896405d12247e25baedeb1f6350573055b"
+    },
+    {
+      "path": "docs/authority/strategy-release-bom-receipt-v1.golden.json",
+      "sha256": "42f36a41b8dc487a79df4f0ef3f2a499c379f69078ee8ec147a8e57881a669e7"
+    },
+    {
+      "path": "docs/authority/strategy-release-bom-receipt-v1.golden.json.sha256",
+      "sha256": "b168a43a332966f4df8660de4dbb4021bc95aaa408312dbb165782cb5f1d88a0"
+    }
+  ]
+}

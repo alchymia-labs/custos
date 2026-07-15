@@ -1,0 +1,148 @@
+{
+  "base_golden": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json",
+  "base_golden_sha256": "f6f3303e5be2fadda85dbb817a3ddb37b26fa047d7ffd8c1e5888ade2476131d",
+  "canonical_name": "Custos Plan 18 T5d-A ReceiptV2 negative mutations",
+  "cases": [
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "artifact_ref",
+          "bundle_sha256"
+        ],
+        "value": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "name": "artifact_ref_bundle_field_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "artifact_ref",
+          "policy_digest"
+        ],
+        "value": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "name": "artifact_ref_policy_field_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "replace",
+        "path": [
+          "release_bom"
+        ],
+        "value": []
+      },
+      "name": "bom_array_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "replace",
+        "path": [
+          "detached_attestation_ref",
+          "bundle_sha256"
+        ],
+        "value": "fdfa5fbd9b1e85b6fb58153552807d79127e7e05f8408c949d1a01e491a30dec"
+      },
+      "name": "bundle_self_reference_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "replace",
+        "path": [
+          "runner_local_policy_decision",
+          "policy_digest"
+        ],
+        "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "name": "crucible_policy_reuse_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "remove",
+        "path": [
+          "crucible_artifact_evidence",
+          "sigstore_proof",
+          "certificate_sha256"
+        ]
+      },
+      "name": "missing_certificate_proof"
+    },
+    {
+      "mutation": {
+        "operation": "remove",
+        "path": [
+          "crucible_artifact_evidence",
+          "sigstore_proof",
+          "checkpoint_verified"
+        ]
+      },
+      "name": "missing_checkpoint_proof"
+    },
+    {
+      "mutation": {
+        "operation": "remove",
+        "path": [
+          "crucible_artifact_evidence",
+          "sigstore_proof",
+          "sct_verified"
+        ]
+      },
+      "name": "missing_sct_proof"
+    },
+    {
+      "mutation": {
+        "operation": "remove",
+        "path": [
+          "crucible_artifact_evidence",
+          "sigstore_proof",
+          "set_verified"
+        ]
+      },
+      "name": "missing_set_proof"
+    },
+    {
+      "mutation": {
+        "operation": "remove",
+        "path": [
+          "crucible_artifact_evidence",
+          "sigstore_proof",
+          "rekor_log_id"
+        ]
+      },
+      "name": "missing_tlog_proof"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "release_bom_members"
+        ],
+        "value": []
+      },
+      "name": "release_bom_members_alias_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "runner_local_policy_decision",
+          "requested_by_command"
+        ],
+        "value": true
+      },
+      "name": "request_selected_policy_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "verified_members"
+        ],
+        "value": []
+      },
+      "name": "verified_members_alias_forbidden"
+    }
+  ],
+  "fixture_schema_version": 4
+}

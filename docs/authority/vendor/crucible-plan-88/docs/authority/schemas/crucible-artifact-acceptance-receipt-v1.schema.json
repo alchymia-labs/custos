@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alephain.org/crucible/artifact-acceptance-receipt-v1.schema.json",
+  "title": "Crucible ArtifactAcceptanceReceiptV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tenant_id",
+    "strategy_release_id",
+    "released_lifecycle_version",
+    "artifact_evidence_digest",
+    "snapshot_digest",
+    "request_fingerprint",
+    "outbox_event_id",
+    "actor_id",
+    "actor_assertion_jti",
+    "correlation_id",
+    "accepted_at",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strategy_release_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "released_lifecycle_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "artifact_evidence_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "snapshot_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "request_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "outbox_event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor_assertion_jti": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "accepted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "receipt_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -35,6 +35,6 @@
     }
   },
   "producer_source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
-  "producer_source_sha256": "3de0a12daae994bf08fb63c0c5e5c6ff5bb74c5b0b83c62420963abec5416f99",
+  "producer_source_sha256": "29025c3fbc8345bb3c27176561b1ac2ae0452cc9d18ead5d852f457449c93c3d",
   "production_ready": false
 }

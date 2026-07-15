@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import subprocess
 import sys
@@ -25,13 +26,21 @@ from custos_toolkit.contracts.strategy_execution import (
 from pydantic import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_MODELS = {
+SOURCE_GENERATED_SCHEMA_MODELS = {
     "strategy_execution_context_v1.schema.json": StrategyExecutionContextV1,
     "strategy_manifest_v1.schema.json": StrategyManifestV1,
-    "strategy_artifact_ref_v1.schema.json": StrategyArtifactRefV1,
     "development_source_ref_v1.schema.json": DevelopmentSourceRefV1,
-    "strategy_execution_command_binding_v1.schema.json": StrategyExecutionCommandBindingV1,
-    "strategy_artifact_verification_receipt_v1.schema.json": StrategyArtifactVerificationReceiptV1,
+}
+IMMUTABLE_HISTORICAL_SCHEMA_SHA256 = {
+    "strategy_artifact_ref_v1.schema.json": (
+        "0f9ed02c57cbef30dc1e8a2597abe3cae796540f539ef56f2962db5a40765c6b"
+    ),
+    "strategy_execution_command_binding_v1.schema.json": (
+        "d813bac90b4382f0e8ed4dcfb7805c170d6d79d9afcc42c9674407d216791507"
+    ),
+    "strategy_artifact_verification_receipt_v1.schema.json": (
+        "7f99d3939ad2a995621c71bee7bbd7d1d735f1f9b7fc090a34cd6800fc858b91"
+    ),
 }
 
 
@@ -238,12 +247,18 @@ def test_lifecycle_golden_is_lossless() -> None:
     assert golden["strategy_release"]["deployment_spec_id"] is None
 
 
-@pytest.mark.parametrize(("filename", "model"), SCHEMA_MODELS.items())
+@pytest.mark.parametrize(("filename", "model"), SOURCE_GENERATED_SCHEMA_MODELS.items())
 def test_schema_is_source_generated(filename: str, model: type) -> None:
     path = ROOT / "docs/gateway-contract/v1" / filename
     assert json.loads(path.read_text(encoding="utf-8")) == model.model_json_schema(
         mode="validation"
     )
+
+
+@pytest.mark.parametrize(("filename", "expected"), IMMUTABLE_HISTORICAL_SCHEMA_SHA256.items())
+def test_historical_schema_is_byte_pinned(filename: str, expected: str) -> None:
+    path = ROOT / "docs/gateway-contract/v1" / filename
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == expected
 
 
 def test_lightweight_import_does_not_load_nautilus_or_mutate_path() -> None:

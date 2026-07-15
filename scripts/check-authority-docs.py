@@ -25,6 +25,17 @@ TASK_5C_V3_GOLDEN_PATH = "docs/authority/strategy-artifact-ref-pre-sign-golden-v
 TASK_5C_V3_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json"
 )
+TASK_5D_A_V4_INDEX_PATH = "docs/authority/strategy-contract-assets-v4.json"
+TASK_5D_A_V4_SCHEMA_PATH = (
+    "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json"
+)
+TASK_5D_A_V4_GOLDEN_PATH = "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json"
+TASK_5D_A_V4_NEGATIVE_PATH = (
+    "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json"
+)
+TASK_5D_A_CONSUMER_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json"
+)
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
@@ -487,6 +498,128 @@ def verify_plan_18_task_5c_v3_artifact_ref(errors: list[str]) -> str | None:
     if source_digest != receipt.get("producer_source_sha256"):
         errors.append("Plan 18 T5c producer receipt source binding differs")
     return source_digest
+
+
+def verify_plan_18_task_5d_a_contract_consumer(errors: list[str]) -> None:
+    """Validate the exact producer assets and Custos contract-consumer receipt."""
+
+    index_path = resolve(TASK_5D_A_V4_INDEX_PATH)
+    schema_path = resolve(TASK_5D_A_V4_SCHEMA_PATH)
+    golden_path = resolve(TASK_5D_A_V4_GOLDEN_PATH)
+    negative_path = resolve(TASK_5D_A_V4_NEGATIVE_PATH)
+    receipt_path = resolve(TASK_5D_A_CONSUMER_RECEIPT_PATH)
+    required_paths = (index_path, schema_path, golden_path, negative_path, receipt_path)
+    if not all(path.is_file() for path in required_paths):
+        errors.append("missing Plan 18 T5d-A contract-consumer authority assets")
+        return
+
+    index = load_json(index_path)
+    receipt = load_json(receipt_path)
+    if index.get("status") != "READY_CONTRACT_CONSUMER_ONLY":
+        errors.append("Plan 18 T5d-A v4 index status differs")
+    if index.get("current_receipt_type") != "StrategyArtifactPreImportVerificationReceiptV2":
+        errors.append("Plan 18 T5d-A current receipt type differs")
+    if index.get("current_receipt_schema") != TASK_5D_A_V4_SCHEMA_PATH:
+        errors.append("Plan 18 T5d-A current receipt schema differs")
+    if index.get("contract_consumer_ready") is not True:
+        errors.append("Plan 18 T5d-A contract consumer must be ready")
+    for field in ("command_consumer_ready", "runtime_ready", "production_ready"):
+        if index.get(field) is not False or receipt.get(field) is not False:
+            errors.append(f"Plan 18 T5d-A {field} must remain false")
+
+    source_path = resolve(str(index.get("consumer_source") or ""))
+    if not source_path.is_file() or hashlib.sha256(
+        source_path.read_bytes()
+    ).hexdigest() != index.get("consumer_source_sha256"):
+        errors.append("Plan 18 T5d-A consumer source binding differs")
+    for entry in index.get("assets", []):
+        path = resolve(str(entry.get("path") or ""))
+        if not path.is_file():
+            errors.append(f"missing Plan 18 T5d-A v4 asset: {path}")
+            continue
+        if hashlib.sha256(path.read_bytes()).hexdigest() != entry.get("sha256"):
+            errors.append(f"Plan 18 T5d-A v4 asset digest differs: {path}")
+        if path.stat().st_size != entry.get("size_bytes"):
+            errors.append(f"Plan 18 T5d-A v4 asset size differs: {path}")
+
+    producer_authority = index.get("producer_authority", {})
+    producer_groups = (
+        producer_authority.get("philosophers_stone", {}).get("producer_assets", []),
+        producer_authority.get("crucible_rust", {})
+        .get("publication", {})
+        .get("producer_assets", []),
+    )
+    for entries in producer_groups:
+        for entry in entries:
+            path = resolve(str(entry.get("vendored_path") or ""))
+            if not path.is_file():
+                errors.append(f"missing Plan 18 T5d-A producer asset: {path}")
+                continue
+            if hashlib.sha256(path.read_bytes()).hexdigest() != entry.get("sha256"):
+                errors.append(f"Plan 18 T5d-A producer asset digest differs: {path}")
+            if path.stat().st_size != entry.get("size_bytes"):
+                errors.append(f"Plan 18 T5d-A producer asset size differs: {path}")
+
+    schema = load_json(schema_path)
+    expected_refs = {
+        "release_bom": (
+            "../../authority/vendor/ps-plan-54/docs/authority/strategy-release-bom-v1.schema.json"
+        ),
+        "release_statement": (
+            "../../authority/vendor/ps-plan-54/docs/authority/"
+            "strategy-release-statement-v1.schema.json"
+        ),
+        "detached_attestation_ref": (
+            "../../authority/vendor/ps-plan-54/docs/authority/"
+            "artifact-attestation-ref-v1.schema.json"
+        ),
+        "crucible_artifact_evidence": (
+            "../../authority/vendor/crucible-plan-88/docs/authority/schemas/"
+            "crucible-artifact-evidence-v1.schema.json"
+        ),
+        "crucible_artifact_acceptance": (
+            "../../authority/vendor/crucible-plan-88/docs/authority/schemas/"
+            "crucible-artifact-acceptance-receipt-v1.schema.json"
+        ),
+    }
+    for field, reference in expected_refs.items():
+        if schema.get("properties", {}).get(field) != {"$ref": reference}:
+            errors.append(f"Plan 18 T5d-A owner schema reference differs for {field}")
+
+    for path in (golden_path, negative_path):
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        sidecar = path.with_name(f"{path.name}.sha256")
+        if not sidecar.is_file() or sidecar.read_text(encoding="ascii") != (
+            f"{digest}  {path.name}\n"
+        ):
+            errors.append(f"Plan 18 T5d-A sidecar differs: {sidecar}")
+    golden = load_json(golden_path)
+    if golden.get("contract_consumer_ready") is not True:
+        errors.append("Plan 18 T5d-A golden is not contract-consumer ready")
+    for field in ("command_consumer_ready", "runtime_ready", "production_ready"):
+        if golden.get(field) is not False:
+            errors.append(f"Plan 18 T5d-A golden {field} must remain false")
+
+    expected_index_binding = {
+        "path": TASK_5D_A_V4_INDEX_PATH,
+        "sha256": hashlib.sha256(index_path.read_bytes()).hexdigest(),
+        "size_bytes": index_path.stat().st_size,
+    }
+    if receipt.get("contract_asset_index") != expected_index_binding:
+        errors.append("Plan 18 T5d-A consumer receipt index binding differs")
+    if receipt.get("receipt_status") != "READY_CONTRACT_CONSUMER_ONLY":
+        errors.append("Plan 18 T5d-A consumer receipt status differs")
+    if receipt.get("contract_consumer_ready") is not True:
+        errors.append("Plan 18 T5d-A consumer receipt is not ready")
+    if receipt.get("policy_boundary") != {
+        "crucible_local_policy_decision_reused": False,
+        "runner_local_policy_decision_required": True,
+    }:
+        errors.append("Plan 18 T5d-A policy ownership boundary differs")
+    positive = json.dumps({"schema": schema, "golden": golden, "receipt": receipt})
+    for forbidden in ("release_bom_members", "verified_members"):
+        if forbidden in positive:
+            errors.append(f"Plan 18 T5d-A positive authority contains forbidden {forbidden}")
 
 
 def verify_plan_18_task_2_receipt(
@@ -1230,6 +1363,7 @@ def main() -> int:
     verify_strategy_contract_assets(errors)
     verify_plan_18_task_2_v2_candidate(errors)
     current_source_digest = verify_plan_18_task_5c_v3_artifact_ref(errors)
+    verify_plan_18_task_5d_a_contract_consumer(errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

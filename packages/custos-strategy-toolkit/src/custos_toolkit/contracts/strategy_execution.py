@@ -272,6 +272,161 @@ class StrategyArtifactRefV2(_StrictFrozenModel):
         return self
 
 
+class RunnerLocalArtifactPolicyDecisionV1(_StrictFrozenModel):
+    """Custos-owned runner-local decision, independent of Crucible policy."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        title="RunnerLocalArtifactPolicyDecisionV1",
+        json_schema_extra={
+            "$id": (
+                "https://custos.the-alephain-guild/contracts/v4/"
+                "runner-local-artifact-policy-decision-v1.schema.json"
+            )
+        },
+    )
+
+    schema_version: Literal[1] = 1
+    authority: Literal["custos-runner-local"]
+    policy_id: NonEmptyString
+    policy_version: StrictInt = Field(ge=1)
+    policy_digest: Sha256Hex
+    evaluated_at: datetime
+    decision: Literal["accepted"]
+    release_bom_digest: Sha256Hex
+    artifact_ref_digest: Sha256Hex
+    artifact_evidence_digest: Sha256Hex
+    artifact_acceptance_receipt_digest: Sha256Hex
+
+
+class StrategyArtifactPreImportVerificationReceiptV2(_StrictFrozenModel):
+    """Contract-consumer proof over producer-owned evidence objects."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        title="StrategyArtifactPreImportVerificationReceiptV2",
+        json_schema_extra={
+            "$id": (
+                "https://custos.the-alephain-guild/contracts/v4/"
+                "strategy-artifact-pre-import-verification-receipt-v2.schema.json"
+            )
+        },
+    )
+
+    schema_version: Literal[2] = 2
+    verification_profile: Literal["custos-artifact-pre-import-verification-v2"]
+    verified_at: datetime
+    release_bom: dict[str, object]
+    release_bom_digest: Sha256Hex
+    release_statement: dict[str, object]
+    release_statement_digest: Sha256Hex
+    artifact_ref: StrategyArtifactRefV2
+    artifact_ref_digest: Sha256Hex
+    detached_attestation_ref: dict[str, object]
+    detached_attestation_ref_digest: Sha256Hex
+    crucible_artifact_evidence: dict[str, object]
+    crucible_artifact_evidence_digest: Sha256Hex
+    crucible_artifact_acceptance: dict[str, object]
+    crucible_artifact_acceptance_receipt_digest: Sha256Hex
+    runner_local_policy_decision: RunnerLocalArtifactPolicyDecisionV1
+
+    @model_validator(mode="after")
+    def validate_owner_contract_bindings(self) -> Self:
+        if self.release_bom_digest != canonical_json_digest(self.release_bom):
+            raise ValueError("release_bom_digest differs from the full producer BOM")
+        if self.release_statement_digest != canonical_json_digest(self.release_statement):
+            raise ValueError("release_statement_digest differs from the producer statement")
+        if self.artifact_ref_digest != canonical_model_digest(self.artifact_ref):
+            raise ValueError("artifact_ref_digest differs from StrategyArtifactRefV2")
+        if self.detached_attestation_ref_digest != canonical_json_digest(
+            self.detached_attestation_ref
+        ):
+            raise ValueError(
+                "detached_attestation_ref_digest differs from the detached producer reference"
+            )
+
+        bom_bindings = {
+            "strategy_artifact_sha256": self.artifact_ref.artifact_sha256,
+            "strategy_manifest_sha256": self.artifact_ref.manifest_sha256,
+            "strategy_source_tree_sha256": self.artifact_ref.normalized_source_tree_sha256,
+            "producer_repository": self.artifact_ref.source_repository,
+            "strategy_source_commit": self.artifact_ref.source_commit,
+            "engine": self.artifact_ref.engine,
+            "engine_version": self.artifact_ref.engine_version,
+        }
+        for name, expected in bom_bindings.items():
+            if self.release_bom.get(name) != expected:
+                raise ValueError(f"producer BOM {name} differs from ArtifactRefV2")
+
+        statement_subjects = self.release_statement.get("subject")
+        if not isinstance(statement_subjects, (list, tuple)):
+            raise ValueError("producer statement subject must be an array")
+        subject_digests: dict[str, object] = {}
+        for subject in statement_subjects:
+            if not isinstance(subject, Mapping):
+                raise ValueError("producer statement subject must be an object")
+            digest = subject.get("digest")
+            if isinstance(digest, Mapping):
+                subject_digests[str(subject.get("name"))] = digest.get("sha256")
+        expected_subjects = {
+            "strategy-release-bom-v1": self.release_bom_digest,
+            "strategy-artifact": self.artifact_ref.artifact_sha256,
+            "strategy-manifest-v1": self.artifact_ref.manifest_sha256,
+        }
+        if subject_digests != expected_subjects:
+            raise ValueError("producer statement subjects differ from BOM and ArtifactRefV2")
+
+        if self.detached_attestation_ref.get("statement_sha256") != self.release_statement_digest:
+            raise ValueError("detached attestation reference differs from producer statement")
+        evidence_bindings = {
+            "artifact_ref_digest": self.artifact_ref_digest,
+            "manifest_digest": self.artifact_ref.manifest_sha256,
+            "release_bom_digest": self.release_bom_digest,
+            "statement_digest": self.release_statement_digest,
+            "attestation_ref_digest": self.detached_attestation_ref_digest,
+            "bundle_sha256": self.detached_attestation_ref.get("bundle_sha256"),
+        }
+        for name, expected in evidence_bindings.items():
+            if self.crucible_artifact_evidence.get(name) != expected:
+                raise ValueError(f"Crucible artifact evidence {name} differs")
+        if (
+            self.crucible_artifact_evidence.get("artifact_evidence_digest")
+            != self.crucible_artifact_evidence_digest
+        ):
+            raise ValueError("Crucible artifact evidence digest binding differs")
+        if (
+            self.crucible_artifact_acceptance.get("artifact_evidence_digest")
+            != self.crucible_artifact_evidence_digest
+        ):
+            raise ValueError("Crucible acceptance does not bind the artifact evidence")
+        if (
+            self.crucible_artifact_acceptance.get("receipt_digest")
+            != self.crucible_artifact_acceptance_receipt_digest
+        ):
+            raise ValueError("Crucible acceptance receipt digest binding differs")
+
+        policy = self.runner_local_policy_decision
+        policy_bindings = {
+            "release_bom_digest": self.release_bom_digest,
+            "artifact_ref_digest": self.artifact_ref_digest,
+            "artifact_evidence_digest": self.crucible_artifact_evidence_digest,
+            "artifact_acceptance_receipt_digest": (
+                self.crucible_artifact_acceptance_receipt_digest
+            ),
+        }
+        for name, expected in policy_bindings.items():
+            if getattr(policy, name) != expected:
+                raise ValueError(f"runner-local policy {name} differs")
+        crucible_policy = self.crucible_artifact_evidence.get("local_policy_evaluation")
+        if isinstance(crucible_policy, Mapping) and (
+            crucible_policy.get("policy_digest") == policy.policy_digest
+        ):
+            raise ValueError("runner-local policy must not reuse the Crucible policy digest")
+        return self
+
+
 class DevelopmentSourceRefV1(_StrictFrozenModel):
     """Explicit non-promotable source reference for sandbox development only."""
 
@@ -686,12 +841,14 @@ __all__ = [
     "FrozenJsonObject",
     "JsonScalar",
     "JsonValue",
+    "RunnerLocalArtifactPolicyDecisionV1",
     "STRATEGY_CONTRACT_CANONICALIZATION",
     "STRATEGY_CONTRACT_SCHEMA_VERSION",
     "STRATEGY_EXECUTION_ABI_V1",
     "StrategyArtifactRefV1",
     "StrategyArtifactRefV2",
     "StrategyArtifactPreImportVerificationReceiptV1",
+    "StrategyArtifactPreImportVerificationReceiptV2",
     "StrategyArtifactVerificationReceiptV1",
     "StrategyExecutionCommandBindingV1",
     "StrategyExecutionContextV1",

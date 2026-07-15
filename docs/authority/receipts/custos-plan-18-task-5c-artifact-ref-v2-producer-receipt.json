@@ -6,7 +6,7 @@
   "canonical_name": "Custos Plan 18 Task 5c ArtifactRefV2 producer receipt",
   "contract_asset_index": {
     "path": "docs/authority/strategy-contract-assets-v3.json",
-    "sha256": "c02bbd8ff7267339736f158ecdd11d047b17732cbe13ff5babd48a5b6dfdd227"
+    "sha256": "dc0603bc99148ca927a5fe3c80e24c6e445a5e2826412bb95f8ba7a11ec56cc7"
   },
   "handoff_ready": false,
   "legacy_non_production": {
@@ -28,7 +28,7 @@
   ],
   "producer_repository": "tesseract-trading/custos",
   "producer_source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
-  "producer_source_sha256": "3de0a12daae994bf08fb63c0c5e5c6ff5bb74c5b0b83c62420963abec5416f99",
+  "producer_source_sha256": "29025c3fbc8345bb3c27176561b1ac2ae0452cc9d18ead5d852f457449c93c3d",
   "production_ready": false,
   "receipt_schema_version": 1,
   "receipt_status": "PRODUCED_AWAITING_CONSUMER_REVIEWS",
