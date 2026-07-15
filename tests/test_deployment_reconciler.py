@@ -89,6 +89,7 @@ class FakeRuntimeLogEmitter:
             deployment_instance_id=UUID(value["deployment_instance_id"]),
             deployment_spec_id=UUID(value["spec_id"]),
             deployment_spec_digest=SHA,
+            generation=int(value["generation"]),
             strategy_id=UUID(strategy_id),
             capability_version_id=UUID("50000000-0000-4000-8000-000000000005"),
             capability_version=1,

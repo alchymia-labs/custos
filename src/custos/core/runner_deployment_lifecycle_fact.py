@@ -105,6 +105,9 @@ class RunnerDeploymentLifecycleFactEmitter:
         mode = str(spec.get("trading_mode") or "")
         instance_id = UUID(str(spec.get("deployment_instance_id")))
         spec_id = UUID(str(spec.get("spec_id")))
+        generation = spec.get("generation")
+        if type(generation) is not int or generation < 1:
+            raise ValueError("lifecycle authority generation must be a positive integer")
         strategy = UUID(strategy_id)
         digest = str(spec.get("deployment_spec_digest") or "")
         self._capability.require_scope_bindings(
@@ -113,6 +116,7 @@ class RunnerDeploymentLifecycleFactEmitter:
             deployment_instance_id=instance_id,
             deployment_spec_id=spec_id,
             deployment_spec_digest=digest,
+            generation=generation,
             strategy_id=strategy,
         )
         return RunnerFactAuthority(
@@ -135,6 +139,8 @@ class RunnerDeploymentLifecycleFactEmitter:
         generation: int,
         lifecycle_state: str,
     ) -> UUID | None:
+        if generation != authority.generation:
+            raise ValueError("lifecycle generation differs from RunnerFact authority")
         fact = RunnerDeploymentLifecycleFact.observed(
             authority,
             generation=generation,
@@ -154,6 +160,7 @@ class RunnerDeploymentLifecycleFactEmitter:
             or fact.deployment_instance_id != authority.deployment_instance_id
             or fact.deployment_spec_id != authority.deployment_spec_id
             or fact.deployment_spec_digest != authority.deployment_spec_digest
+            or fact.generation != authority.generation
         ):
             raise ValueError("lifecycle fact authority differs from RunnerFact authority")
         self._capability.require_scope_bindings(

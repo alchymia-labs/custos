@@ -37,6 +37,7 @@ def _authority() -> RunnerFactAuthority:
         deployment_instance_id=_INSTANCE_ID,
         deployment_spec_id=_SPEC_ID,
         deployment_spec_digest=_SPEC_DIGEST,
+        generation=1,
         strategy_id=_STRATEGY_ID,
         capability_version_id=_CAPABILITY_ID,
         capability_version=1,

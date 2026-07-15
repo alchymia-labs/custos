@@ -240,6 +240,9 @@ class RunnerRuntimeLogEmitter:
         )
         deployment_spec_id = _required_uuid(spec.get("spec_id"), "deployment_spec_id")
         deployment_spec_digest = str(spec.get("deployment_spec_digest") or "")
+        generation = spec.get("generation")
+        if type(generation) is not int or generation < 1:
+            raise RuntimeLogFactError("generation must be a positive integer")
         strategy = _required_uuid(strategy_id, "strategy_id")
         if not _LOWER_SHA256.fullmatch(deployment_spec_digest):
             raise RuntimeLogFactError("deployment_spec_digest must be lowercase SHA-256")
@@ -249,6 +252,7 @@ class RunnerRuntimeLogEmitter:
             deployment_instance_id=deployment_instance_id,
             deployment_spec_id=deployment_spec_id,
             deployment_spec_digest=deployment_spec_digest,
+            generation=generation,
             strategy_id=strategy,
         )
         return RunnerFactAuthority(

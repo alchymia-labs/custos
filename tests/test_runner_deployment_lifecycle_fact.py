@@ -36,6 +36,7 @@ async def test_lifecycle_fact_contains_complete_instance_authority() -> None:
         deployment_instance_id=UUID("20000000-0000-4000-8000-000000000002"),
         deployment_spec_id=UUID("30000000-0000-4000-8000-000000000003"),
         deployment_spec_digest=SHA,
+        generation=7,
         strategy_id=UUID("40000000-0000-4000-8000-000000000004"),
         capability_version_id=UUID("50000000-0000-4000-8000-000000000005"),
         capability_version=1,

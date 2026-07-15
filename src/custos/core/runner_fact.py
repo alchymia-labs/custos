@@ -38,6 +38,7 @@ MAX_BATCH_BYTES: Final = 768 * 1024
 MAX_VENUE_LEDGER_CHUNKS: Final = 4096
 MAX_VENUE_LEDGER_ITEMS_PER_CHUNK: Final = 512
 MAX_VENUE_LEDGER_CHUNK_BYTES: Final = 262_144
+RUNNER_STATE_SCHEMA_VERSION: Final = 1
 _NATS_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 _LOWER_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _log = get_logger("custos.runner_fact")
@@ -53,6 +54,26 @@ class RunnerFactContractError(RunnerFactError):
 
 class RunnerFactIdentityError(RunnerFactError):
     """The local signing identity is absent, unsafe, or corrupt."""
+
+
+class RunnerStateMigrationError(RunnerFactError):
+    """The single SQLite state schema cannot be safely opened or migrated."""
+
+
+class RunnerStateAuthorityError(RunnerFactError):
+    """A durable instance is being addressed through a different authority."""
+
+
+class RunnerFactStreamCutoverRequired(RunnerFactError):
+    """Legacy spec-keyed streams must be explicitly frozen and continued."""
+
+
+class RunnerFactStreamCutoverFrozen(RunnerFactError):
+    """New fact intake is frozen while legacy pending batches drain."""
+
+
+class RunnerFactPendingPubAckError(RunnerFactError):
+    """A stream cutover cannot activate while signed batches await PubAck."""
 
 
 def _canonical_json_bytes(value: Any) -> bytes:
@@ -176,6 +197,7 @@ class RunnerFactAuthority:
     deployment_instance_id: UUID
     deployment_spec_id: UUID
     deployment_spec_digest: str
+    generation: int
     strategy_id: UUID
     capability_version_id: UUID
     capability_version: int
@@ -190,6 +212,8 @@ class RunnerFactAuthority:
         _uuid(self.runner_id, "runner_id")
         _uuid(self.deployment_instance_id, "deployment_instance_id")
         _uuid(self.deployment_spec_id, "deployment_spec_id")
+        if type(self.generation) is not int or self.generation < 1:
+            raise RunnerFactContractError("generation must be a positive integer")
         _uuid(self.strategy_id, "strategy_id")
         _uuid(self.capability_version_id, "capability_version_id")
         if self.capability_version < 1:
@@ -206,17 +230,14 @@ class RunnerFactAuthority:
     @property
     def stream_key(self) -> str:
         return (
-            f"{self.tenant_id}:{self.trading_mode}:{self.runner_id}:"
-            f"{self.deployment_instance_id}:{self.deployment_spec_id}:"
-            f"{self.deployment_spec_digest}"
+            f"{self.tenant_id}:{self.trading_mode}:{self.runner_id}:{self.deployment_instance_id}"
         )
 
     @property
     def subject(self) -> str:
         return (
             f"crucible.runner_fact.{self.trading_mode}."
-            f"{self.tenant_id}.{self.runner_id}.{self.deployment_instance_id}."
-            f"{self.deployment_spec_id}.{self.deployment_spec_digest}"
+            f"{self.tenant_id}.{self.runner_id}.{self.deployment_instance_id}"
         )
 
 
@@ -811,6 +832,42 @@ class PendingRunnerFactBatch:
     attempts: int
 
 
+@dataclass(frozen=True, slots=True)
+class RunnerFactStreamCutover:
+    deployment_instance_id: UUID
+    target_stream_key: str
+    state: str
+    legacy_stream_keys: tuple[str, ...]
+    continuation_sequence: int | None
+
+
+def _require_cutover_authority(
+    row: sqlite3.Row,
+    authority: RunnerFactAuthority,
+) -> None:
+    if (
+        row["tenant_id"] != authority.tenant_id
+        or row["trading_mode"] != authority.trading_mode
+        or row["runner_id"] != str(authority.runner_id)
+        or row["target_stream_key"] != authority.stream_key
+    ):
+        raise RunnerStateAuthorityError(
+            "deployment instance stream cutover belongs to a different authority"
+        )
+
+
+def _cutover_from_row(row: sqlite3.Row) -> RunnerFactStreamCutover:
+    return RunnerFactStreamCutover(
+        deployment_instance_id=UUID(row["deployment_instance_id"]),
+        target_stream_key=row["target_stream_key"],
+        state=row["state"],
+        legacy_stream_keys=tuple(json.loads(row["legacy_stream_keys"])),
+        continuation_sequence=(
+            int(row["continuation_sequence"]) if row["continuation_sequence"] is not None else None
+        ),
+    )
+
+
 class RunnerFactOutbox:
     """SQLite-backed sequence allocator, event deduper, and durable outbox."""
 
@@ -829,6 +886,20 @@ class RunnerFactOutbox:
 
     def _initialize(self) -> None:
         with self._connect() as connection:
+            schema_table = connection.execute(
+                """
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = 'runner_state_schema'
+                """
+            ).fetchone()
+            if schema_table is not None:
+                version_row = connection.execute(
+                    "SELECT schema_version FROM runner_state_schema WHERE singleton = 1"
+                ).fetchone()
+                if version_row is not None and int(version_row[0]) > RUNNER_STATE_SCHEMA_VERSION:
+                    raise RunnerStateMigrationError(
+                        "runner state database was created by a newer Custos schema"
+                    )
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS runner_fact_stream (
@@ -859,9 +930,330 @@ class RunnerFactOutbox:
                 );
                 CREATE INDEX IF NOT EXISTS runner_fact_outbox_delivery_order
                     ON runner_fact_outbox(stream_key, source_seq_start);
+                CREATE TABLE IF NOT EXISTS runner_state_schema (
+                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                    schema_version INTEGER NOT NULL CHECK (schema_version > 0),
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS desired_deployments (
+                    deployment_instance_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    trading_mode TEXT NOT NULL,
+                    runner_id TEXT NOT NULL,
+                    deployment_spec_id TEXT NOT NULL,
+                    deployment_spec_digest TEXT NOT NULL,
+                    generation INTEGER NOT NULL CHECK (generation > 0),
+                    command_event_id TEXT NOT NULL,
+                    exact_subject TEXT NOT NULL,
+                    command_fingerprint TEXT NOT NULL,
+                    verified_event_bytes_digest TEXT NOT NULL,
+                    signer_key_id TEXT NOT NULL,
+                    signature_profile TEXT NOT NULL,
+                    verification_receipt TEXT NOT NULL,
+                    canonical_command TEXT NOT NULL,
+                    exact_event_bytes BLOB NOT NULL,
+                    desired_status TEXT NOT NULL,
+                    quarantine_reason TEXT,
+                    updated_at_ns INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS artifact_activation (
+                    activation_id TEXT PRIMARY KEY,
+                    deployment_instance_id TEXT NOT NULL,
+                    deployment_spec_id TEXT NOT NULL,
+                    deployment_spec_digest TEXT NOT NULL,
+                    generation INTEGER NOT NULL CHECK (generation > 0),
+                    artifact_ref_digest TEXT NOT NULL,
+                    artifact_evidence_digest TEXT NOT NULL,
+                    state TEXT NOT NULL CHECK (state IN ('active', 'quarantined')),
+                    quarantine_reason TEXT,
+                    activated_at_ns INTEGER NOT NULL,
+                    updated_at_ns INTEGER NOT NULL,
+                    FOREIGN KEY (deployment_instance_id)
+                        REFERENCES desired_deployments(deployment_instance_id)
+                );
+                CREATE TABLE IF NOT EXISTS runner_cap_policy (
+                    policy_id TEXT PRIMARY KEY,
+                    policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
+                    policy_digest TEXT NOT NULL,
+                    tenant_scope TEXT NOT NULL,
+                    trading_mode TEXT NOT NULL,
+                    max_notional TEXT NOT NULL,
+                    effective_at_ns INTEGER NOT NULL,
+                    expires_at_ns INTEGER,
+                    signer_key_id TEXT NOT NULL,
+                    signed_policy BLOB NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS applied_deployments (
+                    deployment_instance_id TEXT PRIMARY KEY,
+                    deployment_spec_id TEXT NOT NULL,
+                    deployment_spec_digest TEXT NOT NULL,
+                    generation INTEGER NOT NULL CHECK (generation > 0),
+                    command_fingerprint TEXT NOT NULL,
+                    engine_handle TEXT,
+                    observed_status TEXT NOT NULL,
+                    restart_count INTEGER NOT NULL DEFAULT 0 CHECK (restart_count >= 0),
+                    quarantine_reason TEXT,
+                    artifact_activation_id TEXT,
+                    local_policy_id TEXT,
+                    updated_at_ns INTEGER NOT NULL,
+                    FOREIGN KEY (deployment_instance_id)
+                        REFERENCES desired_deployments(deployment_instance_id),
+                    FOREIGN KEY (artifact_activation_id)
+                        REFERENCES artifact_activation(activation_id),
+                    FOREIGN KEY (local_policy_id)
+                        REFERENCES runner_cap_policy(policy_id)
+                );
+                CREATE TABLE IF NOT EXISTS command_outcomes (
+                    outcome_id TEXT PRIMARY KEY,
+                    delivery_id TEXT NOT NULL,
+                    tenant_id TEXT,
+                    trading_mode TEXT,
+                    runner_id TEXT,
+                    deployment_instance_id TEXT,
+                    generation INTEGER,
+                    command_fingerprint TEXT,
+                    exact_subject TEXT NOT NULL,
+                    raw_envelope_digest TEXT,
+                    outcome TEXT NOT NULL,
+                    reason_code TEXT NOT NULL,
+                    durable_disposition TEXT NOT NULL CHECK (
+                        durable_disposition IN ('ack', 'term')
+                    ),
+                    lifecycle_batch_id TEXT,
+                    recorded_at_ns INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS command_outcomes_instance_generation
+                    ON command_outcomes(
+                        deployment_instance_id, generation, command_fingerprint
+                    );
+                CREATE TABLE IF NOT EXISTS command_in_progress_lease (
+                    deployment_instance_id TEXT PRIMARY KEY,
+                    delivery_id TEXT NOT NULL,
+                    generation INTEGER NOT NULL CHECK (generation > 0),
+                    command_fingerprint TEXT NOT NULL,
+                    lease_until_ns INTEGER NOT NULL,
+                    updated_at_ns INTEGER NOT NULL,
+                    FOREIGN KEY (deployment_instance_id)
+                        REFERENCES desired_deployments(deployment_instance_id)
+                );
+                CREATE TABLE IF NOT EXISTS order_reservation (
+                    deployment_instance_id TEXT NOT NULL,
+                    client_order_id TEXT NOT NULL,
+                    policy_id TEXT NOT NULL,
+                    reserved_notional TEXT NOT NULL,
+                    filled_exposure TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    updated_at_ns INTEGER NOT NULL,
+                    PRIMARY KEY (deployment_instance_id, client_order_id),
+                    FOREIGN KEY (deployment_instance_id)
+                        REFERENCES desired_deployments(deployment_instance_id),
+                    FOREIGN KEY (policy_id) REFERENCES runner_cap_policy(policy_id)
+                );
+                CREATE TABLE IF NOT EXISTS runner_exposure_checkpoint (
+                    policy_id TEXT PRIMARY KEY,
+                    open_exposure TEXT NOT NULL,
+                    reconstructed_at_ns INTEGER NOT NULL,
+                    source_digest TEXT NOT NULL,
+                    FOREIGN KEY (policy_id) REFERENCES runner_cap_policy(policy_id)
+                );
+                CREATE TABLE IF NOT EXISTS runner_stream_cutover (
+                    deployment_instance_id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    trading_mode TEXT NOT NULL,
+                    runner_id TEXT NOT NULL,
+                    target_stream_key TEXT NOT NULL,
+                    state TEXT NOT NULL CHECK (state IN ('frozen', 'active')),
+                    legacy_stream_keys TEXT NOT NULL,
+                    continuation_sequence INTEGER,
+                    created_at TEXT NOT NULL,
+                    activated_at TEXT
+                );
                 """
             )
+            connection.execute(
+                """
+                INSERT INTO runner_state_schema (singleton, schema_version, updated_at)
+                VALUES (1, ?, ?)
+                ON CONFLICT(singleton) DO UPDATE SET
+                    schema_version = excluded.schema_version,
+                    updated_at = excluded.updated_at
+                """,
+                (RUNNER_STATE_SCHEMA_VERSION, _utc_now()),
+            )
         os.chmod(self.path, 0o600)
+
+    async def freeze_stream_cutover(
+        self, authority: RunnerFactAuthority
+    ) -> RunnerFactStreamCutover:
+        return await asyncio.to_thread(self._freeze_stream_cutover, authority)
+
+    def _freeze_stream_cutover(self, authority: RunnerFactAuthority) -> RunnerFactStreamCutover:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
+                (str(authority.deployment_instance_id),),
+            ).fetchone()
+            if existing is not None:
+                _require_cutover_authority(existing, authority)
+                receipt = _cutover_from_row(existing)
+                connection.commit()
+                return receipt
+            legacy_stream_keys = self._legacy_stream_keys(connection, authority)
+            now = _utc_now()
+            connection.execute(
+                """
+                INSERT INTO runner_stream_cutover (
+                    deployment_instance_id, tenant_id, trading_mode, runner_id,
+                    target_stream_key, state, legacy_stream_keys, created_at
+                ) VALUES (?, ?, ?, ?, ?, 'frozen', ?, ?)
+                """,
+                (
+                    str(authority.deployment_instance_id),
+                    authority.tenant_id,
+                    authority.trading_mode,
+                    str(authority.runner_id),
+                    authority.stream_key,
+                    json.dumps(legacy_stream_keys, separators=(",", ":")),
+                    now,
+                ),
+            )
+            connection.commit()
+            return RunnerFactStreamCutover(
+                deployment_instance_id=authority.deployment_instance_id,
+                target_stream_key=authority.stream_key,
+                state="frozen",
+                legacy_stream_keys=legacy_stream_keys,
+                continuation_sequence=None,
+            )
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    async def activate_stream_cutover(
+        self, authority: RunnerFactAuthority
+    ) -> RunnerFactStreamCutover:
+        return await asyncio.to_thread(self._activate_stream_cutover, authority)
+
+    def _activate_stream_cutover(self, authority: RunnerFactAuthority) -> RunnerFactStreamCutover:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
+                (str(authority.deployment_instance_id),),
+            ).fetchone()
+            if row is None:
+                raise RunnerFactStreamCutoverRequired(
+                    "stream cutover must be frozen before activation"
+                )
+            _require_cutover_authority(row, authority)
+            if row["state"] == "active":
+                receipt = _cutover_from_row(row)
+                connection.commit()
+                return receipt
+            legacy_stream_keys = tuple(json.loads(row["legacy_stream_keys"]))
+            pending_stream_keys = (*legacy_stream_keys, authority.stream_key)
+            if pending_stream_keys:
+                placeholders = ",".join("?" for _ in pending_stream_keys)
+                pending_count = int(
+                    connection.execute(
+                        f"SELECT COUNT(*) FROM runner_fact_outbox "
+                        f"WHERE stream_key IN ({placeholders})",
+                        pending_stream_keys,
+                    ).fetchone()[0]
+                )
+                if pending_count:
+                    raise RunnerFactPendingPubAckError(
+                        f"stream cutover blocked by {pending_count} pending PubAck batch(es)"
+                    )
+            allocated = 0
+            if legacy_stream_keys:
+                placeholders = ",".join("?" for _ in legacy_stream_keys)
+                allocated = int(
+                    connection.execute(
+                        f"SELECT COALESCE(SUM(next_sequence - 1), 0) "
+                        f"FROM runner_fact_stream WHERE stream_key IN ({placeholders})",
+                        legacy_stream_keys,
+                    ).fetchone()[0]
+                )
+            target_row = connection.execute(
+                "SELECT next_sequence FROM runner_fact_stream WHERE stream_key = ?",
+                (authority.stream_key,),
+            ).fetchone()
+            continuation = max(allocated + 1, int(target_row[0]) if target_row else 1)
+            now = _utc_now()
+            connection.execute(
+                """
+                INSERT INTO runner_fact_stream (stream_key, next_sequence, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(stream_key) DO UPDATE SET
+                    next_sequence = MAX(runner_fact_stream.next_sequence, excluded.next_sequence),
+                    updated_at = excluded.updated_at
+                """,
+                (authority.stream_key, continuation, now),
+            )
+            connection.execute(
+                """
+                UPDATE runner_stream_cutover
+                SET state = 'active', continuation_sequence = ?, activated_at = ?
+                WHERE deployment_instance_id = ?
+                """,
+                (continuation, now, str(authority.deployment_instance_id)),
+            )
+            connection.commit()
+            return RunnerFactStreamCutover(
+                deployment_instance_id=authority.deployment_instance_id,
+                target_stream_key=authority.stream_key,
+                state="active",
+                legacy_stream_keys=legacy_stream_keys,
+                continuation_sequence=continuation,
+            )
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def _legacy_stream_keys(
+        self,
+        connection: sqlite3.Connection,
+        authority: RunnerFactAuthority,
+    ) -> tuple[str, ...]:
+        prefix = f"{authority.stream_key}:"
+        rows = connection.execute(
+            """
+            SELECT stream_key FROM runner_fact_stream
+            WHERE substr(stream_key, 1, ?) = ?
+            ORDER BY stream_key
+            """,
+            (len(prefix), prefix),
+        ).fetchall()
+        return tuple(str(row[0]) for row in rows)
+
+    def _assert_stream_intake_open(
+        self,
+        connection: sqlite3.Connection,
+        authority: RunnerFactAuthority,
+    ) -> None:
+        row = connection.execute(
+            "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
+            (str(authority.deployment_instance_id),),
+        ).fetchone()
+        if row is not None:
+            _require_cutover_authority(row, authority)
+            if row["state"] == "frozen":
+                raise RunnerFactStreamCutoverFrozen(
+                    "RunnerFact intake is frozen until legacy PubAck drain completes"
+                )
+            return
+        if self._legacy_stream_keys(connection, authority):
+            raise RunnerFactStreamCutoverRequired(
+                "legacy spec-keyed streams require explicit freeze/drain/activate cutover"
+            )
 
     async def enqueue(
         self,
@@ -885,10 +1277,30 @@ class RunnerFactOutbox:
         identity: RunnerFactIdentity,
         facts: Sequence[Mapping[str, Any]],
     ) -> UUID | None:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            batch_id = self._enqueue_in_transaction(connection, authority, identity, facts)
+            connection.commit()
+            return batch_id
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def _enqueue_in_transaction(
+        self,
+        connection: sqlite3.Connection,
+        authority: RunnerFactAuthority,
+        identity: RunnerFactIdentity,
+        facts: Sequence[Mapping[str, Any]],
+    ) -> UUID | None:
         if not facts:
             return None
         if len(facts) > MAX_FACTS_PER_BATCH:
             raise RunnerFactContractError(f"batch exceeds {MAX_FACTS_PER_BATCH} facts")
+        self._assert_stream_intake_open(connection, authority)
         candidates: list[dict[str, Any]] = []
         event_ids: set[str] = set()
         for value in facts:
@@ -901,112 +1313,102 @@ class RunnerFactOutbox:
             event_ids.add(event_id)
             fact["event_id"] = event_id
             candidates.append(fact)
-
-        connection = self._connect()
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            placeholders = ",".join("?" for _ in event_ids)
-            seen = {
-                row[0]
-                for row in connection.execute(
-                    f"SELECT event_id FROM runner_fact_seen_event WHERE event_id IN ({placeholders})",
-                    tuple(event_ids),
-                )
-            }
-            candidates = [fact for fact in candidates if fact["event_id"] not in seen]
-            if not candidates:
-                connection.rollback()
-                return None
-            row = connection.execute(
-                "SELECT next_sequence FROM runner_fact_stream WHERE stream_key = ?",
-                (authority.stream_key,),
-            ).fetchone()
-            source_seq_start = int(row[0]) if row else 1
-            sequenced: list[dict[str, Any]] = []
-            for offset, fact in enumerate(candidates):
-                sequenced.append({**fact, "seq": source_seq_start + offset})
-            source_seq_end = source_seq_start + len(sequenced) - 1
-            batch_id = uuid4()
-            emitted_at = _utc_now()
-            payload_digest = _sha256_hex(_canonical_json_bytes(sequenced))
-            signing_payload = {
-                "schema_version": RUNNER_FACT_SCHEMA_VERSION,
-                "batch_id": str(batch_id),
-                "tenant_id": authority.tenant_id,
-                "trading_mode": authority.trading_mode,
-                "runner_id": str(authority.runner_id),
-                "deployment_instance_id": str(authority.deployment_instance_id),
-                "deployment_spec_id": str(authority.deployment_spec_id),
-                "deployment_spec_digest": authority.deployment_spec_digest,
-                "strategy_id": str(authority.strategy_id),
-                "capability_version_id": str(authority.capability_version_id),
-                "capability_version": authority.capability_version,
-                "capability_manifest_digest": authority.capability_manifest_digest,
-                "key_id": identity.key_id,
-                "emitted_at": emitted_at,
-                "source_seq_start": source_seq_start,
-                "source_seq_end": source_seq_end,
-                "payload_digest": payload_digest,
-            }
-            batch = {
-                **signing_payload,
-                "facts": sequenced,
-                "signature": identity.sign_batch_payload(_canonical_json_bytes(signing_payload)),
-            }
-            payload = _canonical_json_bytes(batch)
-            if len(payload) > MAX_BATCH_BYTES:
-                raise RunnerFactContractError(f"batch exceeds {MAX_BATCH_BYTES} bytes")
-            connection.execute(
-                """
-                INSERT INTO runner_fact_outbox (
-                    batch_id, stream_key, subject, source_seq_start, source_seq_end,
-                    payload, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
+        placeholders = ",".join("?" for _ in event_ids)
+        seen = {
+            row[0]
+            for row in connection.execute(
+                f"SELECT event_id FROM runner_fact_seen_event WHERE event_id IN ({placeholders})",
+                tuple(event_ids),
+            )
+        }
+        candidates = [fact for fact in candidates if fact["event_id"] not in seen]
+        if not candidates:
+            return None
+        row = connection.execute(
+            "SELECT next_sequence FROM runner_fact_stream WHERE stream_key = ?",
+            (authority.stream_key,),
+        ).fetchone()
+        source_seq_start = int(row[0]) if row else 1
+        sequenced = [
+            {**fact, "seq": source_seq_start + offset} for offset, fact in enumerate(candidates)
+        ]
+        source_seq_end = source_seq_start + len(sequenced) - 1
+        batch_id = uuid4()
+        emitted_at = _utc_now()
+        payload_digest = _sha256_hex(_canonical_json_bytes(sequenced))
+        signing_payload = {
+            "schema_version": RUNNER_FACT_SCHEMA_VERSION,
+            "batch_id": str(batch_id),
+            "tenant_id": authority.tenant_id,
+            "trading_mode": authority.trading_mode,
+            "runner_id": str(authority.runner_id),
+            "deployment_instance_id": str(authority.deployment_instance_id),
+            "deployment_spec_id": str(authority.deployment_spec_id),
+            "deployment_spec_digest": authority.deployment_spec_digest,
+            "generation": authority.generation,
+            "strategy_id": str(authority.strategy_id),
+            "capability_version_id": str(authority.capability_version_id),
+            "capability_version": authority.capability_version,
+            "capability_manifest_digest": authority.capability_manifest_digest,
+            "key_id": identity.key_id,
+            "emitted_at": emitted_at,
+            "source_seq_start": source_seq_start,
+            "source_seq_end": source_seq_end,
+            "payload_digest": payload_digest,
+        }
+        batch = {
+            **signing_payload,
+            "facts": sequenced,
+            "signature": identity.sign_batch_payload(_canonical_json_bytes(signing_payload)),
+        }
+        payload = _canonical_json_bytes(batch)
+        if len(payload) > MAX_BATCH_BYTES:
+            raise RunnerFactContractError(f"batch exceeds {MAX_BATCH_BYTES} bytes")
+        connection.execute(
+            """
+            INSERT INTO runner_fact_outbox (
+                batch_id, stream_key, subject, source_seq_start, source_seq_end,
+                payload, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(batch_id),
+                authority.stream_key,
+                authority.subject,
+                source_seq_start,
+                source_seq_end,
+                payload,
+                emitted_at,
+            ),
+        )
+        connection.executemany(
+            """
+            INSERT INTO runner_fact_seen_event (
+                event_id, stream_key, source_sequence, batch_id, recorded_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            [
                 (
-                    str(batch_id),
+                    fact["event_id"],
                     authority.stream_key,
-                    authority.subject,
-                    source_seq_start,
-                    source_seq_end,
-                    payload,
+                    fact["seq"],
+                    str(batch_id),
                     emitted_at,
-                ),
-            )
-            connection.executemany(
-                """
-                INSERT INTO runner_fact_seen_event (
-                    event_id, stream_key, source_sequence, batch_id, recorded_at
-                ) VALUES (?, ?, ?, ?, ?)
-                """,
-                [
-                    (
-                        fact["event_id"],
-                        authority.stream_key,
-                        fact["seq"],
-                        str(batch_id),
-                        emitted_at,
-                    )
-                    for fact in sequenced
-                ],
-            )
-            connection.execute(
-                """
-                INSERT INTO runner_fact_stream (stream_key, next_sequence, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(stream_key) DO UPDATE SET
-                    next_sequence = excluded.next_sequence,
-                    updated_at = excluded.updated_at
-                """,
-                (authority.stream_key, source_seq_end + 1, emitted_at),
-            )
-            connection.commit()
-            return batch_id
-        except Exception:
-            connection.rollback()
-            raise
-        finally:
-            connection.close()
+                )
+                for fact in sequenced
+            ],
+        )
+        connection.execute(
+            """
+            INSERT INTO runner_fact_stream (stream_key, next_sequence, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(stream_key) DO UPDATE SET
+                next_sequence = excluded.next_sequence,
+                updated_at = excluded.updated_at
+            """,
+            (authority.stream_key, source_seq_end + 1, emitted_at),
+        )
+        return batch_id
 
     async def pending(self, limit: int = 64) -> list[PendingRunnerFactBatch]:
         return await asyncio.to_thread(self._pending, limit)

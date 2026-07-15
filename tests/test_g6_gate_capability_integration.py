@@ -67,6 +67,7 @@ def _authority(value: dict, *, strategy_id: str) -> RunnerFactAuthority:
         deployment_instance_id=UUID(value["deployment_instance_id"]),
         deployment_spec_id=UUID(value["spec_id"]),
         deployment_spec_digest=value["deployment_spec_digest"],
+        generation=int(value["generation"]),
         strategy_id=UUID(strategy_id),
         capability_version_id=UUID("60000000-0000-4000-8000-000000000006"),
         capability_version=1,

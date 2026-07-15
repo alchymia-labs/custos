@@ -395,6 +395,7 @@ class NtTradingNodeHost:
             deployment_instance_id=deployment_instance_id,
             deployment_spec_id=spec_id,
             deployment_spec_digest=deployment_spec_digest,
+            generation=int(spec["generation"]),
             strategy_id=strategy_id,
         )
         authority = RunnerFactAuthority(
