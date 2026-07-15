@@ -248,3 +248,428 @@ async def test_cutover_rejects_cross_tenant_instance_rebinding(tmp_path: Path) -
 
     with pytest.raises(RunnerStateAuthorityError, match="different authority"):
         await outbox.freeze_stream_cutover(replace(authority, tenant_id="other-tenant"))
+
+
+T4_GOLDEN_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "docs/authority/vendor/crucible-plan-89/docs/authority/golden/"
+    "crucible-runner-deployment-command-v1.json"
+)
+T4_COMMAND_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
+T4_OTHER_COMMAND_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(33, 65)))
+T4_RUNNER_ID = UUID("70000000-0000-4000-8000-000000000007")
+
+
+def _t4_encode(value: bytes) -> str:
+    import base64
+
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode()
+
+
+def _t4_decode(value: str) -> bytes:
+    import base64
+
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def _t4_compact(value: object) -> bytes:
+    import json
+
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
+
+
+def _t4_signed_fixture(
+    *,
+    private_key: Ed25519PrivateKey = T4_COMMAND_KEY,
+    mutate_event=None,
+) -> tuple[bytes, str]:
+    import copy
+    import json
+
+    fixture = json.loads(T4_GOLDEN_PATH.read_text(encoding="utf-8"))
+    subject = fixture["subject"]
+    envelope = copy.deepcopy(fixture["signed_envelope"])
+    event = json.loads(_t4_decode(envelope["event_bytes"]))
+    if mutate_event is not None:
+        mutate_event(event)
+    event_bytes = _t4_compact(event)
+    subject_bytes = subject.encode()
+    framed = b"".join(
+        (
+            b"CRUCIBLE-DOMAIN-EVENT-V2\0",
+            len(subject_bytes).to_bytes(4, "big"),
+            subject_bytes,
+            len(event_bytes).to_bytes(8, "big"),
+            event_bytes,
+        )
+    )
+    envelope["event_bytes"] = _t4_encode(event_bytes)
+    envelope["signature_key_id"] = "crucible-command-key-a"
+    envelope["signature"] = _t4_encode(private_key.sign(framed))
+    return _t4_compact(envelope), subject
+
+
+def _t4_authenticator():
+    from custos.core.runner_command_intake import CrucibleRunnerCommandAuthenticator
+
+    return CrucibleRunnerCommandAuthenticator(
+        expected_tenant_id="contract-only-example",
+        expected_runner_id=T4_RUNNER_ID,
+        allowed_trading_modes=frozenset({"sandbox"}),
+        signature_keys={"crucible-command-key-a": T4_COMMAND_KEY.public_key()},
+    )
+
+
+def _t4_verified(*, mutate_event=None):
+    raw, subject = _t4_signed_fixture(mutate_event=mutate_event)
+    verified = _t4_authenticator().verify(
+        subject=subject,
+        signed_envelope_bytes=raw,
+    )
+    return raw, subject, verified
+
+
+def _t4_authority(verified):
+    command = verified.command
+    return RunnerFactAuthority(
+        tenant_id=command.tenant_id,
+        trading_mode=command.trading_mode,
+        runner_id=command.runner_id,
+        deployment_instance_id=command.deployment_instance_id,
+        deployment_spec_id=command.deployment_spec_id,
+        deployment_spec_digest=command.deployment_spec_digest,
+        generation=command.generation,
+        strategy_id=UUID("11000000-0000-4000-8000-000000000011"),
+        capability_version_id=UUID("12000000-0000-4000-8000-000000000012"),
+        capability_version=1,
+        capability_manifest_digest="b" * 64,
+    )
+
+
+def _t4_store(
+    database: Path,
+    *,
+    tenant_id: str = "contract-only-example",
+    identity=None,
+):
+    from custos.core.runner_fact import RunnerStateStore
+
+    outbox = RunnerFactOutbox(database)
+    signing_identity = identity or RunnerFactIdentity(
+        Ed25519PrivateKey.from_private_bytes(bytes(range(65, 97))),
+        "runner-state-key",
+    )
+    store = RunnerStateStore(
+        outbox=outbox,
+        identity=signing_identity,
+        tenant_id=tenant_id,
+        runner_id=T4_RUNNER_ID,
+        authority_resolver=_t4_authority,
+    )
+    return outbox, store
+
+
+@pytest.mark.asyncio
+async def test_desired_command_persists_exact_bytes_and_replays_idempotently(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "runner-state.sqlite3"
+    _, store = _t4_store(database)
+    _, _, verified = _t4_verified()
+
+    first = await store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+    second = await store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+
+    assert first.decision.value == "newer"
+    assert second.decision.value == "idempotent"
+    with sqlite3.connect(database) as connection:
+        row = connection.execute(
+            """
+            SELECT exact_subject, command_fingerprint, exact_event_bytes,
+                   verified_event_bytes_digest, verification_receipt
+            FROM desired_deployments
+            WHERE deployment_instance_id = ?
+            """,
+            (str(verified.command.deployment_instance_id),),
+        ).fetchone()
+    assert row is not None
+    assert row[0] == verified.command.verified_subject
+    assert row[1] == verified.command_fingerprint
+    assert row[2] == verified.command.exact_signed_event_bytes
+    assert row[3] == verified.verification_receipt.verified_event_bytes_sha256
+    assert verified.verification_receipt.signature_key_id in row[4]
+
+
+@pytest.mark.asyncio
+async def test_applied_commit_is_atomic_with_lifecycle_outbox_and_restart_replay(
+    tmp_path: Path,
+) -> None:
+    import time
+
+    database = tmp_path / "runner-state.sqlite3"
+    _, store = _t4_store(database)
+    _, _, verified = _t4_verified()
+    await store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+    await store.record_in_progress_lease(
+        delivery_id="delivery-applied",
+        verified=verified,
+        lease_until_ns=time.time_ns() + 60_000_000_000,
+    )
+    await store.record_artifact_activation(
+        verified=verified,
+        activation_id="activation-1",
+        artifact_ref_digest=verified.command.artifact_ref_digest,
+        artifact_evidence_digest=verified.command.artifact_evidence_digest,
+    )
+    await store.record_runner_cap_policy_reference(
+        policy_id="runner-cap-1",
+        policy_revision=1,
+        policy_digest="c" * 64,
+        trading_mode="sandbox",
+        max_notional="1000.00",
+        effective_at_ns=1,
+        expires_at_ns=None,
+        signer_key_id="crucible-policy-key",
+        signed_policy=b"signed-runner-cap-policy",
+    )
+    result = await store.commit_applied_and_enqueue_lifecycle(
+        delivery_id="delivery-applied",
+        verified=verified,
+        engine_handle="engine-1",
+        observed_status="running",
+        artifact_activation_id="activation-1",
+        local_policy_id="runner-cap-1",
+    )
+
+    assert result.committed is True
+    assert result.durable_disposition.value == "ack"
+    assert result.lifecycle_batch_id is not None
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM applied_deployments").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM command_outcomes").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM runner_fact_outbox").fetchone()[0] == 1
+        assert (
+            connection.execute("SELECT count(*) FROM command_in_progress_lease").fetchone()[0] == 0
+        )
+        assert connection.execute("SELECT count(*) FROM artifact_activation").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM runner_cap_policy").fetchone()[0] == 1
+
+    _, restarted_store = _t4_store(database)
+    replay = await restarted_store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+    repeated = await restarted_store.commit_applied_and_enqueue_lifecycle(
+        delivery_id="delivery-applied-redelivery",
+        verified=verified,
+        engine_handle="engine-1",
+        observed_status="running",
+        artifact_activation_id="activation-1",
+        local_policy_id="runner-cap-1",
+    )
+    assert replay.replay_disposition.value == "ack"
+    assert repeated.committed is False
+    assert repeated.lifecycle_batch_id == result.lifecycle_batch_id
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM command_outcomes").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM runner_fact_outbox").fetchone()[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_signing_failure_rolls_back_applied_state_and_lifecycle_outbox(
+    tmp_path: Path,
+) -> None:
+    import time
+
+    class FailingIdentity(RunnerFactIdentity):
+        def sign_batch_payload(self, canonical_payload: bytes) -> str:
+            del canonical_payload
+            raise RuntimeError("simulated signer crash")
+
+    database = tmp_path / "runner-state.sqlite3"
+    identity = FailingIdentity(Ed25519PrivateKey.generate(), "failing-key")
+    _, store = _t4_store(database, identity=identity)
+    _, _, verified = _t4_verified()
+    await store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+    await store.record_in_progress_lease(
+        delivery_id="delivery-crash",
+        verified=verified,
+        lease_until_ns=time.time_ns() + 60_000_000_000,
+    )
+
+    with pytest.raises(RuntimeError, match="simulated signer crash"):
+        await store.commit_applied_and_enqueue_lifecycle(
+            delivery_id="delivery-crash",
+            verified=verified,
+            engine_handle="engine-1",
+            observed_status="running",
+        )
+
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM applied_deployments").fetchone()[0] == 0
+        assert connection.execute("SELECT count(*) FROM command_outcomes").fetchone()[0] == 0
+        assert connection.execute("SELECT count(*) FROM runner_fact_outbox").fetchone()[0] == 0
+        assert (
+            connection.execute("SELECT count(*) FROM command_in_progress_lease").fetchone()[0] == 1
+        )
+
+
+@pytest.mark.asyncio
+async def test_same_generation_different_exact_bytes_is_terminal_and_quarantined(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "runner-state.sqlite3"
+    _, store = _t4_store(database)
+    _, _, first = _t4_verified()
+    _, _, conflicting = _t4_verified(
+        mutate_event=lambda event: event.__setitem__("occurred_at", "2026-07-15T12:00:01Z")
+    )
+    await store.record_desired_command(
+        command=first.command,
+        command_fingerprint=first.command_fingerprint,
+        verification_receipt=first.verification_receipt,
+    )
+    conflict = await store.record_desired_command(
+        command=conflicting.command,
+        command_fingerprint=conflicting.command_fingerprint,
+        verification_receipt=conflicting.verification_receipt,
+    )
+    outcome = await store.commit_verified_terminal_outcome(
+        delivery_id="delivery-conflict",
+        verified=conflicting,
+        outcome="conflict",
+        reason_code="same_generation_different_exact_bytes",
+    )
+    replay = await store.commit_verified_terminal_outcome(
+        delivery_id="delivery-conflict-redelivery",
+        verified=conflicting,
+        outcome="conflict",
+        reason_code="same_generation_different_exact_bytes",
+    )
+
+    assert conflict.decision.value == "conflict"
+    assert outcome.durable_disposition.value == "term"
+    assert replay.committed is False
+    with sqlite3.connect(database) as connection:
+        desired_status = connection.execute(
+            "SELECT desired_status FROM desired_deployments"
+        ).fetchone()[0]
+        assert desired_status == "quarantined"
+        assert connection.execute("SELECT count(*) FROM command_outcomes").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM runner_fact_outbox").fetchone()[0] == 1
+
+
+class _T4Delivery:
+    def __init__(self, *, data: bytes, subject: str, database: Path) -> None:
+        self.data = data
+        self.subject = subject
+        self.database = database
+        self.delivery_id = "delivery-invalid-signature"
+        self.delivered_count = 1
+        self.events: list[str] = []
+
+    async def ack(self) -> None:
+        self.events.append("ack")
+
+    async def nak(self, delay: float | None = None) -> None:
+        self.events.append(f"nak:{delay}")
+
+    async def term(self) -> None:
+        with sqlite3.connect(self.database) as connection:
+            assert connection.execute("SELECT count(*) FROM command_outcomes").fetchone()[0] == 1
+        self.events.append("term")
+
+    async def in_progress(self) -> None:
+        self.events.append("in_progress")
+
+
+@pytest.mark.asyncio
+async def test_untrusted_rejection_is_durable_before_terminal_disposition(
+    tmp_path: Path,
+) -> None:
+    from custos.core.runner_command_intake import CommandDeliveryPolicy, CommandIntakeCoordinator
+
+    database = tmp_path / "runner-state.sqlite3"
+    _, store = _t4_store(database)
+    raw, subject = _t4_signed_fixture(private_key=T4_OTHER_COMMAND_KEY)
+    delivery = _T4Delivery(data=raw, subject=subject, database=database)
+    coordinator = CommandIntakeCoordinator(
+        authenticator=_t4_authenticator(),
+        durability=store,
+        policy=CommandDeliveryPolicy(),
+    )
+
+    result = await coordinator.process(delivery)
+
+    assert result.status.value == "terminal_untrusted_rejection"
+    assert delivery.events == ["term"]
+
+
+@pytest.mark.asyncio
+async def test_local_reservation_exposure_and_cross_tenant_guards(tmp_path: Path) -> None:
+    database = tmp_path / "runner-state.sqlite3"
+    _, store = _t4_store(database)
+    _, _, verified = _t4_verified()
+    await store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+    await store.record_runner_cap_policy_reference(
+        policy_id="runner-cap-1",
+        policy_revision=1,
+        policy_digest="c" * 64,
+        trading_mode="sandbox",
+        max_notional="1000.00",
+        effective_at_ns=1,
+        expires_at_ns=None,
+        signer_key_id="crucible-policy-key",
+        signed_policy=b"signed-runner-cap-policy",
+    )
+    await store.record_order_reservation_reference(
+        deployment_instance_id=verified.command.deployment_instance_id,
+        client_order_id="order-1",
+        policy_id="runner-cap-1",
+        reserved_notional="250.00",
+        filled_exposure="100.00",
+        state="partially_filled",
+    )
+    await store.record_exposure_checkpoint_reference(
+        policy_id="runner-cap-1",
+        open_exposure="100.00",
+        reconstructed_at_ns=10,
+        source_digest="d" * 64,
+    )
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM order_reservation").fetchone()[0] == 1
+        assert (
+            connection.execute("SELECT count(*) FROM runner_exposure_checkpoint").fetchone()[0] == 1
+        )
+
+    _, wrong_tenant_store = _t4_store(
+        tmp_path / "other-tenant.sqlite3",
+        tenant_id="other-tenant",
+    )
+    with pytest.raises(RunnerStateAuthorityError):
+        await wrong_tenant_store.record_desired_command(
+            command=verified.command,
+            command_fingerprint=verified.command_fingerprint,
+            verification_receipt=verified.verification_receipt,
+        )

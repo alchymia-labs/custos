@@ -318,6 +318,14 @@
       "plan_19_task_2_stop": true,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "plan_19_task_4_durable_state_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+      "receipt_status": "READY_DURABLE_STATE_STORE_ONLY",
+      "single_database": true,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [
@@ -420,7 +428,12 @@
       "src/custos/contracts/crucible_runner_command.py",
       "docs/authority/crucible-runner-command-consumer-assets-v1.json",
       "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
-      "tests/test_plan18_t5d_b_runner_command_consumer.py"
+      "tests/test_plan18_t5d_b_runner_command_consumer.py",
+      "src/custos/core/runner_fact.py",
+      "src/custos/core/runner_command_intake.py",
+      "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+      "tests/test_plan19_t4_runner_state_store.py",
+      ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"
     ],
     "forbidden_regex": [
       "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",

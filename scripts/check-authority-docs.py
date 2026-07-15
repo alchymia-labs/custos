@@ -40,6 +40,7 @@ TASK_5D_B_COMMAND_INDEX_PATH = "docs/authority/crucible-runner-command-consumer-
 TASK_5D_B_COMMAND_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
 )
+PLAN_19_T4_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -1492,6 +1493,91 @@ def verify_plan_18_task_6_release_authority(manifest: dict[str, object], errors:
         errors.append("T6e READY receipt ecosystem registration differs")
 
 
+def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[str]) -> None:
+    receipt_path = resolve(PLAN_19_T4_RECEIPT_PATH)
+    if not receipt_path.is_file():
+        errors.append("missing Plan 19 T4 durable-state receipt")
+        return
+    receipt = load_json(receipt_path)
+    expected = {
+        "receipt_status": "READY_DURABLE_STATE_STORE_ONLY",
+        "single_database": True,
+        "single_outbox": "runner_fact_outbox",
+        "runtime_identity": "deployment_instance_id",
+        "t3_durability_port_implemented": True,
+        "applied_lifecycle_atomic": True,
+        "engine_apply_wired": False,
+        "daemon_wired": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    for key, value in expected.items():
+        if receipt.get(key) != value:
+            errors.append(f"Plan 19 T4 receipt {key} differs")
+    if receipt.get("stream_key_fields") != [
+        "tenant_id",
+        "trading_mode",
+        "runner_id",
+        "deployment_instance_id",
+    ]:
+        errors.append("Plan 19 T4 receipt stream identity differs")
+    if receipt.get("signed_fencing_fields") != [
+        "deployment_spec_id",
+        "deployment_spec_digest",
+        "generation",
+    ]:
+        errors.append("Plan 19 T4 receipt signed fencing differs")
+    cutover = receipt.get("stream_cutover")
+    if not isinstance(cutover, dict) or cutover != {
+        "intake_freeze_required": True,
+        "pending_puback_drain_required": True,
+        "per_instance_sequence_continuation": True,
+        "pending_signed_payload_rewrite_allowed": False,
+        "legacy_stream_delete_allowed": False,
+    }:
+        errors.append("Plan 19 T4 receipt stream cutover differs")
+
+    registrations = [
+        entry
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role") == "plan_19_task_4_durable_state_receipt"
+    ]
+    if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T4_RECEIPT_PATH:
+        errors.append("Plan 19 T4 receipt manifest registration differs")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    state = snapshot.get("runner_state_store")
+    if not isinstance(state, dict):
+        errors.append("ecosystem authority lacks runner_state_store")
+    else:
+        for key, value in expected.items():
+            if key in state and state.get(key) != value:
+                errors.append(f"runner_state_store {key} differs")
+        if state.get("status") != "READY_DURABLE_STATE_STORE_ONLY":
+            errors.append("runner_state_store status differs")
+        if state.get("receipt") != PLAN_19_T4_RECEIPT_PATH:
+            errors.append("runner_state_store receipt path differs")
+        if state.get("stream_key_fields") != receipt.get("stream_key_fields"):
+            errors.append("runner_state_store stream identity differs")
+        if state.get("signed_fencing_fields") != receipt.get("signed_fencing_fields"):
+            errors.append("runner_state_store signed fencing differs")
+
+    source = resolve("src/custos/core/runner_fact.py").read_text(encoding="utf-8")
+    markers = (
+        "class RunnerStateStore",
+        "commit_applied_and_enqueue_lifecycle",
+        "commit_verified_command_outcome_and_enqueue_fact",
+        "CREATE TABLE IF NOT EXISTS desired_deployments",
+        "CREATE TABLE IF NOT EXISTS runner_stream_cutover",
+        '"generation": authority.generation',
+    )
+    for marker in markers:
+        if marker not in source:
+            errors.append(f"Plan 19 T4 implementation lacks {marker!r}")
+    if source.count("CREATE TABLE IF NOT EXISTS runner_fact_outbox") != 1:
+        errors.append("Plan 19 T4 must retain exactly one RunnerFact outbox table")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -1537,6 +1623,7 @@ def main() -> int:
     current_source_digest = verify_plan_18_task_5c_v3_artifact_ref(errors)
     verify_plan_18_task_5d_a_contract_consumer(errors)
     verify_plan_18_task_5d_b_command_consumer(errors)
+    verify_plan_19_task_4_durable_state(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

@@ -14,18 +14,30 @@ import json
 import os
 import re
 import sqlite3
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+import time
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal
 from uuid import UUID, uuid4, uuid5
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from custos.core.log import get_logger
+from custos.core.runner_command_intake import (
+    CommandIdentityDecision,
+    CommandTerminalOutcome,
+    CommandVerificationReceipt,
+    DesiredCommandRecord,
+    DurableCommandOutcome,
+    InboundCommandDisposition,
+    VerifiedRunnerCommand,
+    classify_command_identity,
+    compute_command_fingerprint,
+)
 
 RUNNER_FACT_SCHEMA_VERSION: Final = 1
 RUNNER_FACT_SIGNING_DOMAIN: Final = b"CRUCIBLE-RUNNER-FACT-BATCH-V1\0"
@@ -74,6 +86,10 @@ class RunnerFactStreamCutoverFrozen(RunnerFactError):
 
 class RunnerFactPendingPubAckError(RunnerFactError):
     """A stream cutover cannot activate while signed batches await PubAck."""
+
+
+class RunnerStateDurabilityError(RunnerFactError):
+    """A command state transition cannot satisfy the single-store invariant."""
 
 
 def _canonical_json_bytes(value: Any) -> bytes:
@@ -841,6 +857,15 @@ class RunnerFactStreamCutover:
     continuation_sequence: int | None
 
 
+@dataclass(frozen=True, slots=True)
+class CommandOutcomeCommitResult:
+    outcome_id: str
+    outcome: str
+    durable_disposition: InboundCommandDisposition
+    lifecycle_batch_id: UUID | None
+    committed: bool
+
+
 def _require_cutover_authority(
     row: sqlite3.Row,
     authority: RunnerFactAuthority,
@@ -1459,6 +1484,962 @@ class RunnerFactOutbox:
             )
 
 
+class RunnerStateStore:
+    """Command state adapter sharing the one RunnerFact SQLite connection.
+
+    No path or connection factory exists outside ``RunnerFactOutbox``.  Engine
+    composition is intentionally deferred; callers provide the already-bound
+    RunnerFact authority resolver when constructing this adapter.
+    """
+
+    def __init__(
+        self,
+        *,
+        outbox: RunnerFactOutbox,
+        identity: RunnerFactIdentity,
+        tenant_id: str,
+        runner_id: UUID,
+        authority_resolver: Callable[[VerifiedRunnerCommand], RunnerFactAuthority],
+    ) -> None:
+        self._outbox = outbox
+        self._identity = identity
+        self._tenant_id = _non_empty(tenant_id, "tenant_id")
+        self._runner_id = UUID(_uuid(runner_id, "runner_id"))
+        self._authority_resolver = authority_resolver
+
+    @property
+    def database_path(self) -> Path:
+        return self._outbox.path
+
+    async def record_desired_command(
+        self,
+        *,
+        command: Any,
+        command_fingerprint: str,
+        verification_receipt: CommandVerificationReceipt,
+    ) -> DesiredCommandRecord:
+        return await asyncio.to_thread(
+            self._record_desired_command,
+            command,
+            command_fingerprint,
+            verification_receipt,
+        )
+
+    def _record_desired_command(
+        self,
+        command: Any,
+        command_fingerprint: str,
+        verification_receipt: CommandVerificationReceipt,
+    ) -> DesiredCommandRecord:
+        material = self._validated_command_material(
+            command,
+            command_fingerprint,
+            verification_receipt,
+        )
+        connection = self._outbox._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            self._assert_command_intake_open(connection, command)
+            row = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if row is not None:
+                self._require_desired_authority(row, command)
+            decision = classify_command_identity(
+                current_generation=int(row["generation"]) if row else None,
+                current_fingerprint=str(row["command_fingerprint"]) if row else None,
+                incoming_generation=command.generation,
+                incoming_fingerprint=command_fingerprint,
+            )
+            if decision is CommandIdentityDecision.NEWER:
+                connection.execute(
+                    """
+                    INSERT INTO desired_deployments (
+                        deployment_instance_id, tenant_id, trading_mode, runner_id,
+                        deployment_spec_id, deployment_spec_digest, generation,
+                        command_event_id, exact_subject, command_fingerprint,
+                        verified_event_bytes_digest, signer_key_id, signature_profile,
+                        verification_receipt, canonical_command, exact_event_bytes,
+                        desired_status, quarantine_reason, updated_at_ns
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                              'recorded', NULL, ?)
+                    ON CONFLICT(deployment_instance_id) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
+                        trading_mode = excluded.trading_mode,
+                        runner_id = excluded.runner_id,
+                        deployment_spec_id = excluded.deployment_spec_id,
+                        deployment_spec_digest = excluded.deployment_spec_digest,
+                        generation = excluded.generation,
+                        command_event_id = excluded.command_event_id,
+                        exact_subject = excluded.exact_subject,
+                        command_fingerprint = excluded.command_fingerprint,
+                        verified_event_bytes_digest = excluded.verified_event_bytes_digest,
+                        signer_key_id = excluded.signer_key_id,
+                        signature_profile = excluded.signature_profile,
+                        verification_receipt = excluded.verification_receipt,
+                        canonical_command = excluded.canonical_command,
+                        exact_event_bytes = excluded.exact_event_bytes,
+                        desired_status = 'recorded',
+                        quarantine_reason = NULL,
+                        updated_at_ns = excluded.updated_at_ns
+                    """,
+                    (
+                        str(command.deployment_instance_id),
+                        command.tenant_id,
+                        command.trading_mode,
+                        str(command.runner_id),
+                        str(command.deployment_spec_id),
+                        command.deployment_spec_digest,
+                        command.generation,
+                        material["event_id"],
+                        command.verified_subject,
+                        command_fingerprint,
+                        verification_receipt.verified_event_bytes_sha256,
+                        verification_receipt.signature_key_id,
+                        verification_receipt.signature_profile,
+                        material["verification_receipt"],
+                        material["canonical_command"],
+                        command.exact_signed_event_bytes,
+                        time.time_ns(),
+                    ),
+                )
+            replay_disposition = InboundCommandDisposition.NONE
+            if decision is CommandIdentityDecision.IDEMPOTENT:
+                outcome = connection.execute(
+                    """
+                    SELECT durable_disposition FROM command_outcomes
+                    WHERE deployment_instance_id = ? AND generation = ?
+                      AND command_fingerprint = ?
+                    ORDER BY recorded_at_ns DESC LIMIT 1
+                    """,
+                    (
+                        str(command.deployment_instance_id),
+                        command.generation,
+                        command_fingerprint,
+                    ),
+                ).fetchone()
+                if outcome is not None:
+                    replay_disposition = InboundCommandDisposition(outcome["durable_disposition"])
+            connection.commit()
+            return DesiredCommandRecord(
+                deployment_instance_id=command.deployment_instance_id,
+                generation=command.generation,
+                command_fingerprint=command_fingerprint,
+                decision=decision,
+                committed=True,
+                replay_disposition=replay_disposition,
+            )
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    async def commit_untrusted_command_rejection(
+        self,
+        *,
+        delivery_id: str,
+        exact_subject: str,
+        raw_envelope_digest: str,
+        reason_code: Literal["invalid_signature", "invalid_schema", "unsupported_version"],
+    ) -> DurableCommandOutcome:
+        return await asyncio.to_thread(
+            self._commit_untrusted_command_rejection,
+            delivery_id,
+            exact_subject,
+            raw_envelope_digest,
+            reason_code,
+        )
+
+    def _commit_untrusted_command_rejection(
+        self,
+        delivery_id: str,
+        exact_subject: str,
+        raw_envelope_digest: str,
+        reason_code: str,
+    ) -> DurableCommandOutcome:
+        delivery = _non_empty(delivery_id, "delivery_id")
+        subject = _non_empty(exact_subject, "exact_subject")
+        _state_digest(raw_envelope_digest, "raw_envelope_digest")
+        if reason_code not in {
+            "invalid_signature",
+            "invalid_schema",
+            "unsupported_version",
+        }:
+            raise RunnerStateDurabilityError("untrusted rejection reason code is invalid")
+        outcome_id = str(
+            runner_fact_event_id(
+                "untrusted_command_rejection",
+                self._tenant_id,
+                self._runner_id,
+                subject,
+                raw_envelope_digest,
+                reason_code,
+            )
+        )
+        with self._outbox._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT OR IGNORE INTO command_outcomes (
+                    outcome_id, delivery_id, tenant_id, runner_id, exact_subject,
+                    raw_envelope_digest, outcome, reason_code,
+                    durable_disposition, recorded_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, 'untrusted_rejection', ?, 'term', ?)
+                """,
+                (
+                    outcome_id,
+                    delivery,
+                    self._tenant_id,
+                    str(self._runner_id),
+                    subject,
+                    raw_envelope_digest,
+                    reason_code,
+                    time.time_ns(),
+                ),
+            )
+        return DurableCommandOutcome(
+            outcome_id=outcome_id,
+            outcome=CommandTerminalOutcome.UNTRUSTED_REJECTION,
+            durable_disposition=InboundCommandDisposition.TERM,
+            committed=cursor.rowcount == 1,
+        )
+
+    async def commit_verified_terminal_outcome(
+        self,
+        *,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        outcome: Literal["conflict", "stale", "retry_exhausted"],
+        reason_code: str,
+    ) -> DurableCommandOutcome:
+        result = await self.commit_verified_command_outcome_and_enqueue_fact(
+            delivery_id=delivery_id,
+            verified=verified,
+            outcome=outcome,
+            reason_code=reason_code,
+            engine_handle=None,
+            observed_status="quarantined" if outcome != "stale" else "stale_rejected",
+            lifecycle_state="stopped",
+        )
+        return DurableCommandOutcome(
+            outcome_id=result.outcome_id,
+            outcome=CommandTerminalOutcome(outcome),
+            durable_disposition=result.durable_disposition,
+            committed=result.committed,
+        )
+
+    async def commit_applied_and_enqueue_lifecycle(
+        self,
+        *,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        engine_handle: str | None,
+        observed_status: str,
+        artifact_activation_id: str | None = None,
+        local_policy_id: str | None = None,
+    ) -> CommandOutcomeCommitResult:
+        return await self.commit_verified_command_outcome_and_enqueue_fact(
+            delivery_id=delivery_id,
+            verified=verified,
+            outcome="applied",
+            reason_code="applied",
+            engine_handle=engine_handle,
+            observed_status=observed_status,
+            lifecycle_state=verified.command.lifecycle_state,
+            artifact_activation_id=artifact_activation_id,
+            local_policy_id=local_policy_id,
+        )
+
+    async def commit_verified_command_outcome_and_enqueue_fact(
+        self,
+        *,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        outcome: Literal["applied", "conflict", "stale", "retry_exhausted"],
+        reason_code: str,
+        engine_handle: str | None,
+        observed_status: str,
+        lifecycle_state: str,
+        artifact_activation_id: str | None = None,
+        local_policy_id: str | None = None,
+    ) -> CommandOutcomeCommitResult:
+        authority = self._authority_for_verified(verified)
+        lifecycle_fact = _command_lifecycle_fact(
+            authority=authority,
+            command_fingerprint=verified.command_fingerprint,
+            outcome=outcome,
+            lifecycle_state=lifecycle_state,
+        )
+        return await asyncio.to_thread(
+            self._commit_verified_command_outcome_and_enqueue_fact,
+            delivery_id,
+            verified,
+            authority,
+            outcome,
+            reason_code,
+            engine_handle,
+            observed_status,
+            lifecycle_fact,
+            artifact_activation_id,
+            local_policy_id,
+        )
+
+    def _commit_verified_command_outcome_and_enqueue_fact(
+        self,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        authority: RunnerFactAuthority,
+        outcome: str,
+        reason_code: str,
+        engine_handle: str | None,
+        observed_status: str,
+        lifecycle_fact: Mapping[str, Any],
+        artifact_activation_id: str | None,
+        local_policy_id: str | None,
+    ) -> CommandOutcomeCommitResult:
+        if outcome not in {"applied", "conflict", "stale", "retry_exhausted"}:
+            raise RunnerStateDurabilityError("verified command outcome is invalid")
+        delivery = _non_empty(delivery_id, "delivery_id")
+        reason = _non_empty(reason_code, "reason_code")
+        observed = _non_empty(observed_status, "observed_status")
+        command = verified.command
+        self._validated_command_material(
+            command,
+            verified.command_fingerprint,
+            verified.verification_receipt,
+        )
+        expected_event_id = str(
+            command_lifecycle_event_id(
+                deployment_instance_id=command.deployment_instance_id,
+                deployment_spec_id=command.deployment_spec_id,
+                generation=command.generation,
+                lifecycle_state=str(lifecycle_fact.get("lifecycle_state") or ""),
+                command_fingerprint=verified.command_fingerprint,
+                outcome=outcome,
+            )
+        )
+        if lifecycle_fact.get("event_id") != expected_event_id:
+            raise RunnerStateDurabilityError("lifecycle event id is not deterministic")
+        disposition = (
+            InboundCommandDisposition.ACK
+            if outcome == "applied"
+            else InboundCommandDisposition.TERM
+        )
+        outcome_id = str(
+            runner_fact_event_id(
+                "command_outcome",
+                command.deployment_instance_id,
+                command.deployment_spec_id,
+                command.generation,
+                verified.command_fingerprint,
+                outcome,
+                reason,
+            )
+        )
+        connection = self._outbox._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                "SELECT * FROM command_outcomes WHERE outcome_id = ?",
+                (outcome_id,),
+            ).fetchone()
+            if existing is not None:
+                connection.commit()
+                return CommandOutcomeCommitResult(
+                    outcome_id=outcome_id,
+                    outcome=outcome,
+                    durable_disposition=InboundCommandDisposition(existing["durable_disposition"]),
+                    lifecycle_batch_id=(
+                        UUID(existing["lifecycle_batch_id"])
+                        if existing["lifecycle_batch_id"]
+                        else None
+                    ),
+                    committed=False,
+                )
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None:
+                raise RunnerStateDurabilityError(
+                    "verified outcome requires a durable desired command"
+                )
+            self._require_desired_authority(desired, command)
+            if outcome in {"applied", "retry_exhausted"} and (
+                int(desired["generation"]) != command.generation
+                or desired["command_fingerprint"] != verified.command_fingerprint
+            ):
+                raise RunnerStateDurabilityError(
+                    "verified outcome differs from the current desired command"
+                )
+            if outcome == "conflict" and (
+                int(desired["generation"]) != command.generation
+                or desired["command_fingerprint"] == verified.command_fingerprint
+            ):
+                raise RunnerStateDurabilityError("conflict outcome lacks a durable conflict")
+            if outcome == "stale" and int(desired["generation"]) <= command.generation:
+                raise RunnerStateDurabilityError("stale outcome is not older than desired state")
+            if artifact_activation_id is not None:
+                activation = connection.execute(
+                    """
+                    SELECT * FROM artifact_activation
+                    WHERE activation_id = ? AND deployment_instance_id = ?
+                      AND generation = ? AND state = 'active'
+                    """,
+                    (
+                        artifact_activation_id,
+                        str(command.deployment_instance_id),
+                        command.generation,
+                    ),
+                ).fetchone()
+                if activation is None:
+                    raise RunnerStateDurabilityError(
+                        "applied command artifact activation is absent or quarantined"
+                    )
+            if local_policy_id is not None:
+                policy = connection.execute(
+                    """
+                    SELECT 1 FROM runner_cap_policy
+                    WHERE policy_id = ? AND tenant_scope = ? AND trading_mode = ?
+                    """,
+                    (local_policy_id, command.tenant_id, command.trading_mode),
+                ).fetchone()
+                if policy is None:
+                    raise RunnerStateDurabilityError(
+                        "applied command local policy reference is absent or cross-scope"
+                    )
+            if outcome == "applied":
+                connection.execute(
+                    """
+                    INSERT INTO applied_deployments (
+                        deployment_instance_id, deployment_spec_id,
+                        deployment_spec_digest, generation, command_fingerprint,
+                        engine_handle, observed_status, restart_count,
+                        quarantine_reason, artifact_activation_id, local_policy_id,
+                        updated_at_ns
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)
+                    ON CONFLICT(deployment_instance_id) DO UPDATE SET
+                        deployment_spec_id = excluded.deployment_spec_id,
+                        deployment_spec_digest = excluded.deployment_spec_digest,
+                        generation = excluded.generation,
+                        command_fingerprint = excluded.command_fingerprint,
+                        engine_handle = excluded.engine_handle,
+                        observed_status = excluded.observed_status,
+                        quarantine_reason = NULL,
+                        artifact_activation_id = excluded.artifact_activation_id,
+                        local_policy_id = excluded.local_policy_id,
+                        updated_at_ns = excluded.updated_at_ns
+                    """,
+                    (
+                        str(command.deployment_instance_id),
+                        str(command.deployment_spec_id),
+                        command.deployment_spec_digest,
+                        command.generation,
+                        verified.command_fingerprint,
+                        engine_handle,
+                        observed,
+                        artifact_activation_id,
+                        local_policy_id,
+                        time.time_ns(),
+                    ),
+                )
+            elif outcome in {"conflict", "retry_exhausted"}:
+                connection.execute(
+                    """
+                    UPDATE desired_deployments
+                    SET desired_status = 'quarantined', quarantine_reason = ?,
+                        updated_at_ns = ?
+                    WHERE deployment_instance_id = ?
+                    """,
+                    (reason, time.time_ns(), str(command.deployment_instance_id)),
+                )
+                connection.execute(
+                    """
+                    UPDATE applied_deployments
+                    SET observed_status = 'quarantined', quarantine_reason = ?,
+                        updated_at_ns = ?
+                    WHERE deployment_instance_id = ?
+                    """,
+                    (reason, time.time_ns(), str(command.deployment_instance_id)),
+                )
+            lifecycle_batch_id = self._outbox._enqueue_in_transaction(
+                connection,
+                authority,
+                self._identity,
+                (lifecycle_fact,),
+            )
+            connection.execute(
+                """
+                INSERT INTO command_outcomes (
+                    outcome_id, delivery_id, tenant_id, trading_mode, runner_id,
+                    deployment_instance_id, generation, command_fingerprint,
+                    exact_subject, outcome, reason_code, durable_disposition,
+                    lifecycle_batch_id, recorded_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    outcome_id,
+                    delivery,
+                    command.tenant_id,
+                    command.trading_mode,
+                    str(command.runner_id),
+                    str(command.deployment_instance_id),
+                    command.generation,
+                    verified.command_fingerprint,
+                    command.verified_subject,
+                    outcome,
+                    reason,
+                    disposition.value,
+                    str(lifecycle_batch_id) if lifecycle_batch_id else None,
+                    time.time_ns(),
+                ),
+            )
+            if outcome == "applied":
+                connection.execute(
+                    """
+                    UPDATE desired_deployments
+                    SET desired_status = 'applied', updated_at_ns = ?
+                    WHERE deployment_instance_id = ?
+                    """,
+                    (time.time_ns(), str(command.deployment_instance_id)),
+                )
+            connection.execute(
+                "DELETE FROM command_in_progress_lease WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            )
+            connection.commit()
+            return CommandOutcomeCommitResult(
+                outcome_id=outcome_id,
+                outcome=outcome,
+                durable_disposition=disposition,
+                lifecycle_batch_id=lifecycle_batch_id,
+                committed=True,
+            )
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    async def record_in_progress_lease(
+        self,
+        *,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        lease_until_ns: int,
+    ) -> None:
+        await asyncio.to_thread(
+            self._record_in_progress_lease,
+            delivery_id,
+            verified,
+            lease_until_ns,
+        )
+
+    def _record_in_progress_lease(
+        self,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        lease_until_ns: int,
+    ) -> None:
+        if type(lease_until_ns) is not int or lease_until_ns <= time.time_ns():
+            raise RunnerStateDurabilityError("in-progress lease must expire in the future")
+        with self._outbox._connect() as connection:
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(verified.command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None or (
+                int(desired["generation"]) != verified.command.generation
+                or desired["command_fingerprint"] != verified.command_fingerprint
+            ):
+                raise RunnerStateDurabilityError(
+                    "in-progress lease requires the current durable desired command"
+                )
+            connection.execute(
+                """
+                INSERT INTO command_in_progress_lease (
+                    deployment_instance_id, delivery_id, generation,
+                    command_fingerprint, lease_until_ns, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(deployment_instance_id) DO UPDATE SET
+                    delivery_id = excluded.delivery_id,
+                    generation = excluded.generation,
+                    command_fingerprint = excluded.command_fingerprint,
+                    lease_until_ns = excluded.lease_until_ns,
+                    updated_at_ns = excluded.updated_at_ns
+                """,
+                (
+                    str(verified.command.deployment_instance_id),
+                    _non_empty(delivery_id, "delivery_id"),
+                    verified.command.generation,
+                    verified.command_fingerprint,
+                    lease_until_ns,
+                    time.time_ns(),
+                ),
+            )
+
+    async def record_artifact_activation(
+        self,
+        *,
+        verified: VerifiedRunnerCommand,
+        activation_id: str,
+        artifact_ref_digest: str,
+        artifact_evidence_digest: str,
+    ) -> None:
+        await asyncio.to_thread(
+            self._record_artifact_activation,
+            verified,
+            activation_id,
+            artifact_ref_digest,
+            artifact_evidence_digest,
+        )
+
+    def _record_artifact_activation(
+        self,
+        verified: VerifiedRunnerCommand,
+        activation_id: str,
+        artifact_ref_digest: str,
+        artifact_evidence_digest: str,
+    ) -> None:
+        _state_digest(artifact_ref_digest, "artifact_ref_digest")
+        _state_digest(artifact_evidence_digest, "artifact_evidence_digest")
+        command = verified.command
+        with self._outbox._connect() as connection:
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None or desired["command_fingerprint"] != verified.command_fingerprint:
+                raise RunnerStateDurabilityError(
+                    "artifact activation requires the current desired command"
+                )
+            connection.execute(
+                """
+                INSERT INTO artifact_activation (
+                    activation_id, deployment_instance_id, deployment_spec_id,
+                    deployment_spec_digest, generation, artifact_ref_digest,
+                    artifact_evidence_digest, state, activated_at_ns, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+                ON CONFLICT(activation_id) DO UPDATE SET
+                    state = 'active', quarantine_reason = NULL,
+                    updated_at_ns = excluded.updated_at_ns
+                """,
+                (
+                    _non_empty(activation_id, "activation_id"),
+                    str(command.deployment_instance_id),
+                    str(command.deployment_spec_id),
+                    command.deployment_spec_digest,
+                    command.generation,
+                    artifact_ref_digest,
+                    artifact_evidence_digest,
+                    time.time_ns(),
+                    time.time_ns(),
+                ),
+            )
+
+    async def record_runner_cap_policy_reference(
+        self,
+        *,
+        policy_id: str,
+        policy_revision: int,
+        policy_digest: str,
+        trading_mode: str,
+        max_notional: str,
+        effective_at_ns: int,
+        expires_at_ns: int | None,
+        signer_key_id: str,
+        signed_policy: bytes,
+    ) -> None:
+        if type(policy_revision) is not int or policy_revision < 1:
+            raise RunnerStateDurabilityError("policy revision must be positive")
+        _state_digest(policy_digest, "policy_digest")
+        if trading_mode not in {"sandbox", "testnet", "live"}:
+            raise RunnerStateDurabilityError("policy trading mode is invalid")
+        if type(signed_policy) is not bytes or not signed_policy:
+            raise RunnerStateDurabilityError("signed policy bytes are required")
+        with self._outbox._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO runner_cap_policy (
+                    policy_id, policy_revision, policy_digest, tenant_scope,
+                    trading_mode, max_notional, effective_at_ns, expires_at_ns,
+                    signer_key_id, signed_policy
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(policy_id) DO UPDATE SET
+                    policy_revision = excluded.policy_revision,
+                    policy_digest = excluded.policy_digest,
+                    max_notional = excluded.max_notional,
+                    effective_at_ns = excluded.effective_at_ns,
+                    expires_at_ns = excluded.expires_at_ns,
+                    signer_key_id = excluded.signer_key_id,
+                    signed_policy = excluded.signed_policy
+                """,
+                (
+                    _non_empty(policy_id, "policy_id"),
+                    policy_revision,
+                    policy_digest,
+                    self._tenant_id,
+                    trading_mode,
+                    _non_empty(max_notional, "max_notional"),
+                    effective_at_ns,
+                    expires_at_ns,
+                    _non_empty(signer_key_id, "signer_key_id"),
+                    signed_policy,
+                ),
+            )
+
+    async def record_order_reservation_reference(
+        self,
+        *,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        policy_id: str,
+        reserved_notional: str,
+        filled_exposure: str,
+        state: str,
+    ) -> None:
+        await asyncio.to_thread(
+            self._record_order_reservation_reference,
+            deployment_instance_id,
+            client_order_id,
+            policy_id,
+            reserved_notional,
+            filled_exposure,
+            state,
+        )
+
+    def _record_order_reservation_reference(
+        self,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        policy_id: str,
+        reserved_notional: str,
+        filled_exposure: str,
+        state: str,
+    ) -> None:
+        with self._outbox._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO order_reservation (
+                    deployment_instance_id, client_order_id, policy_id,
+                    reserved_notional, filled_exposure, state, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(deployment_instance_id, client_order_id) DO UPDATE SET
+                    policy_id = excluded.policy_id,
+                    reserved_notional = excluded.reserved_notional,
+                    filled_exposure = excluded.filled_exposure,
+                    state = excluded.state,
+                    updated_at_ns = excluded.updated_at_ns
+                """,
+                (
+                    _uuid(deployment_instance_id, "deployment_instance_id"),
+                    _non_empty(client_order_id, "client_order_id"),
+                    _non_empty(policy_id, "policy_id"),
+                    _non_empty(reserved_notional, "reserved_notional"),
+                    _non_empty(filled_exposure, "filled_exposure"),
+                    _non_empty(state, "state"),
+                    time.time_ns(),
+                ),
+            )
+
+    async def record_exposure_checkpoint_reference(
+        self,
+        *,
+        policy_id: str,
+        open_exposure: str,
+        reconstructed_at_ns: int,
+        source_digest: str,
+    ) -> None:
+        _state_digest(source_digest, "source_digest")
+        with self._outbox._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO runner_exposure_checkpoint (
+                    policy_id, open_exposure, reconstructed_at_ns, source_digest
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(policy_id) DO UPDATE SET
+                    open_exposure = excluded.open_exposure,
+                    reconstructed_at_ns = excluded.reconstructed_at_ns,
+                    source_digest = excluded.source_digest
+                """,
+                (
+                    _non_empty(policy_id, "policy_id"),
+                    _non_empty(open_exposure, "open_exposure"),
+                    reconstructed_at_ns,
+                    source_digest,
+                ),
+            )
+
+    def _validated_command_material(
+        self,
+        command: Any,
+        command_fingerprint: str,
+        verification_receipt: CommandVerificationReceipt,
+    ) -> dict[str, str]:
+        if command.tenant_id != self._tenant_id or command.runner_id != self._runner_id:
+            raise RunnerStateAuthorityError(
+                "verified command differs from the local tenant/runner scope"
+            )
+        expected_fingerprint = compute_command_fingerprint(
+            subject=command.verified_subject,
+            verified_exact_event_bytes=command.exact_signed_event_bytes,
+        )
+        if (
+            command_fingerprint != expected_fingerprint
+            or verification_receipt.command_fingerprint != expected_fingerprint
+            or verification_receipt.exact_subject != command.verified_subject
+            or verification_receipt.producer_fingerprint != command.producer_fingerprint
+            or verification_receipt.verified_event_bytes_sha256
+            != _sha256_hex(command.exact_signed_event_bytes)
+        ):
+            raise RunnerStateDurabilityError(
+                "verified command receipt differs from exact command bytes"
+            )
+        event = json.loads(command.exact_signed_event_bytes)
+        event_id = _uuid(event.get("event_id"), "command_event_id")
+        return {
+            "event_id": event_id,
+            "verification_receipt": _canonical_json_bytes(asdict(verification_receipt)).decode(
+                "utf-8"
+            ),
+            "canonical_command": _canonical_json_bytes(command.model_dump(mode="json")).decode(
+                "utf-8"
+            ),
+        }
+
+    def _authority_for_verified(
+        self,
+        verified: VerifiedRunnerCommand,
+    ) -> RunnerFactAuthority:
+        authority = self._authority_resolver(verified)
+        command = verified.command
+        if (
+            authority.tenant_id != self._tenant_id
+            or authority.tenant_id != command.tenant_id
+            or authority.trading_mode != command.trading_mode
+            or authority.runner_id != self._runner_id
+            or authority.runner_id != command.runner_id
+            or authority.deployment_instance_id != command.deployment_instance_id
+            or authority.deployment_spec_id != command.deployment_spec_id
+            or authority.deployment_spec_digest != command.deployment_spec_digest
+            or authority.generation != command.generation
+        ):
+            raise RunnerStateAuthorityError(
+                "RunnerFact authority differs from verified command fencing"
+            )
+        return authority
+
+    def _require_desired_authority(self, row: sqlite3.Row, command: Any) -> None:
+        if (
+            row["tenant_id"] != command.tenant_id
+            or row["trading_mode"] != command.trading_mode
+            or row["runner_id"] != str(command.runner_id)
+        ):
+            raise RunnerStateAuthorityError(
+                "deployment instance desired state belongs to a different authority"
+            )
+
+    def _assert_command_intake_open(
+        self,
+        connection: sqlite3.Connection,
+        command: Any,
+    ) -> None:
+        target_stream_key = (
+            f"{command.tenant_id}:{command.trading_mode}:{command.runner_id}:"
+            f"{command.deployment_instance_id}"
+        )
+        row = connection.execute(
+            "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
+            (str(command.deployment_instance_id),),
+        ).fetchone()
+        if row is not None:
+            if (
+                row["tenant_id"] != command.tenant_id
+                or row["trading_mode"] != command.trading_mode
+                or row["runner_id"] != str(command.runner_id)
+                or row["target_stream_key"] != target_stream_key
+            ):
+                raise RunnerStateAuthorityError(
+                    "command intake stream belongs to a different authority"
+                )
+            if row["state"] == "frozen":
+                raise RunnerFactStreamCutoverFrozen(
+                    "command intake is frozen until legacy PubAck drain completes"
+                )
+            return
+        legacy_prefix = f"{target_stream_key}:"
+        if connection.execute(
+            """
+            SELECT 1 FROM runner_fact_stream
+            WHERE substr(stream_key, 1, ?) = ? LIMIT 1
+            """,
+            (len(legacy_prefix), legacy_prefix),
+        ).fetchone():
+            raise RunnerFactStreamCutoverRequired("command intake requires legacy stream cutover")
+
+
+def command_lifecycle_event_id(
+    *,
+    deployment_instance_id: UUID,
+    deployment_spec_id: UUID,
+    generation: int,
+    lifecycle_state: str,
+    command_fingerprint: str,
+    outcome: str,
+) -> UUID:
+    return runner_fact_event_id(
+        "command_lifecycle",
+        deployment_instance_id,
+        deployment_spec_id,
+        generation,
+        lifecycle_state,
+        command_fingerprint,
+        outcome,
+    )
+
+
+def _command_lifecycle_fact(
+    *,
+    authority: RunnerFactAuthority,
+    command_fingerprint: str,
+    outcome: str,
+    lifecycle_state: str,
+) -> dict[str, Any]:
+    if lifecycle_state not in {"running", "paused", "stopped", "archived"}:
+        raise RunnerStateDurabilityError("command lifecycle state is invalid")
+    observed_at = _utc_now()
+    return {
+        "kind": "RunnerDeploymentLifecycleFact.v1",
+        "event_id": str(
+            command_lifecycle_event_id(
+                deployment_instance_id=authority.deployment_instance_id,
+                deployment_spec_id=authority.deployment_spec_id,
+                generation=authority.generation,
+                lifecycle_state=lifecycle_state,
+                command_fingerprint=command_fingerprint,
+                outcome=outcome,
+            )
+        ),
+        "occurred_at": observed_at,
+        "tenant_id": authority.tenant_id,
+        "mode": authority.trading_mode,
+        "runner_id": str(authority.runner_id),
+        "deployment_instance_id": str(authority.deployment_instance_id),
+        "deployment_spec_id": str(authority.deployment_spec_id),
+        "deployment_spec_digest": authority.deployment_spec_digest,
+        "generation": authority.generation,
+        "lifecycle_state": lifecycle_state,
+        "observed_at": observed_at,
+    }
+
+
+def _state_digest(value: str, field: str) -> str:
+    if not isinstance(value, str) or not _LOWER_HEX_64.fullmatch(value):
+        raise RunnerStateDurabilityError(f"{field} must be lowercase SHA-256")
+    return value
+
+
 class RunnerFactJetStreamPublisher:
     """Drain a RunnerFactOutbox only after a JetStream PubAck."""
 
@@ -1619,7 +2600,7 @@ def normalize_capability_scope_bindings(
         "deployment_spec_digest",
         "strategy_id",
     }
-    declarations = (
+    declarations: tuple[tuple[str, str, set[str]], ...] = (
         ("settlement", "settlement_scope_bindings", set()),
         ("risk", "risk_scope_bindings", {"resource_type", "resource_id"}),
         (

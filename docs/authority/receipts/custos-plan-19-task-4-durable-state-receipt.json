@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "receipt_id": "CUSTOS-PLAN-19-T4-DURABLE-STATE-V1",
+  "receipt_status": "READY_DURABLE_STATE_STORE_ONLY",
+  "repository": "tesseract-trading/custos",
+  "plan": "Custos Plan 19",
+  "task": "T4",
+  "store_migration_commit": "0400b5c8726b49d1476650dd084265533c5ea64b",
+  "single_database": true,
+  "database_owner": "RunnerFactOutbox",
+  "single_outbox": "runner_fact_outbox",
+  "runner_state_schema_version": 1,
+  "runtime_identity": "deployment_instance_id",
+  "stream_key_fields": [
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id"
+  ],
+  "signed_fencing_fields": [
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation"
+  ],
+  "durable_surfaces": [
+    "desired exact command bytes and verification receipt",
+    "trusted and untrusted command outcomes",
+    "in-progress lease",
+    "applied generation",
+    "artifact activation and quarantine",
+    "runner cap policy reference",
+    "order reservation reference",
+    "runner exposure checkpoint reference",
+    "RunnerFact sequence, signed payload and pending PubAck"
+  ],
+  "stream_cutover": {
+    "intake_freeze_required": true,
+    "pending_puback_drain_required": true,
+    "per_instance_sequence_continuation": true,
+    "pending_signed_payload_rewrite_allowed": false,
+    "legacy_stream_delete_allowed": false
+  },
+  "t3_durability_port_implemented": true,
+  "applied_lifecycle_atomic": true,
+  "deterministic_command_outcome": true,
+  "deterministic_lifecycle_event": true,
+  "focused_verification": {
+    "result": "47 passed",
+    "tests": [
+      "tests/test_plan19_t4_runner_state_store.py",
+      "tests/test_plan19_t3_command_intake.py",
+      "tests/test_runner_fact_outbox.py",
+      "tests/test_runner_deployment_lifecycle_fact.py",
+      "tests/test_crucible_nats_client.py"
+    ]
+  },
+  "engine_apply_wired": false,
+  "daemon_wired": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "next_gate": "Custos Plan 19 T5 engine readiness, terminal lifecycle and supervision"
+}

@@ -21,7 +21,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Literal, Protocol, TypeVar
+from typing import Literal, Protocol, TypeVar, cast
 from uuid import UUID
 
 from cryptography.exceptions import InvalidSignature
@@ -512,7 +512,7 @@ class CommandIntakeCoordinator:
             receipt = await self._durability.commit_verified_terminal_outcome(
                 delivery_id=delivery.delivery_id,
                 verified=verified,
-                outcome=outcome.value,
+                outcome=cast(Literal["conflict", "stale", "retry_exhausted"], outcome.value),
                 reason_code=reason_code,
             )
             _require_durable_outcome(

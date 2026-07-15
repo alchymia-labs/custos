@@ -48,6 +48,17 @@ producer fingerprint, and requires the full BOM, ArtifactRefV2, detached referen
 ArtifactEvidenceV1 and semantic acceptance bindings. Custos publishes no command
 schema, and this STOP changes no daemon, reconciler or runtime composition.
 
+Plan 19 T4 is `READY_DURABLE_STATE_STORE_ONLY`. Desired/applied state, exact
+command bytes and receipts, outcomes, leases, activation/quarantine, local policy
+references, reservations, exposure checkpoints, RunnerFact sequence and pending
+PubAck all share the existing RunnerFact SQLite database and outbox. The stream
+identity is tenant + mode + runner + `deployment_instance_id`; spec id, spec digest
+and generation are signed fencing/provenance only. Legacy spec-keyed streams require
+an explicit intake freeze, pending PubAck drain and per-instance sequence
+continuation without rewriting or deleting pending signed payloads. This receipt
+does not wire engine apply or the daemon and does not claim runtime or production
+readiness; Plan 19 T5 is the next gate.
+
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.

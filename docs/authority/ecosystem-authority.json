@@ -133,9 +133,37 @@
     },
     "task_5c_open_blockers": [
       "Custos Plan 18 T5e verifier/runtime cutover and explicit V1 rejection",
-      "Custos Plan 19 T3-T5 durable command outcome, state and engine lifecycle",
+      "Custos Plan 19 T5 engine lifecycle and runtime composition",
       "exact final candidate and cross-repository runtime acceptance"
     ]
+  },
+  "runner_state_store": {
+    "owner": "custos",
+    "status": "READY_DURABLE_STATE_STORE_ONLY",
+    "receipt": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+    "store_migration_commit": "0400b5c8726b49d1476650dd084265533c5ea64b",
+    "runtime_identity": "deployment_instance_id",
+    "stream_key_fields": [
+      "tenant_id",
+      "trading_mode",
+      "runner_id",
+      "deployment_instance_id"
+    ],
+    "signed_fencing_fields": [
+      "deployment_spec_id",
+      "deployment_spec_digest",
+      "generation"
+    ],
+    "single_database": true,
+    "single_outbox": "runner_fact_outbox",
+    "t3_durability_port_implemented": true,
+    "applied_lifecycle_atomic": true,
+    "legacy_stream_cutover": "explicit freeze + PubAck drain + sequence continuation",
+    "pending_signed_payload_rewrite_allowed": false,
+    "engine_apply_wired": false,
+    "daemon_wired": false,
+    "runtime_ready": false,
+    "production_ready": false
   },
   "toolkit_rc_release": {
     "owner": "custos",
