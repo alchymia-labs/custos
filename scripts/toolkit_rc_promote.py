@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
@@ -18,7 +18,11 @@ from custos_toolkit.contracts import (
     ToolkitRcReceiptManifestV1,
 )
 
-from scripts.toolkit_rc_publish import _ArtifactServiceClient
+from scripts.toolkit_rc_publish import (
+    ArtifactPublicationError,
+    _ArtifactServiceClient,
+    _validate_build_evidence,
+)
 
 WORKFLOW_IDENTITY: Final = (
     "https://github.com/alchymia-labs/custos/.github/workflows/"
@@ -33,6 +37,28 @@ PREREQUISITE_PATHS: Final = (
     Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
     Path("docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"),
 )
+SIGNED_SUBJECT_FIELDS: Final = (
+    "wheel",
+    "sbom",
+    "contract_schema",
+    "contract_asset_index",
+    "dependency_lock_evidence",
+    "t4_zero_rewrite_receipt",
+    "t4b_typing_closure_receipt",
+    "t5_pre_import_verifier_receipt",
+)
+SHARED_EVIDENCE_FIELDS: Final = (
+    "contract_schema",
+    "contract_asset_index",
+    "dependency_lock_evidence",
+    "slsa_provenance",
+    "sigstore_attestation",
+    "t4_zero_rewrite_receipt",
+    "t4b_typing_closure_receipt",
+    "t5_pre_import_verifier_receipt",
+)
+BUILD_TYPE: Final = "https://custos.the-alephain-guild/build-types/toolkit-rc/v1"
+SOURCE_REPOSITORY: Final = "https://github.com/alchymia-labs/custos"
 
 
 class ToolkitRcPromotionError(RuntimeError):
@@ -66,6 +92,185 @@ def _binding_for(path: Path, coordinate: str) -> ImmutableToolkitArtifactBinding
         sha256=_sha256(content),
         size_bytes=len(content),
     )
+
+
+def _json_object(content: bytes, label: str) -> dict[str, Any]:
+    try:
+        document = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ToolkitRcPromotionError(f"{label} is not valid JSON: {exc}") from exc
+    if not isinstance(document, dict):
+        raise ToolkitRcPromotionError(f"{label} must be a JSON object")
+    return document
+
+
+def _coordinate_filename(binding: ImmutableToolkitArtifactBindingV1) -> str:
+    return binding.coordinate.rsplit("@sha256:", 1)[0].rsplit("/", 1)[-1]
+
+
+def _shared_binding(
+    manifest: ToolkitRcReceiptManifestV1, field_name: str
+) -> ImmutableToolkitArtifactBindingV1:
+    bindings = tuple(getattr(member, field_name) for member in manifest.members)
+    identities = {(value.coordinate, value.sha256, value.size_bytes) for value in bindings}
+    if len(identities) != 1:
+        raise ToolkitRcPromotionError(
+            f"toolkit members do not share one {field_name} authority object"
+        )
+    return bindings[0]
+
+
+def _subject_matrix(values: object, label: str) -> dict[str, str]:
+    if not isinstance(values, list):
+        raise ToolkitRcPromotionError(f"{label} must be an array")
+    result: dict[str, str] = {}
+    for value in values:
+        if not isinstance(value, dict) or not isinstance(value.get("name"), str):
+            raise ToolkitRcPromotionError(f"{label} contains an invalid subject")
+        digest = value.get("digest")
+        if not isinstance(digest, dict) or set(digest) != {"sha256"}:
+            raise ToolkitRcPromotionError(f"{label} contains a non-SHA-256 subject")
+        sha256 = digest.get("sha256")
+        if not isinstance(sha256, str) or len(sha256) != 64:
+            raise ToolkitRcPromotionError(f"{label} contains an invalid SHA-256 digest")
+        name = value["name"]
+        if name in result:
+            raise ToolkitRcPromotionError(f"{label} contains a duplicate subject name")
+        result[name] = sha256
+    return result
+
+
+def _validate_dependency_lock(
+    *,
+    manifest: ToolkitRcReceiptManifestV1,
+    objects: dict[str, bytes],
+    source_commit: str,
+) -> str:
+    binding = _shared_binding(manifest, "dependency_lock_evidence")
+    document = _json_object(objects[binding.coordinate], "dependency lock evidence")
+    if (
+        document.get("candidate_version") != manifest.candidate_version
+        or document.get("source_commit") != source_commit
+    ):
+        raise ToolkitRcPromotionError("dependency lock identity differs")
+    uv_lock_sha256 = document.get("uv_lock_sha256")
+    if not isinstance(uv_lock_sha256, str) or len(uv_lock_sha256) != 64:
+        raise ToolkitRcPromotionError("dependency lock lacks the committed uv.lock digest")
+    distributions = document.get("distributions")
+    if not isinstance(distributions, dict):
+        raise ToolkitRcPromotionError("dependency lock distribution matrix is absent")
+    expected_distributions = {member.distribution_name for member in manifest.members}
+    if set(distributions) != expected_distributions:
+        raise ToolkitRcPromotionError("dependency lock distribution matrix differs")
+    for member in manifest.members:
+        records = distributions[member.distribution_name]
+        if not isinstance(records, list) or not all(isinstance(value, dict) for value in records):
+            raise ToolkitRcPromotionError("dependency lock record matrix is invalid")
+        actual = {
+            (value.get("name"), value.get("version"), value.get("requirement")) for value in records
+        }
+        expected = {(value.name, value.version, value.requirement) for value in member.dependencies}
+        if actual != expected:
+            raise ToolkitRcPromotionError(
+                f"{member.distribution_name} dependency lock differs from manifest"
+            )
+    return uv_lock_sha256
+
+
+def _validate_signed_provenance(
+    *,
+    manifest: ToolkitRcReceiptManifestV1,
+    build: dict[str, Any],
+    build_content: bytes,
+    objects: dict[str, bytes],
+    source_commit: str,
+    source_date_epoch: int,
+) -> None:
+    try:
+        _validate_build_evidence(manifest, build)
+    except ArtifactPublicationError as exc:
+        raise ToolkitRcPromotionError(f"build evidence differs during promotion: {exc}") from exc
+
+    for field_name in SHARED_EVIDENCE_FIELDS:
+        _shared_binding(manifest, field_name)
+    uv_lock_sha256 = _validate_dependency_lock(
+        manifest=manifest,
+        objects=objects,
+        source_commit=source_commit,
+    )
+    provenance_binding = _shared_binding(manifest, "slsa_provenance")
+    provenance = _json_object(objects[provenance_binding.coordinate], "signed SLSA provenance")
+    if (
+        provenance.get("_type") != "https://in-toto.io/Statement/v1"
+        or provenance.get("predicateType") != "https://slsa.dev/provenance/v1"
+    ):
+        raise ToolkitRcPromotionError("signed provenance statement type differs")
+
+    expected_subjects: dict[str, str] = {}
+    for member in manifest.members:
+        for field_name in SIGNED_SUBJECT_FIELDS:
+            binding = getattr(member, field_name)
+            filename = _coordinate_filename(binding)
+            previous = expected_subjects.setdefault(filename, binding.sha256)
+            if previous != binding.sha256:
+                raise ToolkitRcPromotionError(
+                    "manifest maps one signed provenance subject name to different bytes"
+                )
+    if _subject_matrix(provenance.get("subject"), "signed provenance subjects") != (
+        expected_subjects
+    ):
+        raise ToolkitRcPromotionError("signed provenance subject matrix differs")
+
+    predicate = provenance.get("predicate")
+    if not isinstance(predicate, dict):
+        raise ToolkitRcPromotionError("signed provenance predicate is absent")
+    build_definition = predicate.get("buildDefinition")
+    run_details = predicate.get("runDetails")
+    if not isinstance(build_definition, dict) or not isinstance(run_details, dict):
+        raise ToolkitRcPromotionError("signed provenance build identity is absent")
+    expected_external = {
+        "candidate_version": manifest.candidate_version,
+        "source_commit": source_commit,
+        "source_date_epoch": source_date_epoch,
+    }
+    expected_internal = {
+        "build_seam": "scripts/toolkit_rc_build.py",
+        "release_readiness_seam": "scripts/toolkit_rc_release_readiness.py",
+    }
+    if (
+        build_definition.get("buildType") != BUILD_TYPE
+        or build_definition.get("externalParameters") != expected_external
+        or build_definition.get("internalParameters") != expected_internal
+    ):
+        raise ToolkitRcPromotionError("signed provenance build definition differs")
+    dependencies = build_definition.get("resolvedDependencies")
+    expected_dependencies = {
+        (f"git+{SOURCE_REPOSITORY}@{source_commit}", "gitCommit", source_commit),
+        ("file:uv.lock", "sha256", uv_lock_sha256),
+    }
+    actual_dependencies: set[tuple[object, object, object]] = set()
+    if isinstance(dependencies, list):
+        for dependency in dependencies:
+            if not isinstance(dependency, dict) or not isinstance(dependency.get("digest"), dict):
+                continue
+            digest = dependency["digest"]
+            if len(digest) == 1:
+                name, value = next(iter(digest.items()))
+                actual_dependencies.add((dependency.get("uri"), name, value))
+    if actual_dependencies != expected_dependencies:
+        raise ToolkitRcPromotionError("signed provenance resolved dependencies differ")
+    if run_details.get("builder") != {"id": WORKFLOW_IDENTITY}:
+        raise ToolkitRcPromotionError("signed provenance builder identity differs")
+    dependency_binding = _shared_binding(manifest, "dependency_lock_evidence")
+    expected_byproducts = {
+        "toolkit-rc-build-manifest-input.json": _sha256(build_content),
+        _coordinate_filename(dependency_binding): dependency_binding.sha256,
+    }
+    if (
+        _subject_matrix(run_details.get("byproducts"), "signed provenance byproducts")
+        != expected_byproducts
+    ):
+        raise ToolkitRcPromotionError("signed provenance byproduct matrix differs")
 
 
 def promote_toolkit_rc(
@@ -118,7 +323,7 @@ def promote_toolkit_rc(
         matches = [
             (coordinate, content)
             for coordinate, content in objects.items()
-            if filename in coordinate
+            if coordinate.rsplit("@sha256:", 1)[0].rsplit("/", 1)[-1] == filename
         ]
         if len(matches) != 1:
             raise ToolkitRcPromotionError(f"publication must contain one {filename}")
@@ -163,8 +368,17 @@ def promote_toolkit_rc(
                 or _sha256(content) != binding.sha256
             ):
                 raise ToolkitRcPromotionError("manifest binding differs from remote object matrix")
-        if not published:
-            raise ToolkitRcPromotionError("empty publication object matrix")
+            if not published:
+                raise ToolkitRcPromotionError("empty publication object matrix")
+
+    _validate_signed_provenance(
+        manifest=manifest,
+        build=build,
+        build_content=build_content,
+        objects=objects,
+        source_commit=receipt.source_commit,
+        source_date_epoch=receipt.source_date_epoch,
+    )
 
     first = manifest.members[0]
     prerequisite_bindings = (
@@ -182,23 +396,28 @@ def promote_toolkit_rc(
     provenance_path.write_bytes(objects[first.slsa_provenance.coordinate])
     bundle_path.write_bytes(objects[first.sigstore_attestation.coordinate])
     try:
-        verification = subprocess.run(
-            [
-                "sigstore",
-                "verify",
-                "identity",
-                "--bundle",
-                str(bundle_path),
-                "--cert-identity",
-                WORKFLOW_IDENTITY,
-                "--cert-oidc-issuer",
-                OIDC_ISSUER,
-                str(provenance_path),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            verification = subprocess.run(
+                [
+                    "sigstore",
+                    "verify",
+                    "identity",
+                    "--bundle",
+                    str(bundle_path),
+                    "--cert-identity",
+                    WORKFLOW_IDENTITY,
+                    "--cert-oidc-issuer",
+                    OIDC_ISSUER,
+                    str(provenance_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError as exc:
+            raise ToolkitRcPromotionError(
+                f"Sigstore production identity verification is unavailable: {exc}"
+            ) from exc
         if verification.returncode != 0:
             raise ToolkitRcPromotionError(
                 f"Sigstore production identity verification failed: {verification.stderr.strip()}"
@@ -207,9 +426,10 @@ def promote_toolkit_rc(
         provenance_path.unlink(missing_ok=True)
         bundle_path.unlink(missing_ok=True)
 
+    receipt_digest = _sha256(receipt_content)
     predecessor = ImmutableToolkitArtifactBindingV1(
-        coordinate=client.publication_receipt_url(publication_id),
-        sha256=_sha256(receipt_content),
+        coordinate=(f"{client.publication_receipt_url(publication_id)}@sha256:{receipt_digest}"),
+        sha256=receipt_digest,
         size_bytes=len(receipt_content),
     )
     ready = ToolkitRcAuthorityReadyReceiptV1(
