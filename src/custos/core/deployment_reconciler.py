@@ -391,27 +391,28 @@ class DeploymentReconciler:
             state = self._state.get(instance_id)
             if state is None or not state.container_id:
                 continue
-            try:
-                notional = await self.execution_engine.get_open_notional(instance_id)
-            except Exception as exc:  # noqa: BLE001
-                _log.warning(
-                    "breaker_notional_probe_failed",
-                    deployment_instance_id=instance_id,
-                    error_type=type(exc).__name__,
-                )
-                continue
-            equity: Decimal | None
-            try:
-                equity = (await self.execution_engine.get_engine_status(instance_id)).current_equity
-            except Exception as exc:  # noqa: BLE001
-                _log.warning(
-                    "breaker_equity_probe_failed",
-                    deployment_instance_id=instance_id,
-                    error_type=type(exc).__name__,
-                )
-                equity = None
             was_frozen = breaker.frozen
-            verdict = breaker.evaluate(open_notional=notional, current_equity=equity)
+            try:
+                status = await self.execution_engine.get_engine_status(instance_id)
+            except Exception as exc:  # noqa: BLE001
+                _log.error(
+                    "breaker_portfolio_snapshot_failed",
+                    deployment_instance_id=instance_id,
+                    error_type=type(exc).__name__,
+                )
+                notional = Decimal("0")
+                verdict = breaker.fail_closed("portfolio_snapshot_unavailable")
+            else:
+                notional = status.open_notional
+                if not status.reliable:
+                    verdict = breaker.fail_closed(
+                        status.unreliable_reason or "portfolio_snapshot_unreliable"
+                    )
+                else:
+                    verdict = breaker.evaluate(
+                        open_notional=notional,
+                        current_equity=status.current_equity,
+                    )
             if not verdict.tripped or was_frozen:
                 continue
             try:

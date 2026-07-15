@@ -165,6 +165,27 @@
     "runtime_ready": false,
     "production_ready": false
   },
+  "portfolio_semantics": {
+    "owner": "custos",
+    "status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
+    "receipt": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+    "portfolio_semantics_ready": true,
+    "single_snapshot_provider": "NautilusPortfolioSnapshotProvider",
+    "equity_source": "Nautilus portfolio.equity(venue)",
+    "position_pnl_source": "Nautilus position.unrealized_pnl(trusted_mark_price)",
+    "open_notional_source": "absolute quantity multiplied by trusted current mark price",
+    "missing_mark_unreliable": true,
+    "missing_equity_unreliable": true,
+    "status_breaker_runner_fact_shared_provider": true,
+    "breaker_single_snapshot_per_tick": true,
+    "breaker_fail_closed_on_unreliable": true,
+    "runtime_identity": "deployment_instance_id",
+    "runner_safety_policy_ready": false,
+    "team_daemon_enabled": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
   "strategy_artifact_runtime": {
     "owner": "custos",
     "status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",

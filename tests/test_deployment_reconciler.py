@@ -41,6 +41,7 @@ class FakeEngine:
     deploy_calls: list[str] = field(default_factory=list)
     flatten_calls: list[str] = field(default_factory=list)
     notionals: dict[str, Decimal] = field(default_factory=dict)
+    status_reliable: bool = True
 
     async def deploy(self, value: dict, credential: dict) -> str:
         instance = value["deployment_instance_id"]
@@ -77,6 +78,8 @@ class FakeEngine:
             peak_equity=Decimal("100"),
             current_equity=Decimal("100"),
             drawdown_pct=Decimal("0"),
+            reliable=self.status_reliable,
+            unreliable_reason=None if self.status_reliable else "portfolio_equity_invalid",
         )
 
 
@@ -160,3 +163,17 @@ async def test_breakers_are_isolated_per_deployment_instance(monkeypatch) -> Non
     await subject._breaker_tick()
     assert set(subject._fallback_breakers) == {first, second}
     assert engine.flatten_calls == [first]
+
+
+@pytest.mark.asyncio
+async def test_unreliable_portfolio_snapshot_trips_breaker_fail_closed(monkeypatch) -> None:
+    monkeypatch.setattr("custos.core.deployment_reconciler.check_g6_gate", lambda *args: None)
+    instance = "20000000-0000-4000-8000-000000000002"
+    engine = FakeEngine(status_reliable=False)
+    subject = reconciler(engine, FakeLifecycleEmitter())
+    assert await subject.handle_spec(spec(instance))
+
+    await subject._breaker_tick()
+
+    assert subject._fallback_breakers[instance].frozen
+    assert engine.flatten_calls == [instance]

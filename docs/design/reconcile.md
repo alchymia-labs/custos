@@ -71,3 +71,12 @@ bounded restart budget with exponential backoff. A non-retryable terminal event
 or exhausted budget atomically quarantines and enqueues the terminal lifecycle.
 The daemon treats any unexpected long-running task exit as fatal, cancels sibling
 tasks, then stops deployments, flushes the RunnerFact outbox and closes transports.
+
+The fallback breaker reads exactly one `EngineStatus` per instance per tick.
+That status is derived by the canonical Nautilus portfolio snapshot provider, so
+open notional and actual portfolio equity have one valuation boundary. A probe
+exception or typed unreliable status immediately freezes the breaker and requests
+flattening; missing mark or equity can never skip a tick or be treated as zero
+risk. This T6 safety behavior is local execution evidence only. It does not replace
+the Crucible-signed versioned runner policy required by T7, and DeploymentSpec
+`risk_config` cannot define or override the runner aggregate cap.

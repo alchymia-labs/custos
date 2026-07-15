@@ -91,6 +91,17 @@ class FallbackBreaker:
     def allows_new_orders(self) -> bool:
         return not self._frozen
 
+    def fail_closed(self, reason: str = "unreliable_portfolio") -> BreakerVerdict:
+        """Freeze immediately when trustworthy financial inputs are unavailable."""
+
+        self._frozen = True
+        _log.error("fallback_breaker_fail_closed", reason=reason)
+        return BreakerVerdict(
+            tripped=True,
+            reason=reason,
+            drawdown_pct=Decimal("0"),
+        )
+
     def evaluate(
         self,
         *,

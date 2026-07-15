@@ -120,9 +120,15 @@ class EngineStatus:
     peak_equity: Decimal
     current_equity: Decimal
     drawdown_pct: Decimal
+    reliable: bool = True
+    unreliable_reason: str | None = None
 
     def __post_init__(self) -> None:
         _reject_float_money(self)
+        if self.reliable and self.unreliable_reason is not None:
+            raise ValueError("a reliable engine status cannot have an unreliable reason")
+        if not self.reliable and not self.unreliable_reason:
+            raise ValueError("an unreliable engine status needs an unreliable reason")
 
 
 @dataclass(frozen=True, slots=True)

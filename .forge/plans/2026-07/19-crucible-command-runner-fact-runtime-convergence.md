@@ -1,12 +1,12 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7-T10 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Plan 19 T4 durable-state checkpoint
+> **Revised**: 2026-07-15 after Plan 19 T6 reliable-portfolio checkpoint
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
-> **Immediately executable**: Task 5 after the Task 4 durable-state STOP; no runtime readiness is implied
+> **Immediately executable**: none in 19c; Task 7 is hard-blocked on the clean landed Crucible Plan 99 signed-policy receipt
 > **19d-T8a gate**: 19c STOP only; it produces the immutable RunnerFact candidate before Crucible Plan 90 Phase A
 > **Runtime RC gates**: Crucible Plan 89 migration 0116 signed command producer and `CR89-0116-GENERATION-STORAGE`; Crucible Plan 90 Phase-A schema/golden compatibility receipt; Crucible Plan 99 runner-safety-policy-authority; Custos Plan 18 staged candidate and exact final required by the selected RC/final-candidate BOM
 > **Close-out gates**: Crucible Plan 90 Phase-B real runtime round-trip receipt; PS Plan 56 exact final-candidate acceptance
@@ -885,6 +885,20 @@ git commit -m "feat(custos): supervise engine readiness and termination"
 4. 缺可信 mark/equity 时标记 unreliable，breaker fail closed。
 5. status、breaker 和 RunnerFacts 共用同一 snapshot。
 
+Execution checkpoint (2026-07-15):
+
+- RED reproduced the absent canonical provider and locked the real
+  `position.unrealized_pnl(trusted_mark_price)` call against
+  `decimal.ConversionSyntax` regressions.
+- GREEN adds one `NautilusPortfolioSnapshotProvider`: actual
+  `portfolio.equity(venue)`, trusted marked notional and typed unreliable reasons.
+- `get_open_notional`, `get_positions`, `get_engine_status` and RunnerFact risk rows
+  share that provider. The breaker consumes one status snapshot per tick and freezes/
+  flattens fail closed on an exception or unreliable equity/mark.
+- Focused provider, Nautilus snapshot, reconciler and breaker suites are 19 passed.
+- Status is `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; runner policy, team daemon,
+  live, runtime and production remain false. T7 must wait for Crucible Plan 99.
+
 提交：
 
 ```bash
@@ -1042,7 +1056,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T3 Fingerprint/ACK | [x] | 2026-07-15 | frozen algorithm + bounded inbound policy; production durability port implemented by T4 |
 | T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
-| T6 Portfolio/equity | [ ] | — | NT 1.230.0 regression |
+| T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
 | T7 Signed local safety | [ ] | — | live blocked on Crucible Plan 99 |
 | T8a RunnerFact candidate | [ ] | — | 19c STOP 后独立生产；不得等待 Plan 90 |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |

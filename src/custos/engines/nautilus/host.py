@@ -43,6 +43,9 @@ from custos.core.runner_fact_producer import (
     RunnerFactMessageBusBridge,
     VenueLedgerEvidence,
 )
+from custos.engines.nautilus.portfolio_snapshot import (
+    NautilusPortfolioSnapshotProvider,
+)
 from custos.engines.nautilus.strategy_loader import load_strategy_class
 
 try:
@@ -224,6 +227,7 @@ class NtTradingNodeHost:
         runner_id: str | None = None,
         runner_fact_emitter: RunnerFactEmitter | None = None,
         capability_receipt: RunnerCapabilityReceipt | None = None,
+        portfolio_snapshot_provider: NautilusPortfolioSnapshotProvider | None = None,
     ) -> None:
         # deployment_instance_id -> (TradingNode, background run task). Never holds credentials.
         self._active_nodes: dict[str, tuple] = {}
@@ -238,6 +242,9 @@ class NtTradingNodeHost:
         self._runner_id = runner_id
         self._runner_fact_emitter = runner_fact_emitter
         self._capability_receipt = capability_receipt
+        self._portfolio_snapshot_provider = portfolio_snapshot_provider or (
+            NautilusPortfolioSnapshotProvider(price_type_mid=PriceType.MID if PriceType else None)
+        )
 
     @staticmethod
     def _ensure_nt_available() -> None:
@@ -574,44 +581,12 @@ class NtTradingNodeHost:
                 f"RunnerFact DeploymentInstance {deployment_instance_id!r} is not active"
             )
         node, _task = entry
-        positions = list(node.kernel.cache.positions_open())
-        venue = positions[0].instrument_id.venue if positions else None
-        if venue is None:
-            instrument_ids = sorted(node.kernel.cache.instrument_ids(), key=str)
-            if not instrument_ids:
-                raise RuntimeError("no instrument is cached for risk equity")
-            venue = instrument_ids[0].venue
-        equities = node.kernel.portfolio.equity(venue)
-        if node.kernel.portfolio.missing_price_instruments(venue):
-            raise RuntimeError("portfolio equity is incomplete because mark prices are missing")
-        money = next(
-            (value for key, value in (equities or {}).items() if str(key) == currency),
-            None,
-        )
-        if money is None:
-            raise RuntimeError(f"portfolio equity has no {currency} value")
-        equity = Decimal(str(money.as_decimal()))
-        rows: list[dict] = []
-        for position in positions:
-            mark_update = node.kernel.cache.mark_price(position.instrument_id)
-            raw_mark = getattr(mark_update, "value", None) if mark_update is not None else None
-            if raw_mark is None and PriceType is not None:
-                raw_mark = node.kernel.cache.price(position.instrument_id, PriceType.MID)
-            if raw_mark is None:
-                raise RuntimeError(f"mark price unavailable for {position.instrument_id}")
-            settlement = str(getattr(position, "settlement_currency", currency))
-            signed_quantity = Decimal(str(position.quantity))
-            if bool(position.is_short):
-                signed_quantity = -signed_quantity
-            rows.append(
-                {
-                    "instrument": str(position.instrument_id),
-                    "quantity": str(signed_quantity),
-                    "mark_price": str(raw_mark),
-                    "currency": settlement,
-                }
+        snapshot = self._portfolio_snapshot_provider.snapshot(node, currency=currency)
+        if not snapshot.reliable:
+            raise RuntimeError(
+                f"portfolio snapshot unreliable: {snapshot.unreliable_reason}"
             )
-        return equity, rows
+        return snapshot.equity, snapshot.runner_fact_rows()
 
     async def runner_fact_venue_ledger(
         self, deployment_instance_id: str, coverage_from, closed_at
@@ -646,22 +621,17 @@ class NtTradingNodeHost:
         )
 
     async def get_open_notional(self, deployment_instance_id: str) -> Decimal:
-        """Total gross open notional across this spec's open positions, as Decimal.
-
-        Reads the built node's cache; an unknown / not-yet-deployed spec has zero
-        exposure. Quantity + entry price are stringified before Decimal
-        conversion so no float reaches the money math (red line 0.4).
-        """
+        """Return current marked notional from the canonical portfolio snapshot."""
         entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return Decimal("0")
         node, _task = entry
-        total = Decimal("0")
-        for position in node.kernel.cache.positions_open():
-            quantity = abs(Decimal(str(position.quantity)))
-            entry_px = Decimal(str(position.avg_px_open))
-            total += quantity * entry_px
-        return total
+        snapshot = self._portfolio_snapshot_provider.snapshot(node)
+        if not snapshot.reliable:
+            raise RuntimeError(
+                f"portfolio snapshot unreliable: {snapshot.unreliable_reason}"
+            )
+        return snapshot.open_notional
 
     async def check_engine_connected(self, deployment_instance_id: str) -> ConnectivityState:
         """Data + execution engine connectivity for this spec's node. An unknown
@@ -705,32 +675,17 @@ class NtTradingNodeHost:
         )
 
     async def get_positions(self, deployment_instance_id: str) -> list[PositionSnapshot]:
-        """Materialise every open position as a Decimal-only ``PositionSnapshot``.
-
-        Quantity, entry price and unrealized pnl are stringified before Decimal
-        conversion so no float reaches the money math (red line 0.4). An
-        unknown / not-yet-deployed spec has no positions.
-        """
-
+        """Return positions valued by the canonical portfolio snapshot."""
         entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return []
         node, _task = entry
-        snapshots: list[PositionSnapshot] = []
-        for position in node.kernel.cache.positions_open():
-            quantity = Decimal(str(position.quantity))
-            avg_px = Decimal(str(position.avg_px_open))
-            unrealized = Decimal(str(getattr(position, "unrealized_pnl", "0")))
-            snapshots.append(
-                PositionSnapshot(
-                    instrument_id=str(position.instrument_id),
-                    quantity=quantity,
-                    avg_px=avg_px,
-                    unrealized_pnl=unrealized,
-                    notional=abs(quantity) * avg_px,
-                )
+        snapshot = self._portfolio_snapshot_provider.snapshot(node)
+        if not snapshot.reliable:
+            raise RuntimeError(
+                f"portfolio snapshot unreliable: {snapshot.unreliable_reason}"
             )
-        return snapshots
+        return snapshot.engine_positions()
 
     async def get_orders(self, deployment_instance_id: str) -> list[OrderSnapshot]:
         """Materialise every open order as a Decimal-only ``OrderSnapshot``."""
@@ -754,17 +709,7 @@ class NtTradingNodeHost:
         return snapshots
 
     async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus:
-        """Aggregate exposure + equity snapshot for the reconciler and the
-        state-snapshot publisher.
-
-        ``current_equity`` is a light-weight engine-side proxy — gross open
-        notional plus every position's unrealized pnl. This is enough to feed
-        the fallback breaker's drawdown check (which trips on peak-to-current
-        percentage) without depending on a per-venue portfolio ledger that a
-        stubbed test node does not expose. ``peak_equity`` is host-tracked as a
-        Decimal (red line 0.4, no float high-water mark).
-        """
-
+        """Return reliable portfolio equity or an explicit degraded snapshot."""
         entry = self._active_nodes.get(deployment_instance_id)
         if entry is None:
             return EngineStatus(
@@ -775,22 +720,29 @@ class NtTradingNodeHost:
                 peak_equity=Decimal("0"),
                 current_equity=Decimal("0"),
                 drawdown_pct=Decimal("0"),
+                reliable=False,
+                unreliable_reason="deployment_not_active",
             )
         node, _task = entry
-        positions = list(node.kernel.cache.positions_open())
         try:
             orders = list(node.kernel.cache.orders_open())
         except AttributeError:
-            # Some cache fakes do not expose orders_open (positions-only tests).
             orders = []
-        open_notional = Decimal("0")
-        unrealized_total = Decimal("0")
-        for position in positions:
-            quantity = Decimal(str(position.quantity))
-            avg_px = Decimal(str(position.avg_px_open))
-            open_notional += abs(quantity) * avg_px
-            unrealized_total += Decimal(str(getattr(position, "unrealized_pnl", "0")))
-        current_equity = open_notional + unrealized_total
+        snapshot = self._portfolio_snapshot_provider.snapshot(node)
+        if not snapshot.reliable:
+            return EngineStatus(
+                phase="degraded",
+                position_count=len(snapshot.positions),
+                order_count=len(orders),
+                open_notional=snapshot.open_notional,
+                peak_equity=self._peak_equity.get(deployment_instance_id, Decimal("0")),
+                current_equity=snapshot.equity,
+                drawdown_pct=Decimal("0"),
+                reliable=False,
+                unreliable_reason=snapshot.unreliable_reason,
+            )
+
+        current_equity = snapshot.equity
         peak = self._peak_equity.get(deployment_instance_id, Decimal("0"))
         if current_equity > peak:
             peak = current_equity
@@ -801,12 +753,13 @@ class NtTradingNodeHost:
             drawdown_pct = Decimal("0")
         return EngineStatus(
             phase="running",
-            position_count=len(positions),
+            position_count=len(snapshot.positions),
             order_count=len(orders),
-            open_notional=open_notional,
+            open_notional=snapshot.open_notional,
             peak_equity=peak,
             current_equity=current_equity,
             drawdown_pct=drawdown_pct,
+            reliable=True,
         )
 
     def _instantiate_strategy(self, strategy_cls, spec: dict):

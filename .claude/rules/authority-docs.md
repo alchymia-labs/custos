@@ -82,6 +82,14 @@ any long-running task exits unexpectedly and shuts down in intake/deployment/
 fact-flush/transport order. The team daemon is not composed while the Plan 18
 T5e real artifact capability is false, and live remains false.
 
+Plan 19 T6 is `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`.
+`NautilusPortfolioSnapshotProvider` is the sole adapter for actual portfolio
+equity, trusted marked positions and position PnL consumed by status, breaker and
+RunnerFact risk observations. Missing equity or mark is explicitly unreliable and
+the breaker fails closed. This receipt does not authorize a runner aggregate cap:
+T7 must consume the Crucible Plan 99 signed versioned policy, DeploymentSpec
+`risk_config` cannot override it, and live/runtime/production remain false.
+
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.

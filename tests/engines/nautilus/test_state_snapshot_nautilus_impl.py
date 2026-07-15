@@ -12,10 +12,41 @@ from decimal import Decimal
 from custos.engines.nautilus.host import NoopHost, NtTradingNodeHost
 
 
+class _FakeInstrumentId(str):
+    @property
+    def venue(self) -> str:
+        return "BINANCE"
+
+
+class _FakeMoney:
+    def __init__(self, value: str) -> None:
+        self._value = Decimal(value)
+
+    def as_decimal(self) -> Decimal:
+        return self._value
+
+
+class _FakePortfolio:
+    def __init__(self, equity: str) -> None:
+        self._equity = equity
+
+    def missing_price_instruments(self, venue: str) -> list:
+        return []
+
+    def equity(self, venue: str) -> dict[str, _FakeMoney]:
+        return {"USDT": _FakeMoney(self._equity)}
+
+
 class _FakePosition:
     def __init__(self, quantity: str, avg_px_open: str) -> None:
+        self.instrument_id = _FakeInstrumentId(f"TEST-{avg_px_open}.BINANCE")
         self.quantity = quantity
         self.avg_px_open = avg_px_open
+        self.settlement_currency = "USDT"
+        self.is_short = Decimal(quantity) < 0
+
+    def unrealized_pnl(self, mark_price: str) -> _FakeMoney:
+        return _FakeMoney("0")
 
 
 class _FakeCache:
@@ -25,10 +56,18 @@ class _FakeCache:
     def positions_open(self) -> list[_FakePosition]:
         return self._positions
 
+    def instrument_ids(self) -> list[_FakeInstrumentId]:
+        return [position.instrument_id for position in self._positions]
+
+    def mark_price(self, instrument_id: _FakeInstrumentId) -> str:
+        position = next(p for p in self._positions if p.instrument_id == instrument_id)
+        return position.avg_px_open
+
 
 class _FakeKernel:
     def __init__(self, cache: _FakeCache) -> None:
         self.cache = cache
+        self.portfolio = _FakePortfolio("250")
 
 
 class _FakeNode:
@@ -129,10 +168,15 @@ class _FakeSnapshotPosition:
         avg_px_open: str,
         unrealized_pnl: str = "0",
     ) -> None:
-        self.instrument_id = instrument_id
+        self.instrument_id = _FakeInstrumentId(instrument_id)
         self.quantity = quantity
         self.avg_px_open = avg_px_open
-        self.unrealized_pnl = unrealized_pnl
+        self.settlement_currency = "USDT"
+        self.is_short = Decimal(quantity) < 0
+        self._unrealized_pnl = unrealized_pnl
+
+    def unrealized_pnl(self, mark_price: str) -> _FakeMoney:
+        return _FakeMoney(self._unrealized_pnl)
 
 
 class _FakeSnapshotOrder:
@@ -164,15 +208,23 @@ class _FakeSnapshotCache:
     def orders_open(self) -> list:
         return self._orders
 
+    def instrument_ids(self) -> list[_FakeInstrumentId]:
+        return [position.instrument_id for position in self._positions]
+
+    def mark_price(self, instrument_id: _FakeInstrumentId) -> str:
+        position = next(p for p in self._positions if p.instrument_id == instrument_id)
+        return position.avg_px_open
+
 
 class _FakeSnapshotKernel:
-    def __init__(self, positions: list, orders: list) -> None:
+    def __init__(self, positions: list, orders: list, equity: str) -> None:
         self.cache = _FakeSnapshotCache(positions, orders)
+        self.portfolio = _FakePortfolio(equity)
 
 
 class _FakeSnapshotNode:
-    def __init__(self, positions: list, orders: list) -> None:
-        self.kernel = _FakeSnapshotKernel(positions, orders)
+    def __init__(self, positions: list, orders: list, equity: str = "1000") -> None:
+        self.kernel = _FakeSnapshotKernel(positions, orders, equity)
 
 
 async def test_nt_host_get_positions_returns_decimal_snapshots() -> None:
@@ -195,7 +247,7 @@ async def test_nt_host_get_positions_returns_decimal_snapshots() -> None:
         assert isinstance(snapshot.avg_px, Decimal)
         assert isinstance(snapshot.unrealized_pnl, Decimal)
         assert isinstance(snapshot.notional, Decimal)
-    # Notional = abs(quantity) * avg_px.
+    # The fake trusted mark equals avg_px, so current marked notional matches it.
     by_instrument = {p.instrument_id: p for p in positions}
     assert by_instrument["BTCUSDT"].notional == Decimal("200")
     assert by_instrument["ETHUSDT"].notional == Decimal("50")
@@ -231,7 +283,11 @@ async def test_nt_host_get_orders_unknown_spec_empty() -> None:
 async def test_nt_host_get_engine_status_decimal_and_tracks_peak() -> None:
     host = _host()
     # First tick: peak = current (initial exposure).
-    node1 = _FakeSnapshotNode([_FakeSnapshotPosition("BTCUSDT", "1", "100", "10")], orders=[])
+    node1 = _FakeSnapshotNode(
+        [_FakeSnapshotPosition("BTCUSDT", "1", "100", "10")],
+        orders=[],
+        equity="1000",
+    )
     host._active_nodes["spec-1"] = (node1, None)
 
     status1 = await host.get_engine_status("spec-1")
@@ -239,25 +295,25 @@ async def test_nt_host_get_engine_status_decimal_and_tracks_peak() -> None:
     assert status1.position_count == 1
     assert status1.order_count == 0
     assert status1.open_notional == Decimal("100")
-    # Equity = notional + unrealized_pnl (a simple engine-side proxy without
-    # a portfolio ledger). Peak = current on the very first observation, so
-    # drawdown is zero.
-    assert status1.current_equity == Decimal("110")
-    assert status1.peak_equity == Decimal("110")
+    # Equity comes from the Nautilus portfolio ledger, never a position proxy.
+    assert status1.current_equity == Decimal("1000")
+    assert status1.peak_equity == Decimal("1000")
     assert status1.drawdown_pct == Decimal("0")
 
     # Second tick: equity drops → drawdown_pct > 0 while peak stays.
-    node2 = _FakeSnapshotNode([_FakeSnapshotPosition("BTCUSDT", "1", "50", "-10")], orders=[])
+    node2 = _FakeSnapshotNode(
+        [_FakeSnapshotPosition("BTCUSDT", "1", "50", "-10")],
+        orders=[],
+        equity="400",
+    )
     host._active_nodes["spec-1"] = (node2, None)
 
     status2 = await host.get_engine_status("spec-1")
-    # current_equity = 50 + (-10) = 40; peak carried from prior tick = 110.
-    assert status2.current_equity == Decimal("40")
-    assert status2.peak_equity == Decimal("110")
-    # drawdown_pct = (110 - 40) / 110 * 100 (kept as Decimal, may have tail).
+    assert status2.current_equity == Decimal("400")
+    assert status2.peak_equity == Decimal("1000")
+    # drawdown_pct = (1000 - 400) / 1000 * 100.
     assert isinstance(status2.drawdown_pct, Decimal)
-    assert status2.drawdown_pct > Decimal("60")
-    assert status2.drawdown_pct < Decimal("65")
+    assert status2.drawdown_pct == Decimal("60")
 
 
 async def test_nt_host_get_engine_status_unknown_spec_zero() -> None:

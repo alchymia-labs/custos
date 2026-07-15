@@ -49,6 +49,9 @@ PLAN_19_T5_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json"
 )
 PLAN_19_T5_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
+PLAN_19_T6_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
+)
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -1832,6 +1835,138 @@ def verify_plan_19_task_5_engine_lifecycle(
         errors.append("Plan 19 T5 must retain exactly one RunnerFact outbox table")
 
 
+def verify_plan_19_task_6_portfolio_semantics(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    receipt_path = resolve(PLAN_19_T6_RECEIPT_PATH)
+    if not receipt_path.is_file():
+        errors.append("missing Plan 19 T6 portfolio semantics receipt")
+        return
+    receipt = load_json(receipt_path)
+    expected: dict[str, Any] = {
+        "receipt_status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
+        "portfolio_semantics_ready": True,
+        "single_snapshot_provider": "NautilusPortfolioSnapshotProvider",
+        "equity_source": "Nautilus portfolio.equity(venue)",
+        "position_pnl_source": "Nautilus position.unrealized_pnl(trusted_mark_price)",
+        "open_notional_source": (
+            "absolute quantity multiplied by trusted current mark price"
+        ),
+        "missing_mark_unreliable": True,
+        "missing_equity_unreliable": True,
+        "status_breaker_runner_fact_shared_provider": True,
+        "breaker_single_snapshot_per_tick": True,
+        "breaker_fail_closed_on_unreliable": True,
+        "runtime_identity": "deployment_instance_id",
+        "runner_safety_policy_ready": False,
+        "team_daemon_enabled": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    for key, value in expected.items():
+        if receipt.get(key) != value:
+            errors.append(f"Plan 19 T6 receipt {key} differs")
+    focused = receipt.get("focused_verification")
+    if not isinstance(focused, dict) or focused.get("result") != "19 passed":
+        errors.append("Plan 19 T6 focused verification differs")
+
+    registrations = [
+        entry
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role") == "plan_19_task_6_portfolio_semantics_receipt"
+    ]
+    if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T6_RECEIPT_PATH:
+        errors.append("Plan 19 T6 receipt manifest registration differs")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    state = snapshot.get("portfolio_semantics")
+    if not isinstance(state, dict):
+        errors.append("ecosystem authority lacks portfolio_semantics")
+    else:
+        if state.get("status") != expected["receipt_status"]:
+            errors.append("portfolio_semantics status differs")
+        if state.get("receipt") != PLAN_19_T6_RECEIPT_PATH:
+            errors.append("portfolio_semantics receipt path differs")
+        for key in expected:
+            if key == "receipt_status":
+                continue
+            if state.get(key) != receipt.get(key):
+                errors.append(f"portfolio_semantics {key} differs")
+
+    provider_path = resolve("src/custos/engines/nautilus/portfolio_snapshot.py")
+    host_path = resolve("src/custos/engines/nautilus/host.py")
+    protocol_path = resolve("src/custos/core/engine_protocol.py")
+    breaker_path = resolve("src/custos/core/fallback_breaker.py")
+    reconciler_path = resolve("src/custos/core/deployment_reconciler.py")
+    source_paths = (provider_path, host_path, protocol_path, breaker_path, reconciler_path)
+    if not all(path.is_file() for path in source_paths):
+        errors.append("Plan 19 T6 source inventory is incomplete")
+        return
+    provider_source = provider_path.read_text(encoding="utf-8")
+    host_source = host_path.read_text(encoding="utf-8")
+    protocol_source = protocol_path.read_text(encoding="utf-8")
+    breaker_source = breaker_path.read_text(encoding="utf-8")
+    reconciler_source = reconciler_path.read_text(encoding="utf-8")
+
+    provider_markers = (
+        "class NautilusPortfolioSnapshotProvider",
+        "portfolio.equity(venue)",
+        "position.unrealized_pnl(mark)",
+        "mark_price_unavailable:",
+        "portfolio_equity_missing:",
+    )
+    for marker in provider_markers:
+        if marker not in provider_source:
+            errors.append(f"Plan 19 T6 provider lacks {marker!r}")
+    provider_definitions = sum(
+        path.read_text(encoding="utf-8").count("class NautilusPortfolioSnapshotProvider")
+        for path in resolve("src/custos").rglob("*.py")
+    )
+    if provider_definitions != 1:
+        errors.append("Plan 19 T6 must have exactly one portfolio snapshot provider")
+
+    for marker in (
+        "self._portfolio_snapshot_provider.snapshot",
+        "snapshot.runner_fact_rows()",
+        "snapshot.engine_positions()",
+        "reliable=False",
+        'unreliable_reason="deployment_not_active"',
+    ):
+        if marker not in host_source:
+            errors.append(f"Plan 19 T6 host lacks {marker!r}")
+    for forbidden in (
+        "open_notional + unrealized_total",
+        'getattr(position, "unrealized_pnl"',
+        "kernel.portfolio.equity",
+    ):
+        if forbidden in host_source:
+            errors.append(f"Plan 19 T6 host retains proxy valuation {forbidden!r}")
+    for marker in ("reliable: bool = True", "unreliable_reason: str | None = None"):
+        if marker not in protocol_source:
+            errors.append(f"Plan 19 T6 EngineStatus lacks {marker!r}")
+    if "def fail_closed(" not in breaker_source:
+        errors.append("Plan 19 T6 breaker lacks fail_closed")
+
+    tick_source = reconciler_source.split("async def _breaker_tick", 1)[-1].split(
+        "\n    @", 1
+    )[0]
+    for marker in ("status.reliable", "breaker.fail_closed"):
+        if marker not in tick_source:
+            errors.append(f"Plan 19 T6 breaker tick lacks {marker!r}")
+    if "get_open_notional" in tick_source:
+        errors.append("Plan 19 T6 breaker tick reads a second portfolio snapshot")
+
+    for section_name in ("engine_lifecycle", "strategy_artifact_runtime"):
+        section = snapshot.get(section_name)
+        if not isinstance(section, dict) or any(
+            section.get(key) is not False
+            for key in ("team_daemon_enabled", "live_ready", "runtime_ready", "production_ready")
+            if key in section
+        ):
+            errors.append(f"Plan 19 T6 must not promote {section_name}")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -1880,6 +2015,7 @@ def main() -> int:
     verify_plan_18_task_5e_corrected_runtime(manifest, errors)
     verify_plan_19_task_4_durable_state(manifest, errors)
     verify_plan_19_task_5_engine_lifecycle(manifest, errors)
+    verify_plan_19_task_6_portfolio_semantics(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

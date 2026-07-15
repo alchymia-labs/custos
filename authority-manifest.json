@@ -345,6 +345,17 @@
       "live_ready": false,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "plan_19_task_6_portfolio_semantics_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+      "receipt_status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
+      "portfolio_semantics_ready": true,
+      "runner_safety_policy_ready": false,
+      "team_daemon_enabled": false,
+      "live_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [
@@ -454,13 +465,20 @@
       "src/custos/core/engine_protocol.py",
       "src/custos/cli/_daemon.py",
       "src/custos/engines/nautilus/host.py",
+      "src/custos/engines/nautilus/portfolio_snapshot.py",
+      "src/custos/core/fallback_breaker.py",
       "src/custos/core/runner_command_intake.py",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
+      "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+      "docs/design/engine_protocol.md",
+      "docs/design/reconcile.md",
       "tests/test_plan18_t5e_corrected_runtime.py",
       "tests/test_plan19_t5_engine_lifecycle.py",
       "tests/test_plan19_t5_daemon_supervision.py",
+      "tests/test_plan19_t6_portfolio_snapshot.py",
+      "tests/engines/nautilus/test_state_snapshot_nautilus_impl.py",
       "tests/test_plan19_t4_runner_state_store.py",
       ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"
     ],
@@ -581,6 +599,18 @@
         "command_in_progress_lease in the existing RunnerFact SQLite database",
         "\"restart_no_duplicate_deploy\": true",
         "\"team_daemon_enabled\": false",
+        "\"live_ready\": false",
+        "\"production_ready\": false"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+      "must_contain": [
+        "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
+        "NautilusPortfolioSnapshotProvider",
+        "Nautilus portfolio.equity(venue)",
+        "Nautilus position.unrealized_pnl(trusted_mark_price)",
+        "\"runner_safety_policy_ready\": false",
         "\"live_ready\": false",
         "\"production_ready\": false"
       ]
