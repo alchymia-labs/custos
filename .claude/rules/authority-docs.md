@@ -37,7 +37,16 @@ commits. `StrategyArtifactPreImportVerificationReceiptV2` external-references th
 owner schemas and adds only Custos-owned digest bindings and an independent
 runner-local policy decision. A Crucible local-policy decision is never a Custos
 runner-local policy decision. This receipt does not change the production
-verifier/parser, start T5d-B or authorize runtime or production readiness.
+verifier/parser or authorize runtime or production readiness.
+
+Plan 18 T5d-B and Plan 19 T2 share one
+`READY_COMMAND_CONSUMER_CONTRACT_ONLY` receipt. Crucible Plan 89 remains the sole
+runner-command schema/golden producer; Custos byte-vendors the corrected current
+A2/B2 assets and exports only `CrucibleRunnerDeploymentCommandV1` as its consumer.
+The consumer retains exact signed event bytes, excludes signature bytes from the
+producer fingerprint, and requires the full BOM, ArtifactRefV2, detached reference,
+ArtifactEvidenceV1 and semantic acceptance bindings. Custos publishes no command
+schema, and this STOP changes no daemon, reconciler or runtime composition.
 
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is

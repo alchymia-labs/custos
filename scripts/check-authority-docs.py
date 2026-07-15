@@ -36,6 +36,19 @@ TASK_5D_A_V4_NEGATIVE_PATH = (
 TASK_5D_A_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json"
 )
+TASK_5D_B_COMMAND_INDEX_PATH = "docs/authority/crucible-runner-command-consumer-assets-v1.json"
+TASK_5D_B_COMMAND_CONSUMER_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
+)
+TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
+TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
+TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
+TASK_5D_B_CR89_RECEIPT_SHA256 = "105ea501b83053421066b4053ec3583e4dd109560b0689bfeb856c2f8beec5d2"
+TASK_5D_B_NON_CURRENT_COMMITS = {
+    "fe7be5119633c341f6e888a250a601d9db0d6e67",
+    "56743f090ef3461f306d3937bfa8b054e6e7b2d8",
+    "a20f7116fed35670264d3a0139974aa25daa2a26",
+}
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
@@ -620,6 +633,165 @@ def verify_plan_18_task_5d_a_contract_consumer(errors: list[str]) -> None:
     for forbidden in ("release_bom_members", "verified_members"):
         if forbidden in positive:
             errors.append(f"Plan 18 T5d-A positive authority contains forbidden {forbidden}")
+
+
+def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
+    """Validate the sole CR89 command consumer without claiming runtime readiness."""
+
+    index_path = resolve(TASK_5D_B_COMMAND_INDEX_PATH)
+    receipt_path = resolve(TASK_5D_B_COMMAND_CONSUMER_RECEIPT_PATH)
+    source_path = resolve(TASK_5D_B_COMMAND_CONSUMER_SOURCE)
+    if not index_path.is_file() or not receipt_path.is_file() or not source_path.is_file():
+        errors.append("missing Plan 18 T5d-B command-consumer authority assets")
+        return
+    index = load_json(index_path)
+    receipt = load_json(receipt_path)
+    if index.get("status") != "READY_COMMAND_CONSUMER_CONTRACT_ONLY":
+        errors.append("Plan 18 T5d-B command asset index status differs")
+    if index.get("slice_equivalence") != ["Custos Plan 18 T5d-B", "Custos Plan 19 T2"]:
+        errors.append("Plan 18 T5d-B and Plan 19 T2 must remain one slice")
+    if index.get("custos_publishes_command_schema") is not False:
+        errors.append("Custos must not publish the Crucible runner command schema")
+    for field in (
+        "exact_signed_event_bytes_retained",
+        "full_artifact_evidence_required",
+        "acceptance_semantics_fail_closed",
+        "command_contract_consumer_ready",
+    ):
+        if index.get(field) is not True:
+            errors.append(f"Plan 18 T5d-B index {field} must be true")
+    for field in ("runtime_ready", "production_ready"):
+        if index.get(field) is not False or receipt.get(field) is not False:
+            errors.append(f"Plan 18 T5d-B {field} must remain false")
+
+    producer = index.get("producer_authority", {})
+    if producer.get("repository") != "tesseract-trading/crucible-rust":
+        errors.append("Plan 18 T5d-B producer repository differs")
+    if producer.get("contract_commit") != TASK_5D_B_CR89_CONTRACT_COMMIT:
+        errors.append("Plan 18 T5d-B CR89 contract commit differs")
+    if producer.get("publication_commit") != TASK_5D_B_CR89_PUBLICATION_COMMIT:
+        errors.append("Plan 18 T5d-B CR89 publication commit differs")
+    if producer.get("producer_receipt_sha256") != TASK_5D_B_CR89_RECEIPT_SHA256:
+        errors.append("Plan 18 T5d-B CR89 receipt digest differs")
+    if set(producer.get("superseded_non_current_commits", [])) != (TASK_5D_B_NON_CURRENT_COMMITS):
+        errors.append("Plan 18 T5d-B superseded producer set differs")
+
+    producer_assets = producer.get("producer_assets", [])
+    assets_by_source = {
+        entry.get("source_path"): entry for entry in producer_assets if isinstance(entry, dict)
+    }
+    for entry in producer_assets:
+        path = resolve(str(entry.get("vendored_path") or ""))
+        if not path.is_file():
+            errors.append(f"missing Plan 18 T5d-B producer asset: {path}")
+            continue
+        if hashlib.sha256(path.read_bytes()).hexdigest() != entry.get("sha256"):
+            errors.append(f"Plan 18 T5d-B producer asset digest differs: {path}")
+        if path.stat().st_size != entry.get("size_bytes"):
+            errors.append(f"Plan 18 T5d-B producer asset size differs: {path}")
+        source_commit = entry.get("source_commit")
+        if source_commit not in {
+            TASK_5D_B_CR89_CONTRACT_COMMIT,
+            TASK_5D_B_CR89_PUBLICATION_COMMIT,
+        }:
+            errors.append(f"Plan 18 T5d-B producer asset commit differs: {path}")
+        source = str(entry.get("source_path") or "")
+        if source.endswith(".sha256"):
+            target = assets_by_source.get(source.removesuffix(".sha256"), {})
+            expected_sidecar = f"{target.get('sha256', '')}\n"
+            if path.read_text(encoding="ascii") != expected_sidecar:
+                errors.append(f"Plan 18 T5d-B producer sidecar differs: {path}")
+
+    producer_receipt_entry = assets_by_source.get(
+        "docs/authority/receipts/crucible-plan-89-runner-command-producer-v1.json", {}
+    )
+    producer_receipt_path = resolve(str(producer_receipt_entry.get("vendored_path") or ""))
+    if not producer_receipt_path.is_file():
+        errors.append("missing Plan 18 T5d-B CR89 producer receipt")
+    else:
+        producer_receipt = load_json(producer_receipt_path)
+        if producer_receipt.get("producer_commit") != TASK_5D_B_CR89_CONTRACT_COMMIT:
+            errors.append("Plan 18 T5d-B producer receipt current commit differs")
+        supersession = producer_receipt.get("supersession", {})
+        if supersession.get("status") != "CURRENT":
+            errors.append("Plan 18 T5d-B producer receipt must be CURRENT")
+        superseded = supersession.get("supersedes", [])
+        if {entry.get("commit") for entry in superseded} != TASK_5D_B_NON_CURRENT_COMMITS:
+            errors.append("Plan 18 T5d-B producer receipt supersession set differs")
+        if any(entry.get("status") != "NON_CURRENT" for entry in superseded):
+            errors.append("Plan 18 T5d-B old producer commits must be NON_CURRENT")
+
+    for entry in index.get("consumer_assets", []):
+        path = resolve(str(entry.get("path") or ""))
+        if not path.is_file():
+            errors.append(f"missing Plan 18 T5d-B consumer asset: {path}")
+            continue
+        if hashlib.sha256(path.read_bytes()).hexdigest() != entry.get("sha256"):
+            errors.append(f"Plan 18 T5d-B consumer asset digest differs: {path}")
+        if path.stat().st_size != entry.get("size_bytes"):
+            errors.append(f"Plan 18 T5d-B consumer asset size differs: {path}")
+        if str(entry.get("path") or "").startswith("docs/gateway-contract"):
+            errors.append("Plan 18 T5d-B consumer assets must not publish a command schema")
+    model = index.get("consumer_model", {})
+    expected_source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    if (
+        model.get("path") != TASK_5D_B_COMMAND_CONSUMER_SOURCE
+        or model.get("public_export") != "CrucibleRunnerDeploymentCommandV1"
+        or model.get("sha256") != expected_source_digest
+        or model.get("size_bytes") != source_path.stat().st_size
+    ):
+        errors.append("Plan 18 T5d-B consumer model binding differs")
+
+    schema_entry = assets_by_source.get(
+        "docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json", {}
+    )
+    schema_path = resolve(str(schema_entry.get("vendored_path") or ""))
+    golden_entry = assets_by_source.get(
+        "docs/authority/golden/crucible-runner-deployment-command-v1.json", {}
+    )
+    golden_path = resolve(str(golden_entry.get("vendored_path") or ""))
+    if schema_path.is_file():
+        schema = load_json(schema_path)
+        properties = schema.get("properties", {})
+        if "artifact_evidence" not in properties:
+            errors.append("Plan 18 T5d-B CR89 schema lacks full ArtifactEvidenceV1")
+        for forbidden in ("release_bom_members", "trusted_root", "trust_policy"):
+            if forbidden in properties:
+                errors.append(f"Plan 18 T5d-B CR89 schema contains forbidden {forbidden}")
+    if golden_path.is_file():
+        golden = load_json(golden_path)
+        command = golden.get("command", {})
+        if not isinstance(command.get("artifact_evidence"), dict):
+            errors.append("Plan 18 T5d-B golden lacks full artifact evidence")
+        if golden.get("truth", {}).get("runtime_publication_enabled") is not False:
+            errors.append("Plan 18 T5d-B golden must remain contract-only")
+
+    expected_index_binding = {
+        "path": TASK_5D_B_COMMAND_INDEX_PATH,
+        "sha256": hashlib.sha256(index_path.read_bytes()).hexdigest(),
+        "size_bytes": index_path.stat().st_size,
+    }
+    if receipt.get("contract_asset_index") != expected_index_binding:
+        errors.append("Plan 18 T5d-B receipt index binding differs")
+    if receipt.get("receipt_status") != "READY_COMMAND_CONSUMER_CONTRACT_ONLY":
+        errors.append("Plan 18 T5d-B receipt status differs")
+    if receipt.get("plan_18_task_5d_b_stop") is not True:
+        errors.append("Plan 18 T5d-B receipt does not close T5d-B")
+    if receipt.get("plan_19_task_2_stop") is not True:
+        errors.append("Plan 18 T5d-B receipt does not close Plan 19 T2")
+    receipt_producer = receipt.get("crucible_producer", {})
+    if (
+        receipt_producer.get("contract_commit") != TASK_5D_B_CR89_CONTRACT_COMMIT
+        or receipt_producer.get("publication_commit") != TASK_5D_B_CR89_PUBLICATION_COMMIT
+        or receipt_producer.get("producer_receipt_sha256") != TASK_5D_B_CR89_RECEIPT_SHA256
+    ):
+        errors.append("Plan 18 T5d-B receipt producer binding differs")
+    upstream = receipt.get("upstream_t5d_a_stop", {})
+    upstream_path = resolve(str(upstream.get("path") or ""))
+    if not upstream_path.is_file() or hashlib.sha256(
+        upstream_path.read_bytes()
+    ).hexdigest() != upstream.get("sha256"):
+        errors.append("Plan 18 T5d-B upstream T5d-A STOP binding differs")
 
 
 def verify_plan_18_task_2_receipt(
@@ -1364,6 +1536,7 @@ def main() -> int:
     verify_plan_18_task_2_v2_candidate(errors)
     current_source_digest = verify_plan_18_task_5c_v3_artifact_ref(errors)
     verify_plan_18_task_5d_a_contract_consumer(errors)
+    verify_plan_18_task_5d_b_command_consumer(errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

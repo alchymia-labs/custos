@@ -57,6 +57,50 @@ V4_INDEX_PATH = "docs/authority/strategy-contract-assets-v4.json"
 V4_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json"
 )
+CR_PLAN89_COMMAND_INDEX_PATH = "docs/authority/crucible-runner-command-consumer-assets-v1.json"
+CR_PLAN89_COMMAND_CONSUMER_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
+)
+CR_PLAN89_VENDOR_ROOT = "docs/authority/vendor/crucible-plan-89"
+CR_PLAN89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
+CR_PLAN89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
+CR_PLAN89_PRODUCER_RECEIPT_SHA256 = (
+    "105ea501b83053421066b4053ec3583e4dd109560b0689bfeb856c2f8beec5d2"
+)
+CR_PLAN89_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
+CR_PLAN89_COMMAND_CONSUMER_TEST = "tests/test_plan18_t5d_b_runner_command_consumer.py"
+CR_PLAN89_AUTHORITY_ASSETS = {
+    "docs/authority/golden/crucible-runner-deployment-command-v1.json": (
+        CR_PLAN89_CONTRACT_COMMIT,
+        "7054351ccf625bb7696063c0deb9e15c22ed1022dbdc1ef6a7adc4e78fb8c73e",
+        140382,
+    ),
+    "docs/authority/golden/crucible-runner-deployment-command-v1.json.sha256": (
+        CR_PLAN89_CONTRACT_COMMIT,
+        "a9b3bb28795622fbf1a6afcd425c7f9c94f9a7accaa5945523d92a7023319b7e",
+        65,
+    ),
+    "docs/authority/receipts/crucible-plan-89-runner-command-producer-v1.json": (
+        CR_PLAN89_PUBLICATION_COMMIT,
+        CR_PLAN89_PRODUCER_RECEIPT_SHA256,
+        4059,
+    ),
+    "docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json": (
+        CR_PLAN89_CONTRACT_COMMIT,
+        "5aecc9ca09b1b06204fd9f790ecfc56ad3bc10e72086f84168092beff69061da",
+        5522,
+    ),
+    "docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json.sha256": (
+        CR_PLAN89_CONTRACT_COMMIT,
+        "f4bc19211678de8e01c35349c08cf0771bc5d99c4d5c6fac68d9e8b946673747",
+        65,
+    ),
+}
+CR_PLAN89_NON_CURRENT_COMMITS = (
+    "fe7be5119633c341f6e888a250a601d9db0d6e67",
+    "56743f090ef3461f306d3937bfa8b054e6e7b2d8",
+    "a20f7116fed35670264d3a0139974aa25daa2a26",
+)
 PS_PLAN54_VENDOR_ROOT = "docs/authority/vendor/ps-plan-54"
 PS_PLAN54_SOURCE_COMMIT = "175be5090c1c9708db89921271d7f2b26b2d0a40"
 PS_PLAN54_REVIEWED_FOLLOWUP_COMMIT = "6ce6f553188c04f48a4ee1838efc42bee82deed3"
@@ -732,6 +776,118 @@ def build_v4_evidence_consumer_assets() -> dict[str, bytes]:
     return generated
 
 
+def build_cr89_command_consumer_assets() -> dict[str, bytes]:
+    producer_assets = [
+        {
+            "source_path": source_path,
+            "vendored_path": f"{CR_PLAN89_VENDOR_ROOT}/{source_path}",
+            "source_commit": source_commit,
+            "sha256": digest,
+            "size_bytes": size_bytes,
+        }
+        for source_path, (source_commit, digest, size_bytes) in sorted(
+            CR_PLAN89_AUTHORITY_ASSETS.items()
+        )
+    ]
+    consumer_assets = []
+    for relative in (CR_PLAN89_COMMAND_CONSUMER_SOURCE, CR_PLAN89_COMMAND_CONSUMER_TEST):
+        data = (ROOT / relative).read_bytes()
+        consumer_assets.append({"path": relative, "sha256": sha256(data), "size_bytes": len(data)})
+    index = json_bytes(
+        {
+            "asset_index_schema_version": 1,
+            "canonical_name": ("Custos Plan 18 T5d-B and Plan 19 T2 CR89 command consumer assets"),
+            "status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
+            "slice_equivalence": ["Custos Plan 18 T5d-B", "Custos Plan 19 T2"],
+            "producer_authority": {
+                "repository": "tesseract-trading/crucible-rust",
+                "contract_commit": CR_PLAN89_CONTRACT_COMMIT,
+                "publication_commit": CR_PLAN89_PUBLICATION_COMMIT,
+                "producer_receipt_sha256": CR_PLAN89_PRODUCER_RECEIPT_SHA256,
+                "producer_assets": producer_assets,
+                "superseded_non_current_commits": list(CR_PLAN89_NON_CURRENT_COMMITS),
+            },
+            "consumer_model": {
+                "path": CR_PLAN89_COMMAND_CONSUMER_SOURCE,
+                "public_export": "CrucibleRunnerDeploymentCommandV1",
+                "sha256": consumer_assets[0]["sha256"],
+                "size_bytes": consumer_assets[0]["size_bytes"],
+            },
+            "consumer_assets": consumer_assets,
+            "custos_publishes_command_schema": False,
+            "exact_signed_event_bytes_retained": True,
+            "signature_bytes_in_fingerprint": False,
+            "full_artifact_evidence_required": True,
+            "acceptance_semantics_fail_closed": True,
+            "command_contract_consumer_ready": True,
+            "runtime_ready": False,
+            "production_ready": False,
+        }
+    )
+    receipt = json_bytes(
+        {
+            "receipt_schema_version": 1,
+            "canonical_name": ("Custos Plan 18 T5d-B and Plan 19 T2 command consumer receipt"),
+            "receipt_status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
+            "plan_18_task_5d_b_stop": True,
+            "plan_19_task_2_stop": True,
+            "contract_asset_index": {
+                "path": CR_PLAN89_COMMAND_INDEX_PATH,
+                "sha256": sha256(index),
+                "size_bytes": len(index),
+            },
+            "crucible_producer": {
+                "repository": "tesseract-trading/crucible-rust",
+                "contract_commit": CR_PLAN89_CONTRACT_COMMIT,
+                "publication_commit": CR_PLAN89_PUBLICATION_COMMIT,
+                "producer_receipt": (
+                    f"{CR_PLAN89_VENDOR_ROOT}/docs/authority/receipts/"
+                    "crucible-plan-89-runner-command-producer-v1.json"
+                ),
+                "producer_receipt_sha256": CR_PLAN89_PRODUCER_RECEIPT_SHA256,
+                "superseded_non_current_commits": list(CR_PLAN89_NON_CURRENT_COMMITS),
+            },
+            "upstream_t5d_a_stop": {
+                "commit": "3d2ddcf11e7c6fe30fb36f09e8340b2d49f6c245",
+                "path": (
+                    "docs/authority/receipts/"
+                    "custos-plan-18-task-5d-a-evidence-consumer-receipt.json"
+                ),
+                "sha256": ("4589aebd1c8fbbd2e7d6b501e8367d5805e0f83694a755a8a63960b1d8453509"),
+            },
+            "consumer_model": {
+                "path": CR_PLAN89_COMMAND_CONSUMER_SOURCE,
+                "public_export": "CrucibleRunnerDeploymentCommandV1",
+                "sha256": consumer_assets[0]["sha256"],
+                "size_bytes": consumer_assets[0]["size_bytes"],
+            },
+            "contract_guards": {
+                "full_artifact_evidence_cross_binding": True,
+                "strict_acceptance_semantics": True,
+                "exact_signed_event_bytes_retained": True,
+                "signature_bytes_in_fingerprint": False,
+                "legacy_v1_fallback": False,
+                "second_bom_authority_allowed": False,
+                "command_selected_root_policy_issuer_workflow": False,
+                "custos_command_schema_published": False,
+            },
+            "command_contract_consumer_ready": True,
+            "runtime_wiring_changed": False,
+            "runtime_ready": False,
+            "production_ready": False,
+            "open_blockers": [
+                "Custos Plan 18 T5e verifier and runtime cutover",
+                "Custos Plan 19 T3 fingerprint and bounded ACK policy",
+                "Custos Plan 19 T4-T5 durable state and engine lifecycle",
+            ],
+        }
+    )
+    return {
+        CR_PLAN89_COMMAND_INDEX_PATH: index,
+        CR_PLAN89_COMMAND_CONSUMER_RECEIPT_PATH: receipt,
+    }
+
+
 def build_toolkit_rc_foundation_assets() -> dict[str, bytes]:
     return {
         TOOLKIT_RC_SCHEMA_PATH: json_bytes(
@@ -795,8 +951,20 @@ def main() -> int:
         for relative in crucible_vendor_drift:
             print(f"vendored Crucible Plan 88 producer authority byte drifted: {relative}")
         return 1
+    cr89_vendor_drift = [
+        f"{CR_PLAN89_VENDOR_ROOT}/{source_path}"
+        for source_path, (_, expected_digest, expected_size) in (CR_PLAN89_AUTHORITY_ASSETS.items())
+        if not (ROOT / CR_PLAN89_VENDOR_ROOT / source_path).is_file()
+        or (ROOT / CR_PLAN89_VENDOR_ROOT / source_path).stat().st_size != expected_size
+        or sha256((ROOT / CR_PLAN89_VENDOR_ROOT / source_path).read_bytes()) != expected_digest
+    ]
+    if cr89_vendor_drift:
+        for relative in cr89_vendor_drift:
+            print(f"vendored Crucible Plan 89 producer authority byte drifted: {relative}")
+        return 1
     assets = build_v3_artifact_ref_assets()
     assets.update(build_v4_evidence_consumer_assets())
+    assets.update(build_cr89_command_consumer_assets())
     assets.update(build_toolkit_rc_foundation_assets())
     drift: list[str] = []
     for relative, expected in assets.items():

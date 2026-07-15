@@ -24,6 +24,7 @@ from custos_toolkit.contracts.strategy_execution import (
     verify_effective_config_digest,
 )
 
+from custos.contracts.crucible_runner_command import CrucibleRunnerDeploymentCommandV1
 from custos.contracts.deployment import (
     DEPLOYMENT_SPEC_DIGEST_ALGORITHM,
     CrucibleDomainEventVerifier,
@@ -39,6 +40,7 @@ from custos.contracts.deployment import (
 
 __all__ = [
     "CrucibleDomainEventVerifier",
+    "CrucibleRunnerDeploymentCommandV1",
     "DEPLOYMENT_SPEC_DIGEST_ALGORITHM",
     "DeploymentMessage",
     "DeploymentSpec",

@@ -1,0 +1,54 @@
+{
+  "canonical_name": "Custos Plan 18 T5d-B and Plan 19 T2 command consumer receipt",
+  "command_contract_consumer_ready": true,
+  "consumer_model": {
+    "path": "src/custos/contracts/crucible_runner_command.py",
+    "public_export": "CrucibleRunnerDeploymentCommandV1",
+    "sha256": "9c0d0430647b4a233ce6d0830ce57b754f7a49d4340ce01e7986e152189ae19f",
+    "size_bytes": 35227
+  },
+  "contract_asset_index": {
+    "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
+    "sha256": "a75c9f06abed877263b03b904a993039212a402b4e073eb8800a84c999b82482",
+    "size_bytes": 3967
+  },
+  "contract_guards": {
+    "command_selected_root_policy_issuer_workflow": false,
+    "custos_command_schema_published": false,
+    "exact_signed_event_bytes_retained": true,
+    "full_artifact_evidence_cross_binding": true,
+    "legacy_v1_fallback": false,
+    "second_bom_authority_allowed": false,
+    "signature_bytes_in_fingerprint": false,
+    "strict_acceptance_semantics": true
+  },
+  "crucible_producer": {
+    "contract_commit": "51d23eba8aaefb30e936fc9fae1eac0e791164aa",
+    "producer_receipt": "docs/authority/vendor/crucible-plan-89/docs/authority/receipts/crucible-plan-89-runner-command-producer-v1.json",
+    "producer_receipt_sha256": "105ea501b83053421066b4053ec3583e4dd109560b0689bfeb856c2f8beec5d2",
+    "publication_commit": "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d",
+    "repository": "tesseract-trading/crucible-rust",
+    "superseded_non_current_commits": [
+      "fe7be5119633c341f6e888a250a601d9db0d6e67",
+      "56743f090ef3461f306d3937bfa8b054e6e7b2d8",
+      "a20f7116fed35670264d3a0139974aa25daa2a26"
+    ]
+  },
+  "open_blockers": [
+    "Custos Plan 18 T5e verifier and runtime cutover",
+    "Custos Plan 19 T3 fingerprint and bounded ACK policy",
+    "Custos Plan 19 T4-T5 durable state and engine lifecycle"
+  ],
+  "plan_18_task_5d_b_stop": true,
+  "plan_19_task_2_stop": true,
+  "production_ready": false,
+  "receipt_schema_version": 1,
+  "receipt_status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
+  "runtime_ready": false,
+  "runtime_wiring_changed": false,
+  "upstream_t5d_a_stop": {
+    "commit": "3d2ddcf11e7c6fe30fb36f09e8340b2d49f6c245",
+    "path": "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json",
+    "sha256": "4589aebd1c8fbbd2e7d6b501e8367d5805e0f83694a755a8a63960b1d8453509"
+  }
+}

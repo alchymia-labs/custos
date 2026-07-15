@@ -113,7 +113,14 @@
     "task_5d_a_contract_consumer_ready": true,
     "task_5d_a_runtime_ready": false,
     "task_5d_a_strategy_artifact_pre_import_verification_receipt_v2_published": true,
-    "task_5d_b_status": "BLOCKED_ON_CR89_COMMAND_PRODUCER",
+    "task_5d_b_status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
+    "task_5d_b_command_asset_index": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
+    "task_5d_b_consumer_receipt": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
+    "task_5d_b_consumer_model": "src/custos/contracts/crucible_runner_command.py",
+    "task_5d_b_command_contract_consumer_ready": true,
+    "task_5d_b_exact_signed_event_bytes_retained": true,
+    "task_5d_b_custos_command_schema_owner": false,
+    "task_5d_b_runtime_ready": false,
     "legacy_artifact_contracts": {
       "v1": {
         "asset_index": "docs/authority/strategy-contract-assets-v1.json",
@@ -125,9 +132,9 @@
       }
     },
     "task_5c_open_blockers": [
-      "Custos Plan 18 T5d-B waits for the Crucible Plan 89 command producer",
       "Custos Plan 18 T5e verifier/runtime cutover and explicit V1 rejection",
-      "exact byte consumption and independent runner-local policy decision"
+      "Custos Plan 19 T3-T5 durable command outcome, state and engine lifecycle",
+      "exact final candidate and cross-repository runtime acceptance"
     ]
   },
   "toolkit_rc_release": {

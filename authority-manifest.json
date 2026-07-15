@@ -301,6 +301,23 @@
       "contract_consumer_ready": true,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "crucible_runner_command_consumer_asset_index",
+      "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
+      "status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
+      "command_contract_consumer_ready": true,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "plan_18_task_5d_b_command_consumer_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
+      "receipt_status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
+      "plan_18_task_5d_b_stop": true,
+      "plan_19_task_2_stop": true,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [
@@ -399,7 +416,11 @@
       "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json",
       "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json",
       "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json",
-      "tests/test_plan18_t5d_a_evidence_consumer.py"
+      "tests/test_plan18_t5d_a_evidence_consumer.py",
+      "src/custos/contracts/crucible_runner_command.py",
+      "docs/authority/crucible-runner-command-consumer-assets-v1.json",
+      "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
+      "tests/test_plan18_t5d_b_runner_command_consumer.py"
     ],
     "forbidden_regex": [
       "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",

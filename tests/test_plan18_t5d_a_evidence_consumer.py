@@ -413,7 +413,8 @@ def test_contract_consumer_slice_is_current_without_runtime_or_production_promot
     )
     assert authority["task_5d_a_contract_consumer_ready"] is True
     assert authority["task_5d_a_runtime_ready"] is False
-    assert authority["task_5d_b_status"] == "BLOCKED_ON_CR89_COMMAND_PRODUCER"
+    assert authority["task_5d_b_status"] == "READY_COMMAND_CONSUMER_CONTRACT_ONLY"
+    assert authority["task_5d_b_runtime_ready"] is False
     assert authority["asset_index_status"] == "READY_CONTRACT_CONSUMER_ONLY"
     assert authority["production_ready"] is False
 

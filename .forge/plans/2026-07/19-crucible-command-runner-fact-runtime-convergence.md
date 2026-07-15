@@ -2,11 +2,11 @@
 
 > **Status**: ⏳ In progress
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-14 after v1.team runtime review
+> **Revised**: 2026-07-15 after CR89 command-consumer STOP
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
-> **Immediately executable**: Task 1 verification floor only
+> **Immediately executable**: Task 3 after the contract-only Task 2 STOP; no runtime readiness is implied
 > **19d-T8a gate**: 19c STOP only; it produces the immutable RunnerFact candidate before Crucible Plan 90 Phase A
 > **Runtime RC gates**: Crucible Plan 89 migration 0116 signed command producer and `CR89-0116-GENERATION-STORAGE`; Crucible Plan 90 Phase-A schema/golden compatibility receipt; Crucible Plan 99 runner-safety-policy-authority; Custos Plan 18 staged candidate and exact final required by the selected RC/final-candidate BOM
 > **Close-out gates**: Crucible Plan 90 Phase-B real runtime round-trip receipt; PS Plan 56 exact final-candidate acceptance
@@ -713,8 +713,9 @@ compatibility receipt owner。
 2. 记录 producer SHA、schema digest、fixture digest。
 3. Command 必须绑定完整 PS `StrategyReleaseBomV1` object、
    `StrategyArtifactRefV2`、detached `ArtifactAttestationRefV1`、Crucible
-   `ArtifactAcceptanceReceiptV1`/`artifact_evidence_digest`、effective config
-   digest 与完整 instance/spec/generation provenance；禁止
+   完整 `ArtifactEvidenceV1`、`ArtifactAcceptanceReceiptV1` /
+   `artifact_evidence_digest`、effective config digest 与完整
+   instance/spec/generation provenance；禁止
    `release_bom_members` 第二真相。
 4. Custos 先写 byte-identical、unknown version、missing field、V1 fallback、
    BOM-as-array、acceptance mismatch 和 digest mismatch tests。
@@ -723,6 +724,15 @@ compatibility receipt owner。
 6. 双仓 compatibility gate 必须从同一 fixture/schema 计算。
 7. 本 Task 与 Plan 18 T5d-B 是同一 implementation slice、consumer model 和
    receipt；禁止各自实现一套 DTO 或验收链。
+
+> **Execution status (2026-07-15)**: Task 2 STOP is
+> `READY_COMMAND_CONSUMER_CONTRACT_ONLY` and is exactly the Plan 18 T5d-B
+> receipt. Corrected CR89 contract commit `51d23eba8aaefb30e936fc9fae1eac0e791164aa`
+> and publication commit `06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d`
+> are pinned byte-for-byte. Old `fe7be511...`, `56743f09...`, and `a20f7116...`
+> producer slices are `NON_CURRENT`. The sole Custos consumer retains exact event
+> bytes and computes the CR producer fingerprint, but does not alter subscription,
+> ACK, daemon, reconciler, SQLite or runtime composition. Those remain Task 3+.
 
 Custos 提交：
 
@@ -956,7 +966,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 |---|---|---|---|
 | T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `3ce4048` |
 | T1 Verification floor | [~] | 2026-07-15 | characterization sub-checkpoint READY at `c567f1d`; full `make verify` green at `f3adde2`; remaining verification-floor commands require separate evidence |
-| T2 Crucible producer | [ ] | — | Plan 89 producer + Plan 90 pre-RC schema receipt |
+| T2 Crucible producer/consumer | [x] | 2026-07-15 | Same STOP as Plan 18 T5d-B: corrected CR89 A2/B2 bytes, sole consumer parser, full evidence/acceptance bindings and frozen producer fingerprint; contract-only, runtime false |
 | T3 Fingerprint/ACK | [ ] | — | frozen algorithm + durable outcomes |
 | T4 Single durable store | [ ] | — | outcomes, generation fence, cap/reservation tables |
 | T5 Engine lifecycle | [ ] | — | additive protocol |

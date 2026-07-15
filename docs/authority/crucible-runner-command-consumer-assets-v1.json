@@ -1,0 +1,83 @@
+{
+  "acceptance_semantics_fail_closed": true,
+  "asset_index_schema_version": 1,
+  "canonical_name": "Custos Plan 18 T5d-B and Plan 19 T2 CR89 command consumer assets",
+  "command_contract_consumer_ready": true,
+  "consumer_assets": [
+    {
+      "path": "src/custos/contracts/crucible_runner_command.py",
+      "sha256": "9c0d0430647b4a233ce6d0830ce57b754f7a49d4340ce01e7986e152189ae19f",
+      "size_bytes": 35227
+    },
+    {
+      "path": "tests/test_plan18_t5d_b_runner_command_consumer.py",
+      "sha256": "663000baa10ea545561b29522561e1f05fed43d18b8ecf99153977ef94f1826e",
+      "size_bytes": 17822
+    }
+  ],
+  "consumer_model": {
+    "path": "src/custos/contracts/crucible_runner_command.py",
+    "public_export": "CrucibleRunnerDeploymentCommandV1",
+    "sha256": "9c0d0430647b4a233ce6d0830ce57b754f7a49d4340ce01e7986e152189ae19f",
+    "size_bytes": 35227
+  },
+  "custos_publishes_command_schema": false,
+  "exact_signed_event_bytes_retained": true,
+  "full_artifact_evidence_required": true,
+  "producer_authority": {
+    "contract_commit": "51d23eba8aaefb30e936fc9fae1eac0e791164aa",
+    "producer_assets": [
+      {
+        "sha256": "7054351ccf625bb7696063c0deb9e15c22ed1022dbdc1ef6a7adc4e78fb8c73e",
+        "size_bytes": 140382,
+        "source_commit": "51d23eba8aaefb30e936fc9fae1eac0e791164aa",
+        "source_path": "docs/authority/golden/crucible-runner-deployment-command-v1.json",
+        "vendored_path": "docs/authority/vendor/crucible-plan-89/docs/authority/golden/crucible-runner-deployment-command-v1.json"
+      },
+      {
+        "sha256": "a9b3bb28795622fbf1a6afcd425c7f9c94f9a7accaa5945523d92a7023319b7e",
+        "size_bytes": 65,
+        "source_commit": "51d23eba8aaefb30e936fc9fae1eac0e791164aa",
+        "source_path": "docs/authority/golden/crucible-runner-deployment-command-v1.json.sha256",
+        "vendored_path": "docs/authority/vendor/crucible-plan-89/docs/authority/golden/crucible-runner-deployment-command-v1.json.sha256"
+      },
+      {
+        "sha256": "105ea501b83053421066b4053ec3583e4dd109560b0689bfeb856c2f8beec5d2",
+        "size_bytes": 4059,
+        "source_commit": "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d",
+        "source_path": "docs/authority/receipts/crucible-plan-89-runner-command-producer-v1.json",
+        "vendored_path": "docs/authority/vendor/crucible-plan-89/docs/authority/receipts/crucible-plan-89-runner-command-producer-v1.json"
+      },
+      {
+        "sha256": "5aecc9ca09b1b06204fd9f790ecfc56ad3bc10e72086f84168092beff69061da",
+        "size_bytes": 5522,
+        "source_commit": "51d23eba8aaefb30e936fc9fae1eac0e791164aa",
+        "source_path": "docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json",
+        "vendored_path": "docs/authority/vendor/crucible-plan-89/docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json"
+      },
+      {
+        "sha256": "f4bc19211678de8e01c35349c08cf0771bc5d99c4d5c6fac68d9e8b946673747",
+        "size_bytes": 65,
+        "source_commit": "51d23eba8aaefb30e936fc9fae1eac0e791164aa",
+        "source_path": "docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json.sha256",
+        "vendored_path": "docs/authority/vendor/crucible-plan-89/docs/authority/schemas/crucible-runner-deployment-command-v1.schema.json.sha256"
+      }
+    ],
+    "producer_receipt_sha256": "105ea501b83053421066b4053ec3583e4dd109560b0689bfeb856c2f8beec5d2",
+    "publication_commit": "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d",
+    "repository": "tesseract-trading/crucible-rust",
+    "superseded_non_current_commits": [
+      "fe7be5119633c341f6e888a250a601d9db0d6e67",
+      "56743f090ef3461f306d3937bfa8b054e6e7b2d8",
+      "a20f7116fed35670264d3a0139974aa25daa2a26"
+    ]
+  },
+  "production_ready": false,
+  "runtime_ready": false,
+  "signature_bytes_in_fingerprint": false,
+  "slice_equivalence": [
+    "Custos Plan 18 T5d-B",
+    "Custos Plan 19 T2"
+  ],
+  "status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY"
+}

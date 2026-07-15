@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — T1-T5b historical slices and T5c landed; T5d-A is READY at contract-consumer scope only; T5d-B/T5e plus T6-T9 open
+> **Status**: ⏳ In progress — T1-T5b historical slices and T5c landed; T5d-A and T5d-B are READY at contract-consumer scope only; T5e plus T6-T9 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-15 after Sigstore self-reference and PS BOM type correction
 > **Project**: Custos
@@ -572,8 +572,9 @@ command.
 > source path, commit, SHA-256 and byte size. Custos publishes only its additive
 > `StrategyArtifactPreImportVerificationReceiptV2`, external-references the owner
 > schemas, and requires an independent runner-local policy decision. T5d-A STOP is
-> satisfied only for contract consumption. T5d-B command consumption, production
-> verifier/parser cutover, runtime composition and production readiness remain false.
+> satisfied only for evidence-contract consumption; its immutable receipt still records
+> command consumption false at that boundary. Current T5d-B status is recorded below.
+> Production verifier/parser cutover, runtime composition and production remain false.
 
 #### T5d-B: Consume the Crucible Plan 89 runner-command contract
 
@@ -586,8 +587,8 @@ with exact command schema, golden, digest sidecar and producer receipt.
    `deployment_instance_id`, `deployment_spec_id`, `deployment_spec_digest`,
    `generation`, `strategy_release_id`, `effective_config_digest`,
    `StrategyArtifactRefV2`, one full PS `StrategyReleaseBomV1` object, one
-   detached `ArtifactAttestationRefV1`, and a Crucible
-   `ArtifactAcceptanceReceiptV1` / `artifact_evidence_digest` binding.
+   detached `ArtifactAttestationRefV1`, one full Crucible `ArtifactEvidenceV1`,
+   and its `ArtifactAcceptanceReceiptV1` / `artifact_evidence_digest` binding.
 3. Reject `StrategyArtifactRefV1`, `release_bom_members`, BOM arrays, unknown
    schema versions, missing acceptance evidence, and any command-selected trust
    root or trust policy.
@@ -599,6 +600,20 @@ with exact command schema, golden, digest sidecar and producer receipt.
 
 T5d-B STOP requires the exact CR89 producer SHA/schema/golden/receipt to be
 recorded and all cross-language consumer and negative tests PASS.
+
+> **Execution status (2026-07-15)**: `READY_COMMAND_CONSUMER_CONTRACT_ONLY`.
+> Custos byte-vendored the corrected current CR89 schema/golden/sidecars from
+> contract commit `51d23eba8aaefb30e936fc9fae1eac0e791164aa` and the producer
+> receipt from publication commit `06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d`.
+> The receipt digest is
+> `105ea501b83053421066b4053ec3583e4dd109560b0689bfeb856c2f8beec5d2`
+> and explicitly marks `fe7be511...`, `56743f09...`, and `a20f7116...` as
+> `NON_CURRENT`. Custos exports exactly one consumer model/parser, retains exact
+> signed event bytes and the producer fingerprint, requires the full accepted
+> `ArtifactEvidenceV1`, and performs strict component and acceptance semantic
+> bindings. Custos publishes no command schema. T5d-B and Plan 19 T2 STOP are
+> satisfied only for contract consumption; T5e, daemon/reconciler composition,
+> runtime and production readiness remain false.
 
 #### T5e: Cut over verifier/runtime and reject legacy
 
@@ -943,7 +958,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6 Toolkit candidate | [ ] | — | Four external gates remain: artifact-service immutable receipt recovery support; protected runner/environment/secrets; real OIDC Sigstore plus atomic publish/readback; independent T6e promotion verification plus READY authority commit. T7-T9 and Plan 18 remain uncompleted |
 | T5c ArtifactRefV2 producer ABI | [x] | 2026-07-15 | Additive v3 schema/golden/index and Custos producer receipt; v1/v2 byte-pinned and barred from runtime fallback; receipt remains `PRODUCED_AWAITING_CONSUMER_REVIEWS`, so no handoff/runtime/production claim |
 | T5d-A BOM/evidence consumption | [x] | 2026-07-15 | `READY_CONTRACT_CONSUMER_ONLY`: exact PS and Crucible owner assets byte-vendored with path/commit/hash/size; additive ReceiptV2 schema/golden/negatives and consumer receipt published; T5d-B/runtime/production remain false |
-| T5d-B command consumption / Plan 19 T2 | [ ] | — | After Crucible Plan 89 lands the producer-owned command schema/golden, consume it byte-for-byte and bind the full BOM, detached attestation and accepted evidence; this is the same implementation slice and receipt as Plan 19 Task 2 |
+| T5d-B command consumption / Plan 19 T2 | [x] | 2026-07-15 | `READY_COMMAND_CONSUMER_CONTRACT_ONLY`: corrected current CR89 A2/B2 assets byte-vendored and pinned; one consumer parser validates full BOM, ArtifactRefV2, detached reference, full evidence, semantic acceptance and exact event fingerprint; old A/B are NON_CURRENT; no Custos command schema or runtime wiring |
 | T5e verifier/runtime cutover | [ ] | — | Migrate production caller/composition/verifier, reject V1 and historical indexes, source trust only from runner-local signed policy; blocks protected T6 and READY |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
