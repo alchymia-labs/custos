@@ -986,6 +986,14 @@ git commit -m "feat(custos): enforce signed local notional policy"
    decimal string，并有 schema + production outbox negative evidence。
 10. synthetic signing key/signature 随 golden 分发，但 receipt 必须声明
     `golden_signature_is_runtime_evidence=false`。
+11. runtime-log event identity 必须包含 tenant/mode/runner/instance stream authority，
+    禁止全局 dedup 表跨 stream 误删同内容事件。
+12. lifecycle event identity 使用 stream + spec/digest + generation + state + stable
+    command/apply fingerprint + outcome；`observed_at` 仅为 payload。
+13. capability loader 除 digest 外必须精确钉住 closed projector map 与 unknown-kind disposition。
+14. signing-preimage golden 必须固定 closed header、canonical JSON、facts digest、直接
+    `DOMAIN || canonical_json(header)` bytes、synthetic key/signature；不完整则
+    `phase_a_input_ready=false`。
 
 `19d-T8a` STOP 是 A producer commit 与 B authority receipt 都已落地，exact candidate
 可被外部仓库消费；它不宣称 Crucible projector compatible，也不允许发布 runtime
@@ -1094,7 +1102,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
 | T7 Signed local safety | [~] | 2026-07-15 | T7A contract consumer plus T7B durable/guard `READY_CONTRACT_CONSUMER_CODE_ONLY`; schema v3 uses the same DB/outbox and removes DeploymentSpec risk authority. Native interception, reservation lifecycle, bypass proof and CR99 main/0117/publication/runtime receipts remain open |
-| T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；A producer `5f4d991` + B authority receipt；instance-keyed/non-reset、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
+| T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；current `.2` A2 producer `af8a391` + v2 authority receipt；`.1` unchanged `NON_CURRENT_SUPERSEDED`；stream-safe/stable event IDs、exact signing preimage、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |
 | T10 Accept/promote/close-out | [ ] | — | Plan 90B + PS 56 exact-candidate receipts；unchanged promotion |
@@ -1121,6 +1129,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | HISTORY | `3ce4048` | 保留为 original plan-first，不再代表有效 runtime design approval | Recorded |
 | ATOMIC-RECEIPT | T8a | A producer commit 冻结 bytes；B authority commit 绑定 clean A SHA，避免 self-reference；asset 变化须新 coordinate | Accepted 2026-07-15 |
 | TYPING-BASELINE | T8a gate | broad raw strict mypy 首轮 60 项；修复本轮 UUID 类型后剩 59 项历史 `runner_fact.py`/Nautilus debt；以显式 baseline-profiled scoped 0-error gate 收口，不夹带重构 | Recorded 2026-07-15 |
+| CANDIDATE-REVISION | T8a `.1` → `.2` | `.1` 缺少跨 stream runtime identity、稳定 lifecycle identity、exact signing preimage 与 capability semantic pin，且 authority commit 超出 producer tree；旧 receipt 保持原 bytes，新 A2/B2 coordinate 取代其 current 状态 | Accepted 2026-07-15 |
 
 ## v1.team Scope
 

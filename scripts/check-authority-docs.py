@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 import re
@@ -62,10 +64,14 @@ PLAN_19_T7B_RECEIPT_PATH = (
 )
 PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-candidate-assets-v1.json"
 PLAN_19_T8A_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json"
+)
+PLAN_19_T8A_V1_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json"
 )
-PLAN_19_T8A_PRODUCER_COMMIT = "5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28"
-PLAN_19_T8A_INDEX_SHA256 = "8c0b9103d0b3f890ac24ea179e6398b1819e876dccfe4387ceecb91a91d0e104"
+PLAN_19_T8A_V1_RECEIPT_SHA256 = "aac5a9377bd99190fd53ac9c99ded6850acd8e0b22a202e2bd158d0964a3cedc"
+PLAN_19_T8A_PRODUCER_COMMIT = "af8a39123b9c7b4e7b9b51361339a504af1d2096"
+PLAN_19_T8A_INDEX_SHA256 = "6436e11799d31629c68c8ca521734799b8458e566ca8edf1f9b58bafcd49edd2"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -2297,7 +2303,8 @@ def verify_plan_19_task_8a_runner_fact_candidate(
     index_digest = hashlib.sha256(index_bytes).hexdigest()
     index = load_json(index_path)
     receipt = load_json(receipt_path)
-    coordinate = "custos.runner-fact.v1/candidate-2026-07-15.1"
+    coordinate = "custos.runner-fact.v1/candidate-2026-07-15.2"
+    superseded_coordinate = "custos.runner-fact.v1/candidate-2026-07-15.1"
     expected_truth: dict[str, Any] = {
         "status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
         "phase_a_input_ready": True,
@@ -2311,6 +2318,11 @@ def verify_plan_19_task_8a_runner_fact_candidate(
     }
     if index.get("candidate_coordinate") != coordinate:
         errors.append("Plan 19 T8a candidate coordinate differs")
+    if (
+        index.get("supersedes_candidate_coordinate") != superseded_coordinate
+        or index.get("superseded_candidate_status") != "NON_CURRENT_SUPERSEDED"
+    ):
+        errors.append("Plan 19 T8a superseded candidate disposition differs")
     if index_digest != PLAN_19_T8A_INDEX_SHA256:
         errors.append("Plan 19 T8a candidate asset index digest differs")
     for key, value in expected_truth.items():
@@ -2329,6 +2341,32 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         "generation",
     ]:
         errors.append("Plan 19 T8a signed fencing fields differ")
+    signing_header_fields = [
+        "schema_version",
+        "batch_id",
+        "tenant_id",
+        "trading_mode",
+        "runner_id",
+        "deployment_instance_id",
+        "deployment_spec_id",
+        "deployment_spec_digest",
+        "generation",
+        "strategy_id",
+        "capability_version_id",
+        "capability_version",
+        "capability_manifest_digest",
+        "key_id",
+        "emitted_at",
+        "source_seq_start",
+        "source_seq_end",
+        "payload_digest",
+    ]
+    if (
+        index.get("signing_header_fields") != signing_header_fields
+        or index.get("signing_header_excluded_batch_fields") != ["facts", "signature"]
+        or index.get("signing_preimage_formula") != "DOMAIN || canonical_json(header)"
+    ):
+        errors.append("Plan 19 T8a signing header contract differs")
     if index.get("cross_language_numeric_policy") != ("integer-or-canonical-decimal-string"):
         errors.append("Plan 19 T8a numeric canonicalization differs")
     synthetic = index.get("synthetic_signature")
@@ -2338,13 +2376,13 @@ def verify_plan_19_task_8a_runner_fact_candidate(
     expected_assets = {
         "runner_fact_batch_schema": (
             "docs/gateway-contract/v1/runner_fact_batch_v1.schema.json",
-            "7230e275592ba961e83b544c1049d91d30701cd8ea5035cf8b1eb76425add69c",
-            29657,
+            "4448c41b5b2390923d8ad0f1fe94114fc61b259adce822e363213e5e0c682c31",
+            31187,
         ),
         "runner_fact_batch_golden": (
             "docs/authority/runner-fact-golden-v1.json",
-            "5510cd3c98a147a6f59edb5f06402596c0ce8e5e6d5e922ff8d949c1d5a2abfa",
-            6336,
+            "76adf72c2dbfdea4bd4438288c3151540dd95dcb7415c934ea0ada65851aa045",
+            6461,
         ),
         "runner_fact_capability_manifest": (
             "docs/authority/runner-fact-capability-manifest-v1.json",
@@ -2358,13 +2396,18 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         ),
         "runtime_event_fact_parity_matrix": (
             "docs/authority/runner-fact-parity-matrix-v1.json",
-            "87ebb30ceb278bb756a0b6db43cad3dc4a8248d7bf35febe2180ebd44cbbfd2c",
+            "ad3332769982c28c4afabc6014251dfdc331019bdc5f311e2f87e0823d98b646",
             3803,
         ),
         "instance_stream_sequence_continuation_fixture": (
             "docs/authority/runner-fact-sequence-continuation-v1.json",
-            "9df395b60ade17e7ae30af75aa19fe7d02fa741267550e40778a076b92bbc58f",
+            "716866abb91cf0a2ce0dcb1d33ecc78c0788abed69abb34efe3bf2edaad2ff5e",
             6050,
+        ),
+        "runner_fact_signing_preimage_golden": (
+            "docs/authority/runner-fact-signing-preimage-golden-v1.json",
+            "fafdb45953819d00b4bed0a5c950d3becaa164e8c5f7d23853cef109d86fb6b6",
+            5457,
         ),
     }
     actual_assets = {
@@ -2440,6 +2483,86 @@ def verify_plan_19_task_8a_runner_fact_candidate(
     ):
         errors.append("Plan 19 T8a instance sequence continuation differs")
 
+    signing_vector = load_json(resolve(expected_assets["runner_fact_signing_preimage_golden"][0]))
+    canonical_json_rules = {
+        "encoding": "UTF-8",
+        "object_member_order": "ascending Unicode code point order",
+        "array_order": "preserved",
+        "item_separator": ",",
+        "key_value_separator": ":",
+        "whitespace": "none",
+        "ensure_ascii": False,
+        "allow_nan": False,
+        "binary_float_allowed": False,
+        "number_policy": "JSON integer or canonical decimal string",
+        "string_escaping": (
+            "JSON-escape control characters, quotation mark, and reverse solidus; "
+            "emit all other Unicode as UTF-8"
+        ),
+        "trailing_newline": False,
+    }
+    header = signing_vector.get("header")
+    facts = golden.get("facts")
+    try:
+        if not isinstance(header, dict) or not isinstance(facts, list):
+            raise ValueError("signing vector header or facts is not structured")
+        expected_header = {field: golden[field] for field in signing_header_fields}
+        canonical_facts = json.dumps(
+            facts,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        canonical_header = json.dumps(
+            expected_header,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        domain = base64.b64decode(signing_vector["signing_domain_base64"])
+        preimage = domain + canonical_header
+        signature_text = str(golden["signature"])
+        base64.urlsafe_b64decode(signature_text + "=" * (-len(signature_text) % 4))
+        vector_signature = signing_vector["synthetic_signature"]
+        base64.b64decode(vector_signature["public_key_base64"])
+        expected_payload_digest = hashlib.sha256(canonical_facts).hexdigest()
+        if (
+            signing_vector.get("candidate_coordinate") != coordinate
+            or signing_vector.get("signing_header_fields") != signing_header_fields
+            or signing_vector.get("excluded_batch_fields") != ["facts", "signature"]
+            or signing_vector.get("canonical_json_rules") != canonical_json_rules
+            or signing_vector.get("signing_preimage_formula") != "DOMAIN || canonical_json(header)"
+            or signing_vector.get("runtime_evidence") is not False
+            or header != expected_header
+            or list(header) != signing_header_fields
+            or signing_vector.get("payload_digest")
+            != {
+                "algorithm": "sha256",
+                "formula": "sha256(canonical_json(facts))",
+                "value": expected_payload_digest,
+            }
+            or golden.get("payload_digest") != expected_payload_digest
+            or base64.b64decode(signing_vector["canonical_header_json_base64"]) != canonical_header
+            or signing_vector.get("canonical_header_json_sha256")
+            != hashlib.sha256(canonical_header).hexdigest()
+            or base64.b64decode(signing_vector["signing_preimage_base64"]) != preimage
+            or signing_vector.get("signing_preimage_sha256") != hashlib.sha256(preimage).hexdigest()
+            or vector_signature.get("signature_encoding") != "base64url-unpadded"
+            or vector_signature.get("signature_base64url_unpadded") != signature_text
+            or not isinstance(synthetic, dict)
+            or vector_signature.get("public_key_base64") != synthetic.get("public_key_base64")
+        ):
+            errors.append("Plan 19 T8a signing preimage vector differs")
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        binascii.Error,
+    ):
+        errors.append("Plan 19 T8a signing preimage vector is invalid")
+
     producer = receipt.get("producer")
     receipt_index = receipt.get("contract_asset_index")
     expected_receipt_truth = {
@@ -2457,9 +2580,21 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         "golden_signature_is_runtime_evidence": False,
         "generation_resets_sequence": False,
         "python_float_payload_allowed": False,
+        "signing_preimage_complete": True,
+        "capability_projector_contract_exact_pin": True,
+        "observed_at_in_lifecycle_event_identity": False,
     }
     if receipt.get("candidate_coordinate") != coordinate:
         errors.append("Plan 19 T8a receipt coordinate differs")
+    if (
+        receipt.get("supersedes_candidate_coordinate") != superseded_coordinate
+        or receipt.get("superseded_candidate_status") != "NON_CURRENT_SUPERSEDED"
+        or receipt.get("signing_header_fields") != signing_header_fields
+        or receipt.get("signing_header_excluded_batch_fields") != ["facts", "signature"]
+        or receipt.get("payload_digest_formula") != "sha256(canonical_json(facts))"
+        or receipt.get("signing_preimage_formula") != "DOMAIN || canonical_json(header)"
+    ):
+        errors.append("Plan 19 T8a receipt revision contract differs")
     if not isinstance(producer, dict) or producer != {
         "repository": "tesseract-trading/custos",
         "commit": PLAN_19_T8A_PRODUCER_COMMIT,
@@ -2479,6 +2614,21 @@ def verify_plan_19_task_8a_runner_fact_candidate(
     for key, value in expected_receipt_truth.items():
         if receipt.get(key) != value:
             errors.append(f"Plan 19 T8a receipt {key} differs")
+    historical_receipt = resolve(PLAN_19_T8A_V1_RECEIPT_PATH)
+    superseded_receipt = receipt.get("superseded_receipt")
+    if (
+        not historical_receipt.is_file()
+        or hashlib.sha256(historical_receipt.read_bytes()).hexdigest()
+        != PLAN_19_T8A_V1_RECEIPT_SHA256
+        or not isinstance(superseded_receipt, dict)
+        or superseded_receipt
+        != {
+            "path": PLAN_19_T8A_V1_RECEIPT_PATH,
+            "sha256": PLAN_19_T8A_V1_RECEIPT_SHA256,
+            "bytes_unchanged": True,
+        }
+    ):
+        errors.append("Plan 19 T8a historical v1 receipt is not immutable")
 
     expected_registrations = {
         "runner_fact_candidate_asset_index": PLAN_19_T8A_INDEX_PATH,
@@ -2494,7 +2644,13 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         "runner_fact_sequence_continuation_fixture_v1": expected_assets[
             "instance_stream_sequence_continuation_fixture"
         ][0],
+        "runner_fact_signing_preimage_golden_v1": expected_assets[
+            "runner_fact_signing_preimage_golden"
+        ][0],
         "plan_19_task_8a_runner_fact_candidate_receipt": PLAN_19_T8A_RECEIPT_PATH,
+        "plan_19_task_8a_runner_fact_candidate_receipt_v1_historical": (
+            PLAN_19_T8A_V1_RECEIPT_PATH
+        ),
     }
     registrations = {
         entry.get("role"): entry.get("path")
@@ -2515,6 +2671,9 @@ def verify_plan_19_task_8a_runner_fact_candidate(
             "producer_commit": PLAN_19_T8A_PRODUCER_COMMIT,
             "asset_index": PLAN_19_T8A_INDEX_PATH,
             "receipt": PLAN_19_T8A_RECEIPT_PATH,
+            "signing_preimage_golden": expected_assets["runner_fact_signing_preimage_golden"][0],
+            "signing_preimage_complete": True,
+            "capability_projector_contract_exact_pin": True,
             "generation_resets_sequence": False,
             "phase_a_input_ready": True,
             "crucible_phase_a_compatible": False,
@@ -2531,9 +2690,26 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         for key, value in expected_state.items():
             if state.get(key) != value:
                 errors.append(f"runner_fact_contract_candidate {key} differs")
+        if state.get("superseded_candidates") != [
+            {
+                "candidate_coordinate": superseded_coordinate,
+                "status": "NON_CURRENT_SUPERSEDED",
+                "producer_commit": "5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28",
+                "receipt": PLAN_19_T8A_V1_RECEIPT_PATH,
+                "receipt_sha256": PLAN_19_T8A_V1_RECEIPT_SHA256,
+            }
+        ]:
+            errors.append("runner_fact_contract_candidate superseded history differs")
 
     runner_fact_source = resolve("src/custos/core/runner_fact.py").read_text(encoding="utf-8")
+    runtime_log_source = resolve("src/custos/core/runtime_log_fact.py").read_text(encoding="utf-8")
     lifecycle_test = resolve("tests/test_runner_deployment_lifecycle_fact.py").read_text(
+        encoding="utf-8"
+    )
+    runtime_log_test = resolve("tests/test_runner_runtime_log_fact_identity.py").read_text(
+        encoding="utf-8"
+    )
+    candidate_test = resolve("tests/test_plan19_t8a_runner_fact_contract_candidate.py").read_text(
         encoding="utf-8"
     )
     for marker in (
@@ -2542,6 +2718,11 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         "unsupported runner fact kind",
         "validate_runner_fact_payload",
         "must not contain Python float",
+        "RUNNER_FACT_SIGNING_HEADER_FIELDS",
+        "runner_fact_signing_preimage",
+        "closed fact projector contract",
+        "command_fingerprint",
+        "outcome",
     ):
         if marker not in runner_fact_source:
             errors.append(f"Plan 19 T8a production source lacks {marker!r}")
@@ -2550,6 +2731,19 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         or "class LifecycleCapability" in lifecycle_test
     ):
         errors.append("Plan 19 T8a lifecycle test does not use the real capability golden")
+    for marker, source in (
+        ("authority.tenant_id", runtime_log_source),
+        ("authority.trading_mode", runtime_log_source),
+        ("authority.runner_id", runtime_log_source),
+        ("authority.deployment_instance_id", runtime_log_source),
+        ("cannot_collide_across_authority_streams", runtime_log_test),
+        ("survives_retry_restart_and_observation_time", lifecycle_test),
+        ("SIGNING_PREIMAGE_PATH", candidate_test),
+        ("Ed25519PublicKey", candidate_test),
+        ("closed_projector_contract_exactly", candidate_test),
+    ):
+        if marker not in source:
+            errors.append(f"Plan 19 T8a event/signing evidence lacks {marker!r}")
     if resolve("docs/design/telemetry_actor.md").exists():
         errors.append("Plan 19 T8a retains superseded telemetry_actor.md")
     active_authority = "\n".join(

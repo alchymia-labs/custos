@@ -261,10 +261,13 @@
   "runner_fact_contract_candidate": {
     "owner": "custos",
     "status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
-    "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.1",
-    "producer_commit": "5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28",
+    "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.2",
+    "producer_commit": "af8a39123b9c7b4e7b9b51361339a504af1d2096",
     "asset_index": "docs/authority/runner-fact-contract-candidate-assets-v1.json",
-    "receipt": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
+    "receipt": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json",
+    "signing_preimage_golden": "docs/authority/runner-fact-signing-preimage-golden-v1.json",
+    "signing_preimage_complete": true,
+    "capability_projector_contract_exact_pin": true,
     "stream_identity": "tenant_id+trading_mode+runner_id+deployment_instance_id",
     "generation_resets_sequence": false,
     "phase_a_input_ready": true,
@@ -277,7 +280,16 @@
     "team_daemon_enabled": false,
     "live_ready": false,
     "runtime_ready": false,
-    "production_ready": false
+    "production_ready": false,
+    "superseded_candidates": [
+      {
+        "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.1",
+        "status": "NON_CURRENT_SUPERSEDED",
+        "producer_commit": "5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28",
+        "receipt": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
+        "receipt_sha256": "aac5a9377bd99190fd53ac9c99ded6850acd8e0b22a202e2bd158d0964a3cedc"
+      }
+    ]
   },
   "toolkit_rc_release": {
     "owner": "custos",

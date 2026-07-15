@@ -100,13 +100,18 @@ is synthetic; therefore durable/runtime policy consumption, daemon, live,
 runtime and production remain false.
 
 Plan 19 T8a is `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`. Custos producer commit
-`5f4d991eb7d3d5180fd941bc7c76c9b4f1210b28` freezes the instance-keyed,
-generation-non-reset RunnerFact v1 schema, signed golden, five-projector capability,
-13-kind parity matrix and sequence-continuation fixture. The synthetic signing key
-is golden evidence only. Crucible Phase-A compatibility, runtime RC, real runtime
-round trip, engine/daemon, live/runtime and production remain false until the
-independent receipts named by Plan 19 arrive. Any asset-byte change requires a new
-candidate coordinate and receipt.
+`af8a39123b9c7b4e7b9b51361339a504af1d2096` freezes current coordinate
+`custos.runner-fact.v1/candidate-2026-07-15.2`: the instance-keyed,
+generation-non-reset RunnerFact v1 schema, signed golden, exact signing-preimage
+vector, five-projector capability, 13-kind parity matrix and sequence-continuation
+fixture. Runtime-log identities include the complete stream authority; lifecycle
+identities use stable command/apply identity and exclude observation time. The
+capability loader pins the closed projector map and unknown-kind disposition.
+The synthetic signing key is golden evidence only. `.1` and its unchanged receipt
+are `NON_CURRENT_SUPERSEDED`. Crucible Phase-A compatibility, runtime RC, real
+runtime round trip, engine/daemon, live/runtime and production remain false until
+the independent receipts named by Plan 19 arrive. Any asset-byte change requires
+a new candidate coordinate and receipt.
 
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is

@@ -207,9 +207,23 @@
       "contract_only": true
     },
     {
+      "role": "runner_fact_signing_preimage_golden_v1",
+      "path": "docs/authority/runner-fact-signing-preimage-golden-v1.json",
+      "contract_only": true,
+      "runtime_evidence": false
+    },
+    {
       "role": "plan_19_task_8a_runner_fact_candidate_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
+      "path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json",
       "receipt_status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "plan_19_task_8a_runner_fact_candidate_receipt_v1_historical",
+      "path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
+      "receipt_status": "NON_CURRENT_SUPERSEDED",
+      "superseded_by": "custos.runner-fact.v1/candidate-2026-07-15.2",
       "runtime_ready": false,
       "production_ready": false
     },
