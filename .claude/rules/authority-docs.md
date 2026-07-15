@@ -59,6 +59,18 @@ continuation without rewriting or deleting pending signed payloads. This receipt
 does not wire engine apply or the daemon and does not claim runtime or production
 readiness; Plan 19 T5 is the next gate.
 
+Plan 18 T5e is `PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS`. The corrected
+runtime reads only the T4 durable desired command after T3 signature/intake,
+independently verifies the signed runner-local policy, derives members only from
+the complete PS `StrategyReleaseBomV1`, verifies the detached bundle and Crucible
+acceptance evidence, quarantines before atomic activation, commits active state
+before any Python import, and constructs a deep-frozen `StrategyExecutionContext`.
+`StrategyArtifactRefV1`, historical indexes and path/hash/parameter compatibility
+fields are never production fallbacks. `DevelopmentSourceRefV1` is an explicit,
+non-promotable sandbox-only union member. Because no real PS bundle receipt or
+Crucible C6 acceptance receipt exists yet, capability/runtime/production remain
+false; tests may exercise a synthetic future capability but must not publish READY.
+
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.

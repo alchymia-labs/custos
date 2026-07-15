@@ -1484,6 +1484,14 @@ class RunnerFactOutbox:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class DurableDesiredCommand:
+    command: Any
+    command_fingerprint: str
+    exact_subject: str
+    verification_receipt: CommandVerificationReceipt
+
+
 class RunnerStateStore:
     """Command state adapter sharing the one RunnerFact SQLite connection.
 
@@ -2270,6 +2278,220 @@ class RunnerStateStore:
                     source_digest,
                 ),
             )
+
+    async def load_durable_desired_command(
+        self, deployment_instance_id: UUID
+    ) -> DurableDesiredCommand:
+        return await asyncio.to_thread(
+            self._load_durable_desired_command,
+            deployment_instance_id,
+        )
+
+    def _load_durable_desired_command(
+        self, deployment_instance_id: UUID
+    ) -> DurableDesiredCommand:
+        from custos.contracts.crucible_runner_command import (
+            CrucibleRunnerDeploymentCommandV1,
+        )
+
+        instance_id = _uuid(deployment_instance_id, "deployment_instance_id")
+        with self._outbox._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (instance_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(instance_id)
+        if row["tenant_id"] != self._tenant_id or row["runner_id"] != str(self._runner_id):
+            raise RunnerStateAuthorityError(
+                "durable desired command differs from local tenant/runner scope"
+            )
+        try:
+            receipt = CommandVerificationReceipt(**json.loads(row["verification_receipt"]))
+            command = CrucibleRunnerDeploymentCommandV1.model_validate_json(
+                row["canonical_command"]
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as error:
+            raise RunnerStateDurabilityError(
+                "durable desired command or verification receipt is corrupt"
+            ) from error
+        exact_event_bytes = bytes(row["exact_event_bytes"])
+        if (
+            command.deployment_instance_id != deployment_instance_id
+            or receipt.command_fingerprint != row["command_fingerprint"]
+            or receipt.exact_subject != row["exact_subject"]
+            or receipt.verified_event_bytes_sha256 != _sha256_hex(exact_event_bytes)
+        ):
+            raise RunnerStateDurabilityError(
+                "durable desired command verification bindings differ"
+            )
+        object.__setattr__(command, "_exact_signed_event_bytes", exact_event_bytes)
+        object.__setattr__(command, "_verified_subject", row["exact_subject"])
+        object.__setattr__(command, "_producer_fingerprint", receipt.producer_fingerprint)
+        return DurableDesiredCommand(
+            command=command,
+            command_fingerprint=row["command_fingerprint"],
+            exact_subject=row["exact_subject"],
+            verification_receipt=receipt,
+        )
+
+    async def stage_artifact_activation(
+        self,
+        *,
+        command: Any,
+        activation_id: str,
+        artifact_ref_digest: str,
+        artifact_evidence_digest: str,
+    ) -> None:
+        await asyncio.to_thread(
+            self._stage_artifact_activation,
+            command,
+            activation_id,
+            artifact_ref_digest,
+            artifact_evidence_digest,
+        )
+
+    def _stage_artifact_activation(
+        self,
+        command: Any,
+        activation_id: str,
+        artifact_ref_digest: str,
+        artifact_evidence_digest: str,
+    ) -> None:
+        activation = _non_empty(activation_id, "activation_id")
+        _state_digest(artifact_ref_digest, "artifact_ref_digest")
+        _state_digest(artifact_evidence_digest, "artifact_evidence_digest")
+        with self._outbox._connect() as connection:
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None:
+                raise RunnerStateDurabilityError(
+                    "artifact activation requires a durable desired command"
+                )
+            self._require_desired_authority(desired, command)
+            existing = connection.execute(
+                "SELECT * FROM artifact_activation WHERE activation_id = ?",
+                (activation,),
+            ).fetchone()
+            expected = (
+                str(command.deployment_instance_id),
+                str(command.deployment_spec_id),
+                command.deployment_spec_digest,
+                command.generation,
+                artifact_ref_digest,
+                artifact_evidence_digest,
+            )
+            if existing is not None:
+                actual = (
+                    existing["deployment_instance_id"],
+                    existing["deployment_spec_id"],
+                    existing["deployment_spec_digest"],
+                    existing["generation"],
+                    existing["artifact_ref_digest"],
+                    existing["artifact_evidence_digest"],
+                )
+                if actual != expected:
+                    raise RunnerStateDurabilityError(
+                        "artifact activation id is bound to different verified evidence"
+                    )
+                return
+            connection.execute(
+                """
+                INSERT INTO artifact_activation (
+                    activation_id, deployment_instance_id, deployment_spec_id,
+                    deployment_spec_digest, generation, artifact_ref_digest,
+                    artifact_evidence_digest, state, quarantine_reason,
+                    activated_at_ns, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'quarantined',
+                          'activation_pending', NULL, ?)
+                """,
+                (activation, *expected, time.time_ns()),
+            )
+
+    async def mark_artifact_activation_active(
+        self,
+        *,
+        command: Any,
+        activation_id: str,
+    ) -> None:
+        await asyncio.to_thread(
+            self._mark_artifact_activation_active,
+            command,
+            activation_id,
+        )
+
+    def _mark_artifact_activation_active(
+        self,
+        command: Any,
+        activation_id: str,
+    ) -> None:
+        now = time.time_ns()
+        with self._outbox._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE artifact_activation
+                SET state = 'active', quarantine_reason = NULL,
+                    activated_at_ns = ?, updated_at_ns = ?
+                WHERE activation_id = ? AND deployment_instance_id = ?
+                  AND deployment_spec_id = ? AND generation = ?
+                  AND state = 'quarantined'
+                  AND quarantine_reason = 'activation_pending'
+                """,
+                (
+                    now,
+                    now,
+                    _non_empty(activation_id, "activation_id"),
+                    str(command.deployment_instance_id),
+                    str(command.deployment_spec_id),
+                    command.generation,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise RunnerStateDurabilityError(
+                    "artifact activation is absent, already terminal, or differs"
+                )
+
+    async def quarantine_artifact_activation(
+        self,
+        *,
+        command: Any,
+        activation_id: str,
+        reason: str,
+    ) -> None:
+        await asyncio.to_thread(
+            self._quarantine_artifact_activation,
+            command,
+            activation_id,
+            reason,
+        )
+
+    def _quarantine_artifact_activation(
+        self,
+        command: Any,
+        activation_id: str,
+        reason: str,
+    ) -> None:
+        with self._outbox._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE artifact_activation
+                SET state = 'quarantined', quarantine_reason = ?, updated_at_ns = ?
+                WHERE activation_id = ? AND deployment_instance_id = ?
+                  AND deployment_spec_id = ? AND generation = ?
+                """,
+                (
+                    _non_empty(reason, "quarantine_reason"),
+                    time.time_ns(),
+                    _non_empty(activation_id, "activation_id"),
+                    str(command.deployment_instance_id),
+                    str(command.deployment_spec_id),
+                    command.generation,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise RunnerStateDurabilityError("artifact activation is absent")
 
     def _validated_command_material(
         self,

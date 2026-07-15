@@ -41,6 +41,10 @@ TASK_5D_B_COMMAND_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
 )
 PLAN_19_T4_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
+TASK_5E_RUNTIME_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json"
+)
+TASK_5E_RUNTIME_SOURCE = "src/custos/artifacts/corrected_runtime.py"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -1578,6 +1582,107 @@ def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[s
         errors.append("Plan 19 T4 must retain exactly one RunnerFact outbox table")
 
 
+def verify_plan_18_task_5e_corrected_runtime(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    """Keep the corrected runtime truthful while external positive receipts are absent."""
+
+    receipt_path = resolve(TASK_5E_RUNTIME_RECEIPT_PATH)
+    source_path = resolve(TASK_5E_RUNTIME_SOURCE)
+    if not receipt_path.is_file() or not source_path.is_file():
+        errors.append("missing Plan 18 T5e corrected runtime authority assets")
+        return
+    receipt = load_json(receipt_path)
+    expected = {
+        "receipt_status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
+        "runtime_candidate_prepared": True,
+        "runner_local_policy_independent": True,
+        "v1_runtime_rejected": True,
+        "historical_asset_index_runtime_fallback": False,
+        "quarantine_before_import": True,
+        "atomic_activation": True,
+        "durable_active_commit_before_import": True,
+        "deep_frozen_execution_context": True,
+        "python_import_after_verification": True,
+        "capability_ready": False,
+        "protected_execution_ready": False,
+        "engine_ready": False,
+        "daemon_ready": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    for key, value in expected.items():
+        if receipt.get(key) != value:
+            errors.append(f"Plan 18 T5e receipt {key} differs")
+    if receipt.get("bom_member_source") != "StrategyReleaseBomV1.members only":
+        errors.append("Plan 18 T5e BOM member authority differs")
+    if receipt.get("external_positive_gates") != {
+        "ps_strategy_bundle_receipt_present": False,
+        "crucible_c6_artifact_acceptance_receipt_present": False,
+    }:
+        errors.append("Plan 18 T5e must remain blocked on real external receipts")
+
+    registrations = [
+        entry
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role") == "plan_18_task_5e_corrected_runtime_receipt"
+    ]
+    if len(registrations) != 1 or registrations[0].get("path") != TASK_5E_RUNTIME_RECEIPT_PATH:
+        errors.append("Plan 18 T5e receipt manifest registration differs")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    runtime = snapshot.get("strategy_artifact_runtime")
+    if not isinstance(runtime, dict):
+        errors.append("ecosystem authority lacks strategy_artifact_runtime")
+    else:
+        if runtime.get("status") != expected["receipt_status"]:
+            errors.append("strategy_artifact_runtime status differs")
+        if runtime.get("receipt") != TASK_5E_RUNTIME_RECEIPT_PATH:
+            errors.append("strategy_artifact_runtime receipt path differs")
+        for key in (
+            "runner_local_policy_independent",
+            "v1_runtime_rejected",
+            "historical_asset_index_runtime_fallback",
+            "quarantine_before_import",
+            "durable_active_commit_before_import",
+            "deep_frozen_execution_context",
+            "python_import_after_verification",
+            "capability_ready",
+            "engine_ready",
+            "daemon_ready",
+            "live_ready",
+            "runtime_ready",
+            "production_ready",
+        ):
+            if runtime.get(key) != receipt.get(key):
+                errors.append(f"strategy_artifact_runtime {key} differs")
+        if runtime.get("bom_member_source") != receipt.get("bom_member_source"):
+            errors.append("strategy_artifact_runtime BOM source differs")
+        gates = receipt["external_positive_gates"]
+        for key, value in gates.items():
+            if runtime.get(key) != value:
+                errors.append(f"strategy_artifact_runtime {key} differs")
+
+    source = source_path.read_text(encoding="utf-8")
+    markers = (
+        "class CorrectedArtifactRuntime",
+        "load_durable_desired_command",
+        "verify_full_bom_member_files",
+        "StrategyArtifactPreImportVerificationReceiptV2",
+        "StrategyExecutionContext",
+        "DevelopmentSourceRefV1",
+        "os.replace",
+        "mark_artifact_activation_active",
+    )
+    for marker in markers:
+        if marker not in source:
+            errors.append(f"Plan 18 T5e implementation lacks {marker!r}")
+    for forbidden in ("strategy_path", "artifact_path", "code_hash", '"parameters"'):
+        if forbidden in source:
+            errors.append(f"Plan 18 T5e corrected runtime contains legacy fallback {forbidden!r}")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -1623,6 +1728,7 @@ def main() -> int:
     current_source_digest = verify_plan_18_task_5c_v3_artifact_ref(errors)
     verify_plan_18_task_5d_a_contract_consumer(errors)
     verify_plan_18_task_5d_b_command_consumer(errors)
+    verify_plan_18_task_5e_corrected_runtime(manifest, errors)
     verify_plan_19_task_4_durable_state(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "receipt_id": "CUSTOS-PLAN-18-T5E-CORRECTED-RUNTIME-V1",
+  "receipt_status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
+  "repository": "tesseract-trading/custos",
+  "plan": "Custos Plan 18",
+  "task": "T5e",
+  "runtime_candidate_prepared": true,
+  "command_source": "Plan 19 T4 durable desired command after Plan 19 T3 signature verification and intake",
+  "owner_contracts": [
+    "Philosophers-Stone StrategyReleaseBomV1 and detached release statement",
+    "Custos StrategyArtifactRefV2 and StrategyExecutionContext",
+    "Crucible ArtifactEvidenceV1, acceptance receipt and signed runner command"
+  ],
+  "runner_local_policy_independent": true,
+  "bom_member_source": "StrategyReleaseBomV1.members only",
+  "v1_runtime_rejected": true,
+  "historical_asset_index_runtime_fallback": false,
+  "development_source_ref": {
+    "allowed_modes": [
+      "sandbox"
+    ],
+    "promotable": false,
+    "production_fallback": false
+  },
+  "quarantine_before_import": true,
+  "atomic_activation": true,
+  "durable_active_commit_before_import": true,
+  "deep_frozen_execution_context": true,
+  "python_import_after_verification": true,
+  "external_positive_gates": {
+    "ps_strategy_bundle_receipt_present": false,
+    "crucible_c6_artifact_acceptance_receipt_present": false
+  },
+  "capability_ready": false,
+  "protected_execution_ready": false,
+  "engine_ready": false,
+  "daemon_ready": false,
+  "live_ready": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "implementation_files": [
+    "src/custos/artifacts/corrected_runtime.py",
+    "src/custos/core/runner_fact.py"
+  ],
+  "focused_verification": {
+    "result": "7 passed",
+    "tests": [
+      "tests/test_plan18_t5e_corrected_runtime.py"
+    ]
+  },
+  "open_blockers": [
+    "real Philosophers-Stone strategy bundle publication receipt",
+    "real Crucible C6 artifact acceptance receipt",
+    "Custos Plan 19 T5 engine readiness, terminal lifecycle, restart and daemon supervision",
+    "Custos Plan 19 T7 live activation gates"
+  ]
+}

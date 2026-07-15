@@ -320,6 +320,15 @@
       "production_ready": false
     },
     {
+      "role": "plan_18_task_5e_corrected_runtime_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+      "receipt_status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
+      "runtime_candidate_prepared": true,
+      "capability_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
+    },
+    {
       "role": "plan_19_task_4_durable_state_receipt",
       "path": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
       "receipt_status": "READY_DURABLE_STATE_STORE_ONLY",
@@ -430,8 +439,11 @@
       "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
       "tests/test_plan18_t5d_b_runner_command_consumer.py",
       "src/custos/core/runner_fact.py",
+      "src/custos/artifacts/corrected_runtime.py",
       "src/custos/core/runner_command_intake.py",
+      "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+      "tests/test_plan18_t5e_corrected_runtime.py",
       "tests/test_plan19_t4_runner_state_store.py",
       ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"
     ],
@@ -532,6 +544,17 @@
         "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
         "\"runtime_activation_ready\": false",
         "\"t2_ready\": false"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+      "must_contain": [
+        "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
+        "Plan 19 T4 durable desired command after Plan 19 T3 signature verification and intake",
+        "StrategyReleaseBomV1.members only",
+        "\"python_import_after_verification\": true",
+        "\"capability_ready\": false",
+        "\"production_ready\": false"
       ]
     }
   ]

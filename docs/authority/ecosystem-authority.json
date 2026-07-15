@@ -165,6 +165,28 @@
     "runtime_ready": false,
     "production_ready": false
   },
+  "strategy_artifact_runtime": {
+    "owner": "custos",
+    "status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
+    "receipt": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+    "command_source": "Plan 19 T4 durable desired command after Plan 19 T3 signature verification and intake",
+    "runner_local_policy_independent": true,
+    "bom_member_source": "StrategyReleaseBomV1.members only",
+    "v1_runtime_rejected": true,
+    "historical_asset_index_runtime_fallback": false,
+    "quarantine_before_import": true,
+    "durable_active_commit_before_import": true,
+    "deep_frozen_execution_context": true,
+    "python_import_after_verification": true,
+    "ps_strategy_bundle_receipt_present": false,
+    "crucible_c6_artifact_acceptance_receipt_present": false,
+    "capability_ready": false,
+    "engine_ready": false,
+    "daemon_ready": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
   "toolkit_rc_release": {
     "owner": "custos",
     "authority_schema": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",

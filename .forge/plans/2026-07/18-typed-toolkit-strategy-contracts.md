@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — T1-T5b historical slices and T5c landed; T5d-A and T5d-B are READY at contract-consumer scope only; T5e plus T6-T9 open
+> **Status**: ⏳ In progress — T1-T5b historical slices and T5c landed; T5d-A and T5d-B are READY at contract-consumer scope only; T5e is PREPARED-BLOCKED on real external runtime receipts; T6-T9 remain open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-15 after Sigstore self-reference and PS BOM type correction
 > **Project**: Custos
@@ -632,6 +632,20 @@ recorded and all cross-language consumer and negative tests PASS.
    instance-only RunnerFact stream, engine readiness and supervision gates. Live
    remains fail closed until Crucible Plan 99 and Plan 19 T7 are complete.
 
+Execution checkpoint (2026-07-15):
+
+- RED proved the corrected runtime module was absent.
+- GREEN focused suite is `7 passed`: the runtime consumes the T4 durable desired
+  command, independently verifies runner-local policy, derives members only from the
+  full PS BOM, verifies detached evidence, quarantines/stages/atomically activates,
+  durably commits active state before import, and deep-freezes execution context.
+- Production positive capability remains `PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS`.
+  The real PS strategy-bundle receipt and Crucible C6 artifact-acceptance receipt are
+  absent; tests exercise only a synthetic future capability and publish no READY claim.
+- The corrected runtime contains no `strategy_path`, `artifact_path`, `code_hash` or
+  free-form `parameters` fallback. `DevelopmentSourceRefV1` remains an explicit
+  sandbox-only, non-promotable union member rather than a production fallback.
+
 提交：
 
 ```bash
@@ -959,7 +973,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T5c ArtifactRefV2 producer ABI | [x] | 2026-07-15 | Additive v3 schema/golden/index and Custos producer receipt; v1/v2 byte-pinned and barred from runtime fallback; receipt remains `PRODUCED_AWAITING_CONSUMER_REVIEWS`, so no handoff/runtime/production claim |
 | T5d-A BOM/evidence consumption | [x] | 2026-07-15 | `READY_CONTRACT_CONSUMER_ONLY`: exact PS and Crucible owner assets byte-vendored with path/commit/hash/size; additive ReceiptV2 schema/golden/negatives and consumer receipt published; T5d-B/runtime/production remain false |
 | T5d-B command consumption / Plan 19 T2 | [x] | 2026-07-15 | `READY_COMMAND_CONSUMER_CONTRACT_ONLY`: corrected current CR89 A2/B2 assets byte-vendored and pinned; one consumer parser validates full BOM, ArtifactRefV2, detached reference, full evidence, semantic acceptance and exact event fingerprint; old A/B are NON_CURRENT; no Custos command schema or runtime wiring |
-| T5e verifier/runtime cutover | [ ] | — | Migrate production caller/composition/verifier, reject V1 and historical indexes, source trust only from runner-local signed policy; blocks protected T6 and READY |
+| T5e verifier/runtime cutover | [~] | 2026-07-15 | Corrected verifier/runtime candidate and authority gate implemented; real PS bundle + Crucible C6 receipts remain absent, so capability/import/runtime/production stay PREPARED-BLOCKED; Plan 19 T5 supervision is next |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
