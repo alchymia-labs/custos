@@ -19,6 +19,12 @@ TASK_2_V2_INDEX_PATH = "docs/authority/strategy-contract-assets-v2.json"
 TASK_2_V2_SCHEMA_PATH = (
     "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json"
 )
+TASK_5C_V3_INDEX_PATH = "docs/authority/strategy-contract-assets-v3.json"
+TASK_5C_V3_SCHEMA_PATH = "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json"
+TASK_5C_V3_GOLDEN_PATH = "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json"
+TASK_5C_V3_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json"
+)
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
@@ -367,6 +373,122 @@ def verify_strategy_contract_assets(errors: list[str]) -> None:
             errors.append(f"strategy contract asset size differs: {path}")
 
 
+def verify_plan_18_task_5c_v3_artifact_ref(errors: list[str]) -> str | None:
+    """Validate the corrected producer-only pre-sign ABI without claiming handoff."""
+
+    index_path = resolve(TASK_5C_V3_INDEX_PATH)
+    receipt_path = resolve(TASK_5C_V3_RECEIPT_PATH)
+    if not index_path.is_file() or not receipt_path.is_file():
+        errors.append("missing Plan 18 T5c v3 ArtifactRef authority assets")
+        return None
+    index = load_json(index_path)
+    receipt = load_json(receipt_path)
+    if index.get("asset_index_schema_version") != 3:
+        errors.append("Plan 18 T5c asset index schema version must be 3")
+    if index.get("candidate_status") != "PRE_SIGN_ABI_ONLY":
+        errors.append("Plan 18 T5c asset index status differs")
+    if index.get("current_artifact_ref_type") != "StrategyArtifactRefV2":
+        errors.append("Plan 18 T5c current ArtifactRef type must be V2")
+    if index.get("current_artifact_ref_schema") != TASK_5C_V3_SCHEMA_PATH:
+        errors.append("Plan 18 T5c current ArtifactRef schema path differs")
+    for field in ("handoff_ready", "production_ready"):
+        if index.get(field) is not False:
+            errors.append(f"Plan 18 T5c {field} must remain false")
+
+    legacy = index.get("legacy_non_production")
+    expected_legacy = {
+        "v1": {
+            "asset_index": "docs/authority/strategy-contract-assets-v1.json",
+            "sha256": EXPECTED_PRODUCER["asset_index_sha256"],
+            "runtime_fallback_allowed": False,
+        },
+        "v2": {
+            "asset_index": TASK_2_V2_INDEX_PATH,
+            "sha256": EXPECTED_V2_INDEX_SHA256,
+            "runtime_fallback_allowed": False,
+        },
+    }
+    if legacy != expected_legacy:
+        errors.append("Plan 18 T5c legacy non-production boundary differs")
+
+    asset_table = _asset_table(index.get("assets"), label="Plan 18 T5c v3 assets", errors=errors)
+    if asset_table is not None:
+        for path_value, (expected_digest, expected_size) in asset_table.items():
+            path = resolve(path_value)
+            if not path.is_file():
+                errors.append(f"missing Plan 18 T5c v3 asset: {path}")
+                continue
+            if hashlib.sha256(path.read_bytes()).hexdigest() != expected_digest:
+                errors.append(f"Plan 18 T5c v3 asset digest differs: {path}")
+            if path.stat().st_size != expected_size:
+                errors.append(f"Plan 18 T5c v3 asset size differs: {path}")
+
+    schema_path = resolve(TASK_5C_V3_SCHEMA_PATH)
+    golden_path = resolve(TASK_5C_V3_GOLDEN_PATH)
+    if not schema_path.is_file() or not golden_path.is_file():
+        errors.append("Plan 18 T5c current schema or golden is missing")
+    else:
+        schema = load_json(schema_path)
+        golden = load_json(golden_path)
+        allowed_fields = {
+            "schema_version",
+            "artifact_kind",
+            "artifact_coordinate",
+            "artifact_sha256",
+            "artifact_size_bytes",
+            "manifest_sha256",
+            "manifest_size_bytes",
+            "required_runtime_artifacts",
+            "sbom_sha256",
+            "contract_schema_sha256",
+            "source_repository",
+            "source_commit",
+            "normalized_source_tree_sha256",
+            "python_version",
+            "engine",
+            "engine_version",
+            "base_contracts_version",
+            "engine_toolkit_version",
+            "build_inputs",
+        }
+        if schema.get("title") != "StrategyArtifactRefV2":
+            errors.append("Plan 18 T5c schema title must be StrategyArtifactRefV2")
+        if set(schema.get("properties", {})) != allowed_fields:
+            errors.append("Plan 18 T5c ArtifactRefV2 field set differs")
+        if schema.get("properties", {}).get("schema_version", {}).get("const") != 2:
+            errors.append("Plan 18 T5c ArtifactRefV2 schema version must be 2")
+        if set(golden.get("artifact_ref", {})) != allowed_fields:
+            errors.append("Plan 18 T5c golden ArtifactRefV2 field set differs")
+        if golden.get("production_handoff_ready") is not False:
+            errors.append("Plan 18 T5c golden must not claim production handoff")
+
+    source_path = resolve(str(index.get("producer_source") or ""))
+    source_digest: str | None = None
+    if not source_path.is_file():
+        errors.append("Plan 18 T5c canonical producer source is missing")
+    else:
+        source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
+        if source_digest != index.get("producer_source_sha256"):
+            errors.append("Plan 18 T5c canonical producer source digest differs")
+
+    if receipt.get("receipt_status") != "PRODUCED_AWAITING_CONSUMER_REVIEWS":
+        errors.append("Plan 18 T5c producer receipt status differs")
+    if receipt.get("requirements_reviews") != {}:
+        errors.append("Plan 18 T5c must not fabricate consumer review receipts")
+    for field in ("handoff_ready", "runtime_ready", "production_ready"):
+        if receipt.get(field) is not False:
+            errors.append(f"Plan 18 T5c producer receipt {field} must remain false")
+    expected_index_ref = {
+        "path": TASK_5C_V3_INDEX_PATH,
+        "sha256": hashlib.sha256(index_path.read_bytes()).hexdigest(),
+    }
+    if receipt.get("contract_asset_index") != expected_index_ref:
+        errors.append("Plan 18 T5c producer receipt index binding differs")
+    if source_digest != receipt.get("producer_source_sha256"):
+        errors.append("Plan 18 T5c producer receipt source binding differs")
+    return source_digest
+
+
 def verify_plan_18_task_2_receipt(
     errors: list[str],
     *,
@@ -637,16 +759,9 @@ def verify_plan_18_task_2_v2_candidate(errors: list[str], *, root: Path = ROOT) 
             errors.append("Plan 18 Task 2 v2 candidate clean-worktree evidence differs")
         if producer.get("source") != CURRENT_STRATEGY_CONTRACT_SOURCE:
             errors.append("Plan 18 Task 2 v2 canonical source path differs")
-        source_path = _resolve_local_file(
-            producer.get("source"),
-            label="Plan 18 Task 2 v2 canonical source",
-            root=root,
-            errors=errors,
-        )
-        if source_path is not None:
-            source_digest = hashlib.sha256(source_path.read_bytes()).hexdigest()
-            if source_digest != producer.get("source_sha256"):
-                errors.append("Plan 18 Task 2 v2 canonical source bytes differ")
+        source_digest = producer.get("source_sha256")
+        if not isinstance(source_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", source_digest):
+            errors.append("Plan 18 Task 2 v2 historical source digest is invalid")
 
     reviewed_candidate = receipt.get("reviewed_candidate_receipt")
     expected_candidate = {
@@ -1113,10 +1228,11 @@ def main() -> int:
                             f"runner command golden differs from optional sibling: {sibling_path}"
                         )
     verify_strategy_contract_assets(errors)
-    v2_source_digest = verify_plan_18_task_2_v2_candidate(errors)
+    verify_plan_18_task_2_v2_candidate(errors)
+    current_source_digest = verify_plan_18_task_5c_v3_artifact_ref(errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
-        allowed_current_source_digest=v2_source_digest,
+        allowed_current_source_digest=current_source_digest,
     )
     verify_plan_18_task_2_receipt(
         errors,

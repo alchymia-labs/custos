@@ -18,12 +18,18 @@ Custos owns local execution and signed observations only.
 deployment_instance_id is the runtime key. ARX authorization and Crucible
 business decisions must not be reimplemented in the runner.
 
-`docs/design/strategy-toolkit.md` and the source-generated schemas indexed by
-`docs/authority/strategy-contract-assets-v1.json` are authoritative for the
-Custos execution ABI and artifact verifier. Philosophers-Stone produces the
-canonical release BOM; Crucible owns StrategyRelease and artifact selection.
-The `Custos Plan 18 Task 2 schema receipt` is usable only when READY with exact
-producer, review, asset-digest, and fresh authority-check evidence.
+`docs/design/strategy-toolkit.md` and the current pre-sign schema indexed by
+`docs/authority/strategy-contract-assets-v3.json` are authoritative for the
+corrected Custos ArtifactRef ABI. The current type is `StrategyArtifactRefV2`
+with `schema_version: 2`; v1/v2 asset collections and `StrategyArtifactRefV1`
+are immutable historical, non-production evidence and never a runtime fallback.
+Philosophers-Stone produces the canonical release BOM; Crucible owns
+StrategyRelease and artifact selection.
+
+The `Custos Plan 18 Task 5c ArtifactRefV2 producer receipt` is producer-only and
+must keep handoff/runtime/production false until exact PS and Crucible owner
+reviews plus T5d/T5e command/verifier cutover evidence exist. Never invent or
+pre-register downstream review receipts.
 
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is

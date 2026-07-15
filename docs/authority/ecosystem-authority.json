@@ -77,7 +77,7 @@
     "base_contracts_python": ">=3.11",
     "nautilus_distribution_python": ">=3.12,<3.13",
     "nautilus_trader": "1.230.0",
-    "asset_index": "docs/authority/strategy-contract-assets-v1.json",
+    "asset_index": "docs/authority/strategy-contract-assets-v3.json",
     "task_2_receipt": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
     "legacy_python_lane": "independently supported, non-gating, and never a v1.team fallback",
     "task_4_extraction_receipt": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
@@ -101,6 +101,27 @@
     "task_4_open_blockers": [
       "Custos Plan 18 Task 4b",
       "Custos Plan 18 Task 5"
+    ],
+    "artifact_ref_type": "StrategyArtifactRefV2",
+    "artifact_ref_schema_version": 2,
+    "asset_index_status": "PRE_SIGN_ABI_ONLY",
+    "task_5c_producer_receipt": "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json",
+    "task_5c_producer_receipt_status": "PRODUCED_AWAITING_CONSUMER_REVIEWS",
+    "task_5c_handoff_ready": false,
+    "legacy_artifact_contracts": {
+      "v1": {
+        "asset_index": "docs/authority/strategy-contract-assets-v1.json",
+        "runtime_fallback_allowed": false
+      },
+      "v2": {
+        "asset_index": "docs/authority/strategy-contract-assets-v2.json",
+        "runtime_fallback_allowed": false
+      }
+    },
+    "task_5c_open_blockers": [
+      "Custos Plan 18 T5d corrected command/BOM/detached-evidence ABI",
+      "Custos Plan 18 T5e verifier/runtime cutover and explicit V1 rejection",
+      "exact PS Plan 54 and Crucible Plan 88 consumer reviews"
     ]
   },
   "toolkit_rc_release": {

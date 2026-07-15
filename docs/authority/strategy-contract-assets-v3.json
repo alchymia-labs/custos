@@ -1,0 +1,40 @@
+{
+  "asset_index_schema_version": 3,
+  "assets": [
+    {
+      "path": "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json",
+      "sha256": "d4f2b8820b2ea792414edaca3ef201dd3eab0c35a16551f214881727e19a67fe",
+      "size_bytes": 1979
+    },
+    {
+      "path": "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json.sha256",
+      "sha256": "3414f31d398d3815e6b06b51b4a7686a2deffca78958f6ff9905d4925672998b",
+      "size_bytes": 112
+    },
+    {
+      "path": "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
+      "sha256": "616b7647655f5ac478e2ce4310a28028e9cc31a61ba57b525070fcf7c33e6950",
+      "size_bytes": 4971
+    }
+  ],
+  "candidate_status": "PRE_SIGN_ABI_ONLY",
+  "canonical_name": "Custos Plan 18 T5c corrected pre-sign artifact assets",
+  "current_artifact_ref_schema": "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
+  "current_artifact_ref_type": "StrategyArtifactRefV2",
+  "handoff_ready": false,
+  "legacy_non_production": {
+    "v1": {
+      "asset_index": "docs/authority/strategy-contract-assets-v1.json",
+      "runtime_fallback_allowed": false,
+      "sha256": "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
+    },
+    "v2": {
+      "asset_index": "docs/authority/strategy-contract-assets-v2.json",
+      "runtime_fallback_allowed": false,
+      "sha256": "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc"
+    }
+  },
+  "producer_source": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+  "producer_source_sha256": "3de0a12daae994bf08fb63c0c5e5c6ff5bb74c5b0b83c62420963abec5416f99",
+  "production_ready": false
+}

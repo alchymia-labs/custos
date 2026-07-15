@@ -524,25 +524,44 @@ make them ineligible as the production v1.team authority. They are historical mi
 evidence only; no runtime may interpret them as an accepted compatibility fallback.
 
 1. Generate additive `strategy-contract-assets-v3.json` from the canonical Python model.
-   Its `StrategyArtifactRefV1` contains only pre-sign immutable execution material and has
-   no attestation, bundle or trust-policy field.
-2. Consume, without republishing, the exact PS Plan 54 schemas/goldens for
+   Because published V1 bytes cannot be redefined, the incompatible corrected type is
+   `StrategyArtifactRefV2` with `schema_version: 2`. It contains only pre-sign immutable
+   execution material and has no attestation, bundle or trust-policy field. No V1 alias is
+   permitted.
+2. Keep v1/v2 assets byte-pinned, mark both legacy/non-production, and fail any attempted
+   runtime fallback. Generate a Custos producer receipt with handoff/runtime/production
+   false and no fabricated downstream review.
+3. Register the v3 schema, golden, index and producer receipt in local authority gates.
+
+#### T5d: Correct the command/BOM/detached-evidence ABI
+
+1. Consume, without republishing, the exact PS Plan 54 schemas/goldens for
    `StrategyReleaseBomV1`, `StrategyReleaseStatementV1` and
    `ArtifactAttestationRefV1`; consume the exact Crucible Plan 88
    `ArtifactEvidenceV1`/acceptance schema. Custos owns none of those producer/business
    schemas.
-3. Replace the public pre-import receipt with an additive corrected version that accepts
+2. Replace the public command/pre-import receipt with additive corrected versions that accept
    one full PS BOM object plus detached attestation reference and one Crucible-accepted
    evidence binding. A member projection may be derived in memory only and must equal the
    BOM object; it is never serialized as a second authority.
-4. Add negative fixtures for bundle self-reference, bundle/policy fields in ArtifactRef,
+3. Add negative fixtures for bundle self-reference, bundle/policy fields in ArtifactRef,
    BOM-as-array, request-selected trust policy, and any missing certificate, tlog, SCT,
    SET or checkpoint proof.
-5. Publish `Custos Plan 18 Task 5c corrected artifact-contract receipt` only after exact
+4. Publish a corrected artifact-contract receipt only after exact
    PS and Crucible requirements reviews, full verification, immutable asset bytes and
    authority registration pass. It supersedes v1/v2 for production without rewriting them.
-6. Custos may implement its own local verifier, but it MUST NOT serve as a Python process,
+
+#### T5e: Cut over verifier/runtime and reject legacy
+
+1. Migrate the Custos command, BOM, verifier, composition root and runtime caller to the
+   T5d types. Production parsing must reject `StrategyArtifactRefV1` and both historical
+   asset indexes before import; fail closed rather than fallback.
+2. Source issuer/workflow/root/policy only from signed runner-local release configuration,
+   verify detached bundle plus Crucible-accepted evidence, and bind exact PS BOM bytes.
+3. Custos may implement its own local verifier, but it MUST NOT serve as a Python process,
    `cosign` shell, sidecar or HTTP fallback for Crucible's native verifier.
+4. T5e is the production handoff gate. T5c producer assets alone authorize no command,
+   verification, import, runtime, protected T6 execution or READY promotion.
 
 提交：
 
@@ -554,7 +573,7 @@ git commit -m "feat(toolkit): verify signed strategy artifacts"
 
 START gate for historical T6 local readiness was the scoped T5
 `READY_PRE_IMPORT_VERIFIER` receipt. Any protected production execution and final READY
-promotion is now re-blocked on the T5c corrected artifact-contract receipt;
+promotion is now re-blocked on the T5d/T5e corrected artifact-contract and runtime receipts;
 Plan 19 runtime invocation and PS Plan 56 are not T6 START gates.
 
 #### T6a: Toolkit RC contract foundation
@@ -833,7 +852,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [ ] production 只接受 signed wheel
 - [x] source-path contract 仅允许 sandbox、non-promotable、non-live
 - [x] attestation schema 绑定 issuer/workflow/bundle/trust policy
-- [ ] corrected `StrategyArtifactRefV1` is pre-sign only and contains no bundle/policy field
+- [x] corrected `StrategyArtifactRefV2` is pre-sign only and contains no bundle/policy field
 - [ ] full PS `StrategyReleaseBomV1` object replaces any member-array wire authority
 - [ ] detached statement/attestation/evidence chain has no self-signed composite digest
 - [ ] trust roots/policy 只来自 runner-local signed release configuration
@@ -866,9 +885,11 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
 | T6c Atomic publication protocol | [x] | 2026-07-15 | Local-only artifact-service contract validates exact T6a/T6b/object bytes, preflights every immutable rcN coordinate, requires atomic staging ACK + complete PubAck + digest readback, and emits PENDING-only evidence; fake HTTP failure/retry matrix passes, while production service/credentials/signatures/SBOM/final receipt remain T6d |
 | T6d Production runner readiness | [x] | 2026-07-15 | Local T6a-T6d readiness verified at `b5f0449df04ffb74192e65346127e9abf7463d0f`: full `make verify` 550 passed/4 skipped/1 xfailed, 177 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote/signature/binary execution |
-| T6e Durable evidence/promotion | [x] | 2026-07-15 | Local contract and recovery implementation only, fully verified at exact HEAD `bfa08e41236d22745f2d7af61859c76e13fb718d`: `make verify` 556 passed/4 skipped/1 xfailed, 179 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote call or READY receipt |
+| T6e Durable evidence/promotion | [x] | 2026-07-15 | Local contract/recovery implementation was verified at `bfa08e4...`; promotion hardening then landed at exact commit `12cdad0b90017d9b33a208bc7f1d3256afbd976d`, where non-sandbox `make verify` passed 559/4/1, 179 formatted, authority/extraction 241/241 and strict mypy 0/41 + 0/59. This is local-only evidence: no remote call or READY receipt |
 | T6 Toolkit candidate | [ ] | — | Four external gates remain: artifact-service immutable receipt recovery support; protected runner/environment/secrets; real OIDC Sigstore plus atomic publish/readback; independent T6e promotion verification plus READY authority commit. T7-T9 and Plan 18 remain uncompleted |
-| T5c corrected artifact contract | [ ] | — | Required before protected T6 execution: additive v3 assets remove bundle/policy from ArtifactRef, consume PS statement/attestation schemas and Crucible acceptance schema, and explicitly supersede v1/v2 for production without rewriting history |
+| T5c ArtifactRefV2 producer ABI | [x] | 2026-07-15 | Additive v3 schema/golden/index and Custos producer receipt; v1/v2 byte-pinned and barred from runtime fallback; receipt remains `PRODUCED_AWAITING_CONSUMER_REVIEWS`, so no handoff/runtime/production claim |
+| T5d command/BOM/evidence ABI | [ ] | — | Consume exact PS/Crucible owner schemas after real reviews; remove member-array authority and bind full BOM plus detached attestation and accepted evidence |
+| T5e verifier/runtime cutover | [ ] | — | Migrate production caller/composition/verifier, reject V1 and historical indexes, source trust only from runner-local signed policy; blocks protected T6 and READY |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
@@ -897,9 +918,11 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | OWNERSHIP | T6 toolkit RC | Custos publishes only the immutable toolkit RC receipt; PS54 owns strategy artifact/manifest/full `StrategyReleaseBomV1`, PS56 is not a T6 START gate, and the legacy Python lane is unchanged | Accepted 2026-07-15 |
 | SAFETY | T6c publication ceiling | Local transaction/PubAck/readback proof may emit PENDING-only evidence; only T6d production runner, credentials, final SBOM, Sigstore provenance and remote readback may create the final authority receipt | Accepted 2026-07-15 |
 | SECURITY | Artifact evidence split | Published v1/v2 bytes remain immutable historical evidence, but their self-referential ArtifactRef is barred from production; T5c adds pre-sign ArtifactRef plus PS detached attestation and Crucible post-verification evidence | Accepted 2026-07-15 |
+| VERSIONING | Corrected ArtifactRef | Published `StrategyArtifactRefV1/schema_version: 1` cannot be redefined. The corrected pre-sign wire is `StrategyArtifactRefV2/schema_version: 2` in the additive v3 asset collection, with no alias or legacy runtime fallback | Accepted 2026-07-15 |
 | CONTRACT | T4/T4b receipt naming | Corrected unpublished `t4b_zero_rewrite_receipt` to `t4_zero_rewrite_receipt`; T4b remains typing closure only and no alias is retained | Accepted 2026-07-15 |
 | IDENTITY | T6 GitHub/OIDC authority | Pinned source and workflow identity to actual `alchymia-labs/custos` protected main; stale guild fallback and workspace-logical repository names are forbidden | Accepted 2026-07-15 |
 | READINESS | T6e full local checkpoint | Exact HEAD `bfa08e41236d22745f2d7af61859c76e13fb718d` passed full `make verify`; T6 and Plan 18 remain open until artifact-service support, protected release infrastructure, real OIDC atomic publication/readback, and independent promotion plus READY authority commit all complete | Recorded 2026-07-15 |
+| READINESS | T6e promotion hardening checkpoint | Exact commit `12cdad0b90017d9b33a208bc7f1d3256afbd976d` passed non-sandbox `make verify` with 559 passed/4 skipped/1 xfailed; this does not satisfy an external T6 gate and READY remains blocked | Recorded 2026-07-15 |
 | RECOVERY | T6e durable receipt | A production publication must remain recoverable after commit-response loss; workflow-local `$RUNNER_TEMP` evidence cannot authorize READY | Accepted 2026-07-15 |
 
 ## Slice 18a handoff and Task 2 READY provenance

@@ -31,14 +31,16 @@
       "path": "docs/authority/strategy-toolkit-inventory-v1.json"
     },
     {
-      "role": "strategy_contract_asset_index",
-      "path": "docs/authority/strategy-contract-assets-v1.json"
+      "role": "strategy_contract_asset_index_v1_legacy_non_production",
+      "path": "docs/authority/strategy-contract-assets-v1.json",
+      "legacy_non_production": true,
+      "runtime_fallback_allowed": false
     },
     {
-      "role": "strategy_contract_asset_index_v2_candidate",
+      "role": "strategy_contract_asset_index_v2_legacy_non_production",
       "path": "docs/authority/strategy-contract-assets-v2.json",
-      "candidate_status": "PENDING_REQUIREMENTS_REVIEWS",
-      "replaces_v1": false
+      "legacy_non_production": true,
+      "runtime_fallback_allowed": false
     },
     {
       "role": "strategy_artifact_lifecycle_golden",
@@ -107,8 +109,10 @@
       "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json"
     },
     {
-      "role": "strategy_artifact_ref_schema",
-      "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"
+      "role": "strategy_artifact_ref_v1_schema_legacy_non_production",
+      "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json",
+      "legacy_non_production": true,
+      "runtime_fallback_allowed": false
     },
     {
       "role": "strategy_execution_command_binding_schema",
@@ -228,6 +232,37 @@
         "Custos Plan 19 19b durable runtime state",
         "Custos Plan 19 runtime RC and cross-repository acceptance"
       ]
+    },
+    {
+      "role": "strategy_contract_asset_index_v3_current_pre_sign",
+      "path": "docs/authority/strategy-contract-assets-v3.json",
+      "candidate_status": "PRE_SIGN_ABI_ONLY",
+      "handoff_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "strategy_artifact_ref_v2_schema_current_pre_sign",
+      "path": "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
+      "schema_version": 2,
+      "handoff_ready": false,
+      "production_ready": false
+    },
+    {
+      "role": "strategy_artifact_ref_v2_pre_sign_golden",
+      "path": "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json",
+      "handoff_ready": false
+    },
+    {
+      "role": "strategy_artifact_ref_v2_pre_sign_golden_sidecar",
+      "path": "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json.sha256"
+    },
+    {
+      "role": "plan_18_task_5c_artifact_ref_v2_producer_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json",
+      "receipt_status": "PRODUCED_AWAITING_CONSUMER_REVIEWS",
+      "handoff_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [
@@ -306,20 +341,25 @@
       "scripts/check-toolkit-extraction.py",
       "scripts/check-toolkit-typing-baseline.py",
       "scripts/check-toolkit-typing-closure.py",
-      "tests/test_toolkit_zero_rewrite.py"
-      ,"packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py"
-      ,"docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
-      ,"scripts/toolkit_rc_release_readiness.py"
-      ,"scripts/toolkit_rc_publish.py"
-      ,"scripts/toolkit_rc_promote.py"
-      ,".github/workflows/release-toolkit-rc.yml"
-      ,"tests/test_plan18_t6c_toolkit_rc_publication.py"
-      ,"tests/test_plan18_t6d_release_readiness.py"
-      ,"tests/test_plan18_t6e_toolkit_rc_authority.py"
+      "tests/test_toolkit_zero_rewrite.py",
+      "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py",
+      "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+      "scripts/toolkit_rc_release_readiness.py",
+      "scripts/toolkit_rc_publish.py",
+      "scripts/toolkit_rc_promote.py",
+      ".github/workflows/release-toolkit-rc.yml",
+      "tests/test_plan18_t6c_toolkit_rc_publication.py",
+      "tests/test_plan18_t6d_release_readiness.py",
+      "tests/test_plan18_t6e_toolkit_rc_authority.py",
+      "docs/authority/strategy-contract-assets-v3.json",
+      "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
+      "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json",
+      "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json",
+      "tests/test_plan18_t5c_pre_sign_artifact_ref.py"
     ],
     "forbidden_regex": [
       "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",
-      "Custos\\s*(<->|->|\u2194).*ARX",
+      "Custos\\s*(<->|->|↔).*ARX",
       "DeploymentMessage\\.create",
       "publish_deployment_status",
       "standalone_nats",

@@ -33,7 +33,7 @@ array order, finite Decimal numbers, and no insignificant whitespace.
 ## Artifact boundary
 
 `StrategyManifestV1` is artifact-local compatibility metadata.
-`StrategyArtifactRefV1` describes only exact executable and manifest bytes,
+`StrategyArtifactRefV2` (`schema_version: 2`) describes only exact executable and manifest bytes,
 runtime artifacts, SBOM, and contract schema available before signing. It has no
 bundle coordinate/digest, certificate/transparency proof, trust-policy identity,
 release, deployment, approval, or selection state.
@@ -64,9 +64,12 @@ validity, SCT, DSSE PAE/signature, Rekor entry/body/SET, inclusion proof and
 checkpoint. No skip flag, Python or `cosign` subprocess, sidecar, HTTP verifier,
 or structurally plausible bundle fallback is a production verification path.
 
-The published v1/v2 asset bytes remain immutable historical evidence. Their
-ArtifactRef-embedded bundle/policy fields are not a production compatibility
-contract; only the Plan 18 T5c corrected handoff may enter v1.team runtime.
+The published v1/v2 asset bytes and `StrategyArtifactRefV1` remain immutable
+historical evidence. V1's embedded bundle/policy fields are not a production
+compatibility contract and there is no V1 alias or runtime fallback. The additive
+v3 asset collection publishes the incompatible corrected type as
+`StrategyArtifactRefV2`; only a later reviewed T5d/T5e command/verifier handoff may
+enter v1.team runtime.
 
 ## Python and inventory
 
@@ -95,9 +98,10 @@ the separate Task 3 distribution receipt declares the current canonical path and
 proves byte continuity. `src/custos/contracts/strategy_execution.py` is only a
 temporary implementation-free re-export shim.
 
-The Task 2 inventory is immutable historical evidence. Run
-`make strategy-contract-assets` to generate schemas, lifecycle golden, and the
-digest index without regenerating that inventory. `make check-toolkit-extraction`
+The Task 2 inventory and v1/v2 contract assets are immutable historical evidence.
+Run `make strategy-contract-assets` to verify those pinned bytes and generate the
+additive v3 ArtifactRefV2 schema, pre-sign golden, producer receipt, and digest
+index without regenerating the historical assets. `make check-toolkit-extraction`
 reconstructs every T4 target from the pinned T3 Git blob, and
 `strategy-toolkit-parity-golden-v1.json` independently freezes pre-move fixed-input
 signal/order-intent and private-vendor indicator behavior.
@@ -111,7 +115,8 @@ Task 4b must reduce that baseline to zero before the distributions or 18b may be
 called strict or production-ready. Private third-party vendor code stays outside
 mypy and remains guarded by exact digests plus fixed-input parity.
 
-The canonical handoff name is `Custos Plan 18 Task 2 schema receipt`. Its draft
-must remain pending until exact producer commit, clean-worktree state,
-Crucible/PS review receipts, asset-index digest, and fresh `make check-authority`
-evidence are recorded.
+The current producer-only record is
+`Custos Plan 18 Task 5c ArtifactRefV2 producer receipt`. It remains
+`PRODUCED_AWAITING_CONSUMER_REVIEWS`, with handoff/runtime/production false. Custos
+must not fabricate PS or Crucible reviews; those owners must review exact v3 bytes
+before T5d/T5e can publish a corrected production handoff.

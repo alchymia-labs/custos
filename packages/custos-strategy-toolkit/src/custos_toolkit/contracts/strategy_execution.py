@@ -192,7 +192,7 @@ class StrategyManifestV1(_StrictFrozenModel):
 
 
 class StrategyArtifactRefV1(_StrictFrozenModel):
-    """Exact executable bytes and evidence, without business lifecycle state."""
+    """Historical v1 wire shape; never accepted by the corrected production path."""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -223,6 +223,52 @@ class StrategyArtifactRefV1(_StrictFrozenModel):
         ):
             raise ValueError("required_runtime_artifacts may contain only runtime_artifact members")
         _require_unique_members(self.required_runtime_artifacts)
+        return self
+
+
+class StrategyArtifactRefV2(_StrictFrozenModel):
+    """Pre-sign immutable execution identity for the corrected production ABI."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        title="StrategyArtifactRefV2",
+        json_schema_extra={
+            "$id": "https://custos.the-alephain-guild/contracts/v3/strategy-artifact-ref-v2.schema.json"
+        },
+    )
+
+    schema_version: Literal[2] = 2
+    artifact_kind: Literal["wheel"]
+    artifact_coordinate: NonEmptyString
+    artifact_sha256: Sha256Hex
+    artifact_size_bytes: StrictInt = Field(gt=0)
+    manifest_sha256: Sha256Hex
+    manifest_size_bytes: StrictInt = Field(gt=0)
+    required_runtime_artifacts: tuple[ArtifactMemberV1, ...] = Field(min_length=1)
+    sbom_sha256: Sha256Hex
+    contract_schema_sha256: Sha256Hex
+    source_repository: NonEmptyString
+    source_commit: SourceCommit
+    normalized_source_tree_sha256: Sha256Hex
+    python_version: Annotated[str, StringConstraints(pattern=r"^3\.12\.[0-9]+$")]
+    engine: Literal["nautilus"]
+    engine_version: Literal["1.230.0"]
+    base_contracts_version: NonEmptyString
+    engine_toolkit_version: NonEmptyString
+    build_inputs: tuple[DigestBindingV1, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_pre_sign_identity(self) -> Self:
+        if any(
+            member.role is not ArtifactMemberRole.RUNTIME_ARTIFACT
+            for member in self.required_runtime_artifacts
+        ):
+            raise ValueError("required_runtime_artifacts may contain only runtime_artifact members")
+        _require_unique_members(self.required_runtime_artifacts)
+        _require_unique_names(self.build_inputs, label="build input")
+        if not self.artifact_coordinate.endswith(f"@sha256:{self.artifact_sha256}"):
+            raise ValueError("artifact_coordinate must be pinned to artifact_sha256")
         return self
 
 
@@ -644,6 +690,7 @@ __all__ = [
     "STRATEGY_CONTRACT_SCHEMA_VERSION",
     "STRATEGY_EXECUTION_ABI_V1",
     "StrategyArtifactRefV1",
+    "StrategyArtifactRefV2",
     "StrategyArtifactPreImportVerificationReceiptV1",
     "StrategyArtifactVerificationReceiptV1",
     "StrategyExecutionCommandBindingV1",
