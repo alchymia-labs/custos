@@ -14,41 +14,44 @@ generation.
 
 ## State model
 
-The in-memory reconciliation map is:
+The v1.team reconciliation authority is durable in the existing RunnerFact SQLite
+deep module:
 
-    deployment_instance_id -> {
-      applied_generation,
-      reported_generation,
-      deployment_spec_id,
-      deployment_spec_digest,
-      desired_state,
-      engine_handle,
-      last_observation
-    }
+    desired_deployments[deployment_instance_id]
+    applied_deployments[deployment_instance_id]
+    command_in_progress_lease[deployment_instance_id]
+    command_outcomes[outcome_id]
+    runner_fact_outbox[batch_id]
 
 deployment_spec_id is never used as the map key. This permits multiple
 instances of one immutable spec and prevents a retry from controlling the
 wrong process.
+
+The older in-memory `DeploymentReconciler` watermarks remain an explicitly
+separate compatibility lane. They are not v1.team production authority and
+must never be used as a fallback when the signed-command/store path is blocked.
 
 ## Reconciliation algorithm
 
 1. Verify the signed envelope and subject binding.
 2. Validate tenant, mode, runner, instance, spec digest and live evidence.
 3. Compare generation with the accepted generation for that instance.
-4. Translate the canonical spec into the narrow local engine configuration.
-5. Apply start, reconfigure or stop to the engine using the instance id.
-6. Advance applied_generation only after the engine operation succeeds.
-7. Durably enqueue RunnerDeploymentLifecycleFact.v1 and then advance reported_generation.
-8. ACK only after both watermarks reach the desired generation; redelivery after
-   an emit failure retries the fact without repeating the engine operation.
+4. Load the exact T3-verified command from the T4 durable desired record.
+5. Require the real Plan 18 T5e artifact capability; live remains fail closed.
+6. Apply start/reconfigure/stop through `EngineLifecycleSupervisor` using the instance id.
+7. Wait for the typed seven-check `EngineReadyReceipt`; task creation alone is insufficient.
+8. Atomically commit applied state and the deterministic lifecycle fact in the T4 transaction.
+9. ACK only after that transaction; matching restart/redelivery probes ready state and does not
+   repeat deploy.
 
 ## Delivery disposition
 
 | Outcome | NATS disposition |
 | --- | --- |
-| bad signature, subject mismatch or invalid contract | ACK and emit security or audit observation |
-| stale or duplicate generation | ACK as idempotent no-op |
-| successful reconciliation | ACK |
+| bad signature, subject mismatch or invalid contract | durable untrusted rejection, then TERM |
+| same generation and exact bytes | replay the prior durable disposition |
+| same generation with different bytes, stale, retry exhausted | atomic terminal outcome/fact, then TERM |
+| successful reconciliation | atomic applied state/fact, then ACK |
 | transient engine or local dependency failure | NAK for redelivery |
 
 A poison command must not create an infinite redelivery loop. A transient
@@ -62,3 +65,9 @@ indexed by the signed credential scope id, while each use is bound to the
 deployment instance. Their facts
 retain deployment_spec_id only to explain which immutable configuration was
 executed.
+
+Ready timeout, retryable terminal events and zombie disconnect share one durable
+bounded restart budget with exponential backoff. A non-retryable terminal event
+or exhausted budget atomically quarantines and enqueues the terminal lifecycle.
+The daemon treats any unexpected long-running task exit as fatal, cancels sibling
+tasks, then stops deployments, flushes the RunnerFact outbox and closes transports.

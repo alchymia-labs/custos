@@ -187,6 +187,27 @@
     "runtime_ready": false,
     "production_ready": false
   },
+  "engine_lifecycle": {
+    "owner": "custos",
+    "status": "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
+    "receipt": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
+    "engine_adapter_ready": true,
+    "protocol_change": "additive",
+    "runtime_identity": "deployment_instance_id",
+    "single_database": true,
+    "single_outbox": "runner_fact_outbox",
+    "runner_state_schema_version": 2,
+    "restart_state_location": "command_in_progress_lease",
+    "restart_no_duplicate_deploy": true,
+    "bounded_restart_budget": true,
+    "timeout_terminal_and_zombie_share_quarantine_path": true,
+    "daemon_long_task_supervision": true,
+    "artifact_runtime_capability_ready": false,
+    "team_daemon_enabled": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
   "toolkit_rc_release": {
     "owner": "custos",
     "authority_schema": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",

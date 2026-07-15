@@ -23,7 +23,11 @@ from pathlib import Path
 
 from custos.core.engine_protocol import (
     ConnectivityState,
+    EngineLifecycleAuthority,
+    EngineReadinessChecks,
+    EngineReadyReceipt,
     EngineStatus,
+    EngineTerminalEvent,
     OrderSnapshot,
     PositionSnapshot,
 )
@@ -109,8 +113,14 @@ class NoopHost:
     supports_live.
     """
 
+    def __init__(self) -> None:
+        self._lifecycle_authorities: dict[str, EngineLifecycleAuthority] = {}
+
     async def deploy(self, spec: dict, credential: dict) -> str:
         deployment_instance_id = str(spec.get("deployment_instance_id") or "")
+        self._lifecycle_authorities[deployment_instance_id] = EngineLifecycleAuthority.from_spec(
+            spec
+        )
         _log.info(
             "nautilus_host_deploy_stub",
             deployment_instance_id=deployment_instance_id,
@@ -124,6 +134,7 @@ class NoopHost:
         )
 
     async def stop(self, deployment_instance_id: str) -> None:
+        self._lifecycle_authorities.pop(deployment_instance_id, None)
         _log.info("nautilus_host_stop_stub", deployment_instance_id=deployment_instance_id)
 
     def supports_live(self) -> bool:
@@ -175,6 +186,20 @@ class NoopHost:
             drawdown_pct=Decimal("0"),
         )
 
+    async def wait_ready(
+        self,
+        authority: EngineLifecycleAuthority,
+        *,
+        timeout_secs: float,
+    ) -> EngineReadyReceipt:
+        raise RuntimeError("noop host cannot publish engine readiness")
+
+    async def wait_terminal(
+        self,
+        authority: EngineLifecycleAuthority,
+    ) -> EngineTerminalEvent:
+        raise RuntimeError("noop host has no supervised engine task")
+
 
 class NtTradingNodeHost:
     """Real NautilusTrader host for Binance sandbox / testnet / live deployments.
@@ -202,6 +227,7 @@ class NtTradingNodeHost:
     ) -> None:
         # deployment_instance_id -> (TradingNode, background run task). Never holds credentials.
         self._active_nodes: dict[str, tuple] = {}
+        self._lifecycle_authorities: dict[str, EngineLifecycleAuthority] = {}
         # deployment_instance_id -> signed fact scope plus independent venue ledger adapter.
         self._runner_fact_contexts: dict[str, tuple[RunnerFactDeployment, object | None]] = {}
         # Decimal equity high-water mark per instance so get_engine_status can
@@ -231,6 +257,7 @@ class NtTradingNodeHost:
         self._ensure_nt_available()
         spec_id = str(spec["spec_id"])
         deployment_instance_id = str(spec["deployment_instance_id"])
+        lifecycle_authority = EngineLifecycleAuthority.from_spec(spec)
         if deployment_instance_id in self._active_nodes:
             # Idempotency guard: re-deploying a live spec must go through stop first
             # (structural changes are stop + re-deploy), never silently replace it.
@@ -323,6 +350,7 @@ class NtTradingNodeHost:
             )
         )
         self._active_nodes[deployment_instance_id] = (node, task)
+        self._lifecycle_authorities[deployment_instance_id] = lifecycle_authority
 
         _log.info(
             "nt_deploy_started",
@@ -437,6 +465,7 @@ class NtTradingNodeHost:
         self._peak_equity.pop(deployment_instance_id, None)
         self._runner_fact_contexts.pop(deployment_instance_id, None)
         entry = self._active_nodes.pop(deployment_instance_id, None)
+        self._lifecycle_authorities.pop(deployment_instance_id, None)
         if entry is None:
             # Idempotent: stopping an unknown / already-stopped spec is a no-op.
             _log.info(
@@ -462,6 +491,71 @@ class NtTradingNodeHost:
             except (asyncio.CancelledError, Exception):  # noqa: BLE001 — reaping the run task
                 pass
         _log.info("nt_stop_completed", deployment_instance_id=deployment_instance_id)
+
+    async def wait_ready(
+        self,
+        authority: EngineLifecycleAuthority,
+        *,
+        timeout_secs: float,
+    ) -> EngineReadyReceipt:
+        if authority.trading_mode == "live":
+            raise RuntimeError("Plan 19 T5 live readiness remains fail closed")
+        deadline = asyncio.get_running_loop().time() + timeout_secs
+        instance_id = str(authority.deployment_instance_id)
+        while asyncio.get_running_loop().time() < deadline:
+            if self._lifecycle_authorities.get(instance_id) != authority:
+                raise RuntimeError("engine readiness authority differs from deployed instance")
+            entry = self._active_nodes.get(instance_id)
+            if entry is None:
+                raise RuntimeError("engine task exited before readiness")
+            node, task = entry
+            connectivity = await self.check_engine_connected(instance_id)
+            checks = EngineReadinessChecks(
+                node_task_alive=not task.done(),
+                data_connectivity_ready=connectivity.data_connected,
+                execution_connectivity_ready=connectivity.exec_connected,
+                portfolio_initialized=getattr(node.kernel, "portfolio", None) is not None,
+                reconciliation_initialized=authority.trading_mode == "sandbox",
+                strategy_accepting_lifecycle=not task.done(),
+                mandatory_capabilities_active=authority.trading_mode in {"sandbox", "testnet"},
+            )
+            if checks.ready:
+                return EngineReadyReceipt.from_authority(
+                    authority,
+                    checks=checks,
+                    ready_at_ns=time.time_ns(),
+                )
+            await asyncio.sleep(min(0.05, max(0.001, timeout_secs / 10)))
+        raise TimeoutError("engine did not satisfy readiness before the deadline")
+
+    async def wait_terminal(
+        self,
+        authority: EngineLifecycleAuthority,
+    ) -> EngineTerminalEvent:
+        instance_id = str(authority.deployment_instance_id)
+        if self._lifecycle_authorities.get(instance_id) != authority:
+            raise RuntimeError("engine terminal authority differs from deployed instance")
+        entry = self._active_nodes.get(instance_id)
+        if entry is None:
+            return EngineTerminalEvent.from_authority(
+                authority,
+                reason_code="engine_task_missing",
+                retryable=True,
+            )
+        task = entry[1]
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            reason_code = "engine_task_cancelled"
+        except Exception:  # noqa: BLE001 - reason is deliberately sanitized
+            reason_code = "engine_task_failed"
+        else:
+            reason_code = "engine_task_exited"
+        return EngineTerminalEvent.from_authority(
+            authority,
+            reason_code=reason_code,
+            retryable=True,
+        )
 
     async def close(self) -> None:
         for deployment_instance_id in tuple(self._active_nodes):

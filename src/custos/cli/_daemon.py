@@ -174,6 +174,78 @@ def _build_reconciler(
     )
 
 
+async def _supervise_long_running_tasks(
+    tasks: list[asyncio.Task], stop: asyncio.Event
+) -> None:
+    """Fail the daemon when a long-running task exits before an intentional stop."""
+
+    if not tasks:
+        return
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    failure: BaseException | None = None
+    failed_name = "unnamed"
+    for task in done:
+        failed_name = task.get_name()
+        if task.cancelled():
+            if not stop.is_set():
+                failure = RuntimeError("long-running task was unexpectedly cancelled")
+            continue
+        task_error = task.exception()
+        if task_error is not None:
+            failure = task_error
+            break
+        if not stop.is_set():
+            failure = RuntimeError("long-running task exited unexpectedly")
+            break
+    stop.set()
+    for task in pending:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    if failure is not None:
+        raise RuntimeError(f"long-running task {failed_name!r} failed: {failure}") from failure
+
+
+async def _shutdown_in_order(
+    *,
+    stop: asyncio.Event,
+    tasks: list[asyncio.Task],
+    host: object | None,
+    fact_outbox: object,
+    fact_publisher: object,
+    client: object,
+) -> None:
+    """Stop intake/tasks, stop deployments, flush facts, then close transports."""
+
+    stop.set()
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    try:
+        close_host = getattr(host, "close", None)
+        if callable(close_host):
+            await close_host()
+        try:
+            await fact_publisher.drain_once()  # type: ignore[attr-defined]
+            for _ in range(7):
+                if not await fact_outbox.pending():  # type: ignore[attr-defined]
+                    break
+                if await fact_publisher.drain_once() == 0:  # type: ignore[attr-defined]
+                    break
+            if await fact_outbox.pending():  # type: ignore[attr-defined]
+                log.warning("runner_fact_shutdown_flush_incomplete")
+        except Exception as exc:  # noqa: BLE001 - durable rows remain for restart
+            log.warning(
+                "runner_fact_shutdown_flush_failed",
+                extra={"error_type": type(exc).__name__},
+            )
+    finally:
+        try:
+            await fact_publisher.close()  # type: ignore[attr-defined]
+        finally:
+            await client.close()  # type: ignore[attr-defined]
+
+
 async def run_daemon(args: argparse.Namespace) -> int:
     """Start signed-command reconciliation and signed RunnerFact publication.
 
@@ -326,17 +398,16 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 deployment_subscription=False,
             )
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await _supervise_long_running_tasks(tasks, stop)
     finally:
-        stop.set()
         readiness.clear()
-        for t in tasks:
-            if not t.done():
-                t.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        if host is not None and callable(getattr(host, "close", None)):
-            await host.close()  # type: ignore[attr-defined]
-        await fact_publisher.close()
-        await client.close()
+        await _shutdown_in_order(
+            stop=stop,
+            tasks=tasks,
+            host=host,
+            fact_outbox=fact_outbox,
+            fact_publisher=fact_publisher,
+            client=client,
+        )
         log.info("runner_stopped")
     return 0

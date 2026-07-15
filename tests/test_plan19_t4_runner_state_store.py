@@ -673,3 +673,59 @@ async def test_local_reservation_exposure_and_cross_tenant_guards(tmp_path: Path
             command_fingerprint=verified.command_fingerprint,
             verification_receipt=verified.verification_receipt,
         )
+
+
+@pytest.mark.asyncio
+async def test_engine_restart_budget_survives_reopen_and_applied_commit(
+    tmp_path: Path,
+) -> None:
+    import time
+
+    database = tmp_path / "runner-state.sqlite3"
+    _, store = _t4_store(database)
+    _, _, verified = _t4_verified()
+    await store.record_desired_command(
+        command=verified.command,
+        command_fingerprint=verified.command_fingerprint,
+        verification_receipt=verified.verification_receipt,
+    )
+    deadline = time.time_ns() + 60_000_000_000
+    await store.record_in_progress_lease(
+        delivery_id="delivery-restart",
+        verified=verified,
+        lease_until_ns=deadline,
+    )
+    assert (
+        await store.record_engine_restart(
+            delivery_id="delivery-restart",
+            verified=verified,
+            reason_code="engine_ready_timeout",
+            lease_until_ns=deadline,
+        )
+        == 1
+    )
+    assert (
+        await store.record_engine_restart(
+            delivery_id="delivery-restart",
+            verified=verified,
+            reason_code="zombie_disconnect",
+            lease_until_ns=deadline,
+        )
+        == 2
+    )
+
+    _, reopened = _t4_store(database)
+    before = await reopened.load_engine_lifecycle_state(verified)
+    assert before.restart_count == 2
+    assert before.applied_generation is None
+
+    await reopened.commit_applied_and_enqueue_lifecycle(
+        delivery_id="delivery-restart",
+        verified=verified,
+        engine_handle="engine-handle",
+        observed_status="ready",
+    )
+    after = await reopened.load_engine_lifecycle_state(verified)
+    assert after.restart_count == 2
+    assert after.applied_generation == verified.command.generation
+    assert after.observed_status == "ready"

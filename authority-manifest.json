@@ -335,6 +335,16 @@
       "single_database": true,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "plan_19_task_5_engine_lifecycle_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
+      "receipt_status": "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
+      "engine_adapter_ready": true,
+      "team_daemon_enabled": false,
+      "live_ready": false,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [
@@ -440,10 +450,17 @@
       "tests/test_plan18_t5d_b_runner_command_consumer.py",
       "src/custos/core/runner_fact.py",
       "src/custos/artifacts/corrected_runtime.py",
+      "src/custos/core/engine_lifecycle.py",
+      "src/custos/core/engine_protocol.py",
+      "src/custos/cli/_daemon.py",
+      "src/custos/engines/nautilus/host.py",
       "src/custos/core/runner_command_intake.py",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+      "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
       "tests/test_plan18_t5e_corrected_runtime.py",
+      "tests/test_plan19_t5_engine_lifecycle.py",
+      "tests/test_plan19_t5_daemon_supervision.py",
       "tests/test_plan19_t4_runner_state_store.py",
       ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"
     ],
@@ -554,6 +571,17 @@
         "StrategyReleaseBomV1.members only",
         "\"python_import_after_verification\": true",
         "\"capability_ready\": false",
+        "\"production_ready\": false"
+      ]
+    },
+    {
+      "path": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
+      "must_contain": [
+        "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
+        "command_in_progress_lease in the existing RunnerFact SQLite database",
+        "\"restart_no_duplicate_deploy\": true",
+        "\"team_daemon_enabled\": false",
+        "\"live_ready\": false",
         "\"production_ready\": false"
       ]
     }

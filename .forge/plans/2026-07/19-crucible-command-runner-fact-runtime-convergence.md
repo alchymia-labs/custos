@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-15 after Plan 19 T4 durable-state checkpoint
 > **Project**: Custos
@@ -857,6 +857,19 @@ git commit -m "feat(custos): persist reconcile state in runner fact store"
 6. shutdown 顺序：停止 intake → stop deployments → flush fact outbox →
    close NATS/store。
 
+Execution checkpoint (2026-07-15):
+
+- RED proved the additive lifecycle module and structured daemon supervisor were absent.
+- GREEN adds exact `EngineLifecycleAuthority`, seven-check `EngineReadyReceipt`, typed
+  `EngineTerminalEvent`, bounded restart/backoff/quarantine and restart replay without
+  duplicate deploy. Restart state persists in the existing `command_in_progress_lease`;
+  ready and terminal outcomes reuse the T4 atomic lifecycle transaction.
+- The daemon now fails on any unexpected long-running task exit, cancels siblings, and
+  shuts down in intake/deployment/fact-flush/transport order.
+- Focused lifecycle/store/protocol and host/daemon/watchdog/breaker suites are 52 passed.
+- Status remains `PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY`: the real Plan 18 T5e
+  capability is false, team daemon composition is disabled, and live remains false.
+
 提交：
 
 ```bash
@@ -1028,7 +1041,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T2 Crucible producer/consumer | [x] | 2026-07-15 | Same STOP as Plan 18 T5d-B: corrected CR89 A2/B2 bytes, sole consumer parser, full evidence/acceptance bindings and frozen producer fingerprint; contract-only, runtime false |
 | T3 Fingerprint/ACK | [x] | 2026-07-15 | frozen algorithm + bounded inbound policy; production durability port implemented by T4 |
 | T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
-| T5 Engine lifecycle | [ ] | — | additive protocol |
+| T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [ ] | — | NT 1.230.0 regression |
 | T7 Signed local safety | [ ] | — | live blocked on Crucible Plan 99 |
 | T8a RunnerFact candidate | [ ] | — | 19c STOP 后独立生产；不得等待 Plan 90 |

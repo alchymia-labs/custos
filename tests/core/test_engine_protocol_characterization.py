@@ -18,6 +18,8 @@ _EXPECTED_METHODS = (
     "get_positions",
     "get_orders",
     "get_engine_status",
+    "wait_ready",
+    "wait_terminal",
 )
 _EXPECTED_SYNC_METHODS = frozenset({"supports_live", "supports_venue"})
 

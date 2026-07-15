@@ -11,7 +11,10 @@ from decimal import Decimal
 
 from custos.core.engine_protocol import (
     ConnectivityState,
+    EngineLifecycleAuthority,
+    EngineReadyReceipt,
     EngineStatus,
+    EngineTerminalEvent,
     ExecutionEngineProtocol,
     OrderSnapshot,
     PositionSnapshot,
@@ -59,6 +62,20 @@ class _CompleteHost:
             current_equity=Decimal("0"),
             drawdown_pct=Decimal("0"),
         )
+
+    async def wait_ready(
+        self,
+        authority: EngineLifecycleAuthority,
+        *,
+        timeout_secs: float,
+    ) -> EngineReadyReceipt:
+        raise NotImplementedError
+
+    async def wait_terminal(
+        self,
+        authority: EngineLifecycleAuthority,
+    ) -> EngineTerminalEvent:
+        raise NotImplementedError
 
 
 class _MissingDeploy:

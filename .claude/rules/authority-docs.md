@@ -71,6 +71,17 @@ non-promotable sandbox-only union member. Because no real PS bundle receipt or
 Crucible C6 acceptance receipt exists yet, capability/runtime/production remain
 false; tests may exercise a synthetic future capability but must not publish READY.
 
+Plan 19 T5 is `PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY`. It additively
+extends the existing engine protocol with typed `EngineReadyReceipt` and
+`EngineTerminalEvent`, persists restart budget in `command_in_progress_lease`
+inside the same RunnerFact SQLite database, and routes ready or terminal state
+through the T4 atomic lifecycle transactions. Timeout, task failure and zombie
+disconnect use one bounded restart/backoff/quarantine state machine; restart
+replay probes a matching ready engine before deploy. The daemon now fails when
+any long-running task exits unexpectedly and shuts down in intake/deployment/
+fact-flush/transport order. The team daemon is not composed while the Plan 18
+T5e real artifact capability is false, and live remains false.
+
 Task 2 remains immutable historical review evidence. After Plan 18 T3, the
 current contract implementation is
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.

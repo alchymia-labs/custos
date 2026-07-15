@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
+from uuid import UUID
 
 # Runtime invariant: every Decimal-declared money field on the snapshot
 # dataclasses must be a real ``Decimal`` — a float slipping through breaks
@@ -43,7 +44,7 @@ _MONEY_FIELDS_SHOULD_BE_DECIMAL = frozenset(
 )
 
 
-def _reject_float_money(instance: object) -> None:
+def _reject_float_money(instance: Any) -> None:
     """Raise ``TypeError`` if any money field on ``instance`` is not a
     ``Decimal``. Called from every snapshot dataclass's ``__post_init__``."""
 
@@ -124,6 +125,146 @@ class EngineStatus:
         _reject_float_money(self)
 
 
+@dataclass(frozen=True, slots=True)
+class EngineLifecycleAuthority:
+    """Exact signed command identity accepted by an engine lifecycle adapter."""
+
+    deployment_instance_id: UUID
+    deployment_spec_id: UUID
+    deployment_spec_digest: str
+    generation: int
+    trading_mode: str
+
+    def __post_init__(self) -> None:
+        if self.deployment_instance_id.int == 0 or self.deployment_spec_id.int == 0:
+            raise ValueError("engine lifecycle identity must not be nil")
+        if (
+            len(self.deployment_spec_digest) != 64
+            or any(value not in "0123456789abcdef" for value in self.deployment_spec_digest)
+        ):
+            raise ValueError("engine lifecycle spec digest must be lowercase SHA-256")
+        if type(self.generation) is not int or self.generation < 1:
+            raise ValueError("engine lifecycle generation must be positive")
+        if self.trading_mode not in {"sandbox", "testnet", "live"}:
+            raise ValueError("engine lifecycle trading mode is invalid")
+
+    @classmethod
+    def from_verified_command(cls, verified: Any) -> EngineLifecycleAuthority:
+        command = verified.command
+        return cls(
+            deployment_instance_id=UUID(str(command.deployment_instance_id)),
+            deployment_spec_id=UUID(str(command.deployment_spec_id)),
+            deployment_spec_digest=str(command.deployment_spec_digest),
+            generation=int(command.generation),
+            trading_mode=str(command.trading_mode),
+        )
+
+    @classmethod
+    def from_spec(cls, spec: dict[str, Any]) -> EngineLifecycleAuthority:
+        return cls(
+            deployment_instance_id=UUID(str(spec["deployment_instance_id"])),
+            deployment_spec_id=UUID(str(spec.get("deployment_spec_id") or spec["spec_id"])),
+            deployment_spec_digest=str(spec["deployment_spec_digest"]),
+            generation=int(spec["generation"]),
+            trading_mode=str(spec["trading_mode"]),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EngineReadinessChecks:
+    """Evidence that a created task has crossed every mandatory ready boundary."""
+
+    node_task_alive: bool
+    data_connectivity_ready: bool
+    execution_connectivity_ready: bool
+    portfolio_initialized: bool
+    reconciliation_initialized: bool
+    strategy_accepting_lifecycle: bool
+    mandatory_capabilities_active: bool
+
+    @property
+    def ready(self) -> bool:
+        return all(
+            (
+                self.node_task_alive,
+                self.data_connectivity_ready,
+                self.execution_connectivity_ready,
+                self.portfolio_initialized,
+                self.reconciliation_initialized,
+                self.strategy_accepting_lifecycle,
+                self.mandatory_capabilities_active,
+            )
+        )
+
+    @classmethod
+    def all_ready(cls) -> EngineReadinessChecks:
+        return cls(True, True, True, True, True, True, True)
+
+
+@dataclass(frozen=True, slots=True)
+class EngineReadyReceipt:
+    deployment_instance_id: UUID
+    deployment_spec_id: UUID
+    deployment_spec_digest: str
+    generation: int
+    ready_at_ns: int
+    checks: EngineReadinessChecks
+
+    def __post_init__(self) -> None:
+        if type(self.ready_at_ns) is not int or self.ready_at_ns < 1:
+            raise ValueError("engine ready timestamp must be positive")
+        if not self.checks.ready:
+            raise ValueError("engine ready receipt requires every readiness check")
+
+    @classmethod
+    def from_authority(
+        cls,
+        authority: EngineLifecycleAuthority,
+        *,
+        checks: EngineReadinessChecks,
+        ready_at_ns: int,
+    ) -> EngineReadyReceipt:
+        return cls(
+            deployment_instance_id=authority.deployment_instance_id,
+            deployment_spec_id=authority.deployment_spec_id,
+            deployment_spec_digest=authority.deployment_spec_digest,
+            generation=authority.generation,
+            ready_at_ns=ready_at_ns,
+            checks=checks,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EngineTerminalEvent:
+    deployment_instance_id: UUID
+    deployment_spec_id: UUID
+    generation: int
+    reason_code: str
+    retryable: bool
+
+    def __post_init__(self) -> None:
+        if type(self.generation) is not int or self.generation < 1:
+            raise ValueError("engine terminal generation must be positive")
+        if not self.reason_code.strip():
+            raise ValueError("engine terminal reason is required")
+
+    @classmethod
+    def from_authority(
+        cls,
+        authority: EngineLifecycleAuthority,
+        *,
+        reason_code: str,
+        retryable: bool,
+    ) -> EngineTerminalEvent:
+        return cls(
+            deployment_instance_id=authority.deployment_instance_id,
+            deployment_spec_id=authority.deployment_spec_id,
+            generation=authority.generation,
+            reason_code=reason_code,
+            retryable=retryable,
+        )
+
+
 @runtime_checkable
 class ExecutionEngineProtocol(Protocol):
     """Engine contract every host must satisfy.
@@ -161,3 +302,16 @@ class ExecutionEngineProtocol(Protocol):
     async def get_orders(self, deployment_instance_id: str) -> list[OrderSnapshot]: ...
 
     async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus: ...
+
+    # -- Additive Plan 19 lifecycle supervision ---------------------------
+    async def wait_ready(
+        self,
+        authority: EngineLifecycleAuthority,
+        *,
+        timeout_secs: float,
+    ) -> EngineReadyReceipt: ...
+
+    async def wait_terminal(
+        self,
+        authority: EngineLifecycleAuthority,
+    ) -> EngineTerminalEvent: ...

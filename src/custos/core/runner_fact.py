@@ -50,7 +50,7 @@ MAX_BATCH_BYTES: Final = 768 * 1024
 MAX_VENUE_LEDGER_CHUNKS: Final = 4096
 MAX_VENUE_LEDGER_ITEMS_PER_CHUNK: Final = 512
 MAX_VENUE_LEDGER_CHUNK_BYTES: Final = 262_144
-RUNNER_STATE_SCHEMA_VERSION: Final = 1
+RUNNER_STATE_SCHEMA_VERSION: Final = 2
 _NATS_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 _LOWER_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _log = get_logger("custos.runner_fact")
@@ -1057,6 +1057,8 @@ class RunnerFactOutbox:
                     generation INTEGER NOT NULL CHECK (generation > 0),
                     command_fingerprint TEXT NOT NULL,
                     lease_until_ns INTEGER NOT NULL,
+                    restart_count INTEGER NOT NULL DEFAULT 0,
+                    last_reason_code TEXT,
                     updated_at_ns INTEGER NOT NULL,
                     FOREIGN KEY (deployment_instance_id)
                         REFERENCES desired_deployments(deployment_instance_id)
@@ -1095,6 +1097,19 @@ class RunnerFactOutbox:
                 );
                 """
             )
+            lease_columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(command_in_progress_lease)")
+            }
+            if "restart_count" not in lease_columns:
+                connection.execute(
+                    "ALTER TABLE command_in_progress_lease "
+                    "ADD COLUMN restart_count INTEGER NOT NULL DEFAULT 0"
+                )
+            if "last_reason_code" not in lease_columns:
+                connection.execute(
+                    "ALTER TABLE command_in_progress_lease ADD COLUMN last_reason_code TEXT"
+                )
             connection.execute(
                 """
                 INSERT INTO runner_state_schema (singleton, schema_version, updated_at)
@@ -1490,6 +1505,17 @@ class DurableDesiredCommand:
     command_fingerprint: str
     exact_subject: str
     verification_receipt: CommandVerificationReceipt
+
+
+@dataclass(frozen=True, slots=True)
+class EngineLifecycleDurableState:
+    desired_status: str
+    applied_generation: int | None
+    applied_command_fingerprint: str | None
+    engine_handle: str | None
+    observed_status: str | None
+    restart_count: int
+    quarantine_reason: str | None
 
 
 class RunnerStateStore:
@@ -1888,6 +1914,19 @@ class RunnerStateStore:
                 raise RunnerStateDurabilityError("conflict outcome lacks a durable conflict")
             if outcome == "stale" and int(desired["generation"]) <= command.generation:
                 raise RunnerStateDurabilityError("stale outcome is not older than desired state")
+            lease = connection.execute(
+                """
+                SELECT restart_count FROM command_in_progress_lease
+                WHERE deployment_instance_id = ? AND generation = ?
+                  AND command_fingerprint = ?
+                """,
+                (
+                    str(command.deployment_instance_id),
+                    command.generation,
+                    verified.command_fingerprint,
+                ),
+            ).fetchone()
+            restart_count = int(lease["restart_count"]) if lease is not None else 0
             if artifact_activation_id is not None:
                 activation = connection.execute(
                     """
@@ -1926,7 +1965,7 @@ class RunnerStateStore:
                         engine_handle, observed_status, restart_count,
                         quarantine_reason, artifact_activation_id, local_policy_id,
                         updated_at_ns
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
                     ON CONFLICT(deployment_instance_id) DO UPDATE SET
                         deployment_spec_id = excluded.deployment_spec_id,
                         deployment_spec_digest = excluded.deployment_spec_digest,
@@ -1934,6 +1973,7 @@ class RunnerStateStore:
                         command_fingerprint = excluded.command_fingerprint,
                         engine_handle = excluded.engine_handle,
                         observed_status = excluded.observed_status,
+                        restart_count = excluded.restart_count,
                         quarantine_reason = NULL,
                         artifact_activation_id = excluded.artifact_activation_id,
                         local_policy_id = excluded.local_policy_id,
@@ -1947,6 +1987,7 @@ class RunnerStateStore:
                         verified.command_fingerprint,
                         engine_handle,
                         observed,
+                        restart_count,
                         artifact_activation_id,
                         local_policy_id,
                         time.time_ns(),
@@ -2068,10 +2109,21 @@ class RunnerStateStore:
                 """
                 INSERT INTO command_in_progress_lease (
                     deployment_instance_id, delivery_id, generation,
-                    command_fingerprint, lease_until_ns, updated_at_ns
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    command_fingerprint, lease_until_ns, restart_count,
+                    last_reason_code, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, 0, NULL, ?)
                 ON CONFLICT(deployment_instance_id) DO UPDATE SET
                     delivery_id = excluded.delivery_id,
+                    restart_count = CASE
+                        WHEN command_in_progress_lease.generation != excluded.generation
+                          OR command_in_progress_lease.command_fingerprint
+                             != excluded.command_fingerprint
+                        THEN 0 ELSE command_in_progress_lease.restart_count END,
+                    last_reason_code = CASE
+                        WHEN command_in_progress_lease.generation != excluded.generation
+                          OR command_in_progress_lease.command_fingerprint
+                             != excluded.command_fingerprint
+                        THEN NULL ELSE command_in_progress_lease.last_reason_code END,
                     generation = excluded.generation,
                     command_fingerprint = excluded.command_fingerprint,
                     lease_until_ns = excluded.lease_until_ns,
@@ -2086,6 +2138,168 @@ class RunnerStateStore:
                     time.time_ns(),
                 ),
             )
+
+    async def load_engine_lifecycle_state(
+        self, verified: VerifiedRunnerCommand
+    ) -> EngineLifecycleDurableState:
+        return await asyncio.to_thread(self._load_engine_lifecycle_state, verified)
+
+    def _load_engine_lifecycle_state(
+        self, verified: VerifiedRunnerCommand
+    ) -> EngineLifecycleDurableState:
+        self._validated_command_material(
+            verified.command,
+            verified.command_fingerprint,
+            verified.verification_receipt,
+        )
+        command = verified.command
+        with self._outbox._connect() as connection:
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None:
+                raise RunnerStateDurabilityError(
+                    "engine lifecycle requires a durable desired command"
+                )
+            self._require_desired_authority(desired, command)
+            applied = connection.execute(
+                "SELECT * FROM applied_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            lease = connection.execute(
+                "SELECT * FROM command_in_progress_lease WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+        applied_matches = applied is not None and (
+            int(applied["generation"]) == command.generation
+            and applied["command_fingerprint"] == verified.command_fingerprint
+        )
+        lease_matches = lease is not None and (
+            int(lease["generation"]) == command.generation
+            and lease["command_fingerprint"] == verified.command_fingerprint
+        )
+        restart_count = 0
+        if applied_matches:
+            restart_count = int(applied["restart_count"])
+        if lease_matches:
+            restart_count = max(restart_count, int(lease["restart_count"]))
+        return EngineLifecycleDurableState(
+            desired_status=str(desired["desired_status"]),
+            applied_generation=int(applied["generation"]) if applied_matches else None,
+            applied_command_fingerprint=(
+                str(applied["command_fingerprint"]) if applied_matches else None
+            ),
+            engine_handle=(
+                str(applied["engine_handle"])
+                if applied_matches and applied["engine_handle"] is not None
+                else None
+            ),
+            observed_status=(
+                str(applied["observed_status"]) if applied_matches else None
+            ),
+            restart_count=restart_count,
+            quarantine_reason=(
+                str(desired["quarantine_reason"])
+                if desired["quarantine_reason"] is not None
+                else (
+                    str(applied["quarantine_reason"])
+                    if applied_matches and applied["quarantine_reason"] is not None
+                    else None
+                )
+            ),
+        )
+
+    async def record_engine_restart(
+        self,
+        *,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        reason_code: str,
+        lease_until_ns: int,
+    ) -> int:
+        return await asyncio.to_thread(
+            self._record_engine_restart,
+            delivery_id,
+            verified,
+            reason_code,
+            lease_until_ns,
+        )
+
+    def _record_engine_restart(
+        self,
+        delivery_id: str,
+        verified: VerifiedRunnerCommand,
+        reason_code: str,
+        lease_until_ns: int,
+    ) -> int:
+        if type(lease_until_ns) is not int or lease_until_ns <= time.time_ns():
+            raise RunnerStateDurabilityError("engine restart lease must expire in the future")
+        delivery = _non_empty(delivery_id, "delivery_id")
+        reason = _non_empty(reason_code, "reason_code")
+        command = verified.command
+        connection = self._outbox._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None:
+                raise RunnerStateDurabilityError(
+                    "engine restart requires a durable desired command"
+                )
+            self._require_desired_authority(desired, command)
+            if desired["command_fingerprint"] != verified.command_fingerprint:
+                raise RunnerStateDurabilityError(
+                    "engine restart differs from the durable command fingerprint"
+                )
+            connection.execute(
+                """
+                INSERT INTO command_in_progress_lease (
+                    deployment_instance_id, delivery_id, generation,
+                    command_fingerprint, lease_until_ns, restart_count,
+                    last_reason_code, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                ON CONFLICT(deployment_instance_id) DO UPDATE SET
+                    delivery_id = excluded.delivery_id,
+                    generation = excluded.generation,
+                    command_fingerprint = excluded.command_fingerprint,
+                    lease_until_ns = excluded.lease_until_ns,
+                    restart_count = CASE
+                        WHEN command_in_progress_lease.generation = excluded.generation
+                          AND command_in_progress_lease.command_fingerprint
+                              = excluded.command_fingerprint
+                        THEN command_in_progress_lease.restart_count + 1 ELSE 1 END,
+                    last_reason_code = excluded.last_reason_code,
+                    updated_at_ns = excluded.updated_at_ns
+                """,
+                (
+                    str(command.deployment_instance_id),
+                    delivery,
+                    command.generation,
+                    verified.command_fingerprint,
+                    lease_until_ns,
+                    reason,
+                    time.time_ns(),
+                ),
+            )
+            row = connection.execute(
+                """
+                SELECT restart_count FROM command_in_progress_lease
+                WHERE deployment_instance_id = ?
+                """,
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            connection.commit()
+            if row is None:
+                raise RunnerStateDurabilityError("engine restart counter was not persisted")
+            return int(row["restart_count"])
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     async def record_artifact_activation(
         self,

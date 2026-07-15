@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "receipt_id": "CUSTOS-PLAN-19-T5-ENGINE-LIFECYCLE-V1",
+  "receipt_status": "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
+  "repository": "tesseract-trading/custos",
+  "plan": "Custos Plan 19",
+  "task": "T5",
+  "engine_adapter_ready": true,
+  "protocol_change": "additive",
+  "typed_ready_receipt": true,
+  "typed_terminal_event": true,
+  "readiness_checks": [
+    "node_task_alive",
+    "data_connectivity_ready",
+    "execution_connectivity_ready",
+    "portfolio_initialized",
+    "reconciliation_initialized",
+    "strategy_accepting_lifecycle",
+    "mandatory_capabilities_active"
+  ],
+  "runtime_identity": "deployment_instance_id",
+  "single_database": true,
+  "single_outbox": "runner_fact_outbox",
+  "runner_state_schema_version": 2,
+  "restart_state_location": "command_in_progress_lease in the existing RunnerFact SQLite database",
+  "restart_no_duplicate_deploy": true,
+  "bounded_restart_budget": true,
+  "exponential_backoff": true,
+  "timeout_terminal_and_zombie_share_quarantine_path": true,
+  "applied_and_terminal_lifecycle_atomic": true,
+  "daemon_long_task_supervision": true,
+  "shutdown_order": [
+    "stop intake and sibling tasks",
+    "stop deployments",
+    "flush RunnerFact outbox",
+    "close publisher and NATS"
+  ],
+  "artifact_runtime_capability_ready": false,
+  "team_daemon_enabled": false,
+  "live_ready": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "focused_verification": {
+    "result": "52 passed",
+    "suites": [
+      "Plan 19 T5 lifecycle, daemon and actual T4 store",
+      "engine protocol and shipped host conformance",
+      "deployment reconciler, watchdog and breaker regressions"
+    ]
+  },
+  "open_blockers": [
+    "Custos Plan 18 T5e real artifact runtime capability remains false",
+    "real Philosophers-Stone strategy bundle receipt is absent",
+    "real Crucible C6 artifact acceptance receipt is absent",
+    "live remains blocked through Custos Plan 19 T7 and Crucible Plan 99"
+  ]
+}

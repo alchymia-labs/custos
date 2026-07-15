@@ -45,6 +45,10 @@ TASK_5E_RUNTIME_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json"
 )
 TASK_5E_RUNTIME_SOURCE = "src/custos/artifacts/corrected_runtime.py"
+PLAN_19_T5_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json"
+)
+PLAN_19_T5_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -1683,6 +1687,151 @@ def verify_plan_18_task_5e_corrected_runtime(
             errors.append(f"Plan 18 T5e corrected runtime contains legacy fallback {forbidden!r}")
 
 
+def verify_plan_19_task_5_engine_lifecycle(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    """Validate additive lifecycle readiness without promoting blocked runtime."""
+
+    receipt_path = resolve(PLAN_19_T5_RECEIPT_PATH)
+    lifecycle_path = resolve(PLAN_19_T5_LIFECYCLE_SOURCE)
+    if not receipt_path.is_file() or not lifecycle_path.is_file():
+        errors.append("missing Plan 19 T5 engine lifecycle authority assets")
+        return
+    receipt = load_json(receipt_path)
+    expected = {
+        "receipt_status": "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
+        "engine_adapter_ready": True,
+        "protocol_change": "additive",
+        "runtime_identity": "deployment_instance_id",
+        "single_database": True,
+        "single_outbox": "runner_fact_outbox",
+        "runner_state_schema_version": 2,
+        "restart_no_duplicate_deploy": True,
+        "bounded_restart_budget": True,
+        "exponential_backoff": True,
+        "timeout_terminal_and_zombie_share_quarantine_path": True,
+        "applied_and_terminal_lifecycle_atomic": True,
+        "daemon_long_task_supervision": True,
+        "artifact_runtime_capability_ready": False,
+        "team_daemon_enabled": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    for key, value in expected.items():
+        if receipt.get(key) != value:
+            errors.append(f"Plan 19 T5 receipt {key} differs")
+    if receipt.get("readiness_checks") != [
+        "node_task_alive",
+        "data_connectivity_ready",
+        "execution_connectivity_ready",
+        "portfolio_initialized",
+        "reconciliation_initialized",
+        "strategy_accepting_lifecycle",
+        "mandatory_capabilities_active",
+    ]:
+        errors.append("Plan 19 T5 readiness evidence set differs")
+    if receipt.get("shutdown_order") != [
+        "stop intake and sibling tasks",
+        "stop deployments",
+        "flush RunnerFact outbox",
+        "close publisher and NATS",
+    ]:
+        errors.append("Plan 19 T5 shutdown order differs")
+
+    registrations = [
+        entry
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role") == "plan_19_task_5_engine_lifecycle_receipt"
+    ]
+    if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T5_RECEIPT_PATH:
+        errors.append("Plan 19 T5 receipt manifest registration differs")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    state = snapshot.get("engine_lifecycle")
+    if not isinstance(state, dict):
+        errors.append("ecosystem authority lacks engine_lifecycle")
+    else:
+        if state.get("status") != expected["receipt_status"]:
+            errors.append("engine_lifecycle status differs")
+        if state.get("receipt") != PLAN_19_T5_RECEIPT_PATH:
+            errors.append("engine_lifecycle receipt path differs")
+        for key in (
+            "engine_adapter_ready",
+            "protocol_change",
+            "runtime_identity",
+            "single_database",
+            "single_outbox",
+            "runner_state_schema_version",
+            "restart_no_duplicate_deploy",
+            "bounded_restart_budget",
+            "timeout_terminal_and_zombie_share_quarantine_path",
+            "daemon_long_task_supervision",
+            "artifact_runtime_capability_ready",
+            "team_daemon_enabled",
+            "live_ready",
+            "runtime_ready",
+            "production_ready",
+        ):
+            if state.get(key) != receipt.get(key):
+                errors.append(f"engine_lifecycle {key} differs")
+    artifact_runtime = snapshot.get("strategy_artifact_runtime")
+    if not isinstance(artifact_runtime, dict) or any(
+        artifact_runtime.get(key) is not False
+        for key in ("capability_ready", "daemon_ready", "live_ready", "runtime_ready")
+    ):
+        errors.append("Plan 19 T5 must not promote the blocked artifact runtime")
+
+    lifecycle_source = lifecycle_path.read_text(encoding="utf-8")
+    protocol_source = resolve("src/custos/core/engine_protocol.py").read_text(encoding="utf-8")
+    store_source = resolve("src/custos/core/runner_fact.py").read_text(encoding="utf-8")
+    daemon_source = resolve("src/custos/cli/_daemon.py").read_text(encoding="utf-8")
+    markers = {
+        "engine lifecycle": (
+            "class EngineLifecycleSupervisor",
+            "CorrectedRuntimeCapability",
+            "commit_applied_and_enqueue_lifecycle",
+            "commit_verified_command_outcome_and_enqueue_fact",
+            "record_engine_restart",
+            "live engine lifecycle remains fail closed",
+        ),
+        "engine protocol": (
+            "class EngineReadyReceipt",
+            "class EngineTerminalEvent",
+            "async def wait_ready",
+            "async def wait_terminal",
+        ),
+        "runner state store": (
+            "RUNNER_STATE_SCHEMA_VERSION: Final = 2",
+            "restart_count INTEGER NOT NULL DEFAULT 0",
+            "class EngineLifecycleDurableState",
+            "load_engine_lifecycle_state",
+            "record_engine_restart",
+        ),
+        "daemon": (
+            "_supervise_long_running_tasks",
+            "asyncio.FIRST_COMPLETED",
+            "_shutdown_in_order",
+            "runner_fact_shutdown_flush_incomplete",
+        ),
+    }
+    sources = {
+        "engine lifecycle": lifecycle_source,
+        "engine protocol": protocol_source,
+        "runner state store": store_source,
+        "daemon": daemon_source,
+    }
+    for label, required in markers.items():
+        for marker in required:
+            if marker not in sources[label]:
+                errors.append(f"Plan 19 T5 {label} lacks {marker!r}")
+    for forbidden in ("sqlite3", "CREATE TABLE", "runner_fact_outbox"):
+        if forbidden in lifecycle_source:
+            errors.append(f"Plan 19 T5 lifecycle creates a forbidden persistence seam {forbidden!r}")
+    if store_source.count("CREATE TABLE IF NOT EXISTS runner_fact_outbox") != 1:
+        errors.append("Plan 19 T5 must retain exactly one RunnerFact outbox table")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -1730,6 +1879,7 @@ def main() -> int:
     verify_plan_18_task_5d_b_command_consumer(errors)
     verify_plan_18_task_5e_corrected_runtime(manifest, errors)
     verify_plan_19_task_4_durable_state(manifest, errors)
+    verify_plan_19_task_5_engine_lifecycle(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,
