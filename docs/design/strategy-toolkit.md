@@ -4,11 +4,12 @@
 
 ## Ownership
 
-Custos owns the strategy execution ABI, toolkit implementation, artifact
-verification schema, and local fail-closed verifier. Philosophers-Stone owns
-strategy source and produces canonical release BOM bytes. Crucible owns
-StrategyRelease, artifact selection, DeploymentSpec, effective configuration,
-and business risk policy.
+Custos owns the strategy execution ABI, toolkit implementation, pre-sign
+`StrategyArtifactRefV1`, and local fail-closed verifier. Philosophers-Stone owns
+strategy source, canonical `StrategyReleaseBomV1`, the signed
+`StrategyReleaseStatementV1`, and detached `ArtifactAttestationRefV1`. Crucible
+owns `ArtifactEvidenceV1`, acceptance receipts, StrategyRelease, artifact
+selection, DeploymentSpec, effective configuration, and business risk policy.
 
 The legacy Philosophers-Stone `build-image.sh` to Crucible Python publication
 and deployment path remains an independent compatibility lane. It cannot
@@ -32,22 +33,40 @@ array order, finite Decimal numbers, and no insignificant whitespace.
 ## Artifact boundary
 
 `StrategyManifestV1` is artifact-local compatibility metadata.
-`StrategyArtifactRefV1` describes exact executable and manifest bytes, runtime
-artifacts, attestation, SBOM, and contract schema. Neither contains release,
-deployment, approval, or selection state.
+`StrategyArtifactRefV1` describes only exact executable and manifest bytes,
+runtime artifacts, SBOM, and contract schema available before signing. It has no
+bundle coordinate/digest, certificate/transparency proof, trust-policy identity,
+release, deployment, approval, or selection state.
 
-Custos does not define canonical `StrategyReleaseBomV1`. It consumes the PS BOM
-and requires a lossless member projection from Crucible with base/contracts,
-Nautilus, and strategy wheels plus manifest, attestation bundle, SBOM, contract
-schema, normalized source tree, and every runtime artifact.
+Custos does not define canonical `StrategyReleaseBomV1`. It consumes the strict
+PS BOM object and requires a lossless in-memory member projection with
+base/contracts, Nautilus, and strategy wheels plus manifest, SBOM, contract
+schema, normalized source tree, and every runtime artifact. An attestation
+bundle is detached and is never a BOM or ArtifactRef member.
 
 The signed command binds runtime identity, spec provenance, generation,
-StrategyRelease id, BOM digest/member table, ArtifactRef, and effective config
-digest. The verifier receipt echoes the full binding and verified member table.
+StrategyRelease id, full BOM object/digest, pre-sign ArtifactRef, accepted
+ArtifactEvidence, and effective config digest. No separately serialized member
+table may become a second authority.
+
+The PS in-toto/DSSE statement signs producer claims over fixed BOM, artifact and
+manifest subjects. After the bundle is immutable, `ArtifactAttestationRefV1`
+binds its coordinate/digest. Crucible then verifies the bundle with local policy
+and produces post-bundle evidence; that composite evidence digest is not and
+cannot be claimed as a subject of the same bundle.
 
 Trust roots and expected issuer/workflow/policy come from signed immutable local
 Custos release configuration. Artifact metadata may reference, but cannot
 select, trust roots. Verification and safe extraction precede import.
+
+Verification is fail closed across the certificate chain, Fulcio identity and
+validity, SCT, DSSE PAE/signature, Rekor entry/body/SET, inclusion proof and
+checkpoint. No skip flag, Python or `cosign` subprocess, sidecar, HTTP verifier,
+or structurally plausible bundle fallback is a production verification path.
+
+The published v1/v2 asset bytes remain immutable historical evidence. Their
+ArtifactRef-embedded bundle/policy fields are not a production compatibility
+contract; only the Plan 18 T5c corrected handoff may enter v1.team runtime.
 
 ## Python and inventory
 

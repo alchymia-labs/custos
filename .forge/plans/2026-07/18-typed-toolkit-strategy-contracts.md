@@ -1,17 +1,17 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — 18a / T1-T2 complete; 18b T3-T5 complete; T6-T9 open
+> **Status**: ⏳ In progress — T1-T5b historical slices landed; T5c corrected artifact contract plus T6-T9 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Task 6e full local verification checkpoint
+> **Revised**: 2026-07-15 after Sigstore self-reference and PS BOM type correction
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
 > **multi_session_scope**: `true`
 > **Depends on**: revised PS Plan 53 authority boundary
-> **Hard gates**: Crucible/PS requirements review before schema freeze; PS Plan 54 immutable artifact/BOM receipt; Crucible Plan 88 StrategyRelease acceptance before Custos verifier/runtime cutover
+> **Hard gates**: T5c corrected contract review before any production release; PS Plan 54 immutable BOM/statement/attestation receipt; Crucible Plan 88 native verifier acceptance before Custos runtime cutover
 > **Soft depends on**: Custos Plan 19 integration receipt
 > **Original plan-first**: `b898ee1`; this live-plan revision supersedes its erroneous decisions
-> **Cross-repo dependency name**: external plans must depend on `Custos Plan 18 Task 2 schema receipt`, never on an internal `18a` slice alias
+> **Cross-repo dependency name**: historical requirements may cite `Custos Plan 18 Task 2 schema receipt`; production consumers MUST depend on `Custos Plan 18 Task 5c corrected artifact-contract receipt`, never on an internal slice alias
 > **Task 2 READY gates**: exact Crucible Plan 88 consumer requirements-review receipt plus exact PS Plan 54 producer requirements-review receipt for the same Custos producer commit and asset-index digest
 > **Downstream, not Task 2 READY gates**: PS Plan 54 immutable artifact/BOM production and Crucible Plan 88 StrategyRelease completion consume the READY Task 2 receipt; they cannot be prerequisites of that receipt
 
@@ -38,6 +38,9 @@ distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Cu
 4. source-path 与 production wheel 混成同一发布模型。
 5. attestation 缺少 issuer、workflow、bundle 和 trust-policy binding。
 6. 241 个当前 donor/vendor deterministic source inputs、契约、发布、四仓切换被当作单次原子任务。
+7. 已发布 v1/v2 `StrategyArtifactRefV1` 把未来 `bundle_sha256` 和 verifier-local
+   trust-policy claims 放进签名前对象，导致同一 bundle 被要求间接签自己的 digest；这些
+   bytes 只能保留为历史 requirements/pre-import evidence，不能进入 production chain。
 
 本修订直接替换错误决策。旧文本只由 Git history 保留，不作为兼容契约。
 
@@ -63,7 +66,9 @@ distribution，并把 vendored pandas-ta 暴露为顶层 `pandas_ta`。PS 和 Cu
 |---|---|---|
 | Strategy source and build input | Philosophers-Stone | 消费 build receipt，不接管策略研究源码 |
 | Execution ABI and toolkit implementation | Custos | 定义、实现并版本化 |
-| Artifact schema and local verifier | Custos | 生产 schema/receipt，验证 exact bytes、attestation 和 compatibility |
+| Pre-sign execution artifact ABI (`StrategyArtifactRefV1`) and local verifier | Custos | 生产不含 bundle/policy 的 schema；消费 PS attestation 与 Crucible command 后在本地 fail closed |
+| Canonical BOM, signed statement and detached attestation reference | Philosophers-Stone | Plan 54 生产严格 schema、canonical bytes、bundle reference 和 producer receipt |
+| Post-bundle `ArtifactEvidenceV1` and release acceptance | Crucible | 原生验证 PS statement/bundle，以本地 trust policy 生成不可伪造 acceptance |
 | StrategyRelease lifecycle | Crucible | 消费 Custos schema receipt，生产 released artifact binding |
 | Artifact selection and manifest digest | Crucible | 不根据 `strategy_key` 自行选择 artifact |
 | Final effective config | Crucible | ABI 仅接收已签名命令绑定的 config |
@@ -151,29 +156,39 @@ Crucible Plan 88 消费 exact schema bytes/hash，并拥有 StrategyRelease busi
 不可降级要求：
 
 - Manifest 是 artifact 内的语义/compatibility metadata，不是 release authority。
-- Custos `ArtifactRef` 只描述 exact artifact bytes、manifest bytes、required runtime
-  artifacts 和 attestation evidence；它不包含 release/spec business state。
-- Crucible `StrategyRelease` 消费 ArtifactRef，独立绑定 immutable release BOM；它不
+- Custos `StrategyArtifactRefV1` 是签名前 immutable execution ABI，只描述 exact
+  artifact/manifest bytes、required runtime artifacts、SBOM 和 contract schema；它绝不
+  包含 bundle coordinate/digest、certificate/transparency proof、trust-policy identity 或
+  release/spec business state。
+- PS `StrategyReleaseBomV1` 是严格 object，不是 member array。PS 另行生产严格
+  `StrategyReleaseStatementV1` in-toto/DSSE payload 和 detached
+  `ArtifactAttestationRefV1`；canonical BOM 与 ArtifactRef 均不得回填未来 bundle digest。
+- Crucible `StrategyRelease` 消费 ArtifactRef、完整 PS BOM object 和 detached attestation，
+  独立绑定验签后 `ArtifactEvidenceV1`；它不
   绑定、创建或依赖任何 `DeploymentSpec`。
 - Crucible `DeploymentSpec` 引用 `strategy_release_id`，并独立绑定 effective config、
   config digest 和 canonical policy references。
 - signed runner command 绑定 `deployment_instance_id`、spec id/digest、generation、
   `strategy_release_id`、release BOM digest 和 effective config digest。
 - Custos verifier receipt 必须无损回显 command 中的 identity/digests，并证明本地
-  loaded bytes 与 release BOM 每个成员一致；不得只验证一个笼统 artifact digest。
+  loaded bytes 与完整 PS BOM object 的成员投影一致；不得接收独立
+  `release_bom_members` 作为第二真相，也不得只验证一个笼统 artifact digest。
 - unknown fields 和 unknown schema versions fail closed。
 - live/testnet production path 只接受签名 wheel/artifact。
 - source-path 仅允许 sandbox development，必须携带 source hash，并明确
   non-promotable、non-live。
 - artifact digest、manifest digest、source hash 不得互相代用。
 
-Attestation 至少绑定：
+签名与验签对象必须分层：
 
-- artifact digest、manifest digest 和 bundle digest；
-- source repository 和 exact commit；
-- expected issuer、workflow identity/subject；
-- trust-policy identifier、version 和 digest；
-- build inputs、Python version 和 exact engine/toolkit versions。
+- `StrategyReleaseStatementV1` 的 signed producer claims 绑定 BOM、artifact、manifest
+  subjects，以及 source/build/runtime/toolkit provenance；它不能包含尚未生成的 bundle digest。
+- `ArtifactAttestationRefV1` 在 bundle immutable 后绑定 statement coordinate/digest 和
+  bundle coordinate/digest；该 detached reference 本身不宣称被同一 bundle 签名。
+- Crucible 验签后的 `ArtifactEvidenceV1` / acceptance receipt 绑定 signed claims、完整
+  Sigstore proof、ArtifactRef、PS BOM、attestation reference 和 verifier-local
+  trust-policy id/version/digest。composite evidence digest 只在验签成功后计算，绝不要求
+  原 bundle 反向签名该 composite digest。
 
 Expected trust roots、issuer、workflow identity 和 trust-policy version/digest 必须来自
 runner-local、签名验证通过且 immutable 的 Custos release configuration。Artifact、
@@ -185,20 +200,21 @@ trust root。Runner 必须先验证 local release configuration，再读取 arti
 
 ### Release BOM and digest semantics
 
-Candidate/final receipts 绑定 canonical `StrategyReleaseBomV1`，至少包含：
+Candidate/final receipts 绑定 canonical PS `StrategyReleaseBomV1` object，至少包含：
 
 - base/contracts wheel SHA-256；
 - Nautilus wheel SHA-256；
 - strategy wheel SHA-256；
 - strategy manifest SHA-256；
 - 每个 runtime artifact 的 role、size 和 SHA-256；
-- attestation bundle、SBOM 和 contract schema SHA-256；
+- SBOM 和 contract schema SHA-256；attestation bundle 只存在于 detached reference；
 - PS source repository、exact commit 和 normalized source-tree digest。
 
 `release_bom_digest` 是 canonical BOM bytes 的 SHA-256，只用于完整性索引，不能代替
 成员 digest。所有 receipt 必须同时记录 BOM digest 和完整成员表；任一 wheel、manifest、
-runtime artifact、attestation、SBOM、schema 或 source revision 改变都会产生新 BOM 并使旧
-receipts 失效。禁止使用“一个 candidate digest”代表多制品 release。
+runtime artifact、SBOM、schema 或 source revision 改变都会产生新 BOM 并使旧 receipts
+失效。bundle 改变会产生新的 detached attestation/evidence receipt，但不得倒灌并重写 BOM。
+禁止使用“一个 candidate digest”代表多制品 release。
 
 ## Python and Runtime Baseline
 
@@ -445,7 +461,8 @@ T4b 可与 T5 实现并行，但属于 18b close-out hard gate。
 
 ### Task 5: Implement artifact verifier and attestation policy
 
-Task 5 is a two-stage handoff and remains open until both stages close:
+Task 5 is a three-stage handoff. T5a/T5b bytes remain immutable historical evidence;
+production remains blocked until the corrected T5c handoff closes:
 
 #### T5a: Public pre-import contract candidate
 
@@ -499,6 +516,34 @@ Task 5 is a two-stage handoff and remains open until both stages close:
 4. verifier 输入完整 release BOM，逐成员验证并输出无损 typed receipt，不选择
    StrategyRelease，不接受单一 artifact/candidate digest shortcut。
 
+#### T5c: Correct the pre-sign/post-bundle contract boundary
+
+The v1/v2 asset sets and receipts MUST remain byte-for-byte immutable, but their embedded
+`StrategyArtifactRefV1.attestation.bundle_sha256` and request-provided trust-policy fields
+make them ineligible as the production v1.team authority. They are historical migration
+evidence only; no runtime may interpret them as an accepted compatibility fallback.
+
+1. Generate additive `strategy-contract-assets-v3.json` from the canonical Python model.
+   Its `StrategyArtifactRefV1` contains only pre-sign immutable execution material and has
+   no attestation, bundle or trust-policy field.
+2. Consume, without republishing, the exact PS Plan 54 schemas/goldens for
+   `StrategyReleaseBomV1`, `StrategyReleaseStatementV1` and
+   `ArtifactAttestationRefV1`; consume the exact Crucible Plan 88
+   `ArtifactEvidenceV1`/acceptance schema. Custos owns none of those producer/business
+   schemas.
+3. Replace the public pre-import receipt with an additive corrected version that accepts
+   one full PS BOM object plus detached attestation reference and one Crucible-accepted
+   evidence binding. A member projection may be derived in memory only and must equal the
+   BOM object; it is never serialized as a second authority.
+4. Add negative fixtures for bundle self-reference, bundle/policy fields in ArtifactRef,
+   BOM-as-array, request-selected trust policy, and any missing certificate, tlog, SCT,
+   SET or checkpoint proof.
+5. Publish `Custos Plan 18 Task 5c corrected artifact-contract receipt` only after exact
+   PS and Crucible requirements reviews, full verification, immutable asset bytes and
+   authority registration pass. It supersedes v1/v2 for production without rewriting them.
+6. Custos may implement its own local verifier, but it MUST NOT serve as a Python process,
+   `cosign` shell, sidecar or HTTP fallback for Crucible's native verifier.
+
 提交：
 
 ```bash
@@ -507,7 +552,9 @@ git commit -m "feat(toolkit): verify signed strategy artifacts"
 
 ### Task 6: Publish immutable toolkit RC
 
-START gate is the scoped T5 `READY_PRE_IMPORT_VERIFIER` receipt. It is now open;
+START gate for historical T6 local readiness was the scoped T5
+`READY_PRE_IMPORT_VERIFIER` receipt. Any protected production execution and final READY
+promotion is now re-blocked on the T5c corrected artifact-contract receipt;
 Plan 19 runtime invocation and PS Plan 56 are not T6 START gates.
 
 #### T6a: Toolkit RC contract foundation
@@ -786,6 +833,9 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [ ] production 只接受 signed wheel
 - [x] source-path contract 仅允许 sandbox、non-promotable、non-live
 - [x] attestation schema 绑定 issuer/workflow/bundle/trust policy
+- [ ] corrected `StrategyArtifactRefV1` is pre-sign only and contains no bundle/policy field
+- [ ] full PS `StrategyReleaseBomV1` object replaces any member-array wire authority
+- [ ] detached statement/attestation/evidence chain has no self-signed composite digest
 - [ ] trust roots/policy 只来自 runner-local signed release configuration
 - [ ] candidate/final receipts 绑定 release BOM 和全部 member digests
 - [x] schema 由 source model 生成并经 Crucible/PS requirements review
@@ -818,6 +868,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T6d Production runner readiness | [x] | 2026-07-15 | Local T6a-T6d readiness verified at `b5f0449df04ffb74192e65346127e9abf7463d0f`: full `make verify` 550 passed/4 skipped/1 xfailed, 177 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote/signature/binary execution |
 | T6e Durable evidence/promotion | [x] | 2026-07-15 | Local contract and recovery implementation only, fully verified at exact HEAD `bfa08e41236d22745f2d7af61859c76e13fb718d`: `make verify` 556 passed/4 skipped/1 xfailed, 179 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote call or READY receipt |
 | T6 Toolkit candidate | [ ] | — | Four external gates remain: artifact-service immutable receipt recovery support; protected runner/environment/secrets; real OIDC Sigstore plus atomic publish/readback; independent T6e promotion verification plus READY authority commit. T7-T9 and Plan 18 remain uncompleted |
+| T5c corrected artifact contract | [ ] | — | Required before protected T6 execution: additive v3 assets remove bundle/policy from ArtifactRef, consume PS statement/attestation schemas and Crucible acceptance schema, and explicitly supersede v1/v2 for production without rewriting history |
 | T7 Receipts | [ ] | — | four parties |
 | T8 Final/cutover | [ ] | — | all receipts rerun |
 | T9 Close-out | [ ] | — | |
@@ -845,6 +896,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | SAFETY | T5 scoped handoff | Exact reviews, implementation and clean full verification advance only schema + production verifier library to `READY_PRE_IMPORT_VERIFIER`; loaded/engine/runtime/production remain false, while Plan19 runtime invocation does not block T6 | Closed 2026-07-15 |
 | OWNERSHIP | T6 toolkit RC | Custos publishes only the immutable toolkit RC receipt; PS54 owns strategy artifact/manifest/full `StrategyReleaseBomV1`, PS56 is not a T6 START gate, and the legacy Python lane is unchanged | Accepted 2026-07-15 |
 | SAFETY | T6c publication ceiling | Local transaction/PubAck/readback proof may emit PENDING-only evidence; only T6d production runner, credentials, final SBOM, Sigstore provenance and remote readback may create the final authority receipt | Accepted 2026-07-15 |
+| SECURITY | Artifact evidence split | Published v1/v2 bytes remain immutable historical evidence, but their self-referential ArtifactRef is barred from production; T5c adds pre-sign ArtifactRef plus PS detached attestation and Crucible post-verification evidence | Accepted 2026-07-15 |
 | CONTRACT | T4/T4b receipt naming | Corrected unpublished `t4b_zero_rewrite_receipt` to `t4_zero_rewrite_receipt`; T4b remains typing closure only and no alias is retained | Accepted 2026-07-15 |
 | IDENTITY | T6 GitHub/OIDC authority | Pinned source and workflow identity to actual `alchymia-labs/custos` protected main; stale guild fallback and workspace-logical repository names are forbidden | Accepted 2026-07-15 |
 | READINESS | T6e full local checkpoint | Exact HEAD `bfa08e41236d22745f2d7af61859c76e13fb718d` passed full `make verify`; T6 and Plan 18 remain open until artifact-service support, protected release infrastructure, real OIDC atomic publication/readback, and independent promotion plus READY authority commit all complete | Recorded 2026-07-15 |
