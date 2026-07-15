@@ -44,6 +44,13 @@ must never be used as a fallback when the signed-command/store path is blocked.
 9. ACK only after that transaction; matching restart/redelivery probes ready state and does not
    repeat deploy.
 
+The lifecycle event ID is derived from stream authority, spec id/digest,
+generation, lifecycle state, stable command fingerprint and outcome; observation
+time remains payload only. The non-production legacy signed-spec compatibility
+lane uses the verified DeploymentSpec digest as its stable apply fingerprint and
+`applied` as its outcome. It does not invent a timestamp-based identity or
+become a fallback for the v1.team command path.
+
 ## Delivery disposition
 
 | Outcome | NATS disposition |

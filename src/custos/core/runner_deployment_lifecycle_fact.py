@@ -13,11 +13,13 @@ from custos.core.runner_fact import (
     RunnerCapabilityReceipt,
     RunnerFactAuthority,
     RunnerFactEmitter,
-    runner_fact_event_id,
+    command_lifecycle_event_id,
 )
 
 LIFECYCLE_FACT_KIND = "RunnerDeploymentLifecycleFact.v1"
 _LIFECYCLE_STATES = frozenset({"running", "paused", "stopped", "archived"})
+_LIFECYCLE_OUTCOMES = frozenset({"applied", "conflict", "stale", "retry_exhausted"})
+_LOWER_SHA256 = frozenset("0123456789abcdef")
 
 
 def _now_rfc3339_nanos() -> str:
@@ -37,6 +39,8 @@ class RunnerDeploymentLifecycleFact:
     deployment_spec_digest: str
     generation: int
     lifecycle_state: str
+    command_fingerprint: str
+    outcome: str
     observed_at: str
     event_id: UUID
 
@@ -47,6 +51,8 @@ class RunnerDeploymentLifecycleFact:
         *,
         generation: int,
         lifecycle_state: str,
+        command_fingerprint: str,
+        outcome: str,
     ) -> RunnerDeploymentLifecycleFact:
         observed_at = _now_rfc3339_nanos()
         return cls(
@@ -58,14 +64,20 @@ class RunnerDeploymentLifecycleFact:
             deployment_spec_digest=authority.deployment_spec_digest,
             generation=generation,
             lifecycle_state=lifecycle_state,
+            command_fingerprint=command_fingerprint,
+            outcome=outcome,
             observed_at=observed_at,
-            event_id=runner_fact_event_id(
-                "deployment_lifecycle",
-                authority.deployment_instance_id,
-                authority.deployment_spec_id,
-                generation,
-                lifecycle_state,
-                observed_at,
+            event_id=command_lifecycle_event_id(
+                tenant_id=authority.tenant_id,
+                trading_mode=authority.trading_mode,
+                runner_id=authority.runner_id,
+                deployment_instance_id=authority.deployment_instance_id,
+                deployment_spec_id=authority.deployment_spec_id,
+                deployment_spec_digest=authority.deployment_spec_digest,
+                generation=generation,
+                lifecycle_state=lifecycle_state,
+                command_fingerprint=command_fingerprint,
+                outcome=outcome,
             ),
         )
 
@@ -74,8 +86,16 @@ class RunnerDeploymentLifecycleFact:
             raise ValueError("lifecycle fact generation must be positive")
         if self.lifecycle_state not in _LIFECYCLE_STATES:
             raise ValueError("lifecycle fact state is invalid")
-        if len(self.deployment_spec_digest) != 64:
+        if len(self.deployment_spec_digest) != 64 or not set(self.deployment_spec_digest).issubset(
+            _LOWER_SHA256
+        ):
             raise ValueError("lifecycle fact deployment spec digest must be SHA-256")
+        if len(self.command_fingerprint) != 64 or not set(self.command_fingerprint).issubset(
+            _LOWER_SHA256
+        ):
+            raise ValueError("lifecycle fact command fingerprint must be SHA-256")
+        if self.outcome not in _LIFECYCLE_OUTCOMES:
+            raise ValueError("lifecycle fact outcome is invalid")
         return {
             "kind": LIFECYCLE_FACT_KIND,
             "event_id": str(self.event_id),
@@ -88,6 +108,8 @@ class RunnerDeploymentLifecycleFact:
             "deployment_spec_digest": self.deployment_spec_digest,
             "generation": self.generation,
             "lifecycle_state": self.lifecycle_state,
+            "command_fingerprint": self.command_fingerprint,
+            "outcome": self.outcome,
             "observed_at": self.observed_at,
         }
 
@@ -145,6 +167,8 @@ class RunnerDeploymentLifecycleFactEmitter:
         *,
         generation: int,
         lifecycle_state: str,
+        command_fingerprint: str,
+        outcome: str,
     ) -> UUID | None:
         if generation != authority.generation:
             raise ValueError("lifecycle generation differs from RunnerFact authority")
@@ -152,6 +176,8 @@ class RunnerDeploymentLifecycleFactEmitter:
             authority,
             generation=generation,
             lifecycle_state=lifecycle_state,
+            command_fingerprint=command_fingerprint,
+            outcome=outcome,
         )
         return await self.emit_fact(authority, fact)
 
@@ -170,6 +196,20 @@ class RunnerDeploymentLifecycleFactEmitter:
             or fact.generation != authority.generation
         ):
             raise ValueError("lifecycle fact authority differs from RunnerFact authority")
+        expected_event_id = command_lifecycle_event_id(
+            tenant_id=authority.tenant_id,
+            trading_mode=authority.trading_mode,
+            runner_id=authority.runner_id,
+            deployment_instance_id=authority.deployment_instance_id,
+            deployment_spec_id=authority.deployment_spec_id,
+            deployment_spec_digest=authority.deployment_spec_digest,
+            generation=fact.generation,
+            lifecycle_state=fact.lifecycle_state,
+            command_fingerprint=fact.command_fingerprint,
+            outcome=fact.outcome,
+        )
+        if fact.event_id != expected_event_id:
+            raise ValueError("lifecycle fact event identity differs from stable apply identity")
         self._capability.require_scope_bindings(
             projectors=("deployment_lifecycle",),
             trading_mode=authority.trading_mode,

@@ -280,6 +280,7 @@ class RunnerRuntimeLogEmitter:
         causation_id: UUID | str | None = None,
     ) -> UUID | None:
         fact = self._fact(
+            authority,
             level=level,
             component=component,
             message=message,
@@ -291,6 +292,7 @@ class RunnerRuntimeLogEmitter:
 
     def _fact(
         self,
+        authority: RunnerFactAuthority,
         *,
         level: str,
         component: str,
@@ -329,6 +331,10 @@ class RunnerRuntimeLogEmitter:
             "event_id": str(
                 runner_fact_event_id(
                     "runtime_log",
+                    authority.tenant_id,
+                    authority.trading_mode,
+                    authority.runner_id,
+                    authority.deployment_instance_id,
                     correlation,
                     hashlib.sha256(identity_material).hexdigest(),
                 )

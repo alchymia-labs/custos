@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -31,6 +33,28 @@ CAPABILITY_MANIFEST_PATH = ROOT / "docs/authority/runner-fact-capability-manifes
 CAPABILITY_RECEIPT_PATH = ROOT / "docs/authority/runner-fact-capability-receipt-golden-v1.json"
 PARITY_PATH = ROOT / "docs/authority/runner-fact-parity-matrix-v1.json"
 SEQUENCE_PATH = ROOT / "docs/authority/runner-fact-sequence-continuation-v1.json"
+SIGNING_PREIMAGE_PATH = ROOT / "docs/authority/runner-fact-signing-preimage-golden-v1.json"
+
+EXPECTED_SIGNING_HEADER_FIELDS = [
+    "schema_version",
+    "batch_id",
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id",
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation",
+    "strategy_id",
+    "capability_version_id",
+    "capability_version",
+    "capability_manifest_digest",
+    "key_id",
+    "emitted_at",
+    "source_seq_start",
+    "source_seq_end",
+    "payload_digest",
+]
 
 EXPECTED_KINDS = {
     "execution_fill": "settlement",
@@ -49,7 +73,7 @@ EXPECTED_KINDS = {
 }
 
 
-def _json(path: Path) -> dict:
+def _json(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
@@ -69,7 +93,7 @@ def _unpadded_urlsafe(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
-def _authority(batch: dict) -> RunnerFactAuthority:
+def _authority(batch: dict[str, Any]) -> RunnerFactAuthority:
     return RunnerFactAuthority(
         tenant_id=batch["tenant_id"],
         trading_mode=batch["trading_mode"],
@@ -85,13 +109,13 @@ def _authority(batch: dict) -> RunnerFactAuthority:
     )
 
 
-def _signing_payload(batch: dict) -> dict:
-    return {key: value for key, value in batch.items() if key not in {"facts", "signature"}}
-
-
 def test_candidate_inventory_is_complete_and_byte_pinned() -> None:
     index = _json(INDEX_PATH)
-    assert index["candidate_coordinate"] == "custos.runner-fact.v1/candidate-2026-07-15.1"
+    assert index["candidate_coordinate"] == "custos.runner-fact.v1/candidate-2026-07-15.2"
+    assert index["supersedes_candidate_coordinate"] == (
+        "custos.runner-fact.v1/candidate-2026-07-15.1"
+    )
+    assert index["superseded_candidate_status"] == "NON_CURRENT_SUPERSEDED"
     assert index["status"] == "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY"
     assert index["stream_identity_fields"] == [
         "tenant_id",
@@ -119,6 +143,7 @@ def test_candidate_inventory_is_complete_and_byte_pinned() -> None:
             CAPABILITY_RECEIPT_PATH,
             PARITY_PATH,
             SEQUENCE_PATH,
+            SIGNING_PREIMAGE_PATH,
         )
     }
     assets = {asset["path"]: asset for asset in index["assets"]}
@@ -161,14 +186,66 @@ def test_schema_golden_capability_and_signature_are_one_exact_contract() -> None
     assert {fact["kind"] for fact in facts} == set(EXPECTED_KINDS)
     assert _authority(batch).subject == index["golden_subject"]
 
+    preimage = runner_fact_module.runner_fact_signing_preimage(batch)
     public_key = Ed25519PublicKey.from_public_bytes(
         base64.b64decode(index["synthetic_signature"]["public_key_base64"])
     )
-    public_key.verify(
-        _unpadded_urlsafe(batch["signature"]),
-        RUNNER_FACT_SIGNING_DOMAIN + _canonical(_signing_payload(batch)),
-    )
+    public_key.verify(_unpadded_urlsafe(batch["signature"]), preimage)
     assert index["synthetic_signature"]["runtime_evidence"] is False
+
+
+def test_signing_preimage_golden_is_exact_and_matches_production() -> None:
+    index = _json(INDEX_PATH)
+    batch = _json(GOLDEN_PATH)
+    vector = _json(SIGNING_PREIMAGE_PATH)
+    header_fields = list(runner_fact_module.RUNNER_FACT_SIGNING_HEADER_FIELDS)
+    header = runner_fact_module.runner_fact_signing_header(batch)
+    canonical_header = _canonical(header)
+    preimage = runner_fact_module.runner_fact_signing_preimage(batch)
+
+    assert header_fields == EXPECTED_SIGNING_HEADER_FIELDS
+    assert vector["signing_header_fields"] == EXPECTED_SIGNING_HEADER_FIELDS
+    assert list(header) == EXPECTED_SIGNING_HEADER_FIELDS
+    assert set(batch) == set(EXPECTED_SIGNING_HEADER_FIELDS) | {"facts", "signature"}
+    assert vector["excluded_batch_fields"] == ["facts", "signature"]
+    assert vector["header"] == header
+    assert base64.b64decode(vector["canonical_header_json_base64"]) == canonical_header
+    assert vector["canonical_header_json_sha256"] == hashlib.sha256(canonical_header).hexdigest()
+    assert base64.b64decode(vector["signing_preimage_base64"]) == preimage
+    assert vector["signing_preimage_sha256"] == hashlib.sha256(preimage).hexdigest()
+    assert preimage == RUNNER_FACT_SIGNING_DOMAIN + canonical_header
+    assert vector["payload_digest"]["formula"] == "sha256(canonical_json(facts))"
+    assert (
+        vector["payload_digest"]["value"] == hashlib.sha256(_canonical(batch["facts"])).hexdigest()
+    )
+    assert vector["synthetic_signature"]["signature_base64url_unpadded"] == batch["signature"]
+    assert (
+        vector["synthetic_signature"]["public_key_base64"]
+        == index["synthetic_signature"]["public_key_base64"]
+    )
+    Ed25519PublicKey.from_public_bytes(
+        base64.b64decode(vector["synthetic_signature"]["public_key_base64"])
+    ).verify(_unpadded_urlsafe(batch["signature"]), preimage)
+    assert vector["runtime_evidence"] is False
+
+
+@pytest.mark.parametrize("mutation", ["projector", "unknown_disposition"])
+def test_capability_loader_pins_closed_projector_contract_exactly(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    document = copy.deepcopy(_json(CAPABILITY_RECEIPT_PATH))
+    manifest = document["capability_manifest"]
+    if mutation == "projector":
+        manifest["fact_kind_projectors"]["heartbeat"] = "risk"
+    else:
+        manifest["unknown_fact_kind"] = "ignore"
+    document["manifest_digest"] = hashlib.sha256(_canonical(manifest)).hexdigest()
+    mutated = tmp_path / f"capability-{mutation}.json"
+    mutated.write_bytes(json.dumps(document).encode("utf-8"))
+
+    with pytest.raises(RunnerFactContractError, match="closed fact projector contract"):
+        RunnerCapabilityReceipt.load(mutated)
 
 
 @pytest.mark.asyncio

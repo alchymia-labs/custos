@@ -59,6 +59,8 @@ def _fact(
         authority,
         generation=generation,
         lifecycle_state=lifecycle_state,
+        command_fingerprint=_SPEC_DIGEST,
+        outcome="applied",
     ).to_wire()
 
 
@@ -80,7 +82,7 @@ async def test_sequences_are_monotonic_per_stream_and_duplicate_events_are_dedup
 
     assert await outbox.enqueue(first_authority, identity, [first_fact]) is not None
     assert await outbox.enqueue(first_authority, identity, [first_fact]) is None
-    assert await outbox.enqueue(first_authority, identity, [second_fact]) is not None
+    assert await outbox.enqueue(first_authority, identity, [second_fact]) is None
 
     second_authority = replace(
         first_authority,
@@ -102,11 +104,8 @@ async def test_sequences_are_monotonic_per_stream_and_duplicate_events_are_dedup
     assert [
         (_document(batch)["source_seq_start"], _document(batch)["source_seq_end"])
         for batch in first_stream
-    ] == [
-        (1, 1),
-        (2, 2),
-    ]
-    assert [_document(batch)["facts"][0]["seq"] for batch in first_stream] == [1, 2]
+    ] == [(1, 1)]
+    assert [_document(batch)["facts"][0]["seq"] for batch in first_stream] == [1]
     assert [_document(batch)["facts"][0]["seq"] for batch in second_stream] == [1]
 
 

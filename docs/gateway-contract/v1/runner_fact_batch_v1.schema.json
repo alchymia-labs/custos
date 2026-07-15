@@ -1033,6 +1033,8 @@
         "deployment_spec_digest",
         "generation",
         "lifecycle_state",
+        "command_fingerprint",
+        "outcome",
         "observed_at"
       ],
       "properties": {
@@ -1087,6 +1089,18 @@
             "paused",
             "stopped",
             "archived"
+          ]
+        },
+        "command_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "outcome": {
+          "enum": [
+            "applied",
+            "conflict",
+            "stale",
+            "retry_exhausted"
           ]
         },
         "observed_at": {
@@ -1182,6 +1196,45 @@
     "sequence_rule": "facts[i].seq == source_seq_start + i",
     "generation_resets_sequence": false,
     "signing_domain_base64": "Q1JVQ0lCTEUtUlVOTkVSLUZBQ1QtQkFUQ0gtVjEA",
-    "canonicalization": "utf8-json-sort-keys-compact-v1"
+    "signing_header_fields": [
+      "schema_version",
+      "batch_id",
+      "tenant_id",
+      "trading_mode",
+      "runner_id",
+      "deployment_instance_id",
+      "deployment_spec_id",
+      "deployment_spec_digest",
+      "generation",
+      "strategy_id",
+      "capability_version_id",
+      "capability_version",
+      "capability_manifest_digest",
+      "key_id",
+      "emitted_at",
+      "source_seq_start",
+      "source_seq_end",
+      "payload_digest"
+    ],
+    "signing_header_excluded_batch_fields": [
+      "facts",
+      "signature"
+    ],
+    "payload_digest_formula": "sha256(canonical_json(facts))",
+    "signing_preimage_formula": "DOMAIN || canonical_json(header)",
+    "canonicalization": {
+      "encoding": "UTF-8",
+      "object_member_order": "ascending Unicode code point order",
+      "array_order": "preserved",
+      "item_separator": ",",
+      "key_value_separator": ":",
+      "whitespace": "none",
+      "ensure_ascii": false,
+      "allow_nan": false,
+      "binary_float_allowed": false,
+      "number_policy": "JSON integer or canonical decimal string",
+      "string_escaping": "JSON-escape control characters, quotation mark, and reverse solidus; emit all other Unicode as UTF-8",
+      "trailing_newline": false
+    }
   }
 }

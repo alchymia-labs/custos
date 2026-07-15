@@ -19,10 +19,12 @@ from custos.core.runner_fact import (
     RUNNER_FACT_KIND_PROJECTORS,
     RUNNER_FACT_SCHEMA_VERSION,
     RUNNER_FACT_SIGNING_DOMAIN,
+    RUNNER_FACT_SIGNING_HEADER_FIELDS,
     RunnerFactAuthority,
     RunnerFactIdentity,
     capability_binding_evidence_digest,
     capability_scope_binding_values,
+    command_lifecycle_event_id,
     equity_snapshot,
     execution_fill,
     heartbeat,
@@ -31,6 +33,8 @@ from custos.core.runner_fact import (
     position_snapshot,
     reconciliation_period_closed,
     runner_fact_event_id,
+    runner_fact_signing_header,
+    runner_fact_signing_preimage,
     settlement_fee,
     settlement_fill,
     settlement_period_closed,
@@ -38,7 +42,8 @@ from custos.core.runner_fact import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-CANDIDATE_COORDINATE = "custos.runner-fact.v1/candidate-2026-07-15.1"
+CANDIDATE_COORDINATE = "custos.runner-fact.v1/candidate-2026-07-15.2"
+SUPERSEDED_CANDIDATE_COORDINATE = "custos.runner-fact.v1/candidate-2026-07-15.1"
 TENANT_ID = "acme"
 MODE = "sandbox"
 RUNNER_ID = UUID("10000000-0000-4000-8000-000000000001")
@@ -51,6 +56,7 @@ NEXT_CAPABILITY_ID = UUID("50000000-0000-4000-8000-000000000099")
 SPEC_DIGEST = "a" * 64
 NEXT_SPEC_DIGEST = "d" * 64
 POLICY_DIGEST = "c" * 64
+COMMAND_FINGERPRINT = "e" * 64
 BATCH_ID = UUID("60000000-0000-4000-8000-000000000006")
 NEXT_BATCH_ID = UUID("60000000-0000-4000-8000-000000000099")
 EMITTED_AT = "2026-07-15T08:00:00Z"
@@ -63,6 +69,7 @@ CAPABILITY_MANIFEST_PATH = Path("docs/authority/runner-fact-capability-manifest-
 CAPABILITY_RECEIPT_PATH = Path("docs/authority/runner-fact-capability-receipt-golden-v1.json")
 PARITY_PATH = Path("docs/authority/runner-fact-parity-matrix-v1.json")
 SEQUENCE_PATH = Path("docs/authority/runner-fact-sequence-continuation-v1.json")
+SIGNING_PREIMAGE_PATH = Path("docs/authority/runner-fact-signing-preimage-golden-v1.json")
 INDEX_PATH = Path("docs/authority/runner-fact-contract-candidate-assets-v1.json")
 
 
@@ -353,6 +360,8 @@ def _schema() -> dict[str, Any]:
                 "deployment_spec_digest": digest,
                 "generation": {"type": "integer", "minimum": 1},
                 "lifecycle_state": {"enum": ["running", "paused", "stopped", "archived"]},
+                "command_fingerprint": digest,
+                "outcome": {"enum": ["applied", "conflict", "stale", "retry_exhausted"]},
                 "observed_at": timestamp,
             },
         ),
@@ -469,7 +478,27 @@ def _schema() -> dict[str, Any]:
             "sequence_rule": "facts[i].seq == source_seq_start + i",
             "generation_resets_sequence": False,
             "signing_domain_base64": base64.b64encode(RUNNER_FACT_SIGNING_DOMAIN).decode("ascii"),
-            "canonicalization": "utf8-json-sort-keys-compact-v1",
+            "signing_header_fields": list(RUNNER_FACT_SIGNING_HEADER_FIELDS),
+            "signing_header_excluded_batch_fields": ["facts", "signature"],
+            "payload_digest_formula": "sha256(canonical_json(facts))",
+            "signing_preimage_formula": "DOMAIN || canonical_json(header)",
+            "canonicalization": {
+                "encoding": "UTF-8",
+                "object_member_order": "ascending Unicode code point order",
+                "array_order": "preserved",
+                "item_separator": ",",
+                "key_value_separator": ":",
+                "whitespace": "none",
+                "ensure_ascii": False,
+                "allow_nan": False,
+                "binary_float_allowed": False,
+                "number_policy": "JSON integer or canonical decimal string",
+                "string_escaping": (
+                    "JSON-escape control characters, quotation mark, and reverse solidus; "
+                    "emit all other Unicode as UTF-8"
+                ),
+                "trailing_newline": False,
+            },
         },
     }
 
@@ -540,6 +569,18 @@ def _facts() -> list[dict[str, Any]]:
     fill_id = UUID("70000000-0000-4000-8000-000000000007")
     snapshot_id = UUID("71000000-0000-4000-8000-000000000007")
     timestamp = "2026-07-15T07:59:00Z"
+    correlation_id = UUID("73000000-0000-4000-8000-000000000007")
+    runtime_log_identity = {
+        "level": "WARN",
+        "component": "local_cap",
+        "message": "risk-increasing order denied by verified runner policy",
+        "structured_fields": {
+            "reason_code": "runner_cap_exceeded",
+            "policy_digest": POLICY_DIGEST,
+        },
+        "correlation_id": str(correlation_id),
+        "causation_id": None,
+    }
     facts = [
         execution_fill(
             event_id=UUID("80000000-0000-4000-8000-000000000001"),
@@ -610,17 +651,19 @@ def _facts() -> list[dict[str, Any]]:
         ),
         {
             "kind": "RunnerRuntimeLogFact.v1",
-            "event_id": str(UUID("80000000-0000-4000-8000-000000000009")),
+            "event_id": str(
+                runner_fact_event_id(
+                    "runtime_log",
+                    TENANT_ID,
+                    MODE,
+                    RUNNER_ID,
+                    INSTANCE_ID,
+                    correlation_id,
+                    _sha256(_canonical(runtime_log_identity)),
+                )
+            ),
             "occurred_at": timestamp,
-            "level": "WARN",
-            "component": "local_cap",
-            "message": "risk-increasing order denied by verified runner policy",
-            "structured_fields": {
-                "reason_code": "runner_cap_exceeded",
-                "policy_digest": POLICY_DIGEST,
-            },
-            "correlation_id": str(UUID("73000000-0000-4000-8000-000000000007")),
-            "causation_id": None,
+            **runtime_log_identity,
         },
     ]
     ledger = venue_ledger_snapshot_facts(
@@ -655,13 +698,17 @@ def _facts() -> list[dict[str, Any]]:
         {
             "kind": "RunnerDeploymentLifecycleFact.v1",
             "event_id": str(
-                runner_fact_event_id(
-                    "deployment_lifecycle",
-                    INSTANCE_ID,
-                    SPEC_ID,
-                    7,
-                    "running",
-                    timestamp,
+                command_lifecycle_event_id(
+                    tenant_id=TENANT_ID,
+                    trading_mode=MODE,
+                    runner_id=RUNNER_ID,
+                    deployment_instance_id=INSTANCE_ID,
+                    deployment_spec_id=SPEC_ID,
+                    deployment_spec_digest=SPEC_DIGEST,
+                    generation=7,
+                    lifecycle_state="running",
+                    command_fingerprint=COMMAND_FINGERPRINT,
+                    outcome="applied",
                 )
             ),
             "occurred_at": timestamp,
@@ -673,6 +720,8 @@ def _facts() -> list[dict[str, Any]]:
             "deployment_spec_digest": SPEC_DIGEST,
             "generation": 7,
             "lifecycle_state": "running",
+            "command_fingerprint": COMMAND_FINGERPRINT,
+            "outcome": "applied",
             "observed_at": timestamp,
         }
     )
@@ -696,30 +745,32 @@ def _batch(
 ) -> dict[str, Any]:
     sequenced = [{**fact, "seq": source_seq_start + offset} for offset, fact in enumerate(facts)]
     source_seq_end = source_seq_start + len(sequenced) - 1
-    signing_payload = {
-        "schema_version": RUNNER_FACT_SCHEMA_VERSION,
-        "batch_id": str(batch_id),
-        "tenant_id": TENANT_ID,
-        "trading_mode": MODE,
-        "runner_id": str(RUNNER_ID),
-        "deployment_instance_id": str(INSTANCE_ID),
-        "deployment_spec_id": str(spec_id),
-        "deployment_spec_digest": spec_digest,
-        "generation": generation,
-        "strategy_id": str(STRATEGY_ID),
-        "capability_version_id": str(capability_id),
-        "capability_version": 1,
-        "capability_manifest_digest": capability_manifest_digest,
-        "key_id": identity.key_id,
-        "emitted_at": emitted_at,
-        "source_seq_start": source_seq_start,
-        "source_seq_end": source_seq_end,
-        "payload_digest": _sha256(_canonical(sequenced)),
-    }
+    signing_header = runner_fact_signing_header(
+        {
+            "schema_version": RUNNER_FACT_SCHEMA_VERSION,
+            "batch_id": str(batch_id),
+            "tenant_id": TENANT_ID,
+            "trading_mode": MODE,
+            "runner_id": str(RUNNER_ID),
+            "deployment_instance_id": str(INSTANCE_ID),
+            "deployment_spec_id": str(spec_id),
+            "deployment_spec_digest": spec_digest,
+            "generation": generation,
+            "strategy_id": str(STRATEGY_ID),
+            "capability_version_id": str(capability_id),
+            "capability_version": 1,
+            "capability_manifest_digest": capability_manifest_digest,
+            "key_id": identity.key_id,
+            "emitted_at": emitted_at,
+            "source_seq_start": source_seq_start,
+            "source_seq_end": source_seq_end,
+            "payload_digest": _sha256(_canonical(sequenced)),
+        }
+    )
     return {
-        **signing_payload,
+        **signing_header,
         "facts": sequenced,
-        "signature": identity.sign_batch_payload(_canonical(signing_payload)),
+        "signature": identity.sign_batch_payload(_canonical(signing_header)),
     }
 
 
@@ -784,6 +835,53 @@ def build_assets() -> dict[Path, bytes]:
         capability_manifest_digest=manifest_digest,
         identity=identity,
     )
+    signing_header = runner_fact_signing_header(golden)
+    canonical_header = _canonical(signing_header)
+    signing_preimage = runner_fact_signing_preimage(golden)
+    signing_vector = {
+        "schema_version": 1,
+        "contract": "custos.runner_fact.batch-signing-preimage.v1",
+        "candidate_coordinate": CANDIDATE_COORDINATE,
+        "signing_domain_base64": base64.b64encode(RUNNER_FACT_SIGNING_DOMAIN).decode("ascii"),
+        "signing_header_fields": list(RUNNER_FACT_SIGNING_HEADER_FIELDS),
+        "excluded_batch_fields": ["facts", "signature"],
+        "canonical_json_rules": {
+            "encoding": "UTF-8",
+            "object_member_order": "ascending Unicode code point order",
+            "array_order": "preserved",
+            "item_separator": ",",
+            "key_value_separator": ":",
+            "whitespace": "none",
+            "ensure_ascii": False,
+            "allow_nan": False,
+            "binary_float_allowed": False,
+            "number_policy": "JSON integer or canonical decimal string",
+            "string_escaping": (
+                "JSON-escape control characters, quotation mark, and reverse solidus; "
+                "emit all other Unicode as UTF-8"
+            ),
+            "trailing_newline": False,
+        },
+        "payload_digest": {
+            "algorithm": "sha256",
+            "formula": "sha256(canonical_json(facts))",
+            "value": golden["payload_digest"],
+        },
+        "header": signing_header,
+        "canonical_header_json_base64": base64.b64encode(canonical_header).decode("ascii"),
+        "canonical_header_json_sha256": _sha256(canonical_header),
+        "signing_preimage_formula": "DOMAIN || canonical_json(header)",
+        "signing_preimage_base64": base64.b64encode(signing_preimage).decode("ascii"),
+        "signing_preimage_sha256": _sha256(signing_preimage),
+        "synthetic_signature": {
+            "algorithm": "ed25519",
+            "key_id": key_id,
+            "public_key_base64": base64.b64encode(public_key).decode("ascii"),
+            "signature_encoding": "base64url-unpadded",
+            "signature_base64url_unpadded": golden["signature"],
+        },
+        "runtime_evidence": False,
+    }
 
     next_manifest = _capability_manifest(NEXT_SPEC_ID, NEXT_SPEC_DIGEST)
     next_manifest_digest = _sha256(_canonical(next_manifest))
@@ -864,6 +962,7 @@ def build_assets() -> dict[Path, bytes]:
         CAPABILITY_RECEIPT_PATH: capability_receipt,
         PARITY_PATH: parity,
         SEQUENCE_PATH: sequence,
+        SIGNING_PREIMAGE_PATH: signing_vector,
     }
     assets: dict[Path, bytes] = {path: _pretty(value) for path, value in objects.items()}
     roles = {
@@ -873,10 +972,13 @@ def build_assets() -> dict[Path, bytes]:
         CAPABILITY_RECEIPT_PATH: "runner_fact_capability_receipt_golden",
         PARITY_PATH: "runtime_event_fact_parity_matrix",
         SEQUENCE_PATH: "instance_stream_sequence_continuation_fixture",
+        SIGNING_PREIMAGE_PATH: "runner_fact_signing_preimage_golden",
     }
     index = {
         "asset_index_schema_version": 1,
         "candidate_coordinate": CANDIDATE_COORDINATE,
+        "supersedes_candidate_coordinate": SUPERSEDED_CANDIDATE_COORDINATE,
+        "superseded_candidate_status": "NON_CURRENT_SUPERSEDED",
         "status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
         "phase_a_input_ready": True,
         "crucible_phase_a_compatible": False,
@@ -890,6 +992,9 @@ def build_assets() -> dict[Path, bytes]:
         "canonicalization": "utf8-json-sort-keys-compact-v1",
         "cross_language_numeric_policy": "integer-or-canonical-decimal-string",
         "signing_domain_base64": base64.b64encode(RUNNER_FACT_SIGNING_DOMAIN).decode("ascii"),
+        "signing_header_fields": list(RUNNER_FACT_SIGNING_HEADER_FIELDS),
+        "signing_header_excluded_batch_fields": ["facts", "signature"],
+        "signing_preimage_formula": "DOMAIN || canonical_json(header)",
         "golden_subject": authority.subject,
         "stream_identity_fields": [
             "tenant_id",

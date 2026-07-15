@@ -47,6 +47,26 @@ from custos.core.runner_command_intake import (
 
 RUNNER_FACT_SCHEMA_VERSION: Final = 1
 RUNNER_FACT_SIGNING_DOMAIN: Final = b"CRUCIBLE-RUNNER-FACT-BATCH-V1\0"
+RUNNER_FACT_SIGNING_HEADER_FIELDS: Final[tuple[str, ...]] = (
+    "schema_version",
+    "batch_id",
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id",
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation",
+    "strategy_id",
+    "capability_version_id",
+    "capability_version",
+    "capability_manifest_digest",
+    "key_id",
+    "emitted_at",
+    "source_seq_start",
+    "source_seq_end",
+    "payload_digest",
+)
 REGISTRATION_SIGNING_DOMAIN: Final = "arx.runner_verification_key.register.v1"
 ONBOARDING_SIGNING_DOMAIN: Final = "crucible.runner_capability.onboard.v1"
 RUNNER_FACT_EVENT_NAMESPACE: Final = UUID("834c6f30-4d2c-5f91-a2c4-5e8358fe6be4")
@@ -147,6 +167,31 @@ def _canonical_json_bytes(value: Any) -> bytes:
 
 def _sha256_hex(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def runner_fact_signing_header(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the exact ordered and closed RunnerFact v1 signing header."""
+
+    if not isinstance(value, Mapping):
+        raise RunnerFactContractError("RunnerFact signing input must be an object")
+    header_keys = frozenset(RUNNER_FACT_SIGNING_HEADER_FIELDS)
+    input_keys = frozenset(value)
+    batch_keys = header_keys | {"facts", "signature"}
+    if input_keys not in {header_keys, batch_keys}:
+        raise RunnerFactContractError("RunnerFact signing header fields differ from v1 contract")
+    header = {field: value[field] for field in RUNNER_FACT_SIGNING_HEADER_FIELDS}
+    if input_keys == batch_keys:
+        facts = value["facts"]
+        validate_runner_fact_payload(facts, path="$.facts")
+        if header["payload_digest"] != _sha256_hex(_canonical_json_bytes(facts)):
+            raise RunnerFactContractError("RunnerFact signing payload digest differs from facts")
+    return header
+
+
+def runner_fact_signing_preimage(value: Mapping[str, Any]) -> bytes:
+    """Build DOMAIN plus canonical JSON header bytes for RunnerFact v1."""
+
+    return RUNNER_FACT_SIGNING_DOMAIN + _canonical_json_bytes(runner_fact_signing_header(value))
 
 
 def _utc_now() -> str:
@@ -1481,30 +1526,32 @@ class RunnerFactOutbox:
         batch_id = uuid4()
         emitted_at = _utc_now()
         payload_digest = _sha256_hex(_canonical_json_bytes(sequenced))
-        signing_payload = {
-            "schema_version": RUNNER_FACT_SCHEMA_VERSION,
-            "batch_id": str(batch_id),
-            "tenant_id": authority.tenant_id,
-            "trading_mode": authority.trading_mode,
-            "runner_id": str(authority.runner_id),
-            "deployment_instance_id": str(authority.deployment_instance_id),
-            "deployment_spec_id": str(authority.deployment_spec_id),
-            "deployment_spec_digest": authority.deployment_spec_digest,
-            "generation": authority.generation,
-            "strategy_id": str(authority.strategy_id),
-            "capability_version_id": str(authority.capability_version_id),
-            "capability_version": authority.capability_version,
-            "capability_manifest_digest": authority.capability_manifest_digest,
-            "key_id": identity.key_id,
-            "emitted_at": emitted_at,
-            "source_seq_start": source_seq_start,
-            "source_seq_end": source_seq_end,
-            "payload_digest": payload_digest,
-        }
+        signing_header = runner_fact_signing_header(
+            {
+                "schema_version": RUNNER_FACT_SCHEMA_VERSION,
+                "batch_id": str(batch_id),
+                "tenant_id": authority.tenant_id,
+                "trading_mode": authority.trading_mode,
+                "runner_id": str(authority.runner_id),
+                "deployment_instance_id": str(authority.deployment_instance_id),
+                "deployment_spec_id": str(authority.deployment_spec_id),
+                "deployment_spec_digest": authority.deployment_spec_digest,
+                "generation": authority.generation,
+                "strategy_id": str(authority.strategy_id),
+                "capability_version_id": str(authority.capability_version_id),
+                "capability_version": authority.capability_version,
+                "capability_manifest_digest": authority.capability_manifest_digest,
+                "key_id": identity.key_id,
+                "emitted_at": emitted_at,
+                "source_seq_start": source_seq_start,
+                "source_seq_end": source_seq_end,
+                "payload_digest": payload_digest,
+            }
+        )
         batch = {
-            **signing_payload,
+            **signing_header,
             "facts": sequenced,
-            "signature": identity.sign_batch_payload(_canonical_json_bytes(signing_payload)),
+            "signature": identity.sign_batch_payload(_canonical_json_bytes(signing_header)),
         }
         payload = _canonical_json_bytes(batch)
         if len(payload) > MAX_BATCH_BYTES:
@@ -1974,8 +2021,12 @@ class RunnerStateStore:
         )
         expected_event_id = str(
             command_lifecycle_event_id(
+                tenant_id=command.tenant_id,
+                trading_mode=command.trading_mode,
+                runner_id=command.runner_id,
                 deployment_instance_id=command.deployment_instance_id,
                 deployment_spec_id=command.deployment_spec_id,
+                deployment_spec_digest=command.deployment_spec_digest,
                 generation=command.generation,
                 lifecycle_state=str(lifecycle_fact.get("lifecycle_state") or ""),
                 command_fingerprint=verified.command_fingerprint,
@@ -3094,20 +3145,38 @@ class RunnerStateStore:
 
 def command_lifecycle_event_id(
     *,
+    tenant_id: str,
+    trading_mode: str,
+    runner_id: UUID,
     deployment_instance_id: UUID,
     deployment_spec_id: UUID,
+    deployment_spec_digest: str,
     generation: int,
     lifecycle_state: str,
     command_fingerprint: str,
     outcome: str,
 ) -> UUID:
+    if trading_mode not in {"live", "sandbox", "testnet"}:
+        raise RunnerStateDurabilityError("command lifecycle trading mode is invalid")
+    if generation < 1:
+        raise RunnerStateDurabilityError("command lifecycle generation must be positive")
+    if lifecycle_state not in {"running", "paused", "stopped", "archived"}:
+        raise RunnerStateDurabilityError("command lifecycle state is invalid")
+    if outcome not in {"applied", "conflict", "stale", "retry_exhausted"}:
+        raise RunnerStateDurabilityError("command lifecycle outcome is invalid")
+    spec_digest = _state_digest(deployment_spec_digest, "deployment_spec_digest")
+    fingerprint = _state_digest(command_fingerprint, "command_fingerprint")
     return runner_fact_event_id(
-        "command_lifecycle",
-        deployment_instance_id,
-        deployment_spec_id,
+        "deployment_lifecycle",
+        _non_empty(tenant_id, "tenant_id"),
+        trading_mode,
+        _uuid(runner_id, "runner_id"),
+        _uuid(deployment_instance_id, "deployment_instance_id"),
+        _uuid(deployment_spec_id, "deployment_spec_id"),
+        spec_digest,
         generation,
         lifecycle_state,
-        command_fingerprint,
+        fingerprint,
         outcome,
     )
 
@@ -3126,8 +3195,12 @@ def _command_lifecycle_fact(
         "kind": "RunnerDeploymentLifecycleFact.v1",
         "event_id": str(
             command_lifecycle_event_id(
+                tenant_id=authority.tenant_id,
+                trading_mode=authority.trading_mode,
+                runner_id=authority.runner_id,
                 deployment_instance_id=authority.deployment_instance_id,
                 deployment_spec_id=authority.deployment_spec_id,
+                deployment_spec_digest=authority.deployment_spec_digest,
                 generation=authority.generation,
                 lifecycle_state=lifecycle_state,
                 command_fingerprint=command_fingerprint,
@@ -3143,6 +3216,8 @@ def _command_lifecycle_fact(
         "deployment_spec_digest": authority.deployment_spec_digest,
         "generation": authority.generation,
         "lifecycle_state": lifecycle_state,
+        "command_fingerprint": command_fingerprint,
+        "outcome": outcome,
         "observed_at": observed_at,
     }
 
@@ -3527,6 +3602,14 @@ class RunnerCapabilityReceipt:
         manifest = document["capability_manifest"]
         if not isinstance(manifest, dict):
             raise RunnerFactContractError("receipt capability_manifest must be an object")
+        if (
+            manifest.get("closed_fact_union") is not True
+            or manifest.get("fact_kind_projectors") != dict(RUNNER_FACT_KIND_PROJECTORS)
+            or manifest.get("unknown_fact_kind") != "terminal_unsupported_contract"
+        ):
+            raise RunnerFactContractError(
+                "receipt capability_manifest differs from the closed fact projector contract"
+            )
         bindings = normalize_capability_scope_bindings(manifest)
         binding_values = capability_scope_binding_values(bindings)
         if (

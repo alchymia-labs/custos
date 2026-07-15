@@ -311,6 +311,8 @@ class DeploymentReconciler:
                 authority,
                 generation=generation,
                 lifecycle_state=str(spec["lifecycle_state"]),
+                command_fingerprint=authority.deployment_spec_digest,
+                outcome="applied",
             )
         try:
             await self.lifecycle_fact_emitter.emit_fact(

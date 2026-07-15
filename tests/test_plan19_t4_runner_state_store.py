@@ -89,7 +89,13 @@ def _identity() -> RunnerFactIdentity:
 
 
 def _fact(label: str) -> dict[str, str]:
-    return {"kind": "test_fact", "event_id": str(uuid4()), "label": label}
+    del label
+    return {
+        "kind": "heartbeat",
+        "event_id": str(uuid4()),
+        "status": "online",
+        "observed_at": "2026-07-15T08:00:00Z",
+    }
 
 
 def _document(payload: bytes) -> dict:

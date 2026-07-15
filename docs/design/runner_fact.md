@@ -34,6 +34,19 @@ tenant_id + mode + runner_id + deployment_instance_id
 fences. They never split the stream and never reset its source sequence. The v1
 signing domain is `CRUCIBLE-RUNNER-FACT-BATCH-V1\0`.
 
+The signing header is a closed 18-field object in this order:
+`schema_version`, `batch_id`, `tenant_id`, `trading_mode`, `runner_id`,
+`deployment_instance_id`, `deployment_spec_id`, `deployment_spec_digest`,
+`generation`, `strategy_id`, `capability_version_id`, `capability_version`,
+`capability_manifest_digest`, `key_id`, `emitted_at`, `source_seq_start`,
+`source_seq_end`, `payload_digest`. `facts` and `signature` are excluded from
+the header; `payload_digest = sha256(canonical_json(facts))`. The bytes signed
+are exactly `DOMAIN || canonical_json(header)`. Canonical JSON is UTF-8,
+compact, sorts object members by ascending Unicode code point, preserves array
+order, does not ASCII-escape ordinary Unicode, rejects NaN and binary floats,
+and has no trailing newline. The candidate signing-preimage golden fixes the
+exact bytes, digest, synthetic key and signature for cross-language consumers.
+
 ## Closed fact union
 
 The immutable v1 candidate retains the existing 13 wire kind names. Unknown
@@ -58,6 +71,7 @@ do not depend on language-specific number rendering.
 - deployment_instance_id;
 - deployment_spec_id and deployment_spec_digest;
 - generation and lifecycle_state;
+- command_fingerprint and terminal apply outcome;
 - observed_at;
 - seq, allocated exclusively by RunnerFactOutbox when the fact enters the
   signed batch `facts[]` array.
@@ -65,6 +79,11 @@ do not depend on language-specific number rendering.
 Emission requires an exact `deployment_lifecycle` capability projector binding
 for the same mode, instance, spec digest and strategy. A health-only authority
 cannot emit lifecycle facts.
+
+The lifecycle event ID excludes `observed_at`. Its UUIDv5 preimage contains the
+complete stream identity, spec id/digest, generation, lifecycle state, stable
+command/apply fingerprint and outcome. Retry or restart of the same apply keeps
+one event ID; changing any stable identity component produces a different ID.
 
 Typed fact builders must not pre-populate seq. RunnerFactOutbox rejects such an
 input and assigns the stream-monotonic sequence in the same transaction that
@@ -82,7 +101,9 @@ fact to an unsigned compatibility topic.
 
 ## Candidate readiness ceiling
 
-`custos.runner-fact.v1/candidate-2026-07-15.1` is a producer contract candidate.
+`custos.runner-fact.v1/candidate-2026-07-15.2` is the current producer contract
+candidate and supersedes `.1`, whose receipt remains immutable historical
+evidence with status `NON_CURRENT_SUPERSEDED` in the current authority index.
 Its synthetic Ed25519 key and signature are cross-language golden evidence only;
 they are not runtime identity evidence. Until Crucible Plan 90 Phase A returns a
 receipt over the exact candidate bytes, projector compatibility, runtime RC,

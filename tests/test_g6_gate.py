@@ -4,7 +4,7 @@ Reconciler-integration view (unit-level layer isolation lives in
 test_g6_gate_capability_e2e.py):
 - live + NoopHost → refused (RuntimeError "G6 gate") + structlog error, across
   trading_mode case variants (Rust TradingMode serialises PascalCase "Live")
-- paper + NoopHost → allowed (deploy proceeds; no regression)
+- sandbox + NoopHost → allowed (deploy proceeds; no regression)
 - live + a live-capable host with every layer valid → allowed (relaxed double
   proving the gate only refuses hosts that lack capability, not all live specs)
 
@@ -87,6 +87,7 @@ def _spec(spec_id: str, trading_mode: str) -> dict:
     return {
         "spec_id": spec_id,
         "deployment_instance_id": spec_id,
+        "deployment_spec_digest": "a" * 64,
         "generation": 1,
         "trading_mode": trading_mode,
         "lifecycle_state": "running",
@@ -125,10 +126,15 @@ async def test_g6_gate_rejects_live_noophost(mode: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_g6_gate_allows_paper_noophost() -> None:
+async def test_g6_gate_allows_sandbox_noophost() -> None:
     reconciler = _make_reconciler(NoopHost())
-    container_id = await reconciler._apply_spec("s2", _spec("s2", "paper"), _ReconcileState())
-    assert container_id == "container-s2"
+    instance_id = "20000000-0000-4000-8000-000000000002"
+    container_id = await reconciler._apply_spec(
+        instance_id,
+        _spec(instance_id, "sandbox"),
+        _ReconcileState(),
+    )
+    assert container_id == f"container-{instance_id}"
 
 
 @pytest.mark.asyncio

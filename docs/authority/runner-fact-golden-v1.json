@@ -16,7 +16,7 @@
   "emitted_at": "2026-07-15T08:00:00Z",
   "source_seq_start": 1,
   "source_seq_end": 13,
-  "payload_digest": "fbb1533a2135c16288a1b62847d2af3807d0c2096fb753fcaf1ce6fcd766bc31",
+  "payload_digest": "3c93a83d857abff455e57a6e3727a6f10d124573e004dd31abaf7dd85a15f394",
   "facts": [
     {
       "kind": "execution_fill",
@@ -103,7 +103,7 @@
     },
     {
       "kind": "RunnerRuntimeLogFact.v1",
-      "event_id": "80000000-0000-4000-8000-000000000009",
+      "event_id": "83216866-159d-5ff3-be36-a960a57a4c18",
       "occurred_at": "2026-07-15T07:59:00Z",
       "level": "WARN",
       "component": "local_cap",
@@ -175,7 +175,7 @@
     },
     {
       "kind": "RunnerDeploymentLifecycleFact.v1",
-      "event_id": "cb3376a7-43cd-5c59-b2f7-a0fd29e5dd75",
+      "event_id": "4da34446-21b9-5e15-9b01-926062633cce",
       "occurred_at": "2026-07-15T07:59:00Z",
       "tenant_id": "acme",
       "mode": "sandbox",
@@ -185,9 +185,11 @@
       "deployment_spec_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "generation": 7,
       "lifecycle_state": "running",
+      "command_fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "applied",
       "observed_at": "2026-07-15T07:59:00Z",
       "seq": 13
     }
   ],
-  "signature": "QFOg3NWwumznsO8BP_kZmqrZe8Oh0WB0tLAVoKJKKiW948n8rqY6N6aHxrlgT3pkmUnHv4I_ghlOwP4kBCjgCA"
+  "signature": "T_0-AKZ69V3xQdd_MjbxHG4ZsbDkeO0H1TtmwQv194psmNJh9m9Q93gmbbegRXV_yH2jMLlaWXalwu3Ge5diCw"
 }

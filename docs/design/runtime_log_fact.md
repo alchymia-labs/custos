@@ -34,6 +34,12 @@ strategy, capability, key ID, a contiguous sequence range, payload digest, and
 signature. Spec/digest/generation are signed fences only; they do not alter the
 subject or reset sequence.
 
+The deterministic event UUIDv5 preimage contains tenant, mode, runner,
+deployment instance, correlation ID and the digest of the sanitized structured
+content. Identical content within one stream is idempotent, while the same
+content in another tenant/mode/runner/instance stream cannot collide in the
+global outbox event-deduplication table.
+
 ## Shared authority and delivery
 
 - `RunnerRuntimeLogFact.v1` uses the same Ed25519 identity, capability receipt,
