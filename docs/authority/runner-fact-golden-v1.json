@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "batch_id": "60000000-0000-4000-8000-000000000006",
+  "tenant_id": "acme",
+  "trading_mode": "sandbox",
+  "runner_id": "10000000-0000-4000-8000-000000000001",
+  "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
+  "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+  "deployment_spec_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "generation": 7,
+  "strategy_id": "40000000-0000-4000-8000-000000000004",
+  "capability_version_id": "50000000-0000-4000-8000-000000000005",
+  "capability_version": 1,
+  "capability_manifest_digest": "b16afad5cf47f0250affa7b2c8fef94788ec8d314d9501aec048647df91dc924",
+  "key_id": "ed25519-65b60673d6ed884bf01c2c222d82ada0",
+  "emitted_at": "2026-07-15T08:00:00Z",
+  "source_seq_start": 1,
+  "source_seq_end": 13,
+  "payload_digest": "fbb1533a2135c16288a1b62847d2af3807d0c2096fb753fcaf1ce6fcd766bc31",
+  "facts": [
+    {
+      "kind": "execution_fill",
+      "event_id": "80000000-0000-4000-8000-000000000001",
+      "venue": "BINANCE",
+      "venue_trade_id": "trade-1",
+      "client_order_id": "client-1",
+      "venue_order_id": "venue-order-1",
+      "instrument": "BTC-USDT",
+      "side": "buy",
+      "quantity": "0.01",
+      "price": "60000",
+      "fee": "0.6",
+      "currency": "USDT",
+      "occurred_at": "2026-07-15T07:59:00Z",
+      "seq": 1
+    },
+    {
+      "kind": "fill",
+      "event_id": "80000000-0000-4000-8000-000000000002",
+      "fill_id": "70000000-0000-4000-8000-000000000007",
+      "order_type": "market",
+      "category": "taker",
+      "price": "60000",
+      "avg_fill_price": "60000",
+      "currency": "USDT",
+      "filled_at": "2026-07-15T07:59:00Z",
+      "seq": 2
+    },
+    {
+      "kind": "position_closed",
+      "event_id": "80000000-0000-4000-8000-000000000003",
+      "position_id": "72000000-0000-4000-8000-000000000007",
+      "realized_pnl": "12.5",
+      "currency": "USDT",
+      "opened_at": "2026-07-15T07:00:00Z",
+      "closed_at": "2026-07-15T07:59:00Z",
+      "seq": 3
+    },
+    {
+      "kind": "fee",
+      "event_id": "80000000-0000-4000-8000-000000000004",
+      "fill_id": "70000000-0000-4000-8000-000000000007",
+      "amount": "0.6",
+      "currency": "USDT",
+      "assessed_at": "2026-07-15T07:59:00Z",
+      "seq": 4
+    },
+    {
+      "kind": "period_closed",
+      "event_id": "80000000-0000-4000-8000-000000000005",
+      "period": "20260715T070000Z_20260715T080000Z",
+      "closed_at": "2026-07-15T08:00:00Z",
+      "seq": 5
+    },
+    {
+      "kind": "equity_snapshot",
+      "event_id": "80000000-0000-4000-8000-000000000006",
+      "amount": "10012.5",
+      "currency": "USDT",
+      "observed_at": "2026-07-15T07:59:00Z",
+      "seq": 6
+    },
+    {
+      "kind": "position_snapshot",
+      "event_id": "80000000-0000-4000-8000-000000000007",
+      "positions": [
+        {
+          "instrument": "BTC-USDT",
+          "quantity": "0.01",
+          "mark_price": "60000",
+          "currency": "USDT"
+        }
+      ],
+      "observed_at": "2026-07-15T07:59:00Z",
+      "seq": 7
+    },
+    {
+      "kind": "heartbeat",
+      "event_id": "80000000-0000-4000-8000-000000000008",
+      "status": "online",
+      "observed_at": "2026-07-15T07:59:00Z",
+      "seq": 8
+    },
+    {
+      "kind": "RunnerRuntimeLogFact.v1",
+      "event_id": "80000000-0000-4000-8000-000000000009",
+      "occurred_at": "2026-07-15T07:59:00Z",
+      "level": "WARN",
+      "component": "local_cap",
+      "message": "risk-increasing order denied by verified runner policy",
+      "structured_fields": {
+        "reason_code": "runner_cap_exceeded",
+        "policy_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "correlation_id": "73000000-0000-4000-8000-000000000007",
+      "causation_id": null,
+      "seq": 9
+    },
+    {
+      "kind": "venue_ledger_snapshot_manifest",
+      "event_id": "da7817c4-a6cc-5521-9ce7-c0773821c032",
+      "snapshot_id": "71000000-0000-4000-8000-000000000007",
+      "venue": "BINANCE",
+      "source": "venue_api",
+      "watermark": "ledger-1",
+      "coverage_from": "2026-07-15T07:00:00Z",
+      "observed_through": "2026-07-15T07:59:00Z",
+      "completeness": {
+        "balances_complete": true,
+        "positions_complete": true,
+        "fills_complete": true,
+        "fees_complete": true
+      },
+      "balances_count": 1,
+      "positions_count": 0,
+      "fills_count": 0,
+      "fees_count": 0,
+      "chunk_count": 1,
+      "content_digest": "e1df4227f78d40511c5e853801afd8d4b0623ee3f566ef6b54a280d0daa2f148",
+      "seq": 10
+    },
+    {
+      "kind": "venue_ledger_snapshot_chunk",
+      "event_id": "7cafe724-66cc-5a7d-8a34-0d2fa6752ba8",
+      "snapshot_id": "71000000-0000-4000-8000-000000000007",
+      "chunk_index": 0,
+      "chunk_count": 1,
+      "balances": [
+        {
+          "asset": "USDT",
+          "currency": "USDT",
+          "total": "10012.5",
+          "available": "9412.5"
+        }
+      ],
+      "positions": [],
+      "fills": [],
+      "fees": [],
+      "chunk_digest": "314b9088655bc9de49f546a526ef276fc87315e9cf6e23dea701cb7a46ecce9e",
+      "seq": 11
+    },
+    {
+      "kind": "reconciliation_period_closed",
+      "event_id": "80000000-0000-4000-8000-000000000012",
+      "period": "20260715T070000Z_20260715T080000Z",
+      "period_started_at": "2026-07-15T07:00:00Z",
+      "closed_at": "2026-07-15T08:00:00Z",
+      "venue_snapshots": [
+        {
+          "venue": "BINANCE",
+          "snapshot_id": "71000000-0000-4000-8000-000000000007"
+        }
+      ],
+      "seq": 12
+    },
+    {
+      "kind": "RunnerDeploymentLifecycleFact.v1",
+      "event_id": "cb3376a7-43cd-5c59-b2f7-a0fd29e5dd75",
+      "occurred_at": "2026-07-15T07:59:00Z",
+      "tenant_id": "acme",
+      "mode": "sandbox",
+      "runner_id": "10000000-0000-4000-8000-000000000001",
+      "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
+      "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
+      "deployment_spec_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "generation": 7,
+      "lifecycle_state": "running",
+      "observed_at": "2026-07-15T07:59:00Z",
+      "seq": 13
+    }
+  ],
+  "signature": "QFOg3NWwumznsO8BP_kZmqrZe8Oh0WB0tLAVoKJKKiW948n8rqY6N6aHxrlgT3pkmUnHv4I_ghlOwP4kBCjgCA"
+}

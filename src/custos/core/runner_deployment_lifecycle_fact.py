@@ -9,12 +9,11 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-import uuid6
-
 from custos.core.runner_fact import (
     RunnerCapabilityReceipt,
     RunnerFactAuthority,
     RunnerFactEmitter,
+    runner_fact_event_id,
 )
 
 LIFECYCLE_FACT_KIND = "RunnerDeploymentLifecycleFact.v1"
@@ -49,6 +48,7 @@ class RunnerDeploymentLifecycleFact:
         generation: int,
         lifecycle_state: str,
     ) -> RunnerDeploymentLifecycleFact:
+        observed_at = _now_rfc3339_nanos()
         return cls(
             tenant_id=authority.tenant_id,
             mode=authority.trading_mode,
@@ -58,8 +58,15 @@ class RunnerDeploymentLifecycleFact:
             deployment_spec_digest=authority.deployment_spec_digest,
             generation=generation,
             lifecycle_state=lifecycle_state,
-            observed_at=_now_rfc3339_nanos(),
-            event_id=uuid6.uuid7(),
+            observed_at=observed_at,
+            event_id=runner_fact_event_id(
+                "deployment_lifecycle",
+                authority.deployment_instance_id,
+                authority.deployment_spec_id,
+                generation,
+                lifecycle_state,
+                observed_at,
+            ),
         )
 
     def to_wire(self) -> dict[str, Any]:
@@ -116,7 +123,6 @@ class RunnerDeploymentLifecycleFactEmitter:
             deployment_instance_id=instance_id,
             deployment_spec_id=spec_id,
             deployment_spec_digest=digest,
-            generation=generation,
             strategy_id=strategy,
         )
         return RunnerFactAuthority(
@@ -126,6 +132,7 @@ class RunnerDeploymentLifecycleFactEmitter:
             deployment_instance_id=instance_id,
             deployment_spec_id=spec_id,
             deployment_spec_digest=digest,
+            generation=generation,
             strategy_id=strategy,
             capability_version_id=self._capability.capability_version_id,
             capability_version=self._capability.capability_version,

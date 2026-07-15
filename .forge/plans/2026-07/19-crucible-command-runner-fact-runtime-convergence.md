@@ -2,7 +2,7 @@
 
 > **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable/guard code checkpoint READY-CODE-ONLY; native interception, reservation lifecycle and T8-T10 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Plan 19 T6 reliable-portfolio checkpoint
+> **Revised**: 2026-07-15 through Plan 19 T8a producer-candidate preparation
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -752,8 +752,8 @@ git commit -m "style(custos): restore runtime verification floor"
 ### Task 2: Land and consume the Crucible Plan 89 producer contract
 
 Hard gate：Custos Plan 18 T5d-A STOP；Crucible Plan 89 独立 plan-first、typed
-producer、new golden、clean landed SHA；Crucible Plan 90 预先登记 schema/golden
-compatibility receipt owner。
+producer、new golden、clean landed SHA。Crucible Plan 90 在此只登记后续
+schema/golden compatibility receipt owner；Task 2 不生成、不要求也不消费该 receipt。
 
 1. 仅在 Crucible 生成 versioned runner-runtime/code-provenance schema 和 golden；
    Custos 不生成、不重定义、不发布 command schema。
@@ -972,22 +972,30 @@ git commit -m "feat(custos): enforce signed local notional policy"
 2. 冻结带 signed generation fence 的 RunnerFact schema、golden 和 capability
    manifest revision。schema 必须声明 `deployment_instance_id` 是唯一 runtime
    stream identity，spec id/digest/generation 只作 signed fencing/provenance。
-3. 生成 immutable candidate coordinate、clean producer commit、schema/golden/capability digests
-   和 verification command receipt。
+3. 生成 immutable candidate coordinate、clean producer commit、schema/golden/capability digests。
+   producer assets 与绑定 receipt 必须分为两个 atomic commits：A 提交 immutable bytes，
+   B 在 clean A commit 上记录 exact SHA/digests 与 verification receipt。
 4. local deny/reject 使用 sanitized `RunnerRuntimeLogFact.v1`。
 5. 原子 rename `telemetry_actor.md` → `runner_fact.md`。
 6. 同步 CLAUDE、authority manifest/checker 和 active docs。
 7. 不恢复 unsigned telemetry/status。
 8. 证明新 generation/spec 不会重置 sequence，并提供旧 spec/digest-keyed stream
-   drain + sequence-continuation migration fixture；Crucible Plan 90 projector 必须
-   对同一规则出 compatibility receipt。
+   drain + sequence-continuation migration fixture。T8a 只发布该输入证据；Crucible
+   Plan 90 projector 对同一规则的 compatibility receipt 明确属于 T8b。
+9. payload 递归拒绝 Python binary float；跨语言数值只能是 integer 或 canonical
+   decimal string，并有 schema + production outbox negative evidence。
+10. synthetic signing key/signature 随 golden 分发，但 receipt 必须声明
+    `golden_signature_is_runtime_evidence=false`。
 
-`19d-T8a` STOP 是 exact candidate receipt 已可被外部仓库消费；它不宣称 Crucible
-projector compatible，也不允许发布 runtime RC。
+`19d-T8a` STOP 是 A producer commit 与 B authority receipt 都已落地，exact candidate
+可被外部仓库消费；它不宣称 Crucible projector compatible，也不允许发布 runtime
+RC、engine、daemon、live 或 production readiness。任何 candidate bytes 变化使 B
+receipt 失效，必须重新发布新 coordinate。
 
 #### 19d-T8b: Consume Crucible Plan 90 Phase-A compatibility receipt
 
-1. 把 `19d-T8a` exact candidate bytes/digests 交给 Crucible Plan 90 Phase A。
+1. 把 `19d-T8a` exact candidate bytes/digests 与 B authority receipt 交给 Crucible
+   Plan 90 Phase A；T8a receipt 中 `crucible_phase_a_compatible=false` 是预期状态。
 2. 取得 verifier/inbox/projector compatibility receipt，必须引用同一 candidate coordinate、
    Custos clean commit 和全部 schema/golden/capability digests。
 3. candidate 变化使 Phase-A receipt 失效并回到 `19d-T8a`。
@@ -1065,7 +1073,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 - [ ] flatten/close/reduce-only 不被 cap 阻止
 - [ ] unsupported live capability fail closed
 - [ ] RunnerFact capability revision + Crucible projector receipt
-- [ ] `telemetry_actor.md` 原子 rename，不删除 typed RunnerFact authority
+- [ ] `telemetry_actor.md` 原子 rename 为 `runner_fact.md`，不删除 typed RunnerFact authority
 - [ ] sandbox/testnet/live negative matrix
 - [ ] journal/facts/logs 无 credential 或 secret
 - [ ] `19d-T8a` candidate 在 Plan 90 Phase A 前独立生成并可消费
@@ -1086,7 +1094,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
 | T7 Signed local safety | [~] | 2026-07-15 | T7A contract consumer plus T7B durable/guard `READY_CONTRACT_CONSUMER_CODE_ONLY`; schema v3 uses the same DB/outbox and removes DeploymentSpec risk authority. Native interception, reservation lifecycle, bypass proof and CR99 main/0117/publication/runtime receipts remain open |
-| T8a RunnerFact candidate | [ ] | — | 19c STOP 后独立生产；不得等待 Plan 90 |
+| T8a RunnerFact candidate | [~] | 2026-07-15 | immutable producer bytes/golden/capability/sequence candidate prepared；等待 clean A SHA 与 B authority receipt；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |
 | T10 Accept/promote/close-out | [ ] | — | Plan 90B + PS 56 exact-candidate receipts；unchanged promotion |

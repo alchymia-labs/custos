@@ -1,0 +1,1187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "custos://gateway-contract/v1/runner_fact_batch_v1.schema.json",
+  "title": "Custos RunnerFactBatchV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "batch_id",
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id",
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation",
+    "strategy_id",
+    "capability_version_id",
+    "capability_version",
+    "capability_manifest_digest",
+    "key_id",
+    "emitted_at",
+    "source_seq_start",
+    "source_seq_end",
+    "payload_digest",
+    "facts",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "batch_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "trading_mode": {
+      "enum": [
+        "live",
+        "sandbox",
+        "testnet"
+      ]
+    },
+    "runner_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "deployment_instance_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "deployment_spec_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "deployment_spec_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "strategy_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "capability_version_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "capability_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "capability_manifest_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "emitted_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+    },
+    "source_seq_start": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_seq_end": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "facts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/fact_execution_fill"
+          },
+          {
+            "$ref": "#/$defs/fact_fill"
+          },
+          {
+            "$ref": "#/$defs/fact_position_closed"
+          },
+          {
+            "$ref": "#/$defs/fact_fee"
+          },
+          {
+            "$ref": "#/$defs/fact_period_closed"
+          },
+          {
+            "$ref": "#/$defs/fact_equity_snapshot"
+          },
+          {
+            "$ref": "#/$defs/fact_position_snapshot"
+          },
+          {
+            "$ref": "#/$defs/fact_heartbeat"
+          },
+          {
+            "$ref": "#/$defs/fact_RunnerRuntimeLogFact.v1"
+          },
+          {
+            "$ref": "#/$defs/fact_venue_ledger_snapshot_manifest"
+          },
+          {
+            "$ref": "#/$defs/fact_venue_ledger_snapshot_chunk"
+          },
+          {
+            "$ref": "#/$defs/fact_reconciliation_period_closed"
+          },
+          {
+            "$ref": "#/$defs/fact_RunnerDeploymentLifecycleFact.v1"
+          }
+        ]
+      }
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "canonical_json_value": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/canonical_json_value"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/canonical_json_value"
+          }
+        }
+      ]
+    },
+    "fact_execution_fill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "venue",
+        "venue_trade_id",
+        "client_order_id",
+        "venue_order_id",
+        "instrument",
+        "side",
+        "quantity",
+        "price",
+        "fee",
+        "currency",
+        "occurred_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "execution_fill"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "venue": {
+          "type": "string",
+          "minLength": 1
+        },
+        "venue_trade_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "client_order_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "venue_order_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instrument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "side": {
+          "enum": [
+            "buy",
+            "sell"
+          ]
+        },
+        "quantity": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "price": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "fee": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "currency": {
+          "enum": [
+            "USD",
+            "USDT",
+            "USDC",
+            "BTC",
+            "ETH"
+          ]
+        },
+        "occurred_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_fill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "fill_id",
+        "order_type",
+        "category",
+        "price",
+        "avg_fill_price",
+        "currency",
+        "filled_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "fill"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fill_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "order_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "price": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "avg_fill_price": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "currency": {
+          "enum": [
+            "USD",
+            "USDT",
+            "USDC",
+            "BTC",
+            "ETH"
+          ]
+        },
+        "filled_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_position_closed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "position_id",
+        "realized_pnl",
+        "currency",
+        "opened_at",
+        "closed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "position_closed"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "position_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "realized_pnl": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "currency": {
+          "enum": [
+            "USD",
+            "USDT",
+            "USDC",
+            "BTC",
+            "ETH"
+          ]
+        },
+        "opened_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "closed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_fee": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "fill_id",
+        "amount",
+        "currency",
+        "assessed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "fee"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fill_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "currency": {
+          "enum": [
+            "USD",
+            "USDT",
+            "USDC",
+            "BTC",
+            "ETH"
+          ]
+        },
+        "assessed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_equity_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "amount",
+        "currency",
+        "observed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "equity_snapshot"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+        },
+        "currency": {
+          "enum": [
+            "USD",
+            "USDT",
+            "USDC",
+            "BTC",
+            "ETH"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_position_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "positions",
+        "observed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "position_snapshot"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "instrument",
+              "quantity",
+              "mark_price",
+              "currency"
+            ],
+            "properties": {
+              "instrument": {
+                "type": "string",
+                "minLength": 1
+              },
+              "quantity": {
+                "type": "string",
+                "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "mark_price": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "currency": {
+                "enum": [
+                  "USD",
+                  "USDT",
+                  "USDC",
+                  "BTC",
+                  "ETH"
+                ]
+              }
+            }
+          }
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_heartbeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "status",
+        "observed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "heartbeat"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "enum": [
+            "online",
+            "degraded",
+            "offline"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_period_closed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "period",
+        "closed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "period_closed"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "period": {
+          "type": "string",
+          "minLength": 1
+        },
+        "closed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_venue_ledger_snapshot_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "snapshot_id",
+        "venue",
+        "source",
+        "watermark",
+        "coverage_from",
+        "observed_through",
+        "completeness",
+        "balances_count",
+        "positions_count",
+        "fills_count",
+        "fees_count",
+        "chunk_count",
+        "content_digest"
+      ],
+      "properties": {
+        "kind": {
+          "const": "venue_ledger_snapshot_manifest"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "venue": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": [
+            "venue_api",
+            "drop_copy"
+          ]
+        },
+        "watermark": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coverage_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "observed_through": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "balances_complete",
+            "positions_complete",
+            "fills_complete",
+            "fees_complete"
+          ],
+          "properties": {
+            "balances_complete": {
+              "type": "boolean"
+            },
+            "positions_complete": {
+              "type": "boolean"
+            },
+            "fills_complete": {
+              "type": "boolean"
+            },
+            "fees_complete": {
+              "type": "boolean"
+            }
+          }
+        },
+        "balances_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "positions_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fills_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fees_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunk_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "fact_venue_ledger_snapshot_chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "snapshot_id",
+        "chunk_index",
+        "chunk_count",
+        "balances",
+        "positions",
+        "fills",
+        "fees",
+        "chunk_digest"
+      ],
+      "properties": {
+        "kind": {
+          "const": "venue_ledger_snapshot_chunk"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "chunk_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunk_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "balances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "asset",
+              "currency",
+              "total",
+              "available"
+            ],
+            "properties": {
+              "asset": {
+                "type": "string",
+                "minLength": 1
+              },
+              "currency": {
+                "enum": [
+                  "USD",
+                  "USDT",
+                  "USDC",
+                  "BTC",
+                  "ETH"
+                ]
+              },
+              "total": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "available": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              }
+            }
+          }
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "venue_position_id",
+              "instrument",
+              "side",
+              "quantity",
+              "avg_entry_price",
+              "currency"
+            ],
+            "properties": {
+              "venue_position_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "instrument": {
+                "type": "string",
+                "minLength": 1
+              },
+              "side": {
+                "enum": [
+                  "buy",
+                  "sell"
+                ]
+              },
+              "quantity": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "avg_entry_price": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "enum": [
+                  "USD",
+                  "USDT",
+                  "USDC",
+                  "BTC",
+                  "ETH"
+                ]
+              }
+            }
+          }
+        },
+        "fills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "venue_trade_id",
+              "venue_order_id",
+              "instrument",
+              "side",
+              "quantity",
+              "price",
+              "fee",
+              "currency",
+              "occurred_at"
+            ],
+            "properties": {
+              "venue_trade_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "venue_order_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "instrument": {
+                "type": "string",
+                "minLength": 1
+              },
+              "side": {
+                "enum": [
+                  "buy",
+                  "sell"
+                ]
+              },
+              "quantity": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "price": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "fee": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "currency": {
+                "enum": [
+                  "USD",
+                  "USDT",
+                  "USDC",
+                  "BTC",
+                  "ETH"
+                ]
+              },
+              "occurred_at": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+              }
+            }
+          }
+        },
+        "fees": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fee_id",
+              "kind",
+              "currency",
+              "amount",
+              "occurred_at"
+            ],
+            "properties": {
+              "fee_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "minLength": 1
+              },
+              "currency": {
+                "enum": [
+                  "USD",
+                  "USDT",
+                  "USDC",
+                  "BTC",
+                  "ETH"
+                ]
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$"
+              },
+              "occurred_at": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+              }
+            }
+          }
+        },
+        "chunk_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "fact_reconciliation_period_closed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "period",
+        "period_started_at",
+        "closed_at",
+        "venue_snapshots"
+      ],
+      "properties": {
+        "kind": {
+          "const": "reconciliation_period_closed"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "period": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period_started_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "closed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "venue_snapshots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "venue",
+              "snapshot_id"
+            ],
+            "properties": {
+              "venue": {
+                "type": "string",
+                "minLength": 1
+              },
+              "snapshot_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "fact_RunnerDeploymentLifecycleFact.v1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "occurred_at",
+        "tenant_id",
+        "mode",
+        "runner_id",
+        "deployment_instance_id",
+        "deployment_spec_id",
+        "deployment_spec_digest",
+        "generation",
+        "lifecycle_state",
+        "observed_at"
+      ],
+      "properties": {
+        "kind": {
+          "const": "RunnerDeploymentLifecycleFact.v1"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": [
+            "live",
+            "sandbox",
+            "testnet"
+          ]
+        },
+        "runner_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deployment_instance_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deployment_spec_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deployment_spec_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lifecycle_state": {
+          "enum": [
+            "running",
+            "paused",
+            "stopped",
+            "archived"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        }
+      }
+    },
+    "fact_RunnerRuntimeLogFact.v1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "event_id",
+        "seq",
+        "occurred_at",
+        "level",
+        "component",
+        "message",
+        "structured_fields",
+        "correlation_id",
+        "causation_id"
+      ],
+      "properties": {
+        "kind": {
+          "const": "RunnerRuntimeLogFact.v1"
+        },
+        "event_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3,9})?Z$"
+        },
+        "level": {
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ]
+        },
+        "component": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "structured_fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/canonical_json_value"
+          }
+        },
+        "correlation_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "causation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "x-custos-invariants": {
+    "subject": "crucible.runner_fact.{trading_mode}.{tenant_id}.{runner_id}.{deployment_instance_id}",
+    "stream_identity_fields": [
+      "tenant_id",
+      "trading_mode",
+      "runner_id",
+      "deployment_instance_id"
+    ],
+    "signed_fencing_fields": [
+      "deployment_spec_id",
+      "deployment_spec_digest",
+      "generation"
+    ],
+    "sequence_rule": "facts[i].seq == source_seq_start + i",
+    "generation_resets_sequence": false,
+    "signing_domain_base64": "Q1JVQ0lCTEUtUlVOTkVSLUZBQ1QtQkFUQ0gtVjEA",
+    "canonicalization": "utf8-json-sort-keys-compact-v1"
+  }
+}

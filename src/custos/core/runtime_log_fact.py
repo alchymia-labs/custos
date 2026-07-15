@@ -14,6 +14,7 @@ before the durable outbox can store it.
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 import time
@@ -22,13 +23,12 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-import uuid6
-
 from custos.core.runner_fact import (
     RunnerCapabilityReceipt,
     RunnerFactAuthority,
     RunnerFactContractError,
     RunnerFactEmitter,
+    runner_fact_event_id,
 )
 
 RUNTIME_LOG_KIND = "RunnerRuntimeLogFact.v1"
@@ -252,7 +252,6 @@ class RunnerRuntimeLogEmitter:
             deployment_instance_id=deployment_instance_id,
             deployment_spec_id=deployment_spec_id,
             deployment_spec_digest=deployment_spec_digest,
-            generation=generation,
             strategy_id=strategy,
         )
         return RunnerFactAuthority(
@@ -262,6 +261,7 @@ class RunnerRuntimeLogEmitter:
             deployment_instance_id=deployment_instance_id,
             deployment_spec_id=deployment_spec_id,
             deployment_spec_digest=deployment_spec_digest,
+            generation=generation,
             strategy_id=strategy,
             capability_version_id=self._capability.capability_version_id,
             capability_version=self._capability.capability_version,
@@ -308,14 +308,36 @@ class RunnerRuntimeLogEmitter:
         causation = (
             _required_uuid(causation_id, "causation_id") if causation_id is not None else None
         )
+        safe_message = self._redactor.message(message)
+        safe_fields = self._redactor.fields(structured_fields)
+        identity_material = json.dumps(
+            {
+                "level": normalized_level,
+                "component": component,
+                "message": safe_message,
+                "structured_fields": safe_fields,
+                "correlation_id": str(correlation),
+                "causation_id": str(causation) if causation is not None else None,
+            },
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
         return {
             "kind": RUNTIME_LOG_KIND,
-            "event_id": str(uuid6.uuid7()),
+            "event_id": str(
+                runner_fact_event_id(
+                    "runtime_log",
+                    correlation,
+                    hashlib.sha256(identity_material).hexdigest(),
+                )
+            ),
             "occurred_at": _now_rfc3339_nanos(),
             "level": normalized_level,
             "component": component,
-            "message": self._redactor.message(message),
-            "structured_fields": self._redactor.fields(structured_fields),
+            "message": safe_message,
+            "structured_fields": safe_fields,
             "correlation_id": str(correlation),
             "causation_id": str(causation) if causation is not None else None,
         }

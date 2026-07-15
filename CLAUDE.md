@@ -45,7 +45,7 @@
 | **enrollment** | nonce-bound Ed25519 PoP; encrypted `rkc2` credential; rotate/revoke | [`docs/design/enrollment.md`](docs/design/enrollment.md) | 私钥不出机 + startup fail closed |
 | **reconcile** | Verify signed desired state → start/stop NT → enqueue typed lifecycle RunnerFact | [`docs/design/reconcile.md`](docs/design/reconcile.md) | 失联≠停止 (红线 0.3) |
 | **nautilus_host** | NT 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | [`docs/design/nautilus_host.md`](docs/design/nautilus_host.md) | **G6 不绕过 (红线 0.2)** |
-| **runner_fact** | NT MessageBus → typed signed RunnerFact outbox → Crucible | [`docs/design/telemetry_actor.md`](docs/design/telemetry_actor.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
+| **runner_fact** | NT MessageBus → typed signed RunnerFact outbox → Crucible | [`docs/design/runner_fact.md`](docs/design/runner_fact.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
 | **credential_vault** | sops+age exchange key + machine principal vault | [`docs/design/credential_vault.md`](docs/design/credential_vault.md) | KEK/机器私钥不出进程 (红线 0.1) |
 | **nats_client** | Crucible signed desired-state subscriber only | [`docs/design/nats_client.md`](docs/design/nats_client.md) | schema 版本化 |
 

@@ -19,14 +19,6 @@ class CapturingEmitter:
         self.facts.extend(facts)
 
 
-class LifecycleCapability:
-    def __init__(self) -> None:
-        self.projectors = None
-
-    def require_scope_bindings(self, *, projectors, **kwargs) -> None:
-        self.projectors = projectors
-
-
 @pytest.mark.asyncio
 async def test_lifecycle_fact_contains_complete_instance_authority() -> None:
     authority = RunnerFactAuthority(
@@ -43,7 +35,13 @@ async def test_lifecycle_fact_contains_complete_instance_authority() -> None:
         capability_manifest_digest=SHA,
     )
     capture = CapturingEmitter()
-    capability = LifecycleCapability()
+    from pathlib import Path
+
+    from custos.core.runner_fact import RunnerCapabilityReceipt
+
+    capability = RunnerCapabilityReceipt.load(
+        Path(__file__).parents[1] / "docs/authority/runner-fact-capability-receipt-golden-v1.json"
+    )
     await RunnerDeploymentLifecycleFactEmitter(capture, capability).emit(
         authority, generation=7, lifecycle_state="running"
     )
@@ -57,4 +55,3 @@ async def test_lifecycle_fact_contains_complete_instance_authority() -> None:
     assert fact["generation"] == 7
     assert fact["lifecycle_state"] == "running"
     assert fact["observed_at"].endswith("Z")
-    assert capability.projectors == ("deployment_lifecycle",)

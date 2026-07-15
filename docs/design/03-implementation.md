@@ -42,7 +42,7 @@ custos/
 │   ├── __init__.py
 │   ├── __main__.py            ← 薄 shim (`from custos.cli.main import main`; main 是 0.2.0 legacy stub)
 │   ├── core/                  ← 引擎无关承重墙
-│   │   ├── config.py          ← DeploymentSpec / TransportEnvelope Pydantic 模型
+│   │   ├── config.py          ← local configuration models (DeploymentSpec authority belongs to Crucible)
 │   │   ├── enrollment.py      ← 一次性 EnrollmentToken NATS 低层 client (供 CLI 层调用)
 │   │   ├── credential_vault.py ← _BaseVault + AuditEvent enum + CredentialVault mock (SopsAgeVault 已在 0.2.0 删除)
 │   │   ├── per_key_vault.py   ← PerKeyVault 生产 runtime (~/.arx/vault/<key-id>.enc, 0.2.0 起唯一 runtime 路径)
@@ -50,7 +50,8 @@ custos/
 │   │   ├── nats_client.py     ← JetStream client + build_subject() 函数
 │   │   ├── reconcile.py       ← ReconcileLoop (level-triggered)
 │   │   ├── deployment_reconciler.py ← reconcile 高层编排
-│   │   ├── telemetry_actor.py ← NT MessageBus → NATS uplink (脱敏 + Decimal wire)
+│   │   ├── runner_fact.py     ← single SQLite state/sequence/signed-outbox deep module
+│   │   ├── runner_fact_producer.py ← typed engine observations → RunnerFact builders
 │   │   └── log.py             ← structlog 配置
 │   ├── engines/nautilus/      ← NT Python 引擎
 │   │   ├── host.py            ← NoopHost + NtTradingNodeHost + G6 gate

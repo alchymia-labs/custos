@@ -1,0 +1,88 @@
+{
+  "asset_index_schema_version": 1,
+  "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.1",
+  "status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
+  "phase_a_input_ready": true,
+  "crucible_phase_a_compatible": false,
+  "projector_compatibility_ready": false,
+  "runtime_rc": false,
+  "real_runtime_round_trip_ready": false,
+  "live_ready": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "schema_version": 1,
+  "canonicalization": "utf8-json-sort-keys-compact-v1",
+  "cross_language_numeric_policy": "integer-or-canonical-decimal-string",
+  "signing_domain_base64": "Q1JVQ0lCTEUtUlVOTkVSLUZBQ1QtQkFUQ0gtVjEA",
+  "golden_subject": "crucible.runner_fact.sandbox.acme.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+  "stream_identity_fields": [
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id"
+  ],
+  "signed_fencing_fields": [
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation"
+  ],
+  "fact_kind_projectors": {
+    "execution_fill": "settlement",
+    "fill": "settlement",
+    "position_closed": "settlement",
+    "fee": "settlement",
+    "period_closed": "settlement",
+    "equity_snapshot": "risk",
+    "position_snapshot": "risk",
+    "heartbeat": "health",
+    "RunnerRuntimeLogFact.v1": "health",
+    "venue_ledger_snapshot_manifest": "reconciliation",
+    "venue_ledger_snapshot_chunk": "reconciliation",
+    "reconciliation_period_closed": "reconciliation",
+    "RunnerDeploymentLifecycleFact.v1": "deployment_lifecycle"
+  },
+  "synthetic_signature": {
+    "algorithm": "ed25519",
+    "key_id": "ed25519-65b60673d6ed884bf01c2c222d82ada0",
+    "public_key_base64": "ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=",
+    "runtime_evidence": false
+  },
+  "assets": [
+    {
+      "role": "runner_fact_batch_schema",
+      "path": "docs/gateway-contract/v1/runner_fact_batch_v1.schema.json",
+      "sha256": "7230e275592ba961e83b544c1049d91d30701cd8ea5035cf8b1eb76425add69c",
+      "size_bytes": 29657
+    },
+    {
+      "role": "runner_fact_batch_golden",
+      "path": "docs/authority/runner-fact-golden-v1.json",
+      "sha256": "5510cd3c98a147a6f59edb5f06402596c0ce8e5e6d5e922ff8d949c1d5a2abfa",
+      "size_bytes": 6336
+    },
+    {
+      "role": "runner_fact_capability_manifest",
+      "path": "docs/authority/runner-fact-capability-manifest-v1.json",
+      "sha256": "382c97aafdba7f13fe80d4e740f0967339f22b9477fd87d5c800fbf492a159f3",
+      "size_bytes": 3025
+    },
+    {
+      "role": "runner_fact_capability_receipt_golden",
+      "path": "docs/authority/runner-fact-capability-receipt-golden-v1.json",
+      "sha256": "e669f37d5739ae1861c967479ebd202d52a9eca643890c36584f97c973e3d84b",
+      "size_bytes": 6221
+    },
+    {
+      "role": "runtime_event_fact_parity_matrix",
+      "path": "docs/authority/runner-fact-parity-matrix-v1.json",
+      "sha256": "87ebb30ceb278bb756a0b6db43cad3dc4a8248d7bf35febe2180ebd44cbbfd2c",
+      "size_bytes": 3803
+    },
+    {
+      "role": "instance_stream_sequence_continuation_fixture",
+      "path": "docs/authority/runner-fact-sequence-continuation-v1.json",
+      "sha256": "9df395b60ade17e7ae30af75aa19fe7d02fa741267550e40778a076b92bbc58f",
+      "size_bytes": 6050
+    }
+  ]
+}

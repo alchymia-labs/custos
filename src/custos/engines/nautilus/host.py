@@ -430,7 +430,6 @@ class NtTradingNodeHost:
             deployment_instance_id=deployment_instance_id,
             deployment_spec_id=spec_id,
             deployment_spec_digest=deployment_spec_digest,
-            generation=int(spec["generation"]),
             strategy_id=strategy_id,
         )
         authority = RunnerFactAuthority(
@@ -440,6 +439,7 @@ class NtTradingNodeHost:
             deployment_instance_id=deployment_instance_id,
             deployment_spec_id=spec_id,
             deployment_spec_digest=deployment_spec_digest,
+            generation=int(spec["generation"]),
             strategy_id=strategy_id,
             capability_version_id=self._capability_receipt.capability_version_id,
             capability_version=self._capability_receipt.capability_version,
@@ -583,9 +583,7 @@ class NtTradingNodeHost:
         node, _task = entry
         snapshot = self._portfolio_snapshot_provider.snapshot(node, currency=currency)
         if not snapshot.reliable:
-            raise RuntimeError(
-                f"portfolio snapshot unreliable: {snapshot.unreliable_reason}"
-            )
+            raise RuntimeError(f"portfolio snapshot unreliable: {snapshot.unreliable_reason}")
         return snapshot.equity, snapshot.runner_fact_rows()
 
     async def runner_fact_venue_ledger(
@@ -628,9 +626,7 @@ class NtTradingNodeHost:
         node, _task = entry
         snapshot = self._portfolio_snapshot_provider.snapshot(node)
         if not snapshot.reliable:
-            raise RuntimeError(
-                f"portfolio snapshot unreliable: {snapshot.unreliable_reason}"
-            )
+            raise RuntimeError(f"portfolio snapshot unreliable: {snapshot.unreliable_reason}")
         return snapshot.open_notional
 
     async def check_engine_connected(self, deployment_instance_id: str) -> ConnectivityState:
@@ -682,9 +678,7 @@ class NtTradingNodeHost:
         node, _task = entry
         snapshot = self._portfolio_snapshot_provider.snapshot(node)
         if not snapshot.reliable:
-            raise RuntimeError(
-                f"portfolio snapshot unreliable: {snapshot.unreliable_reason}"
-            )
+            raise RuntimeError(f"portfolio snapshot unreliable: {snapshot.unreliable_reason}")
         return snapshot.engine_positions()
 
     async def get_orders(self, deployment_instance_id: str) -> list[OrderSnapshot]:

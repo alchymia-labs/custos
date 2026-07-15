@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Final, Literal
 from uuid import UUID, uuid4, uuid5
 
@@ -56,6 +57,23 @@ MAX_VENUE_LEDGER_CHUNKS: Final = 4096
 MAX_VENUE_LEDGER_ITEMS_PER_CHUNK: Final = 512
 MAX_VENUE_LEDGER_CHUNK_BYTES: Final = 262_144
 RUNNER_STATE_SCHEMA_VERSION: Final = 3
+RUNNER_FACT_KIND_PROJECTORS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "execution_fill": "settlement",
+        "fill": "settlement",
+        "position_closed": "settlement",
+        "fee": "settlement",
+        "period_closed": "settlement",
+        "equity_snapshot": "risk",
+        "position_snapshot": "risk",
+        "heartbeat": "health",
+        "RunnerRuntimeLogFact.v1": "health",
+        "venue_ledger_snapshot_manifest": "reconciliation",
+        "venue_ledger_snapshot_chunk": "reconciliation",
+        "reconciliation_period_closed": "reconciliation",
+        "RunnerDeploymentLifecycleFact.v1": "deployment_lifecycle",
+    }
+)
 _NATS_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
 _LOWER_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _log = get_logger("custos.runner_fact")
@@ -67,6 +85,23 @@ class RunnerFactError(RuntimeError):
 
 class RunnerFactContractError(RunnerFactError):
     """A fact or authority value violates the wire contract."""
+
+
+def validate_runner_fact_payload(value: object, *, path: str = "$") -> None:
+    """Reject values whose canonical JSON representation is language-dependent."""
+
+    if isinstance(value, float):
+        raise RunnerFactContractError(
+            f"runner fact payload {path} must not contain Python float; "
+            "use int or a canonical decimal string"
+        )
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            validate_runner_fact_payload(item, path=f"{path}.{key}")
+        return
+    if isinstance(value, (list, tuple)):
+        for index, item in enumerate(value):
+            validate_runner_fact_payload(item, path=f"{path}[{index}]")
 
 
 class RunnerFactIdentityError(RunnerFactError):
@@ -1412,6 +1447,11 @@ class RunnerFactOutbox:
             fact = dict(value)
             if "seq" in fact:
                 raise RunnerFactContractError("fact seq is allocated only by RunnerFactOutbox")
+            validate_runner_fact_payload(fact)
+            kind = _non_empty(fact.get("kind"), "fact.kind")
+            if kind not in RUNNER_FACT_KIND_PROJECTORS:
+                raise RunnerFactContractError(f"unsupported runner fact kind: {kind}")
+            fact["kind"] = kind
             event_id = _uuid(fact.get("event_id"), "event_id")
             if event_id in event_ids:
                 raise RunnerFactContractError("batch contains duplicate event_id")
@@ -2284,9 +2324,7 @@ class RunnerStateStore:
                 if applied_matches and applied["engine_handle"] is not None
                 else None
             ),
-            observed_status=(
-                str(applied["observed_status"]) if applied_matches else None
-            ),
+            observed_status=(str(applied["observed_status"]) if applied_matches else None),
             restart_count=restart_count,
             quarantine_reason=(
                 str(desired["quarantine_reason"])
@@ -2744,9 +2782,7 @@ class RunnerStateStore:
             deployment_instance_id,
         )
 
-    def _load_durable_desired_command(
-        self, deployment_instance_id: UUID
-    ) -> DurableDesiredCommand:
+    def _load_durable_desired_command(self, deployment_instance_id: UUID) -> DurableDesiredCommand:
         from custos.contracts.crucible_runner_command import (
             CrucibleRunnerDeploymentCommandV1,
         )
@@ -2779,9 +2815,7 @@ class RunnerStateStore:
             or receipt.exact_subject != row["exact_subject"]
             or receipt.verified_event_bytes_sha256 != _sha256_hex(exact_event_bytes)
         ):
-            raise RunnerStateDurabilityError(
-                "durable desired command verification bindings differ"
-            )
+            raise RunnerStateDurabilityError("durable desired command verification bindings differ")
         object.__setattr__(command, "_exact_signed_event_bytes", exact_event_bytes)
         object.__setattr__(command, "_verified_subject", row["exact_subject"])
         object.__setattr__(command, "_producer_fingerprint", receipt.producer_fingerprint)
@@ -3292,6 +3326,7 @@ def normalize_capability_scope_bindings(
             "health_scope_bindings",
             {"expected_cadence_seconds", "grace_seconds"},
         ),
+        ("deployment_lifecycle", "deployment_lifecycle_scope_bindings", set()),
     )
     result: list[RunnerCapabilityScopeBinding] = []
     identities: set[tuple[str, str]] = set()

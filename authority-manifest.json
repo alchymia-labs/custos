@@ -166,8 +166,8 @@
       "ready_receipt_published": false
     },
     {
-      "role": "local_telemetry",
-      "path": "docs/design/telemetry_actor.md"
+      "role": "local_runner_fact",
+      "path": "docs/design/runner_fact.md"
     },
     {
       "role": "local_nats_contract",

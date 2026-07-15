@@ -9,7 +9,7 @@ The fact is stored inside the existing `RunnerFactBatchV1` envelope and uses
 the existing subject:
 
 ```text
-crucible.runner_fact.{mode}.{tenant_id}.{runner_id}.{deployment_instance_id}.{deployment_spec_id}.{deployment_spec_digest}
+crucible.runner_fact.{mode}.{tenant_id}.{runner_id}.{deployment_instance_id}
 ```
 
 The fact shape before the outbox allocates `seq` is:
@@ -17,8 +17,8 @@ The fact shape before the outbox allocates `seq` is:
 ```json
 {
   "kind": "RunnerRuntimeLogFact.v1",
-  "event_id": "<uuidv7>",
-  "occurred_at": "<RFC3339 nanoseconds>",
+  "event_id": "<deterministic uuidv5>",
+  "occurred_at": "<RFC3339 UTC>",
   "level": "INFO",
   "component": "deployment_reconciler",
   "message": "Deployment status observed",
@@ -29,8 +29,10 @@ The fact shape before the outbox allocates `seq` is:
 ```
 
 Allowed levels are `DEBUG`, `INFO`, `WARN`, and `ERROR`. The surrounding batch
-adds tenant, mode, Runner, exact DeploymentInstance/spec/digest, strategy,
-capability, key ID, a contiguous sequence range, payload digest, and signature.
+adds tenant, mode, Runner, exact DeploymentInstance/spec/digest/generation,
+strategy, capability, key ID, a contiguous sequence range, payload digest, and
+signature. Spec/digest/generation are signed fences only; they do not alter the
+subject or reset sequence.
 
 ## Shared authority and delivery
 
@@ -60,6 +62,8 @@ Before enqueue, `RuntimeLogRedactor` recursively processes message and fields:
   private-key PEM, assignment, and high-entropy shapes are replaced;
 - unsupported objects, non-finite floats, excessive nesting/size, and any
   residual recognizable secret material reject the entire fact before SQLite.
+- binary floats are rejected recursively; numeric structured values use JSON
+  integers or canonical decimal strings.
 
 Publisher failure logs contain only structured event identity and exception
 type. Plaintext log content is never used as a fallback diagnostic.
