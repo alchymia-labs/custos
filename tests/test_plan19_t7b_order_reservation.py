@@ -1,0 +1,267 @@
+"""Plan 19 T7B durable runner-level reservation lifecycle."""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from pathlib import Path
+from uuid import UUID
+
+import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+from custos.core.runner_fact import (
+    OrderReservationRebuildEntry,
+    RunnerFactIdentity,
+    RunnerFactOutbox,
+    RunnerStateAuthorityError,
+    RunnerStateStore,
+)
+
+TENANT_ID = "acme"
+RUNNER_ID = UUID("10000000-0000-4000-8000-000000000001")
+POLICY_ID = UUID("20000000-0000-4000-8000-000000000001")
+INSTANCE_A = UUID("30000000-0000-4000-8000-000000000001")
+INSTANCE_B = UUID("30000000-0000-4000-8000-000000000002")
+SPEC_ID = UUID("40000000-0000-4000-8000-000000000001")
+
+
+def _store(path: Path) -> RunnerStateStore:
+    outbox = RunnerFactOutbox(path)
+    store = RunnerStateStore(
+        outbox=outbox,
+        identity=RunnerFactIdentity(Ed25519PrivateKey.generate(), "reservation-test-key"),
+        tenant_id=TENANT_ID,
+        runner_id=RUNNER_ID,
+        authority_resolver=lambda _verified: pytest.fail("not used"),
+    )
+    with outbox._connect() as connection:
+        for instance_id in (INSTANCE_A, INSTANCE_B):
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO desired_deployments (
+                    deployment_instance_id, tenant_id, trading_mode, runner_id,
+                    deployment_spec_id, deployment_spec_digest, generation,
+                    command_event_id, exact_subject, command_fingerprint,
+                    verified_event_bytes_digest, signer_key_id, signature_profile,
+                    verification_receipt, canonical_command, exact_event_bytes,
+                    desired_status, quarantine_reason, updated_at_ns
+                ) VALUES (?, ?, 'sandbox', ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NULL, 1)
+                """,
+                (
+                    str(instance_id),
+                    TENANT_ID,
+                    str(RUNNER_ID),
+                    str(SPEC_ID),
+                    "a" * 64,
+                    f"command-{instance_id}",
+                    f"subject-{instance_id}",
+                    "b" * 64,
+                    "c" * 64,
+                    "command-key",
+                    "test",
+                    "{}",
+                    "{}",
+                    b"{}",
+                ),
+            )
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO runner_cap_policy (
+                policy_id, policy_revision, generation, policy_digest,
+                tenant_scope, trading_mode, runner_id, previous_policy_id,
+                previous_policy_revision, previous_generation, previous_policy_digest,
+                settlement_currency, max_order_notional, max_notional,
+                effective_at_ns, expires_at_ns, policy_status, signer_key_id,
+                signature_profile, exact_subject, fingerprint,
+                verified_event_bytes_digest, exact_event_bytes, signed_policy,
+                policy_json, consumed_at_ns
+            ) VALUES (
+                ?, 1, 1, ?, ?, 'sandbox', ?, NULL, NULL, NULL, NULL,
+                'USDT', '100', '150', 1, 4102444800000000000, 'active',
+                'policy-key', 'test', 'policy.subject', ?, ?, ?, ?, '{}', 1
+            )
+            """,
+            (
+                str(POLICY_ID),
+                "d" * 64,
+                TENANT_ID,
+                str(RUNNER_ID),
+                "e" * 64,
+                "f" * 64,
+                b"{}",
+                b"{}",
+            ),
+        )
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO runner_cap_policy_head (
+                tenant_scope, trading_mode, runner_id, policy_id,
+                policy_revision, generation, policy_digest, updated_at_ns
+            ) VALUES (?, 'sandbox', ?, ?, 1, 1, ?, 1)
+            """,
+            (TENANT_ID, str(RUNNER_ID), str(POLICY_ID), "d" * 64),
+        )
+    return store
+
+
+@pytest.mark.asyncio
+async def test_reserve_is_atomic_runner_wide_idempotent_and_fail_closed(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path / "runner-state.sqlite3")
+
+    first = await store.reserve_order_notional(
+        event_id="reserve-a",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        policy_id=POLICY_ID,
+        requested_notional=Decimal("90"),
+    )
+    replay = await store.reserve_order_notional(
+        event_id="reserve-a",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        policy_id=POLICY_ID,
+        requested_notional=Decimal("90"),
+    )
+
+    assert first == replay
+    assert first.reserved_notional == Decimal("90")
+    assert first.state == "reserved"
+    with pytest.raises(RunnerStateAuthorityError, match="idempotency"):
+        await store.reserve_order_notional(
+            event_id="reserve-a",
+            deployment_instance_id=INSTANCE_A,
+            client_order_id="order-a",
+            policy_id=POLICY_ID,
+            requested_notional=Decimal("91"),
+        )
+    with pytest.raises(RunnerStateAuthorityError, match="per-order"):
+        await store.reserve_order_notional(
+            event_id="reserve-over-order",
+            deployment_instance_id=INSTANCE_B,
+            client_order_id="order-over-order",
+            policy_id=POLICY_ID,
+            requested_notional=Decimal("101"),
+        )
+    with pytest.raises(RunnerStateAuthorityError, match="runner aggregate"):
+        await store.reserve_order_notional(
+            event_id="reserve-over-runner",
+            deployment_instance_id=INSTANCE_B,
+            client_order_id="order-over-runner",
+            policy_id=POLICY_ID,
+            requested_notional=Decimal("61"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_fill_replace_cancel_and_close_preserve_exposure_invariants(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path / "runner-state.sqlite3")
+    await store.reserve_order_notional(
+        event_id="reserve",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        policy_id=POLICY_ID,
+        requested_notional=Decimal("100"),
+    )
+
+    partial = await store.record_order_fill(
+        event_id="fill-1",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        fill_notional=Decimal("40"),
+    )
+    replaced = await store.replace_order_reservation(
+        event_id="replace-1",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        new_reserved_notional=Decimal("30"),
+    )
+    canceled = await store.release_order_reservation(
+        event_id="cancel-1",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        reason="canceled",
+    )
+    reduced = await store.record_position_reduction(
+        event_id="close-1",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        reduction_notional=Decimal("15"),
+    )
+    closed = await store.record_position_reduction(
+        event_id="close-2",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="order-a",
+        reduction_notional=Decimal("25"),
+    )
+    exposure = await store.load_runner_exposure(POLICY_ID)
+
+    assert (partial.reserved_notional, partial.filled_exposure, partial.state) == (
+        Decimal("60"),
+        Decimal("40"),
+        "partially_filled",
+    )
+    assert (replaced.reserved_notional, replaced.filled_exposure) == (
+        Decimal("30"),
+        Decimal("40"),
+    )
+    assert (canceled.reserved_notional, canceled.state) == (Decimal("0"), "filled")
+    assert (reduced.filled_exposure, reduced.state) == (Decimal("25"), "filled")
+    assert (closed.filled_exposure, closed.state) == (Decimal("0"), "closed")
+    assert exposure.open_exposure == Decimal("0")
+    assert exposure.reserved_notional == Decimal("0")
+    assert exposure.total_exposure == Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_restart_rebuild_reconciles_trusted_open_exposure_and_reservations(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "runner-state.sqlite3"
+    store = _store(database)
+    await store.reserve_order_notional(
+        event_id="reserve-stale",
+        deployment_instance_id=INSTANCE_A,
+        client_order_id="stale-order",
+        policy_id=POLICY_ID,
+        requested_notional=Decimal("80"),
+    )
+
+    rebuilt = await store.rebuild_runner_exposure(
+        event_id="rebuild-1",
+        policy_id=POLICY_ID,
+        open_exposure=Decimal("75"),
+        active_reservations=(
+            OrderReservationRebuildEntry(
+                deployment_instance_id=INSTANCE_B,
+                client_order_id="live-order",
+                reserved_notional=Decimal("20"),
+            ),
+        ),
+        source_digest="1" * 64,
+    )
+    replay = await _store(database).rebuild_runner_exposure(
+        event_id="rebuild-1",
+        policy_id=POLICY_ID,
+        open_exposure=Decimal("75"),
+        active_reservations=(
+            OrderReservationRebuildEntry(
+                deployment_instance_id=INSTANCE_B,
+                client_order_id="live-order",
+                reserved_notional=Decimal("20"),
+            ),
+        ),
+        source_digest="1" * 64,
+    )
+
+    assert rebuilt == replay
+    assert rebuilt.open_exposure == Decimal("75")
+    assert rebuilt.reserved_notional == Decimal("20")
+    assert rebuilt.total_exposure == Decimal("95")
+    assert rebuilt.source_digest == "1" * 64
+    stale = await store.load_order_reservation(INSTANCE_A, "stale-order")
+    assert stale.state == "released"
+    assert stale.reserved_notional == Decimal("0")

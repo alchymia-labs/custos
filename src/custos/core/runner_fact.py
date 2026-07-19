@@ -76,7 +76,7 @@ MAX_BATCH_BYTES: Final = 768 * 1024
 MAX_VENUE_LEDGER_CHUNKS: Final = 4096
 MAX_VENUE_LEDGER_ITEMS_PER_CHUNK: Final = 512
 MAX_VENUE_LEDGER_CHUNK_BYTES: Final = 262_144
-RUNNER_STATE_SCHEMA_VERSION: Final = 3
+RUNNER_STATE_SCHEMA_VERSION: Final = 4
 RUNNER_FACT_KIND_PROJECTORS: Final[Mapping[str, str]] = MappingProxyType(
     {
         "execution_fill": "settlement",
@@ -150,6 +150,34 @@ class RunnerFactPendingPubAckError(RunnerFactError):
 
 class RunnerStateDurabilityError(RunnerFactError):
     """A command state transition cannot satisfy the single-store invariant."""
+
+
+@dataclass(frozen=True, slots=True)
+class OrderReservationSnapshot:
+    deployment_instance_id: UUID
+    client_order_id: str
+    policy_id: UUID
+    reserved_notional: Decimal
+    filled_exposure: Decimal
+    state: str
+
+
+@dataclass(frozen=True, slots=True)
+class OrderReservationRebuildEntry:
+    deployment_instance_id: UUID
+    client_order_id: str
+    reserved_notional: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class RunnerExposureSnapshot:
+    policy_id: UUID
+    open_exposure: Decimal
+    reserved_notional: Decimal
+    total_exposure: Decimal
+    max_total_notional: Decimal
+    within_policy: bool
+    source_digest: str | None
 
 
 def _canonical_json_bytes(value: Any) -> bytes:
@@ -1196,6 +1224,21 @@ class RunnerFactOutbox:
                     source_digest TEXT NOT NULL,
                     FOREIGN KEY (policy_id) REFERENCES runner_cap_policy(policy_id)
                 );
+                CREATE TABLE IF NOT EXISTS runner_order_reservation_event (
+                    event_id TEXT PRIMARY KEY,
+                    event_kind TEXT NOT NULL,
+                    event_fingerprint TEXT NOT NULL,
+                    policy_id TEXT NOT NULL,
+                    deployment_instance_id TEXT,
+                    client_order_id TEXT,
+                    outcome_json TEXT NOT NULL,
+                    recorded_at_ns INTEGER NOT NULL,
+                    FOREIGN KEY (policy_id) REFERENCES runner_cap_policy(policy_id)
+                );
+                CREATE INDEX IF NOT EXISTS runner_order_reservation_event_scope
+                    ON runner_order_reservation_event(
+                        policy_id, deployment_instance_id, client_order_id, recorded_at_ns
+                    );
                 CREATE TABLE IF NOT EXISTS runner_stream_cutover (
                     deployment_instance_id TEXT PRIMARY KEY,
                     tenant_id TEXT NOT NULL,
@@ -2743,59 +2786,872 @@ class RunnerStateStore:
             verified_event_bytes_sha256=str(row["verified_event_bytes_digest"]),
         )
 
-    async def record_order_reservation_reference(
+    async def reserve_order_notional(
         self,
         *,
+        event_id: str,
         deployment_instance_id: UUID,
         client_order_id: str,
-        policy_id: str,
-        reserved_notional: str,
-        filled_exposure: str,
-        state: str,
-    ) -> None:
-        await asyncio.to_thread(
-            self._record_order_reservation_reference,
+        policy_id: UUID,
+        requested_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        return await asyncio.to_thread(
+            self._reserve_order_notional,
+            event_id,
             deployment_instance_id,
             client_order_id,
             policy_id,
-            reserved_notional,
-            filled_exposure,
-            state,
+            requested_notional,
         )
 
-    def _record_order_reservation_reference(
+    def _reserve_order_notional(
         self,
+        event_id: str,
         deployment_instance_id: UUID,
         client_order_id: str,
-        policy_id: str,
-        reserved_notional: str,
-        filled_exposure: str,
-        state: str,
-    ) -> None:
+        policy_id: UUID,
+        requested_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        instance = _uuid(deployment_instance_id, "deployment_instance_id")
+        order = _non_empty(client_order_id, "client_order_id")
+        policy = _uuid(policy_id, "policy_id")
+        requested = Decimal(_decimal(requested_notional, "requested_notional", positive=True))
+        payload = {
+            "event_kind": "reserve",
+            "deployment_instance_id": instance,
+            "client_order_id": order,
+            "policy_id": policy,
+            "requested_notional": _decimal(requested, "requested_notional"),
+        }
         with self._outbox._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replay = self._reservation_event_replay(connection, event_id, payload)
+            if replay is not None:
+                return self._reservation_from_document(replay)
+            policy_row = self._reservation_policy(
+                connection,
+                policy,
+                deployment_instance_id=instance,
+            )
+            if requested > Decimal(str(policy_row["max_order_notional"])):
+                raise RunnerStateAuthorityError("runner policy per-order cap exceeded")
+            existing = connection.execute(
+                """
+                SELECT 1 FROM order_reservation
+                WHERE deployment_instance_id = ? AND client_order_id = ?
+                """,
+                (instance, order),
+            ).fetchone()
+            if existing is not None:
+                raise RunnerStateAuthorityError("client order reservation already exists")
+            exposure = self._runner_exposure(connection, policy_row)
+            if exposure.total_exposure + requested > exposure.max_total_notional:
+                raise RunnerStateAuthorityError("runner aggregate cap exceeded")
+            recorded_at_ns = time.time_ns()
             connection.execute(
                 """
                 INSERT INTO order_reservation (
                     deployment_instance_id, client_order_id, policy_id,
                     reserved_notional, filled_exposure, state, updated_at_ns
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(deployment_instance_id, client_order_id) DO UPDATE SET
-                    policy_id = excluded.policy_id,
-                    reserved_notional = excluded.reserved_notional,
-                    filled_exposure = excluded.filled_exposure,
-                    state = excluded.state,
-                    updated_at_ns = excluded.updated_at_ns
+                ) VALUES (?, ?, ?, ?, '0', 'reserved', ?)
                 """,
                 (
-                    _uuid(deployment_instance_id, "deployment_instance_id"),
-                    _non_empty(client_order_id, "client_order_id"),
-                    _non_empty(policy_id, "policy_id"),
-                    _non_empty(reserved_notional, "reserved_notional"),
-                    _non_empty(filled_exposure, "filled_exposure"),
-                    _non_empty(state, "state"),
-                    time.time_ns(),
+                    instance,
+                    order,
+                    policy,
+                    _decimal(requested, "requested_notional"),
+                    recorded_at_ns,
                 ),
             )
+            snapshot = OrderReservationSnapshot(
+                deployment_instance_id=UUID(instance),
+                client_order_id=order,
+                policy_id=UUID(policy),
+                reserved_notional=requested,
+                filled_exposure=Decimal("0"),
+                state="reserved",
+            )
+            self._record_reservation_event(
+                connection, event_id, payload, policy, snapshot, recorded_at_ns
+            )
+            return snapshot
+
+    async def replace_order_reservation(
+        self,
+        *,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        new_reserved_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        return await asyncio.to_thread(
+            self._replace_order_reservation,
+            event_id,
+            deployment_instance_id,
+            client_order_id,
+            new_reserved_notional,
+        )
+
+    def _replace_order_reservation(
+        self,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        new_reserved_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        instance = _uuid(deployment_instance_id, "deployment_instance_id")
+        order = _non_empty(client_order_id, "client_order_id")
+        new_reserved = Decimal(_decimal(new_reserved_notional, "new_reserved_notional"))
+        payload = {
+            "event_kind": "replace",
+            "deployment_instance_id": instance,
+            "client_order_id": order,
+            "new_reserved_notional": _decimal(new_reserved, "new_reserved_notional"),
+        }
+        with self._outbox._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replay = self._reservation_event_replay(connection, event_id, payload)
+            if replay is not None:
+                return self._reservation_from_document(replay)
+            row = self._reservation_row(connection, instance, order)
+            policy_row = self._reservation_policy(
+                connection,
+                str(row["policy_id"]),
+                deployment_instance_id=instance,
+            )
+            filled = Decimal(str(row["filled_exposure"]))
+            if filled + new_reserved > Decimal(str(policy_row["max_order_notional"])):
+                raise RunnerStateAuthorityError("runner policy per-order cap exceeded")
+            exposure = self._runner_exposure(connection, policy_row)
+            old_reserved = Decimal(str(row["reserved_notional"]))
+            if exposure.total_exposure - old_reserved + new_reserved > exposure.max_total_notional:
+                raise RunnerStateAuthorityError("runner aggregate cap exceeded")
+            if new_reserved > 0:
+                state = "partially_filled" if filled > 0 else "reserved"
+            else:
+                state = "filled" if filled > 0 else "released"
+            recorded_at_ns = time.time_ns()
+            connection.execute(
+                """
+                UPDATE order_reservation
+                SET reserved_notional = ?, state = ?, updated_at_ns = ?
+                WHERE deployment_instance_id = ? AND client_order_id = ?
+                """,
+                (
+                    _decimal(new_reserved, "new_reserved_notional"),
+                    state,
+                    recorded_at_ns,
+                    instance,
+                    order,
+                ),
+            )
+            snapshot = self._reservation_snapshot(
+                row, reserved=new_reserved, filled=filled, state=state
+            )
+            self._record_reservation_event(
+                connection,
+                event_id,
+                payload,
+                str(row["policy_id"]),
+                snapshot,
+                recorded_at_ns,
+            )
+            return snapshot
+
+    async def release_order_reservation(
+        self,
+        *,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        reason: Literal["rejected", "canceled"],
+    ) -> OrderReservationSnapshot:
+        return await asyncio.to_thread(
+            self._release_order_reservation,
+            event_id,
+            deployment_instance_id,
+            client_order_id,
+            reason,
+        )
+
+    def _release_order_reservation(
+        self,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        reason: str,
+    ) -> OrderReservationSnapshot:
+        if reason not in {"rejected", "canceled"}:
+            raise RunnerStateAuthorityError("reservation release reason is invalid")
+        instance = _uuid(deployment_instance_id, "deployment_instance_id")
+        order = _non_empty(client_order_id, "client_order_id")
+        payload = {
+            "event_kind": "release",
+            "deployment_instance_id": instance,
+            "client_order_id": order,
+            "reason": reason,
+        }
+        with self._outbox._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replay = self._reservation_event_replay(connection, event_id, payload)
+            if replay is not None:
+                return self._reservation_from_document(replay)
+            row = self._reservation_row(connection, instance, order)
+            self._reservation_policy(
+                connection,
+                str(row["policy_id"]),
+                deployment_instance_id=instance,
+            )
+            filled = Decimal(str(row["filled_exposure"]))
+            state = "filled" if filled > 0 else "released"
+            recorded_at_ns = time.time_ns()
+            connection.execute(
+                """
+                UPDATE order_reservation
+                SET reserved_notional = '0', state = ?, updated_at_ns = ?
+                WHERE deployment_instance_id = ? AND client_order_id = ?
+                """,
+                (state, recorded_at_ns, instance, order),
+            )
+            snapshot = self._reservation_snapshot(
+                row, reserved=Decimal("0"), filled=filled, state=state
+            )
+            self._record_reservation_event(
+                connection,
+                event_id,
+                payload,
+                str(row["policy_id"]),
+                snapshot,
+                recorded_at_ns,
+            )
+            return snapshot
+
+    async def record_order_fill(
+        self,
+        *,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        fill_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        return await asyncio.to_thread(
+            self._record_order_fill,
+            event_id,
+            deployment_instance_id,
+            client_order_id,
+            fill_notional,
+        )
+
+    def _record_order_fill(
+        self,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        fill_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        instance = _uuid(deployment_instance_id, "deployment_instance_id")
+        order = _non_empty(client_order_id, "client_order_id")
+        fill = Decimal(_decimal(fill_notional, "fill_notional", positive=True))
+        payload = {
+            "event_kind": "fill",
+            "deployment_instance_id": instance,
+            "client_order_id": order,
+            "fill_notional": _decimal(fill, "fill_notional"),
+        }
+        with self._outbox._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replay = self._reservation_event_replay(connection, event_id, payload)
+            if replay is not None:
+                return self._reservation_from_document(replay)
+            row = self._reservation_row(connection, instance, order)
+            policy_row = self._reservation_policy(
+                connection,
+                str(row["policy_id"]),
+                deployment_instance_id=instance,
+            )
+            reserved = Decimal(str(row["reserved_notional"]))
+            if fill > reserved:
+                raise RunnerStateAuthorityError("fill exceeds the durable order reservation")
+            filled = Decimal(str(row["filled_exposure"])) + fill
+            remaining = reserved - fill
+            state = "partially_filled" if remaining > 0 else "filled"
+            recorded_at_ns = time.time_ns()
+            connection.execute(
+                """
+                UPDATE order_reservation
+                SET reserved_notional = ?, filled_exposure = ?, state = ?, updated_at_ns = ?
+                WHERE deployment_instance_id = ? AND client_order_id = ?
+                """,
+                (
+                    _decimal(remaining, "remaining_reservation"),
+                    _decimal(filled, "filled_exposure"),
+                    state,
+                    recorded_at_ns,
+                    instance,
+                    order,
+                ),
+            )
+            self._adjust_exposure_checkpoint(
+                connection,
+                str(row["policy_id"]),
+                fill,
+                recorded_at_ns,
+                source_digest=self._reservation_event_fingerprint(payload),
+            )
+            snapshot = self._reservation_snapshot(
+                row, reserved=remaining, filled=filled, state=state
+            )
+            self._record_reservation_event(
+                connection,
+                event_id,
+                payload,
+                str(policy_row["policy_id"]),
+                snapshot,
+                recorded_at_ns,
+            )
+            return snapshot
+
+    async def record_position_reduction(
+        self,
+        *,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        reduction_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        return await asyncio.to_thread(
+            self._record_position_reduction,
+            event_id,
+            deployment_instance_id,
+            client_order_id,
+            reduction_notional,
+        )
+
+    def _record_position_reduction(
+        self,
+        event_id: str,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+        reduction_notional: Decimal,
+    ) -> OrderReservationSnapshot:
+        instance = _uuid(deployment_instance_id, "deployment_instance_id")
+        order = _non_empty(client_order_id, "client_order_id")
+        reduction = Decimal(_decimal(reduction_notional, "reduction_notional", positive=True))
+        payload = {
+            "event_kind": "position_reduction",
+            "deployment_instance_id": instance,
+            "client_order_id": order,
+            "reduction_notional": _decimal(reduction, "reduction_notional"),
+        }
+        with self._outbox._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replay = self._reservation_event_replay(connection, event_id, payload)
+            if replay is not None:
+                return self._reservation_from_document(replay)
+            row = self._reservation_row(connection, instance, order)
+            self._reservation_policy(
+                connection,
+                str(row["policy_id"]),
+                deployment_instance_id=instance,
+            )
+            filled = Decimal(str(row["filled_exposure"]))
+            if reduction > filled:
+                raise RunnerStateAuthorityError(
+                    "position reduction exceeds durable filled exposure"
+                )
+            remaining_filled = filled - reduction
+            reserved = Decimal(str(row["reserved_notional"]))
+            state = (
+                "partially_filled"
+                if reserved > 0
+                else ("filled" if remaining_filled > 0 else "closed")
+            )
+            recorded_at_ns = time.time_ns()
+            connection.execute(
+                """
+                UPDATE order_reservation
+                SET filled_exposure = ?, state = ?, updated_at_ns = ?
+                WHERE deployment_instance_id = ? AND client_order_id = ?
+                """,
+                (
+                    _decimal(remaining_filled, "filled_exposure"),
+                    state,
+                    recorded_at_ns,
+                    instance,
+                    order,
+                ),
+            )
+            self._adjust_exposure_checkpoint(
+                connection,
+                str(row["policy_id"]),
+                -reduction,
+                recorded_at_ns,
+                source_digest=self._reservation_event_fingerprint(payload),
+            )
+            snapshot = self._reservation_snapshot(
+                row,
+                reserved=reserved,
+                filled=remaining_filled,
+                state=state,
+            )
+            self._record_reservation_event(
+                connection,
+                event_id,
+                payload,
+                str(row["policy_id"]),
+                snapshot,
+                recorded_at_ns,
+            )
+            return snapshot
+
+    async def rebuild_runner_exposure(
+        self,
+        *,
+        event_id: str,
+        policy_id: UUID,
+        open_exposure: Decimal,
+        active_reservations: Sequence[OrderReservationRebuildEntry],
+        source_digest: str,
+    ) -> RunnerExposureSnapshot:
+        return await asyncio.to_thread(
+            self._rebuild_runner_exposure,
+            event_id,
+            policy_id,
+            open_exposure,
+            active_reservations,
+            source_digest,
+        )
+
+    def _rebuild_runner_exposure(
+        self,
+        event_id: str,
+        policy_id: UUID,
+        open_exposure: Decimal,
+        active_reservations: Sequence[OrderReservationRebuildEntry],
+        source_digest: str,
+    ) -> RunnerExposureSnapshot:
+        policy = _uuid(policy_id, "policy_id")
+        opened = Decimal(_decimal(open_exposure, "open_exposure"))
+        if not _LOWER_HEX_64.fullmatch(source_digest):
+            raise RunnerStateAuthorityError("exposure source digest is invalid")
+        entries: list[dict[str, str]] = []
+        seen: set[tuple[str, str]] = set()
+        for entry in active_reservations:
+            instance = _uuid(entry.deployment_instance_id, "deployment_instance_id")
+            order = _non_empty(entry.client_order_id, "client_order_id")
+            reserved = Decimal(
+                _decimal(entry.reserved_notional, "reserved_notional", positive=True)
+            )
+            key = (instance, order)
+            if key in seen:
+                raise RunnerStateAuthorityError("duplicate rebuild reservation")
+            seen.add(key)
+            entries.append(
+                {
+                    "deployment_instance_id": instance,
+                    "client_order_id": order,
+                    "reserved_notional": _decimal(reserved, "reserved_notional"),
+                }
+            )
+        entries.sort(
+            key=lambda value: (
+                value["deployment_instance_id"],
+                value["client_order_id"],
+            )
+        )
+        payload = {
+            "event_kind": "rebuild",
+            "policy_id": policy,
+            "open_exposure": _decimal(opened, "open_exposure"),
+            "active_reservations": entries,
+            "source_digest": source_digest,
+        }
+        with self._outbox._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            replay = self._reservation_event_replay(connection, event_id, payload)
+            if replay is not None:
+                return self._exposure_from_document(replay)
+            policy_row = self._reservation_policy(connection, policy)
+            max_order = Decimal(str(policy_row["max_order_notional"]))
+            for entry in entries:
+                self._reservation_policy(
+                    connection,
+                    policy,
+                    deployment_instance_id=entry["deployment_instance_id"],
+                )
+                if Decimal(entry["reserved_notional"]) > max_order:
+                    raise RunnerStateAuthorityError("rebuild reservation exceeds per-order cap")
+            recorded_at_ns = time.time_ns()
+            connection.execute(
+                """
+                UPDATE order_reservation
+                SET reserved_notional = '0', filled_exposure = '0',
+                    state = 'released', updated_at_ns = ?
+                WHERE policy_id = ?
+                """,
+                (recorded_at_ns, policy),
+            )
+            for entry in entries:
+                connection.execute(
+                    """
+                    INSERT INTO order_reservation (
+                        deployment_instance_id, client_order_id, policy_id,
+                        reserved_notional, filled_exposure, state, updated_at_ns
+                    ) VALUES (?, ?, ?, ?, '0', 'reserved', ?)
+                    ON CONFLICT(deployment_instance_id, client_order_id) DO UPDATE SET
+                        policy_id = excluded.policy_id,
+                        reserved_notional = excluded.reserved_notional,
+                        filled_exposure = '0',
+                        state = 'reserved',
+                        updated_at_ns = excluded.updated_at_ns
+                    """,
+                    (
+                        entry["deployment_instance_id"],
+                        entry["client_order_id"],
+                        policy,
+                        entry["reserved_notional"],
+                        recorded_at_ns,
+                    ),
+                )
+            connection.execute(
+                """
+                INSERT INTO runner_exposure_checkpoint (
+                    policy_id, open_exposure, reconstructed_at_ns, source_digest
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(policy_id) DO UPDATE SET
+                    open_exposure = excluded.open_exposure,
+                    reconstructed_at_ns = excluded.reconstructed_at_ns,
+                    source_digest = excluded.source_digest
+                """,
+                (
+                    policy,
+                    _decimal(opened, "open_exposure"),
+                    recorded_at_ns,
+                    source_digest,
+                ),
+            )
+            exposure = self._runner_exposure(connection, policy_row)
+            self._record_reservation_event(
+                connection,
+                event_id,
+                payload,
+                policy,
+                exposure,
+                recorded_at_ns,
+            )
+            return exposure
+
+    async def load_order_reservation(
+        self,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+    ) -> OrderReservationSnapshot:
+        return await asyncio.to_thread(
+            self._load_order_reservation,
+            deployment_instance_id,
+            client_order_id,
+        )
+
+    def _load_order_reservation(
+        self,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+    ) -> OrderReservationSnapshot:
+        with self._outbox._connect() as connection:
+            row = self._reservation_row(
+                connection,
+                _uuid(deployment_instance_id, "deployment_instance_id"),
+                _non_empty(client_order_id, "client_order_id"),
+            )
+            return self._reservation_snapshot(row)
+
+    async def load_runner_exposure(
+        self,
+        policy_id: UUID,
+    ) -> RunnerExposureSnapshot:
+        return await asyncio.to_thread(self._load_runner_exposure, policy_id)
+
+    def _load_runner_exposure(self, policy_id: UUID) -> RunnerExposureSnapshot:
+        with self._outbox._connect() as connection:
+            policy_row = self._reservation_policy(connection, _uuid(policy_id, "policy_id"))
+            return self._runner_exposure(connection, policy_row)
+
+    def _reservation_policy(
+        self,
+        connection: sqlite3.Connection,
+        policy_id: str,
+        *,
+        deployment_instance_id: str | None = None,
+    ) -> sqlite3.Row:
+        row = connection.execute(
+            """
+            SELECT policy.* FROM runner_cap_policy AS policy
+            JOIN runner_cap_policy_head AS head
+              ON head.tenant_scope = policy.tenant_scope
+             AND head.trading_mode = policy.trading_mode
+             AND head.runner_id = policy.runner_id
+             AND head.policy_id = policy.policy_id
+            WHERE policy.policy_id = ?
+            """,
+            (policy_id,),
+        ).fetchone()
+        now_ns = time.time_ns()
+        if (
+            row is None
+            or row["tenant_scope"] != self._tenant_id
+            or row["runner_id"] != str(self._runner_id)
+            or row["policy_status"] != "active"
+            or now_ns < int(row["effective_at_ns"])
+            or now_ns >= int(row["expires_at_ns"])
+        ):
+            raise RunnerStateAuthorityError(
+                "reservation requires the current effective runner policy"
+            )
+        if deployment_instance_id is not None:
+            desired = connection.execute(
+                """
+                SELECT tenant_id, trading_mode, runner_id
+                FROM desired_deployments WHERE deployment_instance_id = ?
+                """,
+                (deployment_instance_id,),
+            ).fetchone()
+            if (
+                desired is None
+                or desired["tenant_id"] != self._tenant_id
+                or desired["runner_id"] != str(self._runner_id)
+                or desired["trading_mode"] != row["trading_mode"]
+            ):
+                raise RunnerStateAuthorityError(
+                    "reservation instance is outside runner policy scope"
+                )
+        return row
+
+    @staticmethod
+    def _reservation_row(
+        connection: sqlite3.Connection,
+        deployment_instance_id: str,
+        client_order_id: str,
+    ) -> sqlite3.Row:
+        row = connection.execute(
+            """
+            SELECT * FROM order_reservation
+            WHERE deployment_instance_id = ? AND client_order_id = ?
+            """,
+            (deployment_instance_id, client_order_id),
+        ).fetchone()
+        if row is None:
+            raise RunnerStateAuthorityError("order reservation is missing")
+        return row
+
+    @staticmethod
+    def _reservation_snapshot(
+        row: Mapping[str, Any],
+        *,
+        reserved: Decimal | None = None,
+        filled: Decimal | None = None,
+        state: str | None = None,
+    ) -> OrderReservationSnapshot:
+        return OrderReservationSnapshot(
+            deployment_instance_id=UUID(str(row["deployment_instance_id"])),
+            client_order_id=str(row["client_order_id"]),
+            policy_id=UUID(str(row["policy_id"])),
+            reserved_notional=(
+                reserved if reserved is not None else Decimal(str(row["reserved_notional"]))
+            ),
+            filled_exposure=(
+                filled if filled is not None else Decimal(str(row["filled_exposure"]))
+            ),
+            state=state if state is not None else str(row["state"]),
+        )
+
+    def _runner_exposure(
+        self,
+        connection: sqlite3.Connection,
+        policy_row: Mapping[str, Any],
+    ) -> RunnerExposureSnapshot:
+        checkpoint = connection.execute(
+            """
+            SELECT open_exposure, source_digest
+            FROM runner_exposure_checkpoint WHERE policy_id = ?
+            """,
+            (policy_row["policy_id"],),
+        ).fetchone()
+        open_exposure = (
+            Decimal(str(checkpoint["open_exposure"])) if checkpoint is not None else Decimal("0")
+        )
+        rows = connection.execute(
+            """
+            SELECT reserved_notional FROM order_reservation
+            WHERE policy_id = ? AND state IN ('reserved', 'partially_filled', 'filled')
+            """,
+            (policy_row["policy_id"],),
+        ).fetchall()
+        reserved = sum(
+            (Decimal(str(row["reserved_notional"])) for row in rows),
+            Decimal("0"),
+        )
+        maximum = Decimal(str(policy_row["max_notional"]))
+        total = open_exposure + reserved
+        return RunnerExposureSnapshot(
+            policy_id=UUID(str(policy_row["policy_id"])),
+            open_exposure=open_exposure,
+            reserved_notional=reserved,
+            total_exposure=total,
+            max_total_notional=maximum,
+            within_policy=total <= maximum,
+            source_digest=(str(checkpoint["source_digest"]) if checkpoint is not None else None),
+        )
+
+    @staticmethod
+    def _adjust_exposure_checkpoint(
+        connection: sqlite3.Connection,
+        policy_id: str,
+        delta: Decimal,
+        recorded_at_ns: int,
+        *,
+        source_digest: str,
+    ) -> None:
+        row = connection.execute(
+            """
+            SELECT open_exposure FROM runner_exposure_checkpoint WHERE policy_id = ?
+            """,
+            (policy_id,),
+        ).fetchone()
+        current = Decimal(str(row["open_exposure"])) if row is not None else Decimal("0")
+        updated = current + delta
+        if updated < 0:
+            raise RunnerStateAuthorityError("position reduction exceeds runner exposure checkpoint")
+        connection.execute(
+            """
+            INSERT INTO runner_exposure_checkpoint (
+                policy_id, open_exposure, reconstructed_at_ns, source_digest
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(policy_id) DO UPDATE SET
+                open_exposure = excluded.open_exposure,
+                reconstructed_at_ns = excluded.reconstructed_at_ns,
+                source_digest = excluded.source_digest
+            """,
+            (
+                policy_id,
+                _decimal(updated, "open_exposure"),
+                recorded_at_ns,
+                source_digest,
+            ),
+        )
+
+    @staticmethod
+    def _reservation_event_fingerprint(payload: Mapping[str, Any]) -> str:
+        return _sha256_hex(b"CUSTOS-RUNNER-ORDER-RESERVATION-V1\0" + _canonical_json_bytes(payload))
+
+    def _reservation_event_replay(
+        self,
+        connection: sqlite3.Connection,
+        event_id: str,
+        payload: Mapping[str, Any],
+    ) -> Mapping[str, Any] | None:
+        event = _non_empty(event_id, "event_id")
+        fingerprint = self._reservation_event_fingerprint(payload)
+        row = connection.execute(
+            """
+            SELECT event_fingerprint, outcome_json
+            FROM runner_order_reservation_event WHERE event_id = ?
+            """,
+            (event,),
+        ).fetchone()
+        if row is None:
+            return None
+        if row["event_fingerprint"] != fingerprint:
+            raise RunnerStateAuthorityError("order reservation event idempotency conflict")
+        outcome = json.loads(str(row["outcome_json"]))
+        if not isinstance(outcome, dict):
+            raise RunnerStateDurabilityError("order reservation event outcome is corrupt")
+        return outcome
+
+    def _record_reservation_event(
+        self,
+        connection: sqlite3.Connection,
+        event_id: str,
+        payload: Mapping[str, Any],
+        policy_id: str,
+        outcome: OrderReservationSnapshot | RunnerExposureSnapshot,
+        recorded_at_ns: int,
+    ) -> None:
+        if isinstance(outcome, OrderReservationSnapshot):
+            document: dict[str, Any] = {
+                "outcome_kind": "reservation",
+                "deployment_instance_id": str(outcome.deployment_instance_id),
+                "client_order_id": outcome.client_order_id,
+                "policy_id": str(outcome.policy_id),
+                "reserved_notional": _decimal(outcome.reserved_notional, "reserved_notional"),
+                "filled_exposure": _decimal(outcome.filled_exposure, "filled_exposure"),
+                "state": outcome.state,
+            }
+            instance_id: str | None = str(outcome.deployment_instance_id)
+            client_order_id: str | None = outcome.client_order_id
+        else:
+            document = {
+                "outcome_kind": "exposure",
+                "policy_id": str(outcome.policy_id),
+                "open_exposure": _decimal(outcome.open_exposure, "open_exposure"),
+                "reserved_notional": _decimal(outcome.reserved_notional, "reserved_notional"),
+                "total_exposure": _decimal(outcome.total_exposure, "total_exposure"),
+                "max_total_notional": _decimal(outcome.max_total_notional, "max_total_notional"),
+                "within_policy": outcome.within_policy,
+                "source_digest": outcome.source_digest,
+            }
+            instance_id = None
+            client_order_id = None
+        connection.execute(
+            """
+            INSERT INTO runner_order_reservation_event (
+                event_id, event_kind, event_fingerprint, policy_id,
+                deployment_instance_id, client_order_id, outcome_json, recorded_at_ns
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                _non_empty(event_id, "event_id"),
+                str(payload["event_kind"]),
+                self._reservation_event_fingerprint(payload),
+                policy_id,
+                instance_id,
+                client_order_id,
+                _canonical_json_bytes(document).decode("utf-8"),
+                recorded_at_ns,
+            ),
+        )
+
+    @staticmethod
+    def _reservation_from_document(
+        value: Mapping[str, Any],
+    ) -> OrderReservationSnapshot:
+        if value.get("outcome_kind") != "reservation":
+            raise RunnerStateDurabilityError("reservation idempotency outcome has the wrong type")
+        return OrderReservationSnapshot(
+            deployment_instance_id=UUID(str(value["deployment_instance_id"])),
+            client_order_id=str(value["client_order_id"]),
+            policy_id=UUID(str(value["policy_id"])),
+            reserved_notional=Decimal(str(value["reserved_notional"])),
+            filled_exposure=Decimal(str(value["filled_exposure"])),
+            state=str(value["state"]),
+        )
+
+    @staticmethod
+    def _exposure_from_document(
+        value: Mapping[str, Any],
+    ) -> RunnerExposureSnapshot:
+        if value.get("outcome_kind") != "exposure":
+            raise RunnerStateDurabilityError("exposure idempotency outcome has the wrong type")
+        return RunnerExposureSnapshot(
+            policy_id=UUID(str(value["policy_id"])),
+            open_exposure=Decimal(str(value["open_exposure"])),
+            reserved_notional=Decimal(str(value["reserved_notional"])),
+            total_exposure=Decimal(str(value["total_exposure"])),
+            max_total_notional=Decimal(str(value["max_total_notional"])),
+            within_policy=bool(value["within_policy"]),
+            source_digest=(
+                str(value["source_digest"]) if value.get("source_digest") is not None else None
+            ),
+        )
 
     async def record_exposure_checkpoint_reference(
         self,

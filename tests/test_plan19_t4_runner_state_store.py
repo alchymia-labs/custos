@@ -4,6 +4,7 @@ import json
 import sqlite3
 from dataclasses import replace
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -668,13 +669,18 @@ async def test_local_reservation_exposure_and_cross_tenant_guards(tmp_path: Path
         verification_receipt=verified.verification_receipt,
     )
     await store.record_verified_runner_safety_policy(_t4_runner_policy())
-    await store.record_order_reservation_reference(
+    await store.reserve_order_notional(
+        event_id="reserve-order-1",
         deployment_instance_id=verified.command.deployment_instance_id,
         client_order_id="order-1",
-        policy_id=str(POLICY_ID),
-        reserved_notional="250.00",
-        filled_exposure="100.00",
-        state="partially_filled",
+        policy_id=POLICY_ID,
+        requested_notional=Decimal("100"),
+    )
+    await store.record_order_fill(
+        event_id="fill-order-1",
+        deployment_instance_id=verified.command.deployment_instance_id,
+        client_order_id="order-1",
+        fill_notional=Decimal("40"),
     )
     await store.record_exposure_checkpoint_reference(
         policy_id=str(POLICY_ID),

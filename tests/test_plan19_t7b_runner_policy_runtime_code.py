@@ -113,10 +113,7 @@ def _verified_policy(
         "occurred_at": "2026-07-15T00:00:01Z",
     }
     event_bytes = json.dumps(event, separators=(",", ":")).encode()
-    subject = (
-        f"crucible_rust.domain.{tenant_id}.{trading_mode}."
-        "risk.runner_safety_policy.v1"
-    )
+    subject = f"crucible_rust.domain.{tenant_id}.{trading_mode}.risk.runner_safety_policy.v1"
     signature_input = _frame(b"CRUCIBLE-DOMAIN-EVENT-V2\0", subject, event_bytes)
     fingerprint = hashlib.sha256(
         _frame(b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0", subject, event_bytes)
@@ -173,11 +170,9 @@ async def test_verified_policy_is_durable_and_recovers_from_same_database(
 
     result = await store.record_verified_runner_safety_policy(verified)
     loaded = await store.load_effective_runner_safety_policy("sandbox", now=NOW)
-    restarted = await _store(database).load_effective_runner_safety_policy(
-        "sandbox", now=NOW
-    )
+    restarted = await _store(database).load_effective_runner_safety_policy("sandbox", now=NOW)
 
-    assert RUNNER_STATE_SCHEMA_VERSION == 3
+    assert RUNNER_STATE_SCHEMA_VERSION == 4
     assert result.decision is RunnerPolicyIdentityDecision.NEWER
     assert result.committed is True
     assert loaded.policy == verified.policy
