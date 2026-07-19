@@ -3,10 +3,20 @@ title: "What is custos?"
 sidebar_position: 1
 ---
 
+<!-- source: docs/domain.md §Bounded context -->
+
 # What is custos?
 
-:::info Stub — pending Plan 20 T5 migration
-**Audience**: All new readers
+## Bounded context
 
-**TODO**: Introduce custos as the non-custodial execution runner. Migrate from docs/domain.md §Bounded context.
-:::
+Custos owns local execution mechanics only:
+
+- runner enrollment material and local machine credentials;
+- verification of Crucible-signed commands;
+- reconciliation of desired deployment state into a local engine;
+- process supervision, watchdogs and local safety circuit breakers;
+- signing and publishing observed runner facts.
+
+Custos does not own actor authorization, approval workflows, strategy or risk
+configuration, promotion decisions, portfolio truth, settlement truth or the
+canonical deployment lifecycle.
