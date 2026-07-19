@@ -90,10 +90,10 @@ const config = {
           {
             title: 'Documentation',
             items: [
-              {label: 'What is custos', to: '/01-introduction/what-is-custos'},
-              {label: 'Getting started', to: '/02-getting-started/installation'},
-              {label: 'Trust model', to: '/05-trust-model/red-lines'},
-              {label: 'Integration guide', to: '/06-integration/gateway-contract-v1'},
+              {label: 'What is custos', to: '/introduction/what-is-custos'},
+              {label: 'Getting started', to: '/getting-started/installation'},
+              {label: 'Trust model', to: '/trust-model/red-lines'},
+              {label: 'Integration guide', to: '/integration/gateway-contract-v1'},
             ],
           },
           {

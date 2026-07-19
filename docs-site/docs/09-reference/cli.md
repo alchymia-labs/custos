@@ -8,5 +8,5 @@ sidebar_position: 1
 :::info Stub — pending Plan 20 T5 migration
 **Audience**: All
 
-**TODO**: arx-runner enroll / vault {put,verify,list} / start / health / deployment.
+**TODO**: arx-runner enroll / `vault {put,verify,list}` / start / health / deployment.
 :::

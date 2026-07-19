@@ -64,12 +64,12 @@ export default function Home(): ReactNode {
           }}>
           <Link
             className="button button--primary button--lg"
-            to="/02-getting-started/installation">
+            to="/getting-started/installation">
             Get started →
           </Link>
           <Link
             className="button button--outline button--lg"
-            to="/05-trust-model/red-lines">
+            to="/trust-model/red-lines">
             Read the trust model
           </Link>
           <a
@@ -100,7 +100,7 @@ export default function Home(): ReactNode {
           </a>
           . Session 1 (T2–T4) lands this skeleton; content migration (T5) and
           the full homepage (T7) follow in subsequent sessions. See the{' '}
-          <Link to="/01-introduction/what-is-custos">Introduction</Link> for the
+          <Link to="/introduction/what-is-custos">Introduction</Link> for the
           current shape of each chapter.
         </p>
       </main>
