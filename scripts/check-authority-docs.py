@@ -61,7 +61,7 @@ PLAN_19_T7A_RECEIPT_PATH = (
 PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
 PLAN_19_T7B_RECEIPT_PATH = (
     "docs/authority/receipts/"
-    "custos-plan-19-task-7b-runner-policy-native-interception-v3-receipt.json"
+    "custos-plan-19-task-7b-runner-policy-daemon-composition-v4-receipt.json"
 )
 PLAN_19_T7C_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json"
@@ -2168,7 +2168,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         errors.append("ecosystem authority lacks runner_safety_policy_consumer")
     else:
         for key, value in {
-            "status": "READY_NATIVE_EXECUTION_INTERCEPTION_CODE_ONLY",
+            "status": "READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY",
             "producer_main_landed": False,
             "migration_0117_executed": False,
             "runtime_publication_enabled": False,
@@ -2203,6 +2203,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         "host_test": resolve(
             "tests/engines/nautilus/test_runner_safety_host_wiring.py"
         ),
+        "daemon_test": resolve("tests/cli/test_runner_safety_daemon_composition.py"),
     }
     if not receipt_path.is_file() or not all(path.is_file() for path in paths.values()):
         errors.append("Plan 19 T7B code inventory is incomplete")
@@ -2210,7 +2211,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
 
     receipt = load_json(receipt_path)
     expected = {
-        "receipt_status": "READY_NATIVE_EXECUTION_INTERCEPTION_CODE_ONLY",
+        "receipt_status": "READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY",
         "runner_state_schema_version": 4,
         "single_database": True,
         "single_outbox": "runner_fact_outbox",
@@ -2231,7 +2232,12 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         "standard_nt_rejection_emission_ready": True,
         "reduce_only_and_cancel_non_blocking": True,
         "sandbox_factory_abi_smoke_ready": True,
-        "daemon_policy_resolver_wired": False,
+        "daemon_runner_state_store_wired": True,
+        "daemon_policy_resolver_wired": True,
+        "daemon_boundary_factory_wired": True,
+        "shared_runner_fact_outbox_wired": True,
+        "missing_owner_policy_fails_closed": True,
+        "command_intake_authority_composed": False,
         "runtime_policy_consumed": False,
         "runner_policy_capability_ready": False,
         "team_daemon_enabled": False,
@@ -2262,7 +2268,13 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         "cap": ("from_verified_policy", "strictest_local_fallback", "risk_reducing"),
         "breaker": ("from_verified_policy", "strictest_local_fallback"),
         "reconciler": ("resolve_runner_safety_limits", "safety_policy_resolver"),
-        "daemon": ("safety_policy_resolver=None", "Live reconciliation therefore fails closed"),
+        "daemon": (
+            "RunnerStateStore(",
+            "DurableRunnerSafetyPolicyResolver",
+            "_build_runner_safety_boundary_factory",
+            "_command_authority_unavailable",
+            "strategy_release_id must not be substituted for strategy_id",
+        ),
         "host": (
             "runner_safety_boundary_factory",
             "_build_guarded_exec_plan",
@@ -2291,6 +2303,12 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
             "test_host_replaces_the_execution_factory_and_attaches_the_same_boundary",
             "test_real_sandbox_builder_registers_the_guarded_client_without_network",
         ),
+        "daemon_test": (
+            "test_boundary_factory_uses_durable_owner_policy_identity",
+            "test_boundary_factory_fails_closed_without_owner_policy",
+            "test_reconciler_receives_the_same_durable_policy_resolver",
+            "test_uncomposed_cr89_command_authority_fails_closed",
+        ),
     }
     for source_name, markers in required_markers.items():
         for marker in markers:
@@ -2307,7 +2325,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         entry
         for entry in manifest.get("authority_documents", [])
         if entry.get("role")
-        == "plan_19_task_7b_runner_policy_native_interception_receipt"
+        == "plan_19_task_7b_runner_policy_daemon_composition_receipt"
     ]
     if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T7B_RECEIPT_PATH:
         errors.append("Plan 19 T7B receipt manifest registration differs")
@@ -2318,7 +2336,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         errors.append("ecosystem authority lacks runner_safety_policy_consumer")
     else:
         for key, value in {
-            "status": "READY_NATIVE_EXECUTION_INTERCEPTION_CODE_ONLY",
+            "status": "READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY",
             "receipt": PLAN_19_T7B_RECEIPT_PATH,
             "producer_main_landed": False,
             "migration_0117_executed": False,
@@ -2329,7 +2347,12 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
             "native_execution_client_interception_ready": True,
             "strategy_direct_submit_bypass_proven": True,
             "reservation_lifecycle_ready": True,
-            "daemon_policy_resolver_wired": False,
+            "daemon_runner_state_store_wired": True,
+            "daemon_policy_resolver_wired": True,
+            "daemon_boundary_factory_wired": True,
+            "shared_runner_fact_outbox_wired": True,
+            "missing_owner_policy_fails_closed": True,
+            "command_intake_authority_composed": False,
             "runtime_policy_consumed": False,
             "runner_policy_capability_ready": False,
             "team_daemon_enabled": False,

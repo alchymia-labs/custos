@@ -988,6 +988,17 @@ Execution checkpoint T7B reservation lifecycle v2 (2026-07-19):
   `docs/authority/receipts/custos-plan-19-task-7b-runner-policy-native-interception-v3-receipt.json`.
 - Production daemon policy/store composition, real CR99
   publication/consumption and all live/runtime/production flags remain false.
+- Custos `fb4cdd1` now constructs `RunnerStateStore` from the existing
+  `RunnerFactOutbox`, passes one `DurableRunnerSafetyPolicyResolver` to both the
+  reconciler and async host boundary factory, and fails closed when no durable
+  owner policy exists. Adjacent CLI/policy/reservation/adapter suites are 41
+  passed. The additive v4 receipt is
+  `docs/authority/receipts/custos-plan-19-task-7b-runner-policy-daemon-composition-v4-receipt.json`.
+- The CR89 command-authority resolver remains deliberately uncomposed because
+  its current command contract exposes `strategy_release_id`, not the
+  `strategy_id` required by `RunnerFactAuthority`; no identity substitution is
+  permitted. Real CR99 publication/consumption and all capability,
+  live/runtime/production flags remain false.
 
 提交：
 
@@ -1190,7 +1201,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
-| T7 Signed local safety | [~] | 2026-07-19 | T7A contract consumer plus T7B `READY_NATIVE_EXECUTION_INTERCEPTION_CODE_ONLY`; schema v4 keeps the same DB/outbox and the public NT factory facade closes direct-submit interception plus reserve/replace/cancel/fill/close/rebuild code. Production daemon policy/store composition and CR99 main/0117/publication/runtime receipts remain open |
+| T7 Signed local safety | [~] | 2026-07-19 | T7A contract consumer plus T7B `READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY`; schema v4, native NT facade and daemon now share one outbox/store and fail closed without an owner policy. CR89 command authority identity plus CR99 main/0117/publication/runtime receipts remain open |
 | T7C Authenticated NATS transport | [~] | 2026-07-19 | `READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY`: exact CR100 receipts vendored; local NKey custody, JWT/issuer/ACL verification, pinned TLS, exact existing durable readback, shared outbound profile and activation rollback implemented. Production credential/durable plus forced-disconnect/old-JWT reconnect-denial runtime attestation remain open; runtime/production false |
 | T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；current `.2` A2 producer `af8a391` + v2 authority receipt；`.1` unchanged `NON_CURRENT_SUPERSEDED`；stream-safe/stable event IDs、exact signing preimage、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [x] | 2026-07-19 | `READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY`; exact candidate coordinate, producer/authority commits and all seven asset digests bind Crucible receipt `e4f936c6...`; only the Task 9 Phase-A gate is open, runtime/Phase-B/live/production remain false |
