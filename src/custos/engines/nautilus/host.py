@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
@@ -229,6 +230,7 @@ class NtTradingNodeHost:
         runner_fact_emitter: RunnerFactEmitter | None = None,
         capability_receipt: RunnerCapabilityReceipt | None = None,
         portfolio_snapshot_provider: NautilusPortfolioSnapshotProvider | None = None,
+        runner_safety_boundary_factory: Callable[[dict], object] | None = None,
     ) -> None:
         # deployment_instance_id -> (TradingNode, background run task). Never holds credentials.
         self._active_nodes: dict[str, tuple] = {}
@@ -243,6 +245,7 @@ class NtTradingNodeHost:
         self._runner_id = runner_id
         self._runner_fact_emitter = runner_fact_emitter
         self._capability_receipt = capability_receipt
+        self._runner_safety_boundary_factory = runner_safety_boundary_factory
         self._portfolio_snapshot_provider = portfolio_snapshot_provider or (
             NautilusPortfolioSnapshotProvider(price_type_mid=PriceType.MID if PriceType else None)
         )
@@ -297,6 +300,10 @@ class NtTradingNodeHost:
         exec_cfg, exec_factory, reconciliation = self._build_exec_plan(
             trading_mode, spec, credential, venue
         )
+        exec_factory, runner_safety_boundary = self._build_guarded_exec_plan(
+            exec_factory,
+            spec,
+        )
 
         # ps runner.py._create_node_config exposes the NT startup timeouts and the
         # reconciliation lookback to strategy authors; custos accepts the same
@@ -342,7 +349,11 @@ class NtTradingNodeHost:
 
         fact_context = self._build_runner_fact_context(spec, credential)
         try:
-            self._attach_runtime_bridges(node, fact_context)
+            self._attach_runtime_bridges(
+                node,
+                fact_context,
+                runner_safety_boundary,
+            )
         except Exception:
             node.dispose()
             raise
@@ -401,8 +412,25 @@ class NtTradingNodeHost:
             f"unsupported trading_mode {trading_mode!r} (expected sandbox / testnet / live)"
         )
 
-    def _attach_runtime_bridges(self, node, fact_context) -> None:
+    def _build_guarded_exec_plan(self, exec_factory, spec: dict):
+        if self._runner_safety_boundary_factory is None:
+            return exec_factory, None
+        from custos.engines.nautilus.runner_safety import guarded_exec_client_factory
+
+        boundary = self._runner_safety_boundary_factory(spec)
+        if boundary is None:
+            raise RuntimeError("runner safety boundary factory returned no boundary")
+        return guarded_exec_client_factory(exec_factory, boundary), boundary
+
+    def _attach_runtime_bridges(
+        self,
+        node,
+        fact_context,
+        runner_safety_boundary=None,
+    ) -> None:
         msgbus = node.kernel.msgbus
+        if runner_safety_boundary is not None:
+            runner_safety_boundary.bootstrap(msgbus)
         if fact_context is not None and self._runner_fact_emitter is not None:
             RunnerFactMessageBusBridge(
                 emitter=self._runner_fact_emitter,

@@ -1,0 +1,550 @@
+"""Non-bypass runner notional enforcement at the Nautilus execution boundary."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+from typing import Any, Protocol
+from uuid import UUID
+
+from nautilus_trader.core.rust.model import PriceType
+from nautilus_trader.live.execution_client import LiveExecutionClient
+from nautilus_trader.live.factories import LiveExecClientFactory
+
+_POLICY_REJECTION_REASON = "custos_runner_notional_policy_rejected"
+
+
+class RunnerReservationStore(Protocol):
+    def reserve_order_notional(self, **kwargs: Any) -> Any: ...
+
+    def load_order_reservation(
+        self,
+        deployment_instance_id: UUID,
+        client_order_id: str,
+    ) -> Any: ...
+
+    def replace_order_reservation(self, **kwargs: Any) -> Any: ...
+
+    def release_order_reservation(self, **kwargs: Any) -> Any: ...
+
+    def record_order_fill(self, **kwargs: Any) -> Any: ...
+
+    def record_position_reduction(self, **kwargs: Any) -> Any: ...
+
+
+class OrderSemantics(Protocol):
+    def order_notional(self, order: Any) -> Decimal: ...
+
+    def modified_order_notional(self, command: Any) -> Decimal: ...
+
+    def fill_notional(self, event: Any) -> Decimal: ...
+
+    def order_is_risk_reducing(self, order: Any) -> bool: ...
+
+    def event_is_risk_reducing(self, event: Any) -> bool: ...
+
+
+def _decimal(value: Any, *, field: str) -> Decimal:
+    text = str(value).strip().replace("_", "")
+    if " " in text:
+        text = text.partition(" ")[0]
+    try:
+        result = Decimal(text)
+    except (InvalidOperation, ValueError) as exc:
+        raise RuntimeError(f"{field} is not a decimal") from exc
+    if not result.is_finite() or result < 0:
+        raise RuntimeError(f"{field} must be a finite non-negative decimal")
+    return result
+
+
+def _truthy_attr(value: Any, name: str) -> bool:
+    result = getattr(value, name, False)
+    return bool(result() if callable(result) else result)
+
+
+class NautilusCachedOrderSemantics:
+    """Calculate venue-aware notionals from the canonical Nautilus cache."""
+
+    def __init__(self, cache: Any) -> None:
+        self._cache = cache
+
+    def order_notional(self, order: Any) -> Decimal:
+        if _truthy_attr(order, "is_quote_quantity"):
+            return _decimal(order.quantity, field="quote order quantity")
+        return self._instrument_notional(
+            order.instrument_id,
+            order.quantity,
+            self._order_price(order),
+        )
+
+    def modified_order_notional(self, command: Any) -> Decimal:
+        order = self._cache.order(command.client_order_id)
+        if order is None:
+            raise RuntimeError("modified order is absent from the canonical Nautilus cache")
+        quantity = getattr(command, "quantity", None) or order.quantity
+        if _truthy_attr(order, "is_quote_quantity"):
+            return _decimal(quantity, field="modified quote order quantity")
+        price = (
+            getattr(command, "price", None)
+            or getattr(order, "price", None)
+            or getattr(order, "trigger_price", None)
+            or self._cache.price(order.instrument_id, PriceType.MID)
+        )
+        if price is None:
+            raise RuntimeError("modified order has no reliable price")
+        return self._instrument_notional(order.instrument_id, quantity, price)
+
+    def fill_notional(self, event: Any) -> Decimal:
+        return self._instrument_notional(
+            event.instrument_id,
+            event.last_qty,
+            event.last_px,
+        )
+
+    def order_is_risk_reducing(self, order: Any) -> bool:
+        return _truthy_attr(order, "is_reduce_only")
+
+    def event_is_risk_reducing(self, event: Any) -> bool:
+        order = self._cache.order(event.client_order_id)
+        return order is not None and self.order_is_risk_reducing(order)
+
+    def _order_price(self, order: Any) -> Any:
+        price = (
+            getattr(order, "price", None)
+            or getattr(order, "trigger_price", None)
+            or self._cache.price(order.instrument_id, PriceType.MID)
+        )
+        if price is None:
+            raise RuntimeError("order has no reliable price")
+        return price
+
+    def _instrument_notional(
+        self,
+        instrument_id: Any,
+        quantity: Any,
+        price: Any,
+    ) -> Decimal:
+        instrument = self._cache.instrument(instrument_id)
+        if instrument is None:
+            raise RuntimeError("order instrument is absent from the canonical Nautilus cache")
+        return _decimal(
+            instrument.notional_value(quantity, price),
+            field="instrument notional",
+        )
+
+
+@dataclass(frozen=True)
+class _Reservation:
+    client_order_id: str
+
+
+@dataclass(frozen=True)
+class _Modification:
+    client_order_id: str
+    prior_reserved_notional: Decimal
+
+
+class RunnerReservationBoundary:
+    """Serialize order intent and execution facts through RunnerFact SQLite."""
+
+    def __init__(
+        self,
+        *,
+        store: RunnerReservationStore,
+        deployment_instance_id: UUID,
+        policy_id: UUID,
+        semantics: OrderSemantics | None = None,
+    ) -> None:
+        self._store = store
+        self._deployment_instance_id = deployment_instance_id
+        self._policy_id = policy_id
+        self._semantics = semantics
+        self._pending_modifications: dict[str, _Modification] = {}
+
+    def bind_runtime(self, *, cache: Any) -> None:
+        if self._semantics is None:
+            self._semantics = NautilusCachedOrderSemantics(cache)
+
+    def bootstrap(self, message_bus: Any) -> None:
+        if message_bus is None:
+            raise RuntimeError("Nautilus MessageBus unavailable for runner safety bridge")
+        message_bus.subscribe("events.order.*", self.on_order_event)
+
+    def before_submit_order(self, command: Any) -> tuple[_Reservation, ...]:
+        return self._reserve_orders((command.order,), command_id=command.command_id)
+
+    def before_submit_order_list(self, command: Any) -> tuple[_Reservation, ...]:
+        return self._reserve_orders(
+            tuple(command.order_list.orders),
+            command_id=command.command_id,
+        )
+
+    def before_modify_order(self, command: Any) -> _Modification:
+        semantics = self._require_semantics()
+        client_order_id = str(command.client_order_id)
+        prior = self._store.load_order_reservation(
+            self._deployment_instance_id,
+            client_order_id,
+        )
+        modification = _Modification(
+            client_order_id=client_order_id,
+            prior_reserved_notional=Decimal(prior.reserved_notional),
+        )
+        self._store.replace_order_reservation(
+            event_id=self._event_id("modify", command.command_id, client_order_id),
+            deployment_instance_id=self._deployment_instance_id,
+            client_order_id=client_order_id,
+            new_reserved_notional=semantics.modified_order_notional(command),
+        )
+        self._pending_modifications[client_order_id] = modification
+        return modification
+
+    def rollback_submit(
+        self,
+        reservations: tuple[_Reservation, ...],
+        *,
+        command_id: Any,
+    ) -> None:
+        for reservation in reservations:
+            self._store.release_order_reservation(
+                event_id=self._event_id(
+                    "submit_dispatch_failed",
+                    command_id,
+                    reservation.client_order_id,
+                ),
+                deployment_instance_id=self._deployment_instance_id,
+                client_order_id=reservation.client_order_id,
+                reason="rejected",
+            )
+
+    def rollback_modify(self, modification: _Modification, *, event_id: Any) -> None:
+        self._store.replace_order_reservation(
+            event_id=self._event_id(
+                "modify_rejected",
+                event_id,
+                modification.client_order_id,
+            ),
+            deployment_instance_id=self._deployment_instance_id,
+            client_order_id=modification.client_order_id,
+            new_reserved_notional=modification.prior_reserved_notional,
+        )
+        self._pending_modifications.pop(modification.client_order_id, None)
+
+    def on_order_event(self, event: Any) -> None:
+        event_name = type(event).__name__
+        data = self._event_data(event)
+        client_order_id = str(
+            data.get("client_order_id") or getattr(event, "client_order_id", "")
+        ).strip()
+        if not client_order_id:
+            raise RuntimeError(f"{event_name} has no client_order_id")
+        stable_event_id = (
+            data.get("event_id")
+            or data.get("trade_id")
+            or getattr(event, "event_id", None)
+        )
+        if stable_event_id is None:
+            raise RuntimeError(f"{event_name} has no stable event identity")
+
+        if event_name == "OrderFilled":
+            semantics = self._require_semantics()
+            notional = semantics.fill_notional(event)
+            if semantics.event_is_risk_reducing(event):
+                self._store.record_position_reduction(
+                    event_id=self._event_id("fill_reduce", stable_event_id, client_order_id),
+                    deployment_instance_id=self._deployment_instance_id,
+                    client_order_id=client_order_id,
+                    reduction_notional=notional,
+                )
+            else:
+                self._store.record_order_fill(
+                    event_id=self._event_id("fill", stable_event_id, client_order_id),
+                    deployment_instance_id=self._deployment_instance_id,
+                    client_order_id=client_order_id,
+                    fill_notional=notional,
+                )
+            return
+
+        if event_name in {"OrderRejected", "OrderDenied"}:
+            self._store.release_order_reservation(
+                event_id=self._event_id("rejected", stable_event_id, client_order_id),
+                deployment_instance_id=self._deployment_instance_id,
+                client_order_id=client_order_id,
+                reason="rejected",
+            )
+            return
+
+        if event_name in {"OrderCanceled", "OrderExpired"}:
+            self._store.release_order_reservation(
+                event_id=self._event_id("canceled", stable_event_id, client_order_id),
+                deployment_instance_id=self._deployment_instance_id,
+                client_order_id=client_order_id,
+                reason="canceled",
+            )
+            return
+
+        if event_name == "OrderModifyRejected":
+            modification = self._pending_modifications.get(client_order_id)
+            if modification is not None:
+                self.rollback_modify(modification, event_id=stable_event_id)
+            return
+
+        if event_name == "OrderUpdated":
+            self._pending_modifications.pop(client_order_id, None)
+
+    def _reserve_orders(
+        self,
+        orders: tuple[Any, ...],
+        *,
+        command_id: Any,
+    ) -> tuple[_Reservation, ...]:
+        semantics = self._require_semantics()
+        reservations: list[_Reservation] = []
+        try:
+            for order in orders:
+                if semantics.order_is_risk_reducing(order):
+                    continue
+                client_order_id = str(order.client_order_id)
+                self._store.reserve_order_notional(
+                    event_id=self._event_id("submit", command_id, client_order_id),
+                    deployment_instance_id=self._deployment_instance_id,
+                    client_order_id=client_order_id,
+                    policy_id=self._policy_id,
+                    requested_notional=semantics.order_notional(order),
+                )
+                reservations.append(_Reservation(client_order_id=client_order_id))
+        except Exception:
+            self.rollback_submit(tuple(reservations), command_id=command_id)
+            raise
+        return tuple(reservations)
+
+    def _require_semantics(self) -> OrderSemantics:
+        if self._semantics is None:
+            raise RuntimeError("runner safety boundary is not bound to a Nautilus cache")
+        return self._semantics
+
+    def _event_id(self, action: str, source_id: Any, client_order_id: str) -> str:
+        return (
+            f"nt-runner-safety:{self._deployment_instance_id}:"
+            f"{action}:{source_id}:{client_order_id}"
+        )
+
+    @staticmethod
+    def _event_data(event: Any) -> dict[str, Any]:
+        converter = getattr(type(event), "to_dict", None)
+        if callable(converter):
+            result = converter(event)
+            if isinstance(result, dict):
+                return result
+        return {}
+
+
+class RunnerSafetyExecutionDispatch:
+    """Synchronous command interceptor shared by the NT client facade and tests."""
+
+    def __init__(
+        self,
+        *,
+        inner: Any,
+        boundary: RunnerReservationBoundary,
+        timestamp_ns: Callable[[], int],
+    ) -> None:
+        self._inner = inner
+        self._boundary = boundary
+        self._timestamp_ns = timestamp_ns
+
+    def submit_order(self, command: Any) -> None:
+        try:
+            reservations = self._boundary.before_submit_order(command)
+        except Exception:
+            self._reject_order(command.order)
+            return
+        try:
+            self._inner.submit_order(command)
+        except Exception:
+            self._boundary.rollback_submit(
+                reservations,
+                command_id=command.command_id,
+            )
+            raise
+
+    def submit_order_list(self, command: Any) -> None:
+        orders = tuple(command.order_list.orders)
+        try:
+            reservations = self._boundary.before_submit_order_list(command)
+        except Exception:
+            for order in orders:
+                self._reject_order(order)
+            return
+        try:
+            self._inner.submit_order_list(command)
+        except Exception:
+            self._boundary.rollback_submit(
+                reservations,
+                command_id=command.command_id,
+            )
+            raise
+
+    def modify_order(self, command: Any) -> None:
+        try:
+            modification = self._boundary.before_modify_order(command)
+        except Exception:
+            self._inner.generate_order_modify_rejected(
+                command.strategy_id,
+                command.instrument_id,
+                command.client_order_id,
+                command.venue_order_id,
+                _POLICY_REJECTION_REASON,
+                self._timestamp_ns(),
+            )
+            return
+        try:
+            self._inner.modify_order(command)
+        except Exception:
+            self._boundary.rollback_modify(
+                modification,
+                event_id=command.command_id,
+            )
+            raise
+
+    def cancel_order(self, command: Any) -> None:
+        self._inner.cancel_order(command)
+
+    def cancel_all_orders(self, command: Any) -> None:
+        self._inner.cancel_all_orders(command)
+
+    def batch_cancel_orders(self, command: Any) -> None:
+        self._inner.batch_cancel_orders(command)
+
+    def _reject_order(self, order: Any) -> None:
+        self._inner.generate_order_rejected(
+            order.strategy_id,
+            order.instrument_id,
+            order.client_order_id,
+            _POLICY_REJECTION_REASON,
+            self._timestamp_ns(),
+        )
+
+
+class GuardedLiveExecutionClient(LiveExecutionClient):
+    """Typed facade which keeps the venue client behind the reservation gate."""
+
+    def __init__(
+        self,
+        *,
+        inner: LiveExecutionClient,
+        boundary: RunnerReservationBoundary,
+        loop: Any,
+        msgbus: Any,
+        cache: Any,
+        clock: Any,
+        config: Any,
+    ) -> None:
+        instrument_provider = getattr(inner, "_instrument_provider", None)
+        if instrument_provider is None:
+            raise RuntimeError(
+                "Nautilus execution client lacks its pinned instrument provider ABI"
+            )
+        super().__init__(
+            loop=loop,
+            client_id=inner.id,
+            venue=inner.venue,
+            oms_type=inner.oms_type,
+            account_type=inner.account_type,
+            base_currency=inner.base_currency,
+            instrument_provider=instrument_provider,
+            msgbus=msgbus,
+            cache=cache,
+            clock=clock,
+            config=config,
+        )
+        self._inner = inner
+        self._dispatch = RunnerSafetyExecutionDispatch(
+            inner=inner,
+            boundary=boundary,
+            timestamp_ns=clock.timestamp_ns,
+        )
+
+    @property
+    def account_id(self):
+        return self._inner.account_id
+
+    @property
+    def is_connected(self) -> bool:
+        return bool(self._inner.is_connected)
+
+    def connect(self) -> None:
+        self._inner.connect()
+
+    def disconnect(self) -> None:
+        self._inner.disconnect()
+
+    def submit_order(self, command: Any) -> None:
+        self._dispatch.submit_order(command)
+
+    def submit_order_list(self, command: Any) -> None:
+        self._dispatch.submit_order_list(command)
+
+    def modify_order(self, command: Any) -> None:
+        self._dispatch.modify_order(command)
+
+    def cancel_order(self, command: Any) -> None:
+        self._dispatch.cancel_order(command)
+
+    def cancel_all_orders(self, command: Any) -> None:
+        self._dispatch.cancel_all_orders(command)
+
+    def batch_cancel_orders(self, command: Any) -> None:
+        self._dispatch.batch_cancel_orders(command)
+
+    def query_account(self, command: Any) -> None:
+        self._inner.query_account(command)
+
+    def query_order(self, command: Any) -> None:
+        self._inner.query_order(command)
+
+    async def generate_order_status_report(self, command: Any):
+        return await self._inner.generate_order_status_report(command)
+
+    async def generate_order_status_reports(self, command: Any):
+        return await self._inner.generate_order_status_reports(command)
+
+    async def generate_fill_reports(self, command: Any):
+        return await self._inner.generate_fill_reports(command)
+
+    async def generate_position_status_reports(self, command: Any):
+        return await self._inner.generate_position_status_reports(command)
+
+    async def generate_mass_status(self, lookback_mins: int | None = None):
+        return await self._inner.generate_mass_status(lookback_mins)
+
+
+def guarded_exec_client_factory(
+    upstream_factory: type[LiveExecClientFactory],
+    boundary: RunnerReservationBoundary,
+) -> type[LiveExecClientFactory]:
+    """Return a public NT factory subclass which creates the guarded client facade."""
+
+    class _GuardedExecClientFactory(LiveExecClientFactory):
+        @staticmethod
+        def create(**kwargs: Any) -> GuardedLiveExecutionClient:
+            inner = upstream_factory.create(**kwargs)
+            boundary.bind_runtime(cache=kwargs["cache"])
+            return GuardedLiveExecutionClient(
+                inner=inner,
+                boundary=boundary,
+                loop=kwargs["loop"],
+                msgbus=kwargs["msgbus"],
+                cache=kwargs["cache"],
+                clock=kwargs["clock"],
+                config=kwargs["config"],
+            )
+
+    # NT 1.230.0 injects Sandbox's portfolio argument by factory class name.
+    # Preserve the upstream name without mutating the upstream class itself.
+    _GuardedExecClientFactory.__name__ = upstream_factory.__name__
+    _GuardedExecClientFactory.__qualname__ = (
+        f"CustosGuarded{upstream_factory.__name__}"
+    )
+    return _GuardedExecClientFactory
