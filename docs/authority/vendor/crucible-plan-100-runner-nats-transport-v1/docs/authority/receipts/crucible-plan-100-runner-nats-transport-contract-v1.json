@@ -1,0 +1,36 @@
+{
+  "asset_index": {
+    "path": "docs/authority/crucible-runner-nats-transport-authority-assets-v1.json",
+    "sha256": "6d5296d3f39e0a69e232dadc661c718eb62b9d168c7980ab1d9e92eb2cf65d61",
+    "sidecar_path": "docs/authority/crucible-runner-nats-transport-authority-assets-v1.json.sha256",
+    "size_bytes": 4220
+  },
+  "authority": "CR100-RUNNER-NATS-TRANSPORT-AUTHORITY-V1",
+  "migration": {
+    "checked_in": false,
+    "executed": false,
+    "inventory": "control",
+    "mode_migration": null,
+    "version": "0043"
+  },
+  "plan": ".forge/plans/2026-07/100-runner-nats-transport-credential-authority.md",
+  "plan_commit": "780538fda7d24ab1f015c59419576a0cd48155e3",
+  "runtime_evidence": null,
+  "schema_version": "alephain.crucible.plan-receipt.v1",
+  "status": "READY_PLAN_FIRST_TRANSPORT_CONTRACT_ONLY",
+  "truth": {
+    "arx_proxy_ready": false,
+    "contract_frozen": true,
+    "control_0043_checked_in": false,
+    "control_0043_executed": false,
+    "control_0043_reserved": true,
+    "custos_transport_consumer_ready": false,
+    "durable_provisioned": false,
+    "live_ready": false,
+    "mode_migration_allocated": false,
+    "production_ready": false,
+    "real_nats_verified": false,
+    "runtime_ready": false,
+    "signer_composed": false
+  }
+}

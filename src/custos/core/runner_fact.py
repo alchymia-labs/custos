@@ -3234,13 +3234,13 @@ class RunnerFactJetStreamPublisher:
     def __init__(
         self,
         *,
-        servers: Sequence[str],
+        connection_profile: Any,
         outbox: RunnerFactOutbox,
         runner_id: UUID,
         authority_guard: Any,
         publish_timeout: float = 5.0,
     ) -> None:
-        self._servers = tuple(servers)
+        self._connection_profile = connection_profile
         self._outbox = outbox
         self._runner_id = runner_id
         self._authority_guard = authority_guard
@@ -3249,15 +3249,11 @@ class RunnerFactJetStreamPublisher:
         self._jetstream: Any = None
 
     async def connect(self) -> None:
-        import nats
-
+        self._connection_profile.assert_active()
         if self._nats is not None and self._nats.is_connected:
             return
-        self._nats = await nats.connect(
-            servers=list(self._servers),
+        self._nats = await self._connection_profile.connect(
             name=f"custos-runner-fact-{self._runner_id}",
-            allow_reconnect=True,
-            max_reconnect_attempts=-1,
         )
         self._jetstream = self._nats.jetstream()
 
@@ -3270,6 +3266,7 @@ class RunnerFactJetStreamPublisher:
             if batch.stream_key in blocked_streams:
                 continue
             try:
+                self._connection_profile.assert_publish_subject(batch.subject)
                 ack = await self._jetstream.publish(
                     batch.subject,
                     batch.payload,

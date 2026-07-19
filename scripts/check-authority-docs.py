@@ -62,6 +62,12 @@ PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_polic
 PLAN_19_T7B_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json"
 )
+PLAN_19_T7C_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json"
+)
+PLAN_19_T7C_VENDOR_ROOT = (
+    "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1"
+)
 PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-candidate-assets-v1.json"
 PLAN_19_T8A_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json"
@@ -2290,6 +2296,197 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
                 errors.append(f"runner_safety_policy_consumer {key} differs")
 
 
+def verify_plan_19_task_7c_nats_transport(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    receipt_path = resolve(PLAN_19_T7C_RECEIPT_PATH)
+    source_paths = {
+        "transport": resolve("src/custos/core/nats_transport.py"),
+        "consumer": resolve("src/custos/core/nats_client.py"),
+        "publisher": resolve("src/custos/core/runner_fact.py"),
+        "daemon": resolve("src/custos/cli/_daemon.py"),
+        "cli": resolve("src/custos/cli/subcommands/nats_transport.py"),
+        "acceptance": resolve("tests/test_plan19_t7c_nats_transport.py"),
+    }
+    vendor_receipts = {
+        "docs/authority/receipts/crucible-plan-100-runner-nats-transport-contract-v1.json": (
+            "317ef22e0c3e06620e700f49747d4097afb255643058d086dfaaf0f0419ea777"
+        ),
+        "docs/authority/receipts/crucible-plan-100-runner-nats-transport-http-v1.json": (
+            "17ece1f5d840a792de12ed1565a61402fbddb3bc6b275614bd260bcfc83ede07"
+        ),
+        "docs/authority/receipts/crucible-plan-100-runner-nats-transport-provision-v1.json": (
+            "ec61b53eaa8c907d2878418739c39c8444b6f5de91864aa485e264e970993341"
+        ),
+        "docs/authority/receipts/crucible-plan-100-runner-nats-transport-revocation-v1.json": (
+            "c044c91656458ad470afef4fccb7accf048831f527a237dcac2ec2d6f0e37521"
+        ),
+    }
+    if not receipt_path.is_file() or not all(path.is_file() for path in source_paths.values()):
+        errors.append("Plan 19 T7C code inventory is incomplete")
+        return
+    for relative, expected_digest in vendor_receipts.items():
+        path = resolve(f"{PLAN_19_T7C_VENDOR_ROOT}/{relative}")
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected_digest:
+            errors.append(f"Plan 19 T7C vendored CR100 authority drifted: {relative}")
+
+    correction_path = resolve(
+        f"{PLAN_19_T7C_VENDOR_ROOT}/docs/authority/golden/"
+        "crucible-runner-nats-transport-credential-stream-correction-v1.json"
+    )
+    if not correction_path.is_file():
+        errors.append("Plan 19 T7C current stream correction golden is missing")
+    else:
+        correction = load_json(correction_path)
+        durable = correction.get("durable_config")
+        permission = correction.get("permission_profile")
+        if not isinstance(durable, dict) or durable.get("stream_name") != "CRUCIBLE_DOMAIN_AUDIT":
+            errors.append("Plan 19 T7C current stream correction differs")
+        if not isinstance(permission, dict) or any(
+            "CRUCIBLE_RUNNER_DEPLOYMENT_COMMAND_V4" in str(value)
+            for value in permission.get("publish_allow", [])
+        ):
+            errors.append("Plan 19 T7C retains historical second-stream permission")
+
+    receipt = load_json(receipt_path)
+    if receipt.get("receipt_status") != "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY":
+        errors.append("Plan 19 T7C receipt status differs")
+    truth = receipt.get("truth")
+    expected_truth = {
+        "custos_user_nkey_seed_owner": True,
+        "dedicated_sops_age_transport_vault": True,
+        "user_seed_sent_over_http_or_nats": False,
+        "user_seed_or_jwt_logged": False,
+        "crucible_signer_or_admin_secret_present": False,
+        "machine_authenticated_direct_crucible_enrollment": True,
+        "user_nkey_proof_of_possession": True,
+        "pinned_account_issuer_verified": True,
+        "jwt_signature_and_acl_verified": True,
+        "tls_ca_and_exact_server_name_required": True,
+        "anonymous_nats_runtime_path": False,
+        "plaintext_nats_runtime_path": False,
+        "wildcard_command_subscription": False,
+        "runner_only_legacy_durable": False,
+        "existing_tenant_runner_durable_exact_readback": True,
+        "jetstream_mutation_authority_present": False,
+        "runner_fact_uses_same_authenticated_profile": True,
+        "inbound_ack_and_outbound_puback_remain_separate": True,
+        "rotation_stages_pending_generation_before_local_promotion": True,
+        "failed_activation_keeps_old_generation_active": True,
+        "broker_authorization_denial_stops_execution": True,
+        "production_transport_credential_provisioned": False,
+        "production_durable_verified": False,
+        "old_generation_reconnect_denial_attested": False,
+        "real_nats_integration_passed": False,
+        "team_daemon_enabled": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    if not isinstance(truth, dict):
+        errors.append("Plan 19 T7C receipt truth is missing")
+    else:
+        for key, value in expected_truth.items():
+            if truth.get(key) != value:
+                errors.append(f"Plan 19 T7C receipt truth {key} differs")
+
+    sources = {
+        name: path.read_text(encoding="utf-8") for name, path in source_paths.items()
+    }
+    markers = {
+        "transport": (
+            "generate_runner_user_nkey",
+            "RunnerNatsTransportVault",
+            "issuer Account pin mismatch",
+            "ssl.create_default_context",
+            "user_jwt_cb",
+            "signature_cb",
+            "mark_authorization_denied",
+        ),
+        "consumer": (
+            "consumer_info",
+            "subscribe_bind",
+            "_assert_existing_consumer",
+        ),
+        "publisher": (
+            "_connection_profile.assert_publish_subject",
+            "_connection_profile.connect",
+        ),
+        "daemon": (
+            "RunnerNatsTransportVault",
+            "_watch_nats_transport_authority",
+        ),
+        "cli": (
+            "issue_initial",
+            "issue_rotation",
+            "promote_pending",
+        ),
+        "acceptance": (
+            "test_connect_uses_pinned_tls_jwt_and_local_nonce_signature",
+            "test_broker_authorization_denial_invalidates_generation",
+            "test_rotation_keeps_old_generation_active_until_pending_promotes",
+        ),
+    }
+    for source_name, required in markers.items():
+        for marker in required:
+            if marker not in sources[source_name]:
+                errors.append(f"Plan 19 T7C {source_name} lacks {marker!r}")
+    for residue in (
+        'nats_url="nats://',
+        "custos-deployment-",
+        "crucible_rust.domain.{self.tenant_id}.*",
+    ):
+        if residue in sources["consumer"] or residue in sources["daemon"]:
+            errors.append(f"Plan 19 T7C production path retains {residue!r}")
+
+    registrations = {
+        entry.get("role"): entry.get("path")
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role")
+        in {
+            "crucible_plan_100_runner_nats_transport_vendor_index",
+            "plan_19_task_7c_nats_transport_consumer_receipt",
+        }
+    }
+    if registrations != {
+        "crucible_plan_100_runner_nats_transport_vendor_index": (
+            f"{PLAN_19_T7C_VENDOR_ROOT}/docs/authority/"
+            "crucible-runner-nats-transport-authority-assets-v1.json"
+        ),
+        "plan_19_task_7c_nats_transport_consumer_receipt": PLAN_19_T7C_RECEIPT_PATH,
+    }:
+        errors.append("Plan 19 T7C authority manifest registrations differ")
+
+    snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
+    state = snapshot.get("runner_nats_transport_consumer")
+    expected_state = {
+        "status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
+        "receipt": PLAN_19_T7C_RECEIPT_PATH,
+        "producer_vendor_root": PLAN_19_T7C_VENDOR_ROOT,
+        "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
+        "local_user_nkey_custody": True,
+        "dedicated_sops_age_vault": True,
+        "pinned_tls_and_account_issuer": True,
+        "exact_existing_tenant_runner_durable": True,
+        "anonymous_or_plaintext_runtime_path": False,
+        "wildcard_command_subscription": False,
+        "production_transport_credential_provisioned": False,
+        "production_durable_verified": False,
+        "old_generation_reconnect_denial_attested": False,
+        "real_nats_integration_passed": False,
+        "team_daemon_enabled": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    if not isinstance(state, dict):
+        errors.append("ecosystem authority lacks runner_nats_transport_consumer")
+    else:
+        for key, value in expected_state.items():
+            if state.get(key) != value:
+                errors.append(f"runner_nats_transport_consumer {key} differs")
+
+
 def verify_plan_19_task_8a_runner_fact_candidate(
     manifest: dict[str, Any], errors: list[str]
 ) -> None:
@@ -2807,6 +3004,7 @@ def main() -> int:
     verify_plan_19_task_6_portfolio_semantics(manifest, errors)
     verify_plan_19_task_7a_runner_policy_consumer(manifest, errors)
     verify_plan_19_task_7b_runner_policy_code(manifest, errors)
+    verify_plan_19_task_7c_nats_transport(manifest, errors)
     verify_plan_19_task_8a_runner_fact_candidate(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,

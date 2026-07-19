@@ -12,6 +12,7 @@ from custos.core.machine_credential_vault import (
     MachineCredentialError,
     MachineCredentialVault,
 )
+from custos.core.nats_transport import RunnerNatsTransportError
 from custos.core.runner_toml import RunnerToml
 
 DEFAULT_RUNNER_TOML = Path.home() / ".arx" / "runner.toml"
@@ -20,6 +21,10 @@ DEFAULT_READY_FILE = Path.home() / ".arx" / "state" / "runner-ready.json"
 DEFAULT_RUNNER_CAPABILITY = Path.home() / ".arx" / "runner-capability.json"
 DEFAULT_RUNNER_FACT_OUTBOX = Path.home() / ".arx" / "state" / "runner-fact-outbox.db"
 DEFAULT_CRUCIBLE_DOMAIN_PUBLIC_KEY = Path.home() / ".arx" / "crucible-domain-event.pub"
+DEFAULT_NATS_TRANSPORT_VAULT = (
+    Path.home() / ".arx" / "vault" / "runner-nats-transport.enc"
+)
+DEFAULT_NATS_CA = Path.home() / ".arx" / "certs" / "crucible-nats-ca.pem"
 
 
 def register(subparsers: argparse._SubParsersAction) -> None:
@@ -35,7 +40,21 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Optional exact override; must equal runner.toml machine_vault_path.",
     )
-    parser.add_argument("--nats-url", default="nats://localhost:4222")
+    parser.add_argument("--nats-url", default="tls://localhost:4222")
+    parser.add_argument(
+        "--nats-transport-vault",
+        type=Path,
+        default=DEFAULT_NATS_TRANSPORT_VAULT,
+    )
+    parser.add_argument("--nats-ca", type=Path, default=DEFAULT_NATS_CA)
+    parser.add_argument(
+        "--nats-server-name",
+        default=os.environ.get("CRUCIBLE_NATS_SERVER_NAME", ""),
+    )
+    parser.add_argument(
+        "--nats-issuer-account-public-nkey",
+        default=os.environ.get("CRUCIBLE_NATS_ISSUER_ACCOUNT_NKEY", ""),
+    )
     parser.add_argument("--vault-dir", type=Path, default=DEFAULT_VAULT_DIR)
     parser.add_argument("--reconcile", action="store_true")
     parser.add_argument(
@@ -81,6 +100,10 @@ def run(args: argparse.Namespace) -> int:
         runner_toml_path=args.runner_toml_path.expanduser().resolve(),
         machine_vault=bound_vault_path,
         nats_url=args.nats_url,
+        nats_transport_vault=args.nats_transport_vault,
+        nats_ca=args.nats_ca,
+        nats_server_name=args.nats_server_name,
+        nats_issuer_account_public_nkey=args.nats_issuer_account_public_nkey,
         vault_dir=args.vault_dir,
         reconcile=args.reconcile,
         crucible_domain_public_key=args.crucible_domain_public_key,
@@ -97,7 +120,13 @@ def run(args: argparse.Namespace) -> int:
 
     try:
         return asyncio.run(run_daemon(namespace))
-    except (OSError, ValueError, MachineCredentialError, RuntimeError) as exc:
+    except (
+        OSError,
+        ValueError,
+        MachineCredentialError,
+        RunnerNatsTransportError,
+        RuntimeError,
+    ) as exc:
         args.ready_file.expanduser().resolve().unlink(missing_ok=True)
         print(f"Runner startup failed closed: {exc}", file=sys.stderr)
         return 1

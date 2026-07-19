@@ -173,7 +173,11 @@
     "receipt": "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json",
     "contract_receipt": "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
     "policy_contract_consumer_ready": true,
-    "authority_scope": ["tenant_id", "trading_mode", "runner_id"],
+    "authority_scope": [
+      "tenant_id",
+      "trading_mode",
+      "runner_id"
+    ],
     "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
     "producer_receipt_commit": "36082e6591b67686df928afda88621629eb6075e",
     "producer_main_landed": false,
@@ -333,5 +337,27 @@
     },
     "legacy_schema_claim_rule": "legacy schemas must not be described as dropped while either required actual receipt is PENDING",
     "cr89_migration": "0116"
+  },
+  "runner_nats_transport_consumer": {
+    "owner": "crucible-rust",
+    "consumer": "custos",
+    "status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
+    "receipt": "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json",
+    "producer_vendor_root": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1",
+    "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
+    "local_user_nkey_custody": true,
+    "dedicated_sops_age_vault": true,
+    "pinned_tls_and_account_issuer": true,
+    "exact_existing_tenant_runner_durable": true,
+    "anonymous_or_plaintext_runtime_path": false,
+    "wildcard_command_subscription": false,
+    "production_transport_credential_provisioned": false,
+    "production_durable_verified": false,
+    "old_generation_reconnect_denial_attested": false,
+    "real_nats_integration_passed": false,
+    "team_daemon_enabled": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
   }
 }

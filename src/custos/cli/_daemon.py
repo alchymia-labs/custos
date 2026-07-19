@@ -28,6 +28,11 @@ from custos.core.machine_credential_vault import (
     MachineCredentialVault,
 )
 from custos.core.nats_client import CrucibleNatsClient
+from custos.core.nats_transport import (
+    RunnerNatsTransportConnectionProfile,
+    RunnerNatsTransportError,
+    RunnerNatsTransportVault,
+)
 from custos.core.per_key_vault import PerKeyVault
 from custos.core.readiness import ReadinessFile
 from custos.core.runner_deployment_lifecycle_fact import RunnerDeploymentLifecycleFactEmitter
@@ -88,6 +93,30 @@ async def _watch_machine_authority(
                 return
         try:
             await asyncio.wait_for(stop.wait(), timeout=local_check_secs)
+        except TimeoutError:
+            pass
+
+
+async def _watch_nats_transport_authority(
+    stop: asyncio.Event,
+    profile: RunnerNatsTransportConnectionProfile,
+    *,
+    check_secs: float = 1.0,
+) -> None:
+    """Stop execution on local expiry or broker authorization denial."""
+
+    while not stop.is_set():
+        try:
+            profile.assert_active()
+        except RunnerNatsTransportError as exc:
+            log.error(
+                "nats_transport_authority_invalidated",
+                extra={"error_type": type(exc).__name__},
+            )
+            stop.set()
+            return
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=check_secs)
         except TimeoutError:
             pass
 
@@ -258,6 +287,18 @@ async def run_daemon(args: argparse.Namespace) -> int:
     machine_credential = MachineCredentialVault(args.machine_vault).load()
     machine_credential.assert_binding(metadata)
     MachineCredentialHttpClient(metadata.backend_url, machine_credential).verify_active()
+    transport_bundle = RunnerNatsTransportVault(args.nats_transport_vault).load()
+    if transport_bundle.active is None:
+        raise RunnerNatsTransportError(
+            "NATS transport has no active generation; run nats-transport activate"
+        )
+    transport_profile = RunnerNatsTransportConnectionProfile(
+        credential=transport_bundle.active,
+        nats_url=args.nats_url,
+        ca_path=args.nats_ca,
+        server_name=args.nats_server_name,
+        pinned_issuer_account_public_nkey=args.nats_issuer_account_public_nkey,
+    )
     identity = RunnerFactIdentity.from_private_bytes(
         machine_credential.private_key_bytes,
         machine_credential.machine_key_id,
@@ -284,17 +325,22 @@ async def run_daemon(args: argparse.Namespace) -> int:
     runtime_log_emitter = RunnerRuntimeLogEmitter(
         emitter=fact_emitter,
         capability=capability,
-        redactor=RuntimeLogRedactor(known_secrets=(machine_credential.machine_credential,)),
+        redactor=RuntimeLogRedactor(
+            known_secrets=(
+                machine_credential.machine_credential,
+                transport_bundle.active.nats_user_jwt,
+            )
+        ),
     )
     lifecycle_fact_emitter = RunnerDeploymentLifecycleFactEmitter(fact_emitter, capability)
     fact_publisher = RunnerFactJetStreamPublisher(
-        servers=(args.nats_url,),
+        connection_profile=transport_profile,
         outbox=fact_outbox,
         runner_id=runner_id,
         authority_guard=machine_credential.assert_active,
     )
     client = CrucibleNatsClient(
-        nats_url=args.nats_url,
+        connection_profile=transport_profile,
         tenant_id=args.tenant_id,
         runner_id=args.runner_id,
         machine_credential=machine_credential,
@@ -331,6 +377,12 @@ async def run_daemon(args: argparse.Namespace) -> int:
                     machine_credential=machine_credential,
                 ),
                 name="runner-machine-authority-watch",
+            )
+        )
+        tasks.append(
+            asyncio.create_task(
+                _watch_nats_transport_authority(stop, transport_profile),
+                name="runner-nats-transport-authority-watch",
             )
         )
         tasks.append(

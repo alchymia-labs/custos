@@ -1,8 +1,8 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable/guard code checkpoint READY-CODE-ONLY; T7C CR100 transport-auth planned; native interception, reservation lifecycle and T8-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable/guard code checkpoint READY-CODE-ONLY; T7C CR100 authenticated transport consumer READY-CODE-ONLY; native interception, reservation lifecycle, T7C runtime attestation and T8-T10 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 through Plan 19 T8a producer-candidate preparation
+> **Revised**: 2026-07-19 through Plan 19 T7C authenticated transport code checkpoint
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -1166,7 +1166,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
 | T7 Signed local safety | [~] | 2026-07-15 | T7A contract consumer plus T7B durable/guard `READY_CONTRACT_CONSUMER_CODE_ONLY`; schema v3 uses the same DB/outbox and removes DeploymentSpec risk authority. Native interception, reservation lifecycle, bypass proof and CR99 main/0117/publication/runtime receipts remain open |
-| T7C Authenticated NATS transport | [ ] | — | Consume exact CR100 contract/provision/revocation receipts; local NKey custody, JWT/TLS, exact durable binding, rotation rollback and reconnect-denial evidence; runtime/production remain false until real composition |
+| T7C Authenticated NATS transport | [~] | 2026-07-19 | `READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY`: exact CR100 receipts vendored; local NKey custody, JWT/issuer/ACL verification, pinned TLS, exact existing durable readback, shared outbound profile and activation rollback implemented. Production credential/durable plus forced-disconnect/old-JWT reconnect-denial runtime attestation remain open; runtime/production false |
 | T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；current `.2` A2 producer `af8a391` + v2 authority receipt；`.1` unchanged `NON_CURRENT_SUPERSEDED`；stream-safe/stable event IDs、exact signing preimage、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [ ] | — | exact T8a candidate compatibility；gate Task 9 only |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |

@@ -21,6 +21,7 @@ from custos.cli.subcommands import (
     deployment,
     enroll,
     health,
+    nats_transport,
     onboard,
     start,
     vault,
@@ -56,13 +57,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(
         dest="cmd",
-        metavar="{credential,deployment,enroll,onboard,health,start,vault}",
+        metavar="{credential,deployment,enroll,nats-transport,onboard,health,start,vault}",
     )
     credential.register(subparsers)
     deployment.register(subparsers)
     enroll.register(subparsers)
     onboard.register(subparsers)
     health.register(subparsers)
+    nats_transport.register(subparsers)
     start.register(subparsers)
     vault.register(subparsers)
     return parser

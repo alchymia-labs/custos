@@ -518,6 +518,7 @@ class MachineCredentialHttpClient:
         path: str,
         body: Mapping[str, Any],
         *,
+        canonical_path: str | None = None,
         correlation_id: UUID,
         deployment_instance_id: str | None = None,
         deployment_spec_id: str | None = None,
@@ -526,7 +527,7 @@ class MachineCredentialHttpClient:
         encoded = _canonical_json_bytes(body)
         headers = self.credential.authenticated_headers(
             method="POST",
-            path=path,
+            path=canonical_path or path,
             body=body,
             correlation_id=correlation_id,
             deployment_instance_id=deployment_instance_id,

@@ -1,0 +1,93 @@
+{
+  "assets": {
+    "golden": {
+      "path": "docs/authority/golden/crucible-runner-nats-transport-credential-v1.json",
+      "sha256": "99ecd56230f1064f9b3c15f47d1d99919975b56ff5b860bfefa5a159026ca942",
+      "sidecar_path": "docs/authority/golden/crucible-runner-nats-transport-credential-v1.json.sha256",
+      "size_bytes": 3205
+    },
+    "migration_ledger": {
+      "path": "docs/authority/crucible-migration-reservation-ledger-v5.json",
+      "sha256": "32954fdfb1c9365a42dac303be4731bbb549e55002f7de0f3d504ed24e270235",
+      "sidecar_path": "docs/authority/crucible-migration-reservation-ledger-v5.json.sha256",
+      "size_bytes": 3678
+    },
+    "schema": {
+      "path": "docs/authority/schemas/crucible-runner-nats-transport-credential-v1.schema.json",
+      "sha256": "a2132ade802f639f4d05e074716da4bfe866ea16469c7b834169d3ffd56cea72",
+      "sidecar_path": "docs/authority/schemas/crucible-runner-nats-transport-credential-v1.schema.json.sha256",
+      "size_bytes": 8357
+    }
+  },
+  "authority": "CR100-RUNNER-NATS-TRANSPORT-AUTHORITY-V1",
+  "documents": [
+    {
+      "path": ".forge/plans/2026-07/100-runner-nats-transport-credential-authority.md",
+      "required_markers": [
+        "Runner NATS transport credential authority",
+        "Custos-generated user NKey",
+        "control `0043`"
+      ]
+    }
+  ],
+  "live_document_successors": [
+    {
+      "initial_successor_sha256": "e093a6511b6d9247f3f3cae3aad0b8483d49409d7bd6548609e09262b73c06bb",
+      "path": ".forge/README.md",
+      "previous_sha256": "712577a078ffad94cc22b8acc8a7d9f2d9407049f2f84b65148a79cbc392af69",
+      "reason": "CR100 transport authority successor; V4 bytes remain immutable and current documents may evolve only while the pinned authority markers remain",
+      "required_markers": [
+        "| 100 | Runner NATS transport credential authority"
+      ]
+    },
+    {
+      "initial_successor_sha256": "e33aee9954c8a09e84f7b302204ec2093c8cb13d647d01f27e93574974420c3a",
+      "path": ".forge/plans/2026-07/98-v1-team-crucible-acceptance.md",
+      "previous_sha256": "5e88830c73283626b7c9cf37350ef64b0720da8cf01a1610a7c328840ee67d46",
+      "reason": "CR100 transport authority successor; V4 bytes remain immutable and current documents may evolve only while the pinned authority markers remain",
+      "required_markers": [
+        "Plan 100 Completed",
+        "transport-auth receipts"
+      ]
+    },
+    {
+      "initial_successor_sha256": "1a2bff2039ac15199f22a8d68a0bb653e0d27c1f287f510275087ca29c612eac",
+      "path": ".forge/plans/2026-07/89-deployment-instance-materialization-signed-command.md",
+      "previous_sha256": "64a27602de4385fd4be41eb91f325e00584941b54b34fb3fbc2b73f61607ef8d",
+      "reason": "CR100 transport authority successor; V4 bytes remain immutable and current documents may evolve only while the pinned authority markers remain",
+      "required_markers": [
+        "RunnerDeploymentCommandV4",
+        "0123"
+      ]
+    },
+    {
+      "initial_successor_sha256": "75149c18cbc40ee90a4d786abe429e59754a24f3f94eb2e9a05c35fc2507c7ac",
+      "path": ".forge/plans/2026-07/90-runner-fact-contract-consumer-convergence.md",
+      "previous_sha256": "2f4c8bd3e22a08cfa94af6ef06388859352d3550bb255706ec1caea516bf4883",
+      "reason": "CR100 transport authority successor; V4 bytes remain immutable and current documents may evolve only while the pinned authority markers remain",
+      "required_markers": [
+        "RunnerFact",
+        "0121"
+      ]
+    }
+  ],
+  "plan": ".forge/plans/2026-07/100-runner-nats-transport-credential-authority.md",
+  "plan_commit": "780538fda7d24ab1f015c59419576a0cd48155e3",
+  "schema_version": "alephain.crucible.runner-nats-transport-assets.v1",
+  "status": "READY_PLAN_FIRST_TRANSPORT_CONTRACT_ONLY",
+  "truth": {
+    "arx_proxy_ready": false,
+    "contract_frozen": true,
+    "control_0043_checked_in": false,
+    "control_0043_executed": false,
+    "control_0043_reserved": true,
+    "custos_transport_consumer_ready": false,
+    "durable_provisioned": false,
+    "live_ready": false,
+    "mode_migration_allocated": false,
+    "production_ready": false,
+    "real_nats_verified": false,
+    "runtime_ready": false,
+    "signer_composed": false
+  }
+}

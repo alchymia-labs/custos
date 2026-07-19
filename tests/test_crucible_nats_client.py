@@ -1,15 +1,17 @@
-"""Inbound-only Crucible deployment transport authority tests."""
+"""Inbound-only CR100 command durable binding tests."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
-from nats.js.api import AckPolicy
+from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy, ReplayPolicy
 
 from custos.core.nats_client import CrucibleNatsClient
+from custos.core.nats_transport import RunnerNatsTransportError
 
 _RUNNER_ID = UUID("22222222-2222-4222-8222-222222222222")
 
@@ -25,9 +27,40 @@ class _MachineCredential:
             raise RuntimeError("machine credential is inactive")
 
 
-def _client(credential: _MachineCredential | None = None) -> CrucibleNatsClient:
+@dataclass
+class _TransportProfile:
+    tenant_id: str = "acme"
+    runner_id: UUID = _RUNNER_ID
+    active: bool = True
+    durable_config: dict[str, object] = field(
+        default_factory=lambda: {
+            "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
+            "durable_name": f"custos-v4-acme-{_RUNNER_ID}",
+            "delivery_subject": f"custos.runner_command_v4_delivery.acme.{_RUNNER_ID}",
+            "filter_subjects": [
+                (
+                    "crucible_rust.domain.acme.sandbox.deployment."
+                    f"RunnerDeploymentCommandV4.{_RUNNER_ID}.*"
+                ),
+                (
+                    "crucible_rust.domain.acme.testnet.deployment."
+                    f"RunnerDeploymentCommandV4.{_RUNNER_ID}.*"
+                ),
+            ],
+        }
+    )
+
+    def assert_active(self) -> None:
+        if not self.active:
+            raise RunnerNatsTransportError("transport inactive")
+
+
+def _client(
+    credential: _MachineCredential | None = None,
+    profile: _TransportProfile | None = None,
+) -> CrucibleNatsClient:
     return CrucibleNatsClient(
-        nats_url="nats://localhost:4222",
+        connection_profile=profile or _TransportProfile(),  # type: ignore[arg-type]
         tenant_id="acme",
         runner_id=str(_RUNNER_ID),
         machine_credential=credential or _MachineCredential(),
@@ -40,35 +73,74 @@ def test_client_rejects_machine_authority_binding_mismatch() -> None:
         _client(credential)
 
 
+def test_client_rejects_transport_authority_binding_mismatch() -> None:
+    profile = _TransportProfile(tenant_id="other-tenant")
+    with pytest.raises(ValueError, match="authority does not match"):
+        _client(profile=profile)
+
+
 def test_client_rejects_inactive_machine_credential() -> None:
     with pytest.raises(RuntimeError, match="inactive"):
         _client(_MachineCredential(active=False))
 
 
 @pytest.mark.asyncio
-async def test_subscribe_uses_crucible_runner_scoped_subject_and_durable() -> None:
+async def test_subscribe_binds_existing_exact_tenant_runner_durable() -> None:
     client = _client()
+    expected = client.connection_profile.durable_config
+    config = ConsumerConfig(
+        durable_name=str(expected["durable_name"]),
+        deliver_subject=str(expected["delivery_subject"]),
+        filter_subjects=list(expected["filter_subjects"]),
+        deliver_policy=DeliverPolicy.ALL,
+        ack_policy=AckPolicy.EXPLICIT,
+        replay_policy=ReplayPolicy.INSTANT,
+        max_ack_pending=1,
+    )
     subscription = object()
-    jetstream = MagicMock()
-    jetstream.subscribe = AsyncMock(return_value=subscription)
-    client._js = jetstream
+    client._jsm = MagicMock(  # noqa: SLF001 - isolated broker management seam
+        consumer_info=AsyncMock(return_value=SimpleNamespace(config=config))
+    )
+    client._js = MagicMock(  # noqa: SLF001 - isolated JetStream binding seam
+        subscribe_bind=AsyncMock(return_value=subscription)
+    )
 
     result = await client.subscribe_deployment_spec()
 
     assert result is subscription
-    jetstream.subscribe.assert_awaited_once()
-    call = jetstream.subscribe.await_args
-    subject = f"crucible_rust.domain.acme.*.deployment.*.{_RUNNER_ID}.*"
-    assert call.args == (subject,)
-    assert call.kwargs["durable"] == f"custos-deployment-{_RUNNER_ID}"
-    assert call.kwargs["manual_ack"] is True
-    config = call.kwargs["config"]
-    assert config.durable_name == f"custos-deployment-{_RUNNER_ID}"
-    assert config.ack_policy is AckPolicy.EXPLICIT
-    assert config.ack_wait == 30.0
-    assert config.max_deliver == 5
-    assert config.backoff == [10.0, 30.0, 60.0, 120.0, 300.0]
-    assert config.filter_subject == subject
+    client._jsm.consumer_info.assert_awaited_once_with(  # noqa: SLF001
+        "CRUCIBLE_DOMAIN_AUDIT",
+        f"custos-v4-acme-{_RUNNER_ID}",
+    )
+    client._js.subscribe_bind.assert_awaited_once_with(  # noqa: SLF001
+        stream="CRUCIBLE_DOMAIN_AUDIT",
+        config=config,
+        consumer=f"custos-v4-acme-{_RUNNER_ID}",
+        manual_ack=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_existing_consumer_drift_fails_before_subscription() -> None:
+    client = _client()
+    config = ConsumerConfig(
+        durable_name=f"custos-v4-acme-{_RUNNER_ID}",
+        deliver_subject="custos.runner_command_v4_delivery.other.runner",
+        filter_subjects=[],
+        deliver_policy=DeliverPolicy.ALL,
+        ack_policy=AckPolicy.EXPLICIT,
+        replay_policy=ReplayPolicy.INSTANT,
+        max_ack_pending=1,
+    )
+    client._jsm = MagicMock(  # noqa: SLF001
+        consumer_info=AsyncMock(return_value=SimpleNamespace(config=config))
+    )
+    client._js = MagicMock(subscribe_bind=AsyncMock())  # noqa: SLF001
+
+    with pytest.raises(RunnerNatsTransportError, match="does not match"):
+        await client.subscribe_deployment_spec()
+
+    client._js.subscribe_bind.assert_not_awaited()  # noqa: SLF001
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,89 @@
+{
+  "receipt_schema_version": 1,
+  "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
+  "receipt_status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
+  "repository": "tesseract-trading/custos",
+  "plan": "Custos Plan 19",
+  "task": "T7C authenticated NATS transport code checkpoint",
+  "producer_authority": {
+    "repository": "tesseract-trading/crucible-rust",
+    "vendor_root": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1",
+    "contract_receipt": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-contract-v1.json",
+      "sha256": "317ef22e0c3e06620e700f49747d4097afb255643058d086dfaaf0f0419ea777"
+    },
+    "http_receipt": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-http-v1.json",
+      "sha256": "17ece1f5d840a792de12ed1565a61402fbddb3bc6b275614bd260bcfc83ede07"
+    },
+    "provision_receipt": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-provision-v1.json",
+      "sha256": "ec61b53eaa8c907d2878418739c39c8444b6f5de91864aa485e264e970993341"
+    },
+    "revocation_receipt": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-revocation-v1.json",
+      "sha256": "c044c91656458ad470afef4fccb7accf048831f527a237dcac2ec2d6f0e37521"
+    },
+    "current_stream": "CRUCIBLE_DOMAIN_AUDIT",
+    "historical_second_stream_rejected": true
+  },
+  "implementation": {
+    "transport_authority": "src/custos/core/nats_transport.py",
+    "command_consumer": "src/custos/core/nats_client.py",
+    "runner_fact_publisher": "src/custos/core/runner_fact.py",
+    "daemon_composition": "src/custos/cli/_daemon.py",
+    "lifecycle_cli": "src/custos/cli/subcommands/nats_transport.py",
+    "machine_http_client": "src/custos/core/machine_credential_vault.py",
+    "acceptance": [
+      "tests/test_plan19_t7c_nats_transport.py",
+      "tests/test_crucible_nats_client.py",
+      "tests/test_runner_fact_outbox.py"
+    ]
+  },
+  "truth": {
+    "custos_user_nkey_seed_owner": true,
+    "dedicated_sops_age_transport_vault": true,
+    "user_seed_sent_over_http_or_nats": false,
+    "user_seed_or_jwt_logged": false,
+    "crucible_signer_or_admin_secret_present": false,
+    "machine_authenticated_direct_crucible_enrollment": true,
+    "user_nkey_proof_of_possession": true,
+    "pinned_account_issuer_verified": true,
+    "jwt_signature_and_acl_verified": true,
+    "tls_ca_and_exact_server_name_required": true,
+    "anonymous_nats_runtime_path": false,
+    "plaintext_nats_runtime_path": false,
+    "wildcard_command_subscription": false,
+    "runner_only_legacy_durable": false,
+    "existing_tenant_runner_durable_exact_readback": true,
+    "jetstream_mutation_authority_present": false,
+    "runner_fact_uses_same_authenticated_profile": true,
+    "inbound_ack_and_outbound_puback_remain_separate": true,
+    "rotation_stages_pending_generation_before_local_promotion": true,
+    "failed_activation_keeps_old_generation_active": true,
+    "broker_authorization_denial_stops_execution": true,
+    "production_transport_credential_provisioned": false,
+    "production_durable_verified": false,
+    "old_generation_reconnect_denial_attested": false,
+    "real_nats_integration_passed": false,
+    "team_daemon_enabled": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
+  "focused_verification": {
+    "result": "20 passed",
+    "suites": [
+      "tests/test_plan19_t7c_nats_transport.py",
+      "tests/test_crucible_nats_client.py",
+      "tests/test_runner_fact_outbox.py",
+      "tests/test_plan19_t5_daemon_supervision.py"
+    ]
+  },
+  "open_blockers": [
+    "production Account signer and System Account resolver credentials are not provisioned",
+    "production tenant runner durable has no exact runtime readback receipt",
+    "old generation forced disconnect and reconnect denial have no Custos runtime attestation",
+    "cross repository T8 runtime composition is not complete"
+  ]
+}

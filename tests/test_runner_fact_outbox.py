@@ -181,9 +181,17 @@ class _ConnectedNatsStub:
     is_connected = True
 
 
+class _TransportProfile:
+    def assert_active(self) -> None:
+        return None
+
+    def assert_publish_subject(self, subject: str) -> None:
+        assert subject.startswith("crucible.runner_fact.")
+
+
 def _publisher(outbox: RunnerFactOutbox, jetstream: _JetStreamStub) -> RunnerFactJetStreamPublisher:
     publisher = RunnerFactJetStreamPublisher(
-        servers=("nats://unused",),
+        connection_profile=_TransportProfile(),
         outbox=outbox,
         runner_id=_RUNNER_ID,
         authority_guard=lambda: None,

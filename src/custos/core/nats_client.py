@@ -1,76 +1,105 @@
-"""Inbound-only JetStream transport for Crucible deployment commands.
-
-Custos observations leave through the signed RunnerFact outbox. This client has
-no unsigned telemetry, DeploymentStatus, snapshot, or ARX business-topic
-publication surface.
-"""
+"""Inbound-only Crucible command transport over an existing CR100 durable."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import UUID
 
-from custos.core.runner_command_intake import CommandDeliveryPolicy
+from nats.js.api import AckPolicy, DeliverPolicy, ReplayPolicy
 
-try:  # pragma: no cover - production dependency, mocked by unit tests
-    import nats
-    from nats.js.api import AckPolicy, ConsumerConfig
-except ImportError as exc:  # pragma: no cover
-    nats = None  # type: ignore[assignment]
-    AckPolicy = None  # type: ignore[assignment,misc]
-    ConsumerConfig = None  # type: ignore[assignment,misc]
-    _IMPORT_ERROR = exc
-else:
-    _IMPORT_ERROR = None
+from custos.core.nats_transport import (
+    RunnerNatsTransportConnectionProfile,
+    RunnerNatsTransportError,
+)
 
 
 @dataclass
 class CrucibleNatsClient:
-    nats_url: str
+    """Bind, but never create, the exact tenant+runner command consumer."""
+
+    connection_profile: RunnerNatsTransportConnectionProfile
     tenant_id: str
     runner_id: str
-    machine_credential: Any = field(repr=False)
-    command_delivery_policy: CommandDeliveryPolicy = field(default_factory=CommandDeliveryPolicy)
+    machine_credential: Any
     _nc: Any = field(default=None, init=False, repr=False)
     _js: Any = field(default=None, init=False, repr=False)
+    _jsm: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.machine_credential.assert_active()
+        runner_id = UUID(self.runner_id)
         if (
             self.machine_credential.tenant_id != self.tenant_id
-            or str(self.machine_credential.runner_id) != self.runner_id
+            or self.machine_credential.runner_id != runner_id
+            or self.connection_profile.tenant_id != self.tenant_id
+            or self.connection_profile.runner_id != runner_id
         ):
-            raise ValueError("NATS machine authority does not match tenant/runner binding")
+            raise ValueError("runner NATS authority does not match tenant/runner identity")
+        self.connection_profile.assert_active()
 
     async def connect(self) -> None:
-        if nats is None:  # pragma: no cover
-            raise RuntimeError(f"nats-py is not installed: {_IMPORT_ERROR}")
-        self._nc = await nats.connect(self.nats_url)
+        self.machine_credential.assert_active()
+        self.connection_profile.assert_active()
+        self._nc = await self.connection_profile.connect(
+            name=f"custos-command-{self.tenant_id}-{self.runner_id}"
+        )
         self._js = self._nc.jetstream()
+        self._jsm = self._nc.jetstream_manager()
 
     async def close(self) -> None:
-        if self._nc is not None:
+        if self._nc is not None and not self._nc.is_closed:
             await self._nc.drain()
         self._nc = None
         self._js = None
+        self._jsm = None
 
     async def subscribe_deployment_spec(self) -> Any:
-        """Subscribe to initial and subsequent exact-runner desired-state events."""
-        if self._js is None:
-            raise RuntimeError("subscribe_deployment_spec called before connect()")
-        subject = f"crucible_rust.domain.{self.tenant_id}.*.deployment.*.{self.runner_id}.*"
-        durable = f"custos-deployment-{self.runner_id}"
-        consumer_config = ConsumerConfig(
-            durable_name=durable,
-            ack_policy=AckPolicy.EXPLICIT,
-            ack_wait=self.command_delivery_policy.ack_wait_seconds,
-            max_deliver=self.command_delivery_policy.max_deliver,
-            backoff=list(self.command_delivery_policy.backoff_seconds),
-            filter_subject=subject,
-        )
-        return await self._js.subscribe(
-            subject,
-            durable=durable,
-            config=consumer_config,
+        self.machine_credential.assert_active()
+        self.connection_profile.assert_active()
+        if self._js is None or self._jsm is None:
+            raise RuntimeError("NATS subscribe attempted before connect")
+        expected = self.connection_profile.durable_config
+        stream = str(expected["stream_name"])
+        durable = str(expected["durable_name"])
+        info = await self._jsm.consumer_info(stream, durable)
+        config = info.config
+        _assert_existing_consumer(config, expected)
+        return await self._js.subscribe_bind(
+            stream=stream,
+            config=config,
+            consumer=durable,
             manual_ack=True,
+        )
+
+
+def _enum_value(value: object) -> object:
+    return getattr(value, "value", value)
+
+
+def _assert_existing_consumer(config: Any, expected: Any) -> None:
+    filters = list(config.filter_subjects or ())
+    if not filters and config.filter_subject:
+        filters = [config.filter_subject]
+    actual = {
+        "durable_name": config.durable_name,
+        "delivery_subject": config.deliver_subject,
+        "filter_subjects": filters,
+        "deliver_policy": _enum_value(config.deliver_policy),
+        "ack_policy": _enum_value(config.ack_policy),
+        "replay_policy": _enum_value(config.replay_policy),
+        "max_ack_pending": config.max_ack_pending,
+    }
+    required = {
+        "durable_name": expected["durable_name"],
+        "delivery_subject": expected["delivery_subject"],
+        "filter_subjects": list(expected["filter_subjects"]),
+        "deliver_policy": DeliverPolicy.ALL.value,
+        "ack_policy": AckPolicy.EXPLICIT.value,
+        "replay_policy": ReplayPolicy.INSTANT.value,
+        "max_ack_pending": 1,
+    }
+    if actual != required:
+        raise RunnerNatsTransportError(
+            "existing CR100 command durable does not match signed authority"
         )

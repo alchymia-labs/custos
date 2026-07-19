@@ -1,0 +1,94 @@
+{
+  "authority": "CR100-RUNNER-NATS-TRANSPORT-AUTHORITY-V1",
+  "code_commit": "a3b5148402e5af433931f6406c8fac1b7208b904",
+  "http_contract": {
+    "activate": "/internal/v1/runner-nats-transport/activate",
+    "client_supplied_permissions_accepted": false,
+    "enroll": "/internal/v1/runner-nats-transport/enroll",
+    "finalize_revocation_exposed_to_runner": false,
+    "jwt_get_endpoint": false,
+    "request_revocation": "/internal/v1/runner-nats-transport/revoke",
+    "rotate": "/internal/v1/runner-nats-transport/rotate",
+    "suspend": "/internal/v1/runner-nats-transport/suspend"
+  },
+  "implementation_assets": [
+    {
+      "path": "crates/server-http/Cargo.toml",
+      "sha256": "fec2e1b426f65fbe81a8a2be5a5e60166cb1aacc3b71537f6037ac7c4574a640",
+      "size_bytes": 3349
+    }
+  ],
+  "plan": ".forge/plans/2026-07/100-runner-nats-transport-credential-authority.md",
+  "plan_commit": "780538fda7d24ab1f015c59419576a0cd48155e3",
+  "runtime_evidence": null,
+  "schema_version": "alephain.crucible.http-lifecycle-receipt.v1",
+  "source_assets": {
+    "acceptance": {
+      "path": "crates/server-http/tests/runner_nats_transport_integration.rs",
+      "sha256": "e14dec6db46f74e79ac789b340febc29a96ab096cc783620423144520c82b586",
+      "size_bytes": 20479
+    },
+    "coordinator_and_signer_client": {
+      "path": "crates/server-http/src/runner_nats_transport_issuer.rs",
+      "sha256": "2d872b5a6d56862994bbddceca45efeffa7416c6a21e0398b4fd2fed97327a57",
+      "size_bytes": 21916
+    },
+    "machine_credential_authority": {
+      "path": "crates/store/src/runner_credential_authority.rs",
+      "sha256": "fe1e9607e08e1314525a9438bd593baa6930fe988a02bacde9c8be8c2727bb4a",
+      "size_bytes": 40285
+    },
+    "runner_authority_route": {
+      "path": "crates/server-http/src/routes/runner_authority.rs",
+      "sha256": "019a82d942ffa688e7f1658b39eac889dd5673a3164f7a42556fd46040106820",
+      "size_bytes": 48845
+    }
+  },
+  "status": "READY_HTTP_LIFECYCLE_CODE_ONLY",
+  "truth": {
+    "control_0043_checked_in": false,
+    "control_0043_executed": false,
+    "generation_and_revision_cas_ready": true,
+    "live_ready": false,
+    "machine_credential_authentication_required": true,
+    "ordinary_server_composed": false,
+    "permission_and_durable_scope_server_derived": true,
+    "production_ready": false,
+    "raw_jwt_persisted": false,
+    "real_nats_verified": false,
+    "response_loss_replay_deterministic": true,
+    "runtime_ready": false,
+    "suspension_first_revocation_ready": true,
+    "user_nkey_proof_of_possession_required": true
+  },
+  "upstream_receipts": {
+    "signer": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-signer-v1.json",
+      "sha256": "278d2dabef86017264186644be5859387768dc1677b57ed357a513799dbb30a2",
+      "size_bytes": 2644
+    },
+    "storage": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-storage-v1.json",
+      "sha256": "00c77edffb5d77ddb79d1de8a33df9764a6327e2de6feb6073855a5aa54711d4",
+      "size_bytes": 2972
+    }
+  },
+  "verification": {
+    "adjacent_repository": "3 passed; 0 failed",
+    "adjacent_signer": "6 passed; 0 failed",
+    "command": "cargo test -p server-http --test runner_nats_transport_integration",
+    "covers": [
+      "machine_proof_covers_user_nkey",
+      "independent_user_nkey_pop",
+      "client_scope_widening_rejected",
+      "paper_and_live_modes_server_derived",
+      "deterministic_response_loss_replay",
+      "generation_guarded_rotation",
+      "revision_guarded_activation",
+      "suspension_first_revocation",
+      "no_raw_jwt_or_seed_database_column"
+    ],
+    "real_postgresql": true,
+    "result": "3 passed; 0 failed"
+  }
+}
