@@ -289,7 +289,36 @@ Not merely tsc / lint / build — real runtime evidence:
 
 ## 偏离与改进日志
 
-*(记录 execution 过程中的 deviation;plan authoring 阶段无条目)*
+### DEVIATION-01: doc-id 引用漏剥 `NN-` 前缀 (Session 1 verify 抓)
+
+- **等级**: 低(单 session 内发现即修,不影响生产)
+- **原因**: T3 authoring 时假设 Docusaurus 3 保留目录名 `NN-` 前缀作为 doc-id;实际 Docusaurus 3 默认 slugify **剥前缀**,使 `01-introduction/what-is-custos` 等 46 处 sidebar 引用 + 4 处 config footer link + 3 处 index.tsx CTA 全部与真实 doc-id 不匹配 → build 报 "Available document ids are: introduction/…"
+- **影响**: 3 文件(sidebars.js/docusaurus.config.js/src/pages/index.tsx)共 54 行
+- **决定**: 剥前缀 → doc-id 无 `NN-`,目录名保留(供磁盘排序 + URL slug 自动派生也无前缀)
+- **发现渠道**: Session 1 verify — `npm run start` 报 sidebar checkSidebarsDocIds 失败,列出 46 available id 无前缀
+- **修复 commit**: `11f4e42`
+
+### DEVIATION-02: MDX v3 花括号被当 JSX 表达式 (Session 1 verify 抓)
+
+- **等级**: 低(单文件单行,build error 阻断即修)
+- **原因**: MDX v3 把 `{expr}` 解析为 JSX 表达式;`docs/09-reference/cli.md` stub TODO 里 `arx-runner enroll / vault {put,verify,list} / …` 被当作 tuple → `ReferenceError: put is not defined` during SSG(仅 `npm run build` 触发,dev-mode 未暴露)
+- **影响**: `docs/09-reference/cli.md` 1 行
+- **决定**: 用反引号包 code,MDX 遇到 `` `…` `` 不解析花括号;46 章 stub grep 未发现其它 `{...}` 命中
+- **发现渠道**: Session 1 verify — `npm run build` SSG 失败于 `/reference/cli`
+- **修复 commit**: `11f4e42`
+
+### DEVIATION-03: Session 1 close-out A-scaffold(zh-Hans locale)
+
+- **等级**: 低(计划范围扩展,不改变技术契约;未占用后续 Session 的 Task 名额)
+- **原因**: Plan 20 原设计 T4 只 scaffold 英文 stub;zh-Hans i18n 目录只留空 README。Session 1 verify 时 Chrome 测 locale switcher 发现 `/zh-Hans/**` 全 404(dev-mode 单 host 单 locale 限制放大了空态),UX 洞明显。CEO 选 A 方案「最小 zh scaffold 避免 404」
+- **影响**:
+  - `i18n/zh-Hans/docusaurus-theme-classic/{navbar,footer}.json` — navbar 4 keys + footer 16 keys 手动中文翻译
+  - `i18n/zh-Hans/docusaurus-plugin-content-docs/current.json` — 11 sidebar 分类 label 中文翻译(I·概览 … X·发布与治理)
+  - `i18n/zh-Hans/code.json` — 82 Docusaurus 3 内置 UI 短语(已自带简体中文包,`write-translations` 自动填充)
+  - `i18n/zh-Hans/docusaurus-plugin-content-docs/current/{01-10}-…/*.md` — 46 zh chapter stubs(cp en 内容 + 顶部注入 `:::warning 🔄 中文翻译进行中 · PLAN 20 T6` banner)
+- **决定**: A 方案作为 Session 1 close-out 补丁,不占用 T6 名额;T6 正式内容翻译仍待 Session 3
+- **发现渠道**: Session 1 verify — Chrome locale switcher 端到端测试
+- **相关 commit**: Session 1 close-out commit(见 git log)
 
 ## Non-Custodial Red Line Verification
 
@@ -305,11 +334,36 @@ Documentation-only plan; no red-line risk.
 
 ## 完成报告 (Close-out Report)
 
-*(填于 T12)*
+*(顶级 close-out 填于 T12;各 Session 分段追加。)*
+
+### Session 1 (T2 · T3 · T4 · zh-Hans A-scaffold) — 2026-07-19
+
+- **完成 Task**: T2 ✅ · T3 ✅ · T4 ✅ · Session 1 close-out A-scaffold ✅
+- **偏离数**: 3 (DEVIATION-01/02/03 详见「偏离与改进日志」)
+- **验证结果**:
+  - `npm run build` — 双 locale 均通过(en 872ms client · zh-Hans 6.5s client;仅 non-blocking `Cannot infer update date` warning,commit 后消失)
+  - `npm run serve` (single-host build) — locale switcher 端到端双向切换、route 保留 ✅
+  - Chrome 视觉验证 pass(截图见 verify 会话记录):
+    - en homepage · paper 浅色 · brand accent(Newsreader 300 hero + gold em-dash + JetBrains Mono eyebrow)
+    - en 章节 · 10 Part × 46 章 sidebar + gold-edge `:::info` admonition + Next 卡片
+    - 深色模式 slate 主题 + theme toggle
+    - zh homepage · navbar/footer 中文(文档/生态/代码 · ARX·内测中 · 隶属 The Alephain Guild 生态)
+    - zh 章节 · warning `🔄 中文翻译进行中` + info `STUB` 双 admonition
+    - locale switcher route-preserving 双向切换
+- **交付 commit**(main branch,3 commit 分开原子提交):
+  - commit 1(scaffold): `feat(custos): plan 20 T2-T4 — docusaurus 3.6 docs site scaffold`
+  - commit 2(fix): `fix(custos): plan 20 verify — strip NN- prefixes from doc-ids + escape MDX braces`
+  - commit 3(close-out): `feat(custos): plan 20 close-out — zh-Hans locale A-scaffold with 待翻译 banner`
+- **遗留项**(按 Session 顺序):
+  - Session 2:T5 verbatim migration(46 章从 `docs/**.md`,加 `<!-- source: docs/… -->` provenance)
+  - Session 3:T6 zh 正式翻译(Part I-II 初版,替换 warning banner)
+  - Session 4:T7 完整 homepage + Two Faces of ARX 叙事(D3 已定)+ T8 mast-strip 生态引流
+  - Session 5:T9 GitHub Action `docs-deploy.yml`(D1 gh-pages branch)· T10 CNAME DNS runbook 交接(D2 CEO 准备 DNS)· T11 versioning 0.3.0 freeze · T12 顶级 close-out
+
+### 顶级 Close-out(填于 T12)
 
 - **完成日期**: TBD
 - **总 Task 数**: 12
-- **偏离数**: TBD
+- **偏离总数**: TBD (Session 1 至今 3)
 - **验证结果**: TBD (per T2-T12 acceptance)
-- **遗留项**: expected — Chinese translation for Parts II-X spans multiple
-  future sessions (T6 partial)
+- **遗留项**: expected — Chinese translation for Parts III-X spans multiple future sessions

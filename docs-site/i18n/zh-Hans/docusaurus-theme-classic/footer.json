@@ -1,0 +1,66 @@
+{
+  "link.title.Documentation": {
+    "message": "文档",
+    "description": "The title of the footer links column with title=Documentation in the footer"
+  },
+  "link.title.Ecosystem": {
+    "message": "生态",
+    "description": "The title of the footer links column with title=Ecosystem in the footer"
+  },
+  "link.title.Code": {
+    "message": "代码",
+    "description": "The title of the footer links column with title=Code in the footer"
+  },
+  "link.item.label.What is custos": {
+    "message": "custos 是什么",
+    "description": "The label of footer link with label=What is custos linking to /introduction/what-is-custos"
+  },
+  "link.item.label.Getting started": {
+    "message": "快速上手",
+    "description": "The label of footer link with label=Getting started linking to /getting-started/installation"
+  },
+  "link.item.label.Trust model": {
+    "message": "信任模型",
+    "description": "The label of footer link with label=Trust model linking to /trust-model/red-lines"
+  },
+  "link.item.label.Integration guide": {
+    "message": "集成指南",
+    "description": "The label of footer link with label=Integration guide linking to /integration/gateway-contract-v1"
+  },
+  "link.item.label.The Alephain Guild": {
+    "message": "The Alephain Guild",
+    "description": "The label of footer link with label=The Alephain Guild linking to https://alephain.com"
+  },
+  "link.item.label.ARX · private beta": {
+    "message": "ARX · 内测中",
+    "description": "The label of footer link with label=ARX · private beta linking to mailto:contact@alephain.com?subject=ARX%20private%20beta%20%C2%B7%20invite%20request"
+  },
+  "link.item.label.Alchymia Labs": {
+    "message": "Alchymia Labs",
+    "description": "The label of footer link with label=Alchymia Labs linking to https://alchymia.alephain.com"
+  },
+  "link.item.label.Tesseract Trading": {
+    "message": "Tesseract Trading",
+    "description": "The label of footer link with label=Tesseract Trading linking to https://tesseract.alephain.com"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/alchymia-labs/custos"
+  },
+  "link.item.label.CHANGELOG": {
+    "message": "CHANGELOG",
+    "description": "The label of footer link with label=CHANGELOG linking to https://github.com/alchymia-labs/custos/blob/main/CHANGELOG.md"
+  },
+  "link.item.label.License · Apache-2.0": {
+    "message": "许可证 · Apache-2.0",
+    "description": "The label of footer link with label=License · Apache-2.0 linking to https://github.com/alchymia-labs/custos/blob/main/LICENSE"
+  },
+  "link.item.label.Security policy": {
+    "message": "安全策略",
+    "description": "The label of footer link with label=Security policy linking to https://github.com/alchymia-labs/custos/blob/main/SECURITY.md"
+  },
+  "copyright": {
+    "message": "© 2026 custos 贡献者 · Apache-2.0 · 隶属 The Alephain Guild 生态。",
+    "description": "The footer copyright"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "version.label": {
+    "message": "下一版",
+    "description": "The label for version current"
+  },
+  "sidebar.main.category.I · Overview": {
+    "message": "I · 概览",
+    "description": "The label for category 'I · Overview' in sidebar 'main'"
+  },
+  "sidebar.main.category.II · Getting Started": {
+    "message": "II · 快速上手",
+    "description": "The label for category 'II · Getting Started' in sidebar 'main'"
+  },
+  "sidebar.main.category.III · Core Concepts": {
+    "message": "III · 核心概念",
+    "description": "The label for category 'III · Core Concepts' in sidebar 'main'"
+  },
+  "sidebar.main.category.IV · Operator Guide": {
+    "message": "IV · 运维指南",
+    "description": "The label for category 'IV · Operator Guide' in sidebar 'main'"
+  },
+  "sidebar.main.category.V · Non-Custodial Trust Model": {
+    "message": "V · 非托管信任模型",
+    "description": "The label for category 'V · Non-Custodial Trust Model' in sidebar 'main'"
+  },
+  "sidebar.main.category.VI · Integration Guide": {
+    "message": "VI · 集成指南",
+    "description": "The label for category 'VI · Integration Guide' in sidebar 'main'"
+  },
+  "sidebar.main.category.VII · Engines": {
+    "message": "VII · 交易引擎",
+    "description": "The label for category 'VII · Engines' in sidebar 'main'"
+  },
+  "sidebar.main.category.VIII · Strategy Toolkit": {
+    "message": "VIII · 策略工具包",
+    "description": "The label for category 'VIII · Strategy Toolkit' in sidebar 'main'"
+  },
+  "sidebar.main.category.IX · Reference": {
+    "message": "IX · 参考手册",
+    "description": "The label for category 'IX · Reference' in sidebar 'main'"
+  },
+  "sidebar.main.category.X · Release & Governance": {
+    "message": "X · 发布与治理",
+    "description": "The label for category 'X · Release & Governance' in sidebar 'main'"
+  }
+}
