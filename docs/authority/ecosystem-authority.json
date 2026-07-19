@@ -275,8 +275,8 @@
     "stream_identity": "tenant_id+trading_mode+runner_id+deployment_instance_id",
     "generation_resets_sequence": false,
     "phase_a_input_ready": true,
-    "crucible_phase_a_compatible": false,
-    "projector_compatibility_ready": false,
+    "crucible_phase_a_compatible": true,
+    "projector_compatibility_ready": true,
     "runtime_rc": false,
     "real_runtime_round_trip_ready": false,
     "golden_signature_is_runtime_evidence": false,
@@ -293,7 +293,11 @@
         "receipt": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
         "receipt_sha256": "aac5a9377bd99190fd53ac9c99ded6850acd8e0b22a202e2bd158d0964a3cedc"
       }
-    ]
+    ],
+    "phase_a_consumer_receipt": "docs/authority/receipts/custos-plan-19-task-8b-runner-fact-phase-a-consumer-receipt.json",
+    "crucible_phase_a_receipt": "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/crucible-plan-90-runner-fact-phase-a-compatibility-v1.json",
+    "t8b_stop": true,
+    "task_9_phase_a_gate_ready": true
   },
   "toolkit_rc_release": {
     "owner": "custos",

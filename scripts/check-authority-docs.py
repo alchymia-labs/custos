@@ -78,6 +78,16 @@ PLAN_19_T8A_V1_RECEIPT_PATH = (
 PLAN_19_T8A_V1_RECEIPT_SHA256 = "aac5a9377bd99190fd53ac9c99ded6850acd8e0b22a202e2bd158d0964a3cedc"
 PLAN_19_T8A_PRODUCER_COMMIT = "af8a39123b9c7b4e7b9b51361339a504af1d2096"
 PLAN_19_T8A_INDEX_SHA256 = "6436e11799d31629c68c8ca521734799b8458e566ca8edf1f9b58bafcd49edd2"
+PLAN_19_T8B_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-8b-runner-fact-phase-a-consumer-receipt.json"
+)
+PLAN_19_T8B_CR90_RECEIPT_PATH = (
+    "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/"
+    "crucible-plan-90-runner-fact-phase-a-compatibility-v1.json"
+)
+PLAN_19_T8B_CR90_RECEIPT_SHA256 = (
+    "e4f936c68dad1f82d99aa4ac638ebc26e551664f821e0910e1ff143f6ff098ca"
+)
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -2873,8 +2883,12 @@ def verify_plan_19_task_8a_runner_fact_candidate(
             "capability_projector_contract_exact_pin": True,
             "generation_resets_sequence": False,
             "phase_a_input_ready": True,
-            "crucible_phase_a_compatible": False,
-            "projector_compatibility_ready": False,
+            "crucible_phase_a_compatible": True,
+            "projector_compatibility_ready": True,
+            "phase_a_consumer_receipt": PLAN_19_T8B_RECEIPT_PATH,
+            "crucible_phase_a_receipt": PLAN_19_T8B_CR90_RECEIPT_PATH,
+            "t8b_stop": True,
+            "task_9_phase_a_gate_ready": True,
             "runtime_rc": False,
             "real_runtime_round_trip_ready": False,
             "golden_signature_is_runtime_evidence": False,
@@ -2953,6 +2967,122 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         errors.append("Plan 19 T8a active authority still links telemetry_actor.md")
 
 
+def verify_plan_19_task_8b_phase_a_consumer(
+    manifest: dict[str, Any], errors: list[str]
+) -> None:
+    receipt_path = resolve(PLAN_19_T8B_RECEIPT_PATH)
+    producer_path = resolve(PLAN_19_T8B_CR90_RECEIPT_PATH)
+    if not receipt_path.is_file() or not producer_path.is_file():
+        errors.append("Plan 19 T8b authority inventory is incomplete")
+        return
+    if hashlib.sha256(producer_path.read_bytes()).hexdigest() != (
+        PLAN_19_T8B_CR90_RECEIPT_SHA256
+    ):
+        errors.append("Plan 19 T8b vendored Crucible Phase-A receipt drifted")
+        return
+    receipt = load_json(receipt_path)
+    producer = load_json(producer_path)
+    candidate = receipt.get("candidate")
+    producer_candidate = producer.get("candidate")
+    if receipt.get("receipt_status") != "READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY":
+        errors.append("Plan 19 T8b receipt status differs")
+    expected_candidate = {
+        "producer_commit": PLAN_19_T8A_PRODUCER_COMMIT,
+        "producer_authority_commit": "842e95ad4f361f463b38bf42496d982c85b4dad4",
+        "receipt_path": PLAN_19_T8A_RECEIPT_PATH,
+        "receipt_sha256": "e86a7e4f145274dc3e2d335ecf7a67d9c129a8ea07e13b32d06d4b56111841e7",
+        "asset_index_path": PLAN_19_T8A_INDEX_PATH,
+        "asset_index_sha256": PLAN_19_T8A_INDEX_SHA256,
+        "fact_kind_count": 13,
+        "projector_count": 5,
+        "stream_identity_fields": [
+            "tenant_id",
+            "trading_mode",
+            "runner_id",
+            "deployment_instance_id",
+        ],
+        "signed_fencing_fields": [
+            "deployment_spec_id",
+            "deployment_spec_digest",
+            "generation",
+        ],
+    }
+    if candidate != expected_candidate:
+        errors.append("Plan 19 T8b exact candidate binding differs")
+    if not isinstance(producer_candidate, dict) or any(
+        producer_candidate.get(key) != value
+        for key, value in {
+            "coordinate": "custos.runner-fact.v1/candidate-2026-07-15.2",
+            "producer_commit": PLAN_19_T8A_PRODUCER_COMMIT,
+            "receipt_sha256": expected_candidate["receipt_sha256"],
+            "asset_index_sha256": PLAN_19_T8A_INDEX_SHA256,
+            "fact_kind_count": 13,
+            "projector_count": 5,
+            "stream_identity_fields": expected_candidate["stream_identity_fields"],
+            "signed_fencing_fields": expected_candidate["signed_fencing_fields"],
+        }.items()
+    ):
+        errors.append("Plan 19 T8b Crucible Phase-A candidate binding differs")
+    producer_truth = producer.get("truth")
+    if not isinstance(producer_truth, dict) or any(
+        producer_truth.get(key) != value
+        for key, value in {
+            "phase_a_code_complete": True,
+            "independent_review_clear": True,
+            "phase_a_compatible": True,
+            "projector_compatibility_ready": True,
+            "runtime_rc": False,
+            "phase_b_round_trip_ready": False,
+            "nats_live_e2e_proven": False,
+            "runtime_consumer_composed": False,
+            "live_ready": False,
+            "runtime_ready": False,
+            "production_ready": False,
+        }.items()
+    ):
+        errors.append("Plan 19 T8b Crucible Phase-A truth differs")
+    truth = receipt.get("truth")
+    expected_truth = {
+        "phase_a_compatibility_consumed": True,
+        "t8b_stop": True,
+        "task_9_phase_a_gate_ready": True,
+        "runtime_rc": False,
+        "phase_b_round_trip_ready": False,
+        "nats_live_e2e_proven": False,
+        "runtime_consumer_composed": False,
+        "live_ready": False,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    if not isinstance(truth, dict) or any(
+        truth.get(key) != value for key, value in expected_truth.items()
+    ):
+        errors.append("Plan 19 T8b consumer truth differs")
+    if hashlib.sha256(resolve(PLAN_19_T8A_RECEIPT_PATH).read_bytes()).hexdigest() != (
+        expected_candidate["receipt_sha256"]
+    ):
+        errors.append("Plan 19 T8b local T8a receipt no longer matches Phase A")
+    if hashlib.sha256(resolve(PLAN_19_T8A_INDEX_PATH).read_bytes()).hexdigest() != (
+        PLAN_19_T8A_INDEX_SHA256
+    ):
+        errors.append("Plan 19 T8b local T8a asset index no longer matches Phase A")
+
+    registrations = {
+        entry.get("role"): entry.get("path")
+        for entry in manifest.get("authority_documents", [])
+        if entry.get("role")
+        in {
+            "crucible_plan_90_runner_fact_phase_a_receipt",
+            "plan_19_task_8b_runner_fact_phase_a_consumer_receipt",
+        }
+    }
+    if registrations != {
+        "crucible_plan_90_runner_fact_phase_a_receipt": PLAN_19_T8B_CR90_RECEIPT_PATH,
+        "plan_19_task_8b_runner_fact_phase_a_consumer_receipt": PLAN_19_T8B_RECEIPT_PATH,
+    }:
+        errors.append("Plan 19 T8b authority manifest registrations differ")
+
+
 def main() -> int:
     manifest = load_json(MANIFEST_PATH)
     errors: list[str] = []
@@ -3006,6 +3136,7 @@ def main() -> int:
     verify_plan_19_task_7b_runner_policy_code(manifest, errors)
     verify_plan_19_task_7c_nats_transport(manifest, errors)
     verify_plan_19_task_8a_runner_fact_candidate(manifest, errors)
+    verify_plan_19_task_8b_phase_a_consumer(manifest, errors)
     task_3_move_verified = verify_plan_18_task_3_distribution_receipt(
         errors,
         allowed_current_source_digest=current_source_digest,

@@ -460,6 +460,19 @@
       "live_ready": false,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "crucible_plan_90_runner_fact_phase_a_receipt",
+      "path": "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/crucible-plan-90-runner-fact-phase-a-compatibility-v1.json",
+      "status": "READY_PHASE_A_PROJECTOR_COMPATIBILITY_ONLY"
+    },
+    {
+      "role": "plan_19_task_8b_runner_fact_phase_a_consumer_receipt",
+      "path": "docs/authority/receipts/custos-plan-19-task-8b-runner-fact-phase-a-consumer-receipt.json",
+      "receipt_status": "READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY",
+      "t8b_stop": true,
+      "runtime_ready": false,
+      "production_ready": false
     }
   ],
   "external_optional_documents": [

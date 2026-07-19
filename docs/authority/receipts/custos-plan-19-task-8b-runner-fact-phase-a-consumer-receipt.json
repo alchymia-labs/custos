@@ -1,0 +1,61 @@
+{
+  "receipt_schema_version": 1,
+  "receipt_id": "CUSTOS-PLAN-19-T8B-RUNNER-FACT-PHASE-A-CONSUMER-V1",
+  "receipt_status": "READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY",
+  "repository": "tesseract-trading/custos",
+  "plan": "Custos Plan 19",
+  "task": "T8b",
+  "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.2",
+  "candidate": {
+    "producer_commit": "af8a39123b9c7b4e7b9b51361339a504af1d2096",
+    "producer_authority_commit": "842e95ad4f361f463b38bf42496d982c85b4dad4",
+    "receipt_path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json",
+    "receipt_sha256": "e86a7e4f145274dc3e2d335ecf7a67d9c129a8ea07e13b32d06d4b56111841e7",
+    "asset_index_path": "docs/authority/runner-fact-contract-candidate-assets-v1.json",
+    "asset_index_sha256": "6436e11799d31629c68c8ca521734799b8458e566ca8edf1f9b58bafcd49edd2",
+    "fact_kind_count": 13,
+    "projector_count": 5,
+    "stream_identity_fields": ["tenant_id", "trading_mode", "runner_id", "deployment_instance_id"],
+    "signed_fencing_fields": ["deployment_spec_id", "deployment_spec_digest", "generation"]
+  },
+  "crucible_phase_a_receipt": {
+    "repository": "tesseract-trading/crucible-rust",
+    "receipt_commit": "cd787490c711030c1a3918e494bb8cf6f917946f",
+    "integrated_merge_commit": "00cc69f",
+    "authority_baseline_commit": "4933007dde111cd69ab8664691d55540795004bc",
+    "source_path": "docs/authority/receipts/crucible-plan-90-runner-fact-phase-a-compatibility-v1.json",
+    "vendored_path": "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/crucible-plan-90-runner-fact-phase-a-compatibility-v1.json",
+    "sha256": "e4f936c68dad1f82d99aa4ac638ebc26e551664f821e0910e1ff143f6ff098ca",
+    "sidecar_path": "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/crucible-plan-90-runner-fact-phase-a-compatibility-v1.json.sha256",
+    "status": "READY_PHASE_A_PROJECTOR_COMPATIBILITY_ONLY"
+  },
+  "compatibility": {
+    "exact_candidate_receipt_bound": true,
+    "exact_candidate_asset_index_bound": true,
+    "all_seven_asset_digests_bound": true,
+    "generation_storage_contract_consumed": true,
+    "exact_byte_verifier_compatible": true,
+    "inbox_contract_compatible": true,
+    "projector_contract_compatible": true,
+    "independent_review_clear": true
+  },
+  "truth": {
+    "phase_a_compatibility_consumed": true,
+    "t8b_stop": true,
+    "task_9_phase_a_gate_ready": true,
+    "runtime_rc": false,
+    "phase_b_round_trip_ready": false,
+    "nats_live_e2e_proven": false,
+    "runtime_consumer_composed": false,
+    "live_ready": false,
+    "runtime_ready": false,
+    "production_ready": false
+  },
+  "open_gates": [
+    "Custos Plan 18 exact staged and final artifact evidence is present in the selected Task 9 BOM",
+    "Custos Plan 19 native order interception and direct-submit bypass proof are complete",
+    "Task 9 publishes an immutable runtime RC/final candidate",
+    "Crucible Plan 90 Phase B proves the exact real runtime round trip",
+    "PS Plan 56 accepts the same unchanged final-candidate digest"
+  ]
+}
