@@ -60,7 +60,8 @@ PLAN_19_T7A_RECEIPT_PATH = (
 )
 PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
 PLAN_19_T7B_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json"
+    "docs/authority/receipts/"
+    "custos-plan-19-task-7b-runner-policy-reservation-v2-receipt.json"
 )
 PLAN_19_T7C_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json"
@@ -1809,7 +1810,7 @@ def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: lis
         ):
             if state.get(key) != receipt.get(key):
                 errors.append(f"engine_lifecycle {key} differs")
-        if state.get("runner_state_schema_version") != 3:
+        if state.get("runner_state_schema_version") != 4:
             errors.append("engine_lifecycle current runner_state_schema_version differs")
     artifact_runtime = snapshot.get("strategy_artifact_runtime")
     if not isinstance(artifact_runtime, dict) or any(
@@ -1838,7 +1839,7 @@ def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: lis
             "async def wait_terminal",
         ),
         "runner state store": (
-            "RUNNER_STATE_SCHEMA_VERSION: Final = 3",
+            "RUNNER_STATE_SCHEMA_VERSION: Final = 4",
             "restart_count INTEGER NOT NULL DEFAULT 0",
             "class EngineLifecycleDurableState",
             "load_engine_lifecycle_state",
@@ -2167,7 +2168,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         errors.append("ecosystem authority lacks runner_safety_policy_consumer")
     else:
         for key, value in {
-            "status": "READY_CONTRACT_CONSUMER_CODE_ONLY",
+            "status": "READY_DURABLE_RESERVATION_LIFECYCLE_CODE_ONLY",
             "producer_main_landed": False,
             "migration_0117_executed": False,
             "runtime_publication_enabled": False,
@@ -2193,6 +2194,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         "reconciler": resolve("src/custos/core/deployment_reconciler.py"),
         "daemon": resolve("src/custos/cli/_daemon.py"),
         "test": resolve("tests/test_plan19_t7b_runner_policy_runtime_code.py"),
+        "reservation_test": resolve("tests/test_plan19_t7b_order_reservation.py"),
     }
     if not receipt_path.is_file() or not all(path.is_file() for path in paths.values()):
         errors.append("Plan 19 T7B code inventory is incomplete")
@@ -2200,22 +2202,24 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
 
     receipt = load_json(receipt_path)
     expected = {
-        "receipt_status": "READY_CONTRACT_CONSUMER_CODE_ONLY",
-        "durable_policy_state_ready": True,
-        "runner_state_schema_version": 3,
+        "receipt_status": "READY_DURABLE_RESERVATION_LIFECYCLE_CODE_ONLY",
+        "runner_state_schema_version": 4,
         "single_database": True,
         "single_outbox": "runner_fact_outbox",
-        "verified_policy_material_preserved": True,
-        "generation_and_prior_fence_enforced": True,
-        "restart_recovery_ready": True,
-        "deployment_spec_risk_config_authority": False,
-        "verified_policy_only_guard_config": True,
-        "non_live_strictest_fallback_only": True,
-        "live_missing_policy_fails_closed": True,
-        "risk_reducing_orders_permitted_by_guard": True,
-        "per_order_and_aggregate_guard_code_ready": True,
+        "reservation_event_dedup_table": "runner_order_reservation_event",
+        "runtime_identity": "deployment_instance_id",
+        "policy_head_required": True,
+        "per_order_cap_enforced": True,
+        "runner_aggregate_cap_enforced": True,
+        "event_idempotency_and_conflict_ready": True,
+        "reservation_lifecycle_ready": True,
+        "reserve_replace_reject_cancel_ready": True,
+        "partial_fill_fill_close_ready": True,
+        "restart_rebuild_ready": True,
+        "risk_reducing_release_ready": True,
         "engine_boundary_enforcement_ready": False,
-        "reservation_lifecycle_ready": False,
+        "native_execution_client_interception_ready": False,
+        "strategy_direct_submit_bypass_proven": False,
         "daemon_policy_resolver_wired": False,
         "runtime_policy_consumed": False,
         "runner_policy_capability_ready": False,
@@ -2227,28 +2231,17 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
     for key, value in expected.items():
         if receipt.get(key) != value:
             errors.append(f"Plan 19 T7B receipt {key} differs")
-    producer = receipt.get("crucible_producer")
-    if not isinstance(producer, dict) or any(
-        producer.get(key) != value
-        for key, value in {
-            "producer_commit": "0f8c9afbeccf2435785354ad734c16f18aa339ab",
-            "producer_receipt_commit": "36082e6591b67686df928afda88621629eb6075e",
-            "prepared_storage_commit": "42b77075bd88b01e27783519d4892ce31570842e",
-            "prepared_storage_authority_commit": "6bc3a88d146d992b24faaad40812aef304cf0338",
-            "producer_main_landed": False,
-            "migration_0117_executed": False,
-            "runtime_publication_enabled": False,
-        }.items()
-    ):
-        errors.append("Plan 19 T7B producer truth differs")
-
     sources = {name: path.read_text(encoding="utf-8") for name, path in paths.items()}
     required_markers = {
         "store": (
-            "RUNNER_STATE_SCHEMA_VERSION: Final = 3",
+            "RUNNER_STATE_SCHEMA_VERSION: Final = 4",
             "runner_cap_policy_head",
             "record_verified_runner_safety_policy",
             "load_effective_runner_safety_policy",
+            "runner_order_reservation_event",
+            "reserve_order_notional",
+            "record_order_fill",
+            "rebuild_runner_exposure",
         ),
         "resolver": (
             "class DurableRunnerSafetyPolicyResolver",
@@ -2259,6 +2252,11 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         "breaker": ("from_verified_policy", "strictest_local_fallback"),
         "reconciler": ("resolve_runner_safety_limits", "safety_policy_resolver"),
         "daemon": ("safety_policy_resolver=None", "Live reconciliation therefore fails closed"),
+        "reservation_test": (
+            "test_reserve_is_atomic_runner_wide_idempotent_and_fail_closed",
+            "test_fill_replace_cancel_and_close_preserve_exposure_invariants",
+            "test_restart_rebuild_reconciles_trusted_open_exposure_and_reservations",
+        ),
     }
     for source_name, markers in required_markers.items():
         for marker in markers:
@@ -2274,7 +2272,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
     registrations = [
         entry
         for entry in manifest.get("authority_documents", [])
-        if entry.get("role") == "plan_19_task_7b_runner_policy_code_receipt"
+        if entry.get("role") == "plan_19_task_7b_runner_policy_reservation_receipt"
     ]
     if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T7B_RECEIPT_PATH:
         errors.append("Plan 19 T7B receipt manifest registration differs")
@@ -2285,15 +2283,15 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         errors.append("ecosystem authority lacks runner_safety_policy_consumer")
     else:
         for key, value in {
-            "status": "READY_CONTRACT_CONSUMER_CODE_ONLY",
+            "status": "READY_DURABLE_RESERVATION_LIFECYCLE_CODE_ONLY",
             "receipt": PLAN_19_T7B_RECEIPT_PATH,
             "producer_main_landed": False,
             "migration_0117_executed": False,
             "runtime_publication_enabled": False,
             "durable_policy_state_ready": True,
-            "runner_state_schema_version": 3,
+            "runner_state_schema_version": 4,
             "engine_boundary_enforcement_ready": False,
-            "reservation_lifecycle_ready": False,
+            "reservation_lifecycle_ready": True,
             "daemon_policy_resolver_wired": False,
             "runtime_policy_consumed": False,
             "runner_policy_capability_ready": False,

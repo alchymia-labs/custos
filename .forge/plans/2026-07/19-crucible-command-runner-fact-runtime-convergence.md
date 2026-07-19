@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable/guard code checkpoint READY-CODE-ONLY; T7C CR100 authenticated transport consumer READY-CODE-ONLY; T8a producer candidate and T8b Phase-A compatibility READY; native interception, reservation lifecycle, T7C runtime attestation and T9-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable policy + reservation lifecycle READY-CODE-ONLY; T7C CR100 authenticated transport consumer READY-CODE-ONLY; T8a producer candidate and T8b Phase-A compatibility READY; native interception, T7C runtime attestation and T9-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-19 through Plan 19 T8b Phase-A compatibility consumption
 > **Project**: Custos
@@ -578,6 +578,7 @@ signed RunnerFacts ──PubAck──> existing outbox deletion
 | `tests/test_runner_fact_parity.py` | 新增 | capability/projector matrix |
 | `tests/integration/test_crucible_runner_runtime.py` | 新增 | current real acceptance |
 | `tests/test_plan19_t7c_nats_transport.py` | 新增 | Enrollment, local custody, TLS, exact ACL/durable and fail-closed configuration |
+| `tests/test_plan19_t7b_order_reservation.py` | 新增 | Atomic runner-wide reserve/replace/cancel/fill/close/rebuild and restart recovery |
 | `tests/integration/test_plan19_t7c_nats_revocation.py` | 新增 | Real NATS rotation, forced disconnect and old-generation reconnect denial |
 | `docs/design/telemetry_actor.md` | rename | `docs/design/runner_fact.md` |
 | `docs/authority/**`, `CLAUDE.md` | 修改 | producer/projector receipts and active references |
@@ -964,6 +965,25 @@ Execution checkpoint T7B code-only (2026-07-15):
   direct-submit bypass proof and real daemon publication consumption remain open.
   CR99 main/0117/publication and all live/runtime/production flags remain false.
 
+Execution checkpoint T7B reservation lifecycle v2 (2026-07-19):
+
+- Commit `34f0a617c24053a0088201c9b2a7a582a208cd97` evolves the same
+  RunnerFact SQLite deep module to schema v4; no second database or outbox is
+  introduced.
+- `runner_order_reservation_event` provides payload-fingerprinted event
+  idempotency. Reserve, replace, reject/cancel, partial fill, fill, close and
+  trusted restart rebuild execute under `BEGIN IMMEDIATE` with the active
+  tenant/mode/runner policy head.
+- Filled exposure and active reservations form one runner-wide aggregate across
+  deployment instances. Restart rebuild records the trusted exposure digest and
+  releases stale reservations without hiding an observed over-cap state.
+- Focused policy, durable-store and reservation suites are 22 passed. The
+  additive v2 receipt is
+  `docs/authority/receipts/custos-plan-19-task-7b-runner-policy-reservation-v2-receipt.json`.
+- Native Nautilus execution-client interception, direct-submit bypass proof,
+  real CR99 publication/consumption and all live/runtime/production flags remain
+  false.
+
 提交：
 
 ```bash
@@ -1165,7 +1185,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
-| T7 Signed local safety | [~] | 2026-07-15 | T7A contract consumer plus T7B durable/guard `READY_CONTRACT_CONSUMER_CODE_ONLY`; schema v3 uses the same DB/outbox and removes DeploymentSpec risk authority. Native interception, reservation lifecycle, bypass proof and CR99 main/0117/publication/runtime receipts remain open |
+| T7 Signed local safety | [~] | 2026-07-19 | T7A contract consumer plus T7B `READY_DURABLE_RESERVATION_LIFECYCLE_CODE_ONLY`; schema v4 keeps the same DB/outbox and closes runner-wide reserve/replace/cancel/fill/close/rebuild semantics. Native execution-client interception, direct-submit bypass proof and CR99 main/0117/publication/runtime receipts remain open |
 | T7C Authenticated NATS transport | [~] | 2026-07-19 | `READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY`: exact CR100 receipts vendored; local NKey custody, JWT/issuer/ACL verification, pinned TLS, exact existing durable readback, shared outbound profile and activation rollback implemented. Production credential/durable plus forced-disconnect/old-JWT reconnect-denial runtime attestation remain open; runtime/production false |
 | T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；current `.2` A2 producer `af8a391` + v2 authority receipt；`.1` unchanged `NON_CURRENT_SUPERSEDED`；stream-safe/stable event IDs、exact signing preimage、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [x] | 2026-07-19 | `READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY`; exact candidate coordinate, producer/authority commits and all seven asset digests bind Crucible receipt `e4f936c6...`; only the Task 9 Phase-A gate is open, runtime/Phase-B/live/production remain false |
