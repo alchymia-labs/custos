@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -45,15 +46,14 @@ class _Boundary:
         self.message_bus = message_bus
 
 
-def test_host_replaces_the_execution_factory_and_attaches_the_same_boundary() -> None:
+@pytest.mark.asyncio
+async def test_host_replaces_the_execution_factory_and_attaches_the_same_boundary() -> None:
     boundary = _Boundary()
     host = NtTradingNodeHost(
-        runner_safety_boundary_factory=lambda spec: (
-            boundary if spec["deployment_instance_id"] == "instance-1" else None
-        )
+        runner_safety_boundary_factory=lambda spec: _select_boundary(spec, boundary)
     )
 
-    factory, selected_boundary = host._build_guarded_exec_plan(
+    factory, selected_boundary = await host._build_guarded_exec_plan(
         _ExecFactory,
         {"deployment_instance_id": "instance-1"},
     )
@@ -67,10 +67,15 @@ def test_host_replaces_the_execution_factory_and_attaches_the_same_boundary() ->
     assert boundary.message_bus is message_bus
 
 
-def test_host_preserves_the_upstream_factory_without_runtime_boundary() -> None:
+async def _select_boundary(spec, boundary):
+    return boundary if spec["deployment_instance_id"] == "instance-1" else None
+
+
+@pytest.mark.asyncio
+async def test_host_preserves_the_upstream_factory_without_runtime_boundary() -> None:
     host = NtTradingNodeHost()
 
-    factory, boundary = host._build_guarded_exec_plan(
+    factory, boundary = await host._build_guarded_exec_plan(
         _ExecFactory,
         {"deployment_instance_id": "instance-2"},
     )
@@ -106,7 +111,8 @@ def test_real_sandbox_builder_registers_the_guarded_client_without_network() -> 
         policy_id=UUID("22222222-2222-4222-8222-222222222222"),
     )
     factory = guarded_exec_client_factory(SandboxLiveExecClientFactory, boundary)
-    node = TradingNode(config=config)
+    loop = asyncio.new_event_loop()
+    node = TradingNode(config=config, loop=loop)
 
     try:
         node.add_exec_client_factory(BINANCE_VENUE, factory)
@@ -119,3 +125,4 @@ def test_real_sandbox_builder_registers_the_guarded_client_without_network() -> 
         assert factory.__name__ == "SandboxLiveExecClientFactory"
     finally:
         node.dispose()
+        loop.close()

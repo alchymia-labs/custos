@@ -20,6 +20,7 @@ import sys
 import time
 from collections.abc import Callable
 from decimal import Decimal
+from inspect import isawaitable
 from pathlib import Path
 from uuid import UUID
 
@@ -300,7 +301,7 @@ class NtTradingNodeHost:
         exec_cfg, exec_factory, reconciliation = self._build_exec_plan(
             trading_mode, spec, credential, venue
         )
-        exec_factory, runner_safety_boundary = self._build_guarded_exec_plan(
+        exec_factory, runner_safety_boundary = await self._build_guarded_exec_plan(
             exec_factory,
             spec,
         )
@@ -412,12 +413,14 @@ class NtTradingNodeHost:
             f"unsupported trading_mode {trading_mode!r} (expected sandbox / testnet / live)"
         )
 
-    def _build_guarded_exec_plan(self, exec_factory, spec: dict):
+    async def _build_guarded_exec_plan(self, exec_factory, spec: dict):
         if self._runner_safety_boundary_factory is None:
             return exec_factory, None
         from custos.engines.nautilus.runner_safety import guarded_exec_client_factory
 
         boundary = self._runner_safety_boundary_factory(spec)
+        if isawaitable(boundary):
+            boundary = await boundary
         if boundary is None:
             raise RuntimeError("runner safety boundary factory returned no boundary")
         return guarded_exec_client_factory(exec_factory, boundary), boundary

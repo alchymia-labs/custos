@@ -42,8 +42,14 @@ from custos.core.runner_fact import (
     RunnerFactIdentity,
     RunnerFactJetStreamPublisher,
     RunnerFactOutbox,
+    RunnerStateAuthorityError,
+    RunnerStateStore,
 )
 from custos.core.runner_fact_producer import RunnerFactProductionLoop
+from custos.core.runner_safety_policy import (
+    DurableRunnerSafetyPolicyResolver,
+    RunnerSafetyPolicyResolver,
+)
 from custos.core.runner_toml import RunnerToml
 from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogRedactor
 from custos.core.zombie_watchdog import ZombieWatchdog
@@ -142,6 +148,7 @@ def _build_host(
     *,
     fact_emitter: RunnerFactEmitter | None = None,
     capability_receipt: RunnerCapabilityReceipt | None = None,
+    runner_safety_boundary_factory=None,
 ):
     """Pick the execution engine host from the clean-break ``--engine`` enum.
 
@@ -163,6 +170,7 @@ def _build_host(
             runner_id=args.runner_id,
             runner_fact_emitter=fact_emitter,
             capability_receipt=capability_receipt,
+            runner_safety_boundary_factory=runner_safety_boundary_factory,
         )
     if engine == "noop":
         from custos.engines.nautilus.host import NoopHost
@@ -179,13 +187,13 @@ def _build_reconciler(
     runtime_log_emitter: RunnerRuntimeLogEmitter,
     lifecycle_fact_emitter: RunnerDeploymentLifecycleFactEmitter,
     deployment_verifier: CrucibleDomainEventVerifier,
+    safety_policy_resolver: RunnerSafetyPolicyResolver | None = None,
     readiness: ReadinessFile | None = None,
 ) -> DeploymentReconciler:
-    """Compose code-only policy guards without claiming CR99 runtime readiness.
+    """Compose durable policy guards without claiming CR99 runtime readiness.
 
-    Live reconciliation therefore fails closed. Sandbox/testnet may use the
-    explicit strictest local fallback until a durable verified-policy resolver
-    is composed after real CR99 publication evidence exists.
+    The resolver has no live capability until a real CR99 publication receipt
+    exists, so live reconciliation remains fail closed.
     """
     zombie_watchdog = ZombieWatchdog()
     return DeploymentReconciler(
@@ -197,10 +205,39 @@ def _build_reconciler(
         runtime_log_emitter=runtime_log_emitter,
         lifecycle_fact_emitter=lifecycle_fact_emitter,
         deployment_verifier=deployment_verifier,
-        safety_policy_resolver=None,
+        safety_policy_resolver=safety_policy_resolver,
         zombie_watchdog=zombie_watchdog,
         readiness=readiness,
     )
+
+
+def _command_authority_unavailable(_verified_command):
+    raise RunnerStateAuthorityError(
+        "CR89 command authority resolver is not composed; "
+        "strategy_release_id must not be substituted for strategy_id"
+    )
+
+
+def _build_runner_safety_boundary_factory(
+    *,
+    state_store,
+    safety_policy_resolver: RunnerSafetyPolicyResolver,
+):
+    async def build(spec: dict):
+        limits = await safety_policy_resolver.resolve(str(spec["trading_mode"]))
+        if not limits.owner_policy or limits.policy_id is None:
+            raise RuntimeError(
+                "runner safety execution requires a durable verified owner policy"
+            )
+        from custos.engines.nautilus.runner_safety import RunnerReservationBoundary
+
+        return RunnerReservationBoundary(
+            store=state_store,
+            deployment_instance_id=UUID(str(spec["deployment_instance_id"])),
+            policy_id=limits.policy_id,
+        )
+
+    return build
 
 
 async def _supervise_long_running_tasks(
@@ -398,6 +435,18 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 key_id=args.crucible_domain_key_id,
             )
             vault = _build_vault(args)
+            state_store = RunnerStateStore(
+                outbox=fact_outbox,
+                identity=identity,
+                tenant_id=args.tenant_id,
+                runner_id=runner_id,
+                authority_resolver=_command_authority_unavailable,
+            )
+            safety_policy_resolver = DurableRunnerSafetyPolicyResolver(state_store)
+            runner_safety_boundary_factory = _build_runner_safety_boundary_factory(
+                state_store=state_store,
+                safety_policy_resolver=safety_policy_resolver,
+            )
             # ``--engine noop`` declares supports_live()=False so the G6 gate
             # refuses it on live; the default nautilus engine selects the real
             # NtTradingNodeHost. The host wires only signed RunnerFact bridges
@@ -406,6 +455,7 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 args,
                 fact_emitter=fact_emitter,
                 capability_receipt=capability,
+                runner_safety_boundary_factory=runner_safety_boundary_factory,
             )
             reconciler = _build_reconciler(
                 args,
@@ -415,6 +465,7 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 runtime_log_emitter,
                 lifecycle_fact_emitter,
                 deployment_verifier,
+                safety_policy_resolver,
                 readiness,
             )
             tasks.append(
