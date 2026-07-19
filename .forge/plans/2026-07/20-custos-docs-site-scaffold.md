@@ -128,7 +128,7 @@ Grep-verified 现状:
   agreed in the ecosystem discovery conversation (2026-07-19); each stub carries
   chapter title, target audience, and TODO list — content filled in T5 and T6 —
   status: ✅ Completed (2026-07-19, Session 1); 46/46 stubs grep-verified
-- **T5 — Migrate existing `docs/**.md` to `docs-site/docs/`** (Part I-VIII):
+- **T5 — Migrate existing `docs/**.md` to `docs-site/docs/`** (Part I-VIII) — status: ✅ Completed (2026-07-19):
   - `docs/domain.md` → Part I intro / concepts
   - `docs/design/00-overview.md` → Part I architecture
   - `docs/design/01-architecture.md` → Part I architecture
@@ -320,6 +320,19 @@ Not merely tsc / lint / build — real runtime evidence:
 - **发现渠道**: Session 1 verify — Chrome locale switcher 端到端测试
 - **相关 commit**: Session 1 close-out commit(见 git log)
 
+### DEVIATION-04: MDX v3 verbatim-migration 兼容性 (Session 2 verify 抓)
+
+- **等级**: 低(4 处 pattern,build error 阻断即修,内容语义未改)
+- **原因**: `docs/**.md` SSOT 里的合法 Markdown 部分被 MDX v3 拒绝:
+  - 缩进 code block(4-space 前缀)含 `<placeholder>`(如 `<tenant>` / `<deployment_instance_id>`)→ MDX 把 placeholder 当 unclosed JSX tag(reconcile-loop.md L15 + reference-implementations.md L16)
+  - 版本约束 `Python >=3.12,<3.13` → MDX 把 `<3.13` 当 JSX 开标签(toolkit/overview.md L85)
+  - Heading 里含 `<placeholder>`:`## 0.<prev>.x → 0.<next>.0` → MDX 解析为 JSX(upgrade-paths.md L112)
+- **影响**: 4 文件本地修复(不改 SSOT `docs/**.md`,只改 migrated 副本)
+- **决定**: 缩进 code block → fenced (```-fenced);inline 版本约束 → backtick 包 code;heading placeholder → backtick 包 code
+- **发现渠道**: Session 2 verify — `npm run build` MDX SSG 失败
+- **修复 commit**: `0b5a73a`(整合到 T5 migration commit,因为 fix 是在新迁移的内容上做的)
+- **副作用**: 3 处 broken-link warning(non-blocking,不阻断 build)在 `configuration.md`(`../../.forge/README.md` + `../../.claude/rules/common-errors.md`)+ `trust-model.md`(`../domain.md`)—— 这些是 SSOT 原文里对 repo 内部路径的引用,site 上下文里不可达。**留待 Session 3 fix**(改成 site-internal link 或 remove reference),不阻断 T5 关闭。
+
 ## Non-Custodial Red Line Verification
 
 - **红线 0.1 (Key/KEK never leaves process)**: docs site has no runtime access
@@ -360,10 +373,37 @@ Documentation-only plan; no red-line risk.
   - Session 4:T7 完整 homepage + Two Faces of ARX 叙事(D3 已定)+ T8 mast-strip 生态引流
   - Session 5:T9 GitHub Action `docs-deploy.yml`(D1 gh-pages branch)· T10 CNAME DNS runbook 交接(D2 CEO 准备 DNS)· T11 versioning 0.3.0 freeze · T12 顶级 close-out
 
+### Session 2 (T5 — verbatim migration) — 2026-07-19
+
+- **完成 Task**: T5 ✅(22 en 章节 verbatim 迁移 + 46 zh mirror sync)
+- **偏离数**: 1(DEVIATION-04 — 4 处 MDX-hostile pattern + 3 处 broken-link warning 留待 Session 3)
+- **验证结果**:
+  - `npm run build` 双 locale 全绿(en + zh-Hans);post-fix 编译无 error
+  - `npm run serve` production build,port 3000 单 host 双 locale
+  - Chrome 视觉验证 4 章 pass(截图见 verify 会话记录):
+    - `/introduction/what-is-custos` — domain.md §Bounded context 干净提取 · Next 卡片正常
+    - `/concepts/reconcile-loop` — fenced code block `<placeholder>` 完美渲染 · 5 TOC sections · 9 步 numbered list
+    - `/zh-Hans/introduction/what-is-custos` — zh warning banner + en real content + zh chrome 三段清晰
+    - `/toolkit/overview` — Python 版本 backtick fix 生效 · 大量 inline code
+- **交付 commit**(main branch,3 commit 分开原子提交):
+  - commit 1(en migration + MDX fixes): `feat(custos): plan 20 T5 — migrate 22 chapters from docs/**.md to en site`
+  - commit 2(zh sync): `feat(custos): plan 20 T5 — sync 46 zh chapter mirrors (T6 待翻译 banner 保留)`
+  - commit 3(close-out): `feat(custos): plan 20 Session 2 close-out — T5 status ✅ + DEVIATION-04`
+- **本 Session 数据**:
+  - 22 en 章节 verbatim 迁移(其中 domain.md 拆 §Bounded context + §Core terms 到 2 章;engine-roadmap 从 4 engine files 合成 index)
+  - 24 en 章节仍为 T4 stub(无 explicit SSOT source — Part II walkthroughs / Part IX reference tables / Part X license/security-policy inlines)
+  - 46 zh 章节全量 sync(en 内容 + `:::warning 🔄 中文翻译进行中` banner)
+  - 21 SSOT source 完整读取:20 全文 verbatim + 1 file(domain.md)2 section 提取
+- **遗留项**:
+  - Session 3:T6 zh 正式翻译(Part I-II 初版,替换 warning banner)+ Session 2 遗留的 3 处 broken-link warning 修
+  - Session 4:T7 完整 homepage + Two Faces of ARX 叙事(D3 已定)+ T8 mast-strip 生态引流
+  - Session 5:T9 GitHub Action `docs-deploy.yml`(D1 gh-pages branch)· T10 CNAME DNS runbook 交接(D2 CEO 准备 DNS)· T11 versioning 0.3.0 freeze · T12 顶级 close-out
+  - 24 无 explicit source 的 en stub 章节(hold until Session 4-5 by content type)
+
 ### 顶级 Close-out(填于 T12)
 
 - **完成日期**: TBD
 - **总 Task 数**: 12
-- **偏离总数**: TBD (Session 1 至今 3)
+- **偏离总数**: TBD (Session 1-2 至今 4)
 - **验证结果**: TBD (per T2-T12 acceptance)
 - **遗留项**: expected — Chinese translation for Parts III-X spans multiple future sessions
