@@ -1,0 +1,60 @@
+name: Deploy docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+
+# Cancel in-progress runs of this workflow for the same ref to avoid
+# gh-pages force-push races between two commits landing back-to-back.
+concurrency:
+  group: docs-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # required by peaceiris/actions-gh-pages to push gh-pages branch
+
+jobs:
+  build:
+    name: Build & deploy (custos.alephain.com)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # fetch full history so Docusaurus `showLastUpdateTime` can render
+          # real git times on chapters (otherwise defaults to build timestamp)
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Build (all locales)
+        working-directory: docs-site
+        run: npm run build
+
+      - name: Deploy to gh-pages branch
+        # Only deploy on main; PR builds compile-verify but do not publish.
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs-site/build
+          publish_branch: gh-pages
+          # cname protects docs-site/static/CNAME after each deploy — otherwise
+          # peaceiris removes CNAME from gh-pages root and custom domain breaks.
+          cname: custos.alephain.com
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'chore(docs): deploy ${{ github.sha }} from ${{ github.ref_name }}'

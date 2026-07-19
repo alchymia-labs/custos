@@ -171,9 +171,11 @@ Grep-verified 现状:
 - **T8 — mast-strip in site header**: reproduce the Guild ecosystem discovery pattern
   from Track α (`ARX · private beta ↗` + `part of Alephain Guild ↗`); consistent
   with `alephain.com` / `alchymia.alephain.com` / `tesseract.alephain.com` topbars
-- **T9 — GitHub Action (docs-deploy.yml)**: on push to `main` under `docs-site/**`,
+- **T9 — GitHub Action (docs-deploy.yml)** — status: ✅ Completed (2026-07-19, brought forward from Session 5): on push to `main` under `docs-site/**`,
   build with Node 20 + npm ci + npm run build, deploy to `gh-pages` branch via
-  `peaceiris/actions-gh-pages@v3`. Repo Pages settings: source = `gh-pages`
+  `peaceiris/actions-gh-pages@v4` (v3 in original spec upgraded to v4 for
+  fresh-run compatibility). Concurrency guard prevents gh-pages force-push
+  races. Repo Pages settings: source = `gh-pages`
   branch. CNAME file at `docs-site/static/CNAME` = `custos.alephain.com`
 - **T10 — DNS handoff to operator**: emit runbook file
   `.forge/handoff/2026-07/20-cnAME-dns-setup.md` documenting what Cloudflare
@@ -320,6 +322,15 @@ Not merely tsc / lint / build — real runtime evidence:
 - **发现渠道**: Session 1 verify — Chrome locale switcher 端到端测试
 - **相关 commit**: Session 1 close-out commit(见 git log)
 
+### DEVIATION-05: T9 提前到 Session 2 tail(Session 5 → Session 2)
+
+- **等级**: 低(纯 scope reorder,不改变 T9 契约)
+- **原因**: CEO 在 Session 2 close-out 前决定先配 CI,不等 Session 5。理由:push Session 2 T5 22 章内容到 origin/main 后,CI 直接 auto-deploy 可以立刻在 `custos.alephain.com` 上线,不需要手动 `npx gh-pages`;后续 Session 3-4 每次 push 自动更新;GitHub Pages settings + DNS(D2 CEO 准备)可以并行准备
+- **影响**: 单文件新增 `.github/workflows/docs-deploy.yml`(peaceiris/actions-gh-pages@v4;concurrency guard;PR builds compile-verify but do not publish)
+- **决定**: T9 完成 · Session 5 少 1 个 task
+- **对 Session 5 影响**: 剩 T10 (DNS runbook) + T11 (versioning 0.3.0) + T12 (顶级 close-out)
+- **相关 commit**: Session 2 tail T9 commit(见 git log)
+
 ### DEVIATION-04: MDX v3 verbatim-migration 兼容性 (Session 2 verify 抓)
 
 - **等级**: 低(4 处 pattern,build error 阻断即修,内容语义未改)
@@ -397,8 +408,20 @@ Documentation-only plan; no red-line risk.
 - **遗留项**:
   - Session 3:T6 zh 正式翻译(Part I-II 初版,替换 warning banner)+ Session 2 遗留的 3 处 broken-link warning 修
   - Session 4:T7 完整 homepage + Two Faces of ARX 叙事(D3 已定)+ T8 mast-strip 生态引流
-  - Session 5:T9 GitHub Action `docs-deploy.yml`(D1 gh-pages branch)· T10 CNAME DNS runbook 交接(D2 CEO 准备 DNS)· T11 versioning 0.3.0 freeze · T12 顶级 close-out
+  - Session 5:T10 CNAME DNS runbook 交接(D2 CEO 准备 DNS)· T11 versioning 0.3.0 freeze · T12 顶级 close-out(T9 提前完成,详见 DEVIATION-05)
   - 24 无 explicit source 的 en stub 章节(hold until Session 4-5 by content type)
+
+### Session 2 tail — T9 前置(2026-07-19)
+
+- **完成 Task**: T9 ✅(`.github/workflows/docs-deploy.yml` 单文件交付)
+- **偏离数**: 1(DEVIATION-05 — T9 提前到 Session 2 而非 Session 5)
+- **交付内容**:
+  - `.github/workflows/docs-deploy.yml` — peaceiris/actions-gh-pages@v4 · Node 20 · docs-site/** paths trigger · concurrency guard · PR builds verify but don't publish · CNAME preservation
+- **CI 生效条件**(user 需在 GitHub UI 完成):
+  - `Settings → Pages → Source = Deploy from a branch → gh-pages / (root)` 或 `Source = GitHub Actions`(前者与 peaceiris workflow 匹配,推荐)
+  - `Settings → Pages → Custom domain = custos.alephain.com`(+ Enforce HTTPS,cert 15-60 min)
+  - DNS: CNAME `custos` → `alchymia-labs.github.io`,Cloudflare proxy 关闭
+- **首次 deploy**: push origin/main → workflow 触发 → `gh-pages` branch 自动生成 → GitHub Pages 拉起 → CNAME 生效后 `custos.alephain.com` 上线
 
 ### 顶级 Close-out(填于 T12)
 
