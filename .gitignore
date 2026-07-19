@@ -85,3 +85,13 @@ examples/**/vault/
 *.log
 tmp/
 temp/
+
+# Docs site (Plan 20)
+docs-site/node_modules/
+docs-site/build/
+docs-site/.docusaurus/
+docs-site/.cache-loader/
+docs-site/.env.local
+docs-site/.env.development.local
+docs-site/.env.test.local
+docs-site/.env.production.local

@@ -1,0 +1,315 @@
+# 20 - custos.alephain.com docs site scaffold (Docusaurus + i18n + versioning)
+
+> **Status**: 🔲 Draft — awaiting CEO approval
+> **Created**: 2026-07-19
+> **Project**: Custos
+> **Source**: Ecosystem-wide landing discovery Track α close-out (2026-07-19); the Guild landing, Alchymia landing and Tesseract landing all link to `custos.alephain.com` as the docs surface; the domain has no site yet.
+> **For Claude**: Use `/forge:execute` per canonical slice. Multiple sessions expected — see multi_session_scope.
+> **multi_session_scope**: `true`
+> **Depends on**: none — Custos 0.3.0 code + docs/ authoritative material already landed (Plans 14-17); this plan surfaces existing docs, does not rewrite them
+> **Soft depends on**: `alchymia-labs/custos` GitHub org access for Pages settings and CNAME
+> **Hard gates**: none (documentation only; no red-line risk)
+> **Non-goals**:
+> - Rewriting or forking authoritative content in `docs/domain.md` / `docs/design/*` — the site consumes these as source of truth
+> - Publishing `docs/authority/*` receipts (internal artifacts; may reference by hash only, not embed)
+> - Marketing copy that speculates on unshipped ARX capabilities — must obey the ecosystem `naming-authority.md` phased-integration discipline
+
+## CEO Decisions (ratified 2026-07-19)
+
+- **D1 — Deploy repo**: `alchymia-labs/custos` main repo, `gh-pages` branch. No
+  separate `custos-docs` repo. Single-repo self-sufficiency preserved.
+- **D2 — DNS ownership**: CEO owns the Cloudflare CNAME record
+  (`custos.alephain.com CNAME alchymia-labs.github.io.`); T10 emits a runbook
+  but does not run DNS changes.
+- **D3 — Homepage narrative**: Follow the Guild landing "Two Faces of one
+  product" narrative (ARX kernel + custos edge) — consistent with the ecosystem
+  story. T7 will implement `src/pages/index.tsx` accordingly.
+
+## 上下文 (Context)
+
+Track α (2026-07-19) 完成生态 discovery 拓扑修复:三个 landing (`alephain.com` /
+`alchymia.alephain.com` / `tesseract.alephain.com`) 现在都出链 ARX private beta
+CTA 和 **custos.alephain.com** 作为 custos 的公开文档面。**但 custos.alephain.com
+本身还没有站** — 存在死链风险。
+
+同时,custos 已有丰富的 authoritative documentation 存在 `docs/` 目录内:
+
+```text
+docs/
+├── domain.md                       # Bounded context, canonical terms, invariants
+├── design/
+│   ├── 00-overview.md              # Design overview (non-custodial pillars)
+│   ├── 01-architecture.md          # Layer architecture
+│   ├── 02-module-design.md         # 6-module navigation
+│   ├── 03-implementation.md        # Implementation contract
+│   ├── enrollment.md               # Enrollment lifecycle (red line 0.1)
+│   ├── reconcile.md                # Reconcile loop (red line 0.3)
+│   ├── nautilus_host.md            # NT process supervision + G6 (red line 0.2)
+│   ├── credential_vault.md         # sops+age vault (red line 0.1)
+│   ├── runner_fact.md              # Signed RunnerFact outbox
+│   ├── runner_safety_policy.md     # Local safety enforcement
+│   ├── nats_client.md              # Crucible signed subscriber
+│   ├── runtime_log_fact.md         # RunnerRuntimeLogFact.v1 redaction
+│   ├── engine_protocol.md          # ExecutionEngineAdapter contract
+│   └── strategy-toolkit.md         # Toolkit ABI
+├── engines/                        # Per-engine onboarding stubs (5 files)
+├── gateway-contract/v1-v4/         # Versioned gateway JSON schemas
+├── guides/dev-guide.md
+├── ops/                            # Operational runbooks
+├── authority/                      # Internal receipts (NOT for docs site)
+├── lts-commitment.md               # SEMVER + LTS window
+├── upgrade-path.md                 # 0.2 → 0.3 → 1.x migration
+└── reproducible-build.md           # sigstore + SOURCE_DATE_EPOCH
+```
+
+**这份 material 已经权威、完整,是 audit-grade 的**。缺的**不是内容,是可读取的 surface**:
+- 外部审计员 clone repo 才能读(单仓自足纪律满足,但 discovery 差)
+- 集成方(Crucible / ARX / 第三方)从生态 landing 跳过来找不到入口
+- 中英双语(生态 landing 已双语,docs 目前只有 English + 中文技术注释)
+
+现有 3 个存量文档站栈候选:Docusaurus / VitePress / MkDocs Material。选择依据:
+i18n + versioning 都是一等公民 → **Docusaurus 3.x**。custos SEMVER + LTS 契约天生
+需要 versioned docs(与 `docs/lts-commitment.md` 对齐),Docusaurus 的 `versioned_docs/`
+文件系统模型是最贴合的方案。
+
+## 目标 (Goal)
+
+发布 **custos.alephain.com** 作为 custos 的**公开文档站**,满足:
+
+1. **信任兑现兑现**:外部审计员单一 URL 即可读全部 non-custodial 红线设计、代码
+   锚点、审计清单,无需 clone repo(clone 仍然是 primary,但站是快速 discovery layer)
+2. **集成方入口**:Crucible / ARX / 第三方开发者从生态 landing 跳来,能顺读 6 大模块
+   设计 + Gateway contract + Getting started
+3. **中英双语**:公开英文为主,中文完整 mirror(与生态 landing 一致)
+4. **版本切换**:第一版 pin 到 `0.3.0`,与 CHANGELOG 保持同步;未来 breaking release
+   保留旧版本 docs 一致于 LTS 承诺
+5. **零内容漂移**:站上章节是 `docs/*.md` 的 rendered surface,而非独立复制;`docs/*`
+   仍是 SSOT,`docs-site/` 是构建产物
+6. **首页承接生态叙事**:显式 ARX section(讲清授权层 vs 执行层配套关系)+ 极简 mast-strip
+   与三个存量 landing 视觉呼应(#14 内容合并到本 plan)
+
+## Authority Boundary
+
+| 能力 | Canonical owner | Plan 20 职责 |
+|---|---|---|
+| Bounded context, domain terms, invariants | `docs/domain.md` | 消费 as-is;文档站不重写 |
+| Red-line design docs (`design/*.md`) | `docs/design/` | 消费 as-is;文档站按章节结构 surface |
+| Gateway contract | `docs/gateway-contract/v1-v4/` | 消费 as-is,展示 JSON schema + 变更历史 |
+| SEMVER + LTS commitment | `docs/lts-commitment.md` | 消费 as-is |
+| Site build/deploy pipeline | Plan 20 | 定义并版本化(`docs-site/`, GitHub Action) |
+| Chinese translations | Plan 20 | 建立并维护 (i18n) |
+| Site theming and IA | Plan 20 | Docusaurus theme + sidebars.js |
+| Public domain and CNAME | Plan 20 + operator (DNS) | Plan 提供 CNAME 文件;operator 加 Cloudflare 记录 |
+| Ecosystem naming discipline | `the-alephain-guild.github.io/data/naming-authority.md` | 消费 as-is — canonical positioning phrases 与 forbidden aliases |
+| ARX section on homepage | Plan 20 | 遵守 naming-authority 阶段化措辞纪律(Phase 3/4 不冒充当前能力) |
+
+## Foundation Scan (as-of 2026-07-19)
+
+Grep-verified 现状:
+
+- `docs/` 已完备 (13 design docs + 5 engine stubs + gateway v1-v4 + 5 top-level meta docs)
+- `docs-site/` **不存在**(no prior scaffold)
+- `.github/workflows/` 存在:CI + release workflows (Plan 12);无 docs 相关 workflow
+- 无现存 GitHub Pages 配置(check `.github/pages.yml` — 无)
+- CHANGELOG 顶部为 `[0.3.0] - 2026-07-12` — 第一版 docs 应 pin 到 `0.3.0`
+- 无 CNAME 文件(需新建)
+
+## Task 拆分
+
+- **T1 — Plan authoring** (this file) — status: ✅ Completed (2026-07-19)
+- **T2 — Docusaurus init**: `docs-site/` 目录 + `package.json` (Docusaurus 3.6) +
+  `docusaurus.config.js` (i18n locales=['en','zh-Hans'], baseUrl='/', url='https://custos.alephain.com')
+  + `sidebars.js` (10 parts skeleton) — status: ✅ Completed (2026-07-19, Session 1); `npm ci` verification pending operator run
+- **T3 — Theme + branding**: 与生态 landing 视觉呼应(Guild `alephain.com` 深金 accent
+  `--accent-2`, Newsreader/JetBrains Mono 字体系),浅色 paper + 深色 slate 双主题;
+  favicon placeholder gold 'c' monogram — status: ✅ Completed (2026-07-19, Session 1);
+  final custos-branded favicon / og-card assets pending T7
+- **T4 — Chapter skeleton (empty MDX files)**: 46 chapters across 10 parts per outline
+  agreed in the ecosystem discovery conversation (2026-07-19); each stub carries
+  chapter title, target audience, and TODO list — content filled in T5 and T6 —
+  status: ✅ Completed (2026-07-19, Session 1); 46/46 stubs grep-verified
+- **T5 — Migrate existing `docs/**.md` to `docs-site/docs/`** (Part I-VIII):
+  - `docs/domain.md` → Part I intro / concepts
+  - `docs/design/00-overview.md` → Part I architecture
+  - `docs/design/01-architecture.md` → Part I architecture
+  - `docs/design/02-module-design.md` → Part III concepts
+  - `docs/design/03-implementation.md` → Part III + IV
+  - `docs/design/enrollment.md` → Part IV
+  - `docs/design/reconcile.md` → Part III + V
+  - `docs/design/nautilus_host.md` → Part VII
+  - `docs/design/credential_vault.md` → Part IV + V
+  - `docs/design/runner_fact.md` → Part VI
+  - `docs/design/runner_safety_policy.md` → Part V
+  - `docs/design/nats_client.md` → Part VI
+  - `docs/design/runtime_log_fact.md` → Part IV + V
+  - `docs/design/engine_protocol.md` → Part VII
+  - `docs/design/strategy-toolkit.md` → Part VIII
+  - `docs/engines/*` → Part VII engine index
+  - `docs/gateway-contract/v1/*` → Part VI
+  - `docs/lts-commitment.md` → Part X
+  - `docs/upgrade-path.md` → Part X
+  - `docs/reproducible-build.md` → Part V (signed release chain)
+  - `docs/guides/dev-guide.md` → Part IX reference
+  - **Migration mode**: MDX front-matter added; content copied verbatim; `docs/**.md`
+    remains SSOT — site pages carry `<!-- source: docs/domain.md -->` header for
+    provenance grep-verifiability
+  - `docs/authority/*` **NOT** migrated (internal receipts; may reference by hash)
+- **T6 — Chinese translation (initial pass)**: build zh-Hans locale scaffold; translate
+  Part I introduction + Getting started (chapters 1-7) as first slice; remaining
+  parts get `TODO: 翻译` placeholder pages so URL structure is complete but content
+  is deferred (multi-session scope; T6 spans multiple slices)
+- **T7 — Homepage + ARX section**: `docs-site/src/pages/index.tsx` custom homepage
+  featuring:
+  - Hero: "custos — the non-custodial execution runner"
+  - Two-column: What custos is · What ARX is (explains layering; obeys
+    naming-authority.md phased-integration discipline; ARX private-beta CTA to
+    `mailto:contact@alephain.com`)
+  - Trust anchor callout: 4 red lines (KEK/G6/reconcile/Decimal) with links
+  - Getting started cards: 4 quick-start entries
+  - Ecosystem strip in footer: attribution to Alephain Guild, links back to
+    `alephain.com`
+- **T8 — mast-strip in site header**: reproduce the Guild ecosystem discovery pattern
+  from Track α (`ARX · private beta ↗` + `part of Alephain Guild ↗`); consistent
+  with `alephain.com` / `alchymia.alephain.com` / `tesseract.alephain.com` topbars
+- **T9 — GitHub Action (docs-deploy.yml)**: on push to `main` under `docs-site/**`,
+  build with Node 20 + npm ci + npm run build, deploy to `gh-pages` branch via
+  `peaceiris/actions-gh-pages@v3`. Repo Pages settings: source = `gh-pages`
+  branch. CNAME file at `docs-site/static/CNAME` = `custos.alephain.com`
+- **T10 — DNS handoff to operator**: emit runbook file
+  `.forge/handoff/2026-07/20-cnAME-dns-setup.md` documenting what Cloudflare
+  record to add (`custos.alephain.com CNAME alchymia-labs.github.io.`) and
+  verification steps (`dig` + `curl -I`); operator applies manually
+- **T11 — Versioning enable**: after content stable, run `npm run docusaurus
+  docs:version 0.3.0` to snapshot current docs as v0.3.0; future minor/major
+  bumps freeze accordingly per `docs/lts-commitment.md`
+- **T12 — Close-out**: verification receipts (see below), plan Status ← ✅,
+  update `.forge/README.md` plan index
+
+## File Inventory
+
+**New files**:
+
+```
+docs-site/
+├── docusaurus.config.js
+├── sidebars.js
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── babel.config.js
+├── src/
+│   ├── pages/index.tsx              # T7 homepage
+│   ├── css/custom.css               # T3 theme
+│   └── components/MastStrip.tsx     # T8
+├── docs/
+│   ├── 01-introduction/…            # Part I (3 chapters)
+│   ├── 02-getting-started/…         # Part II (4 chapters)
+│   ├── 03-concepts/…                # Part III (5 chapters)
+│   ├── 04-operator-guide/…          # Part IV (6 chapters)
+│   ├── 05-trust-model/…             # Part V (6 chapters)
+│   ├── 06-integration/…             # Part VI (5 chapters)
+│   ├── 07-engines/…                 # Part VII (3 chapters)
+│   ├── 08-toolkit/…                 # Part VIII (3 chapters)
+│   ├── 09-reference/…               # Part IX (4 chapters)
+│   └── 10-release-governance/…      # Part X (6 chapters)
+├── i18n/
+│   └── zh-Hans/…                    # T6 mirror
+└── static/
+    ├── CNAME                         # T9
+    ├── img/favicon.svg
+    └── img/og-card.png
+
+.github/workflows/
+└── docs-deploy.yml                   # T9
+
+.forge/handoff/2026-07/
+└── 20-cname-dns-setup.md             # T10
+```
+
+**Modified files**:
+
+- `.forge/README.md` — add plan 20 to index (T12)
+- `README.md` (repo root) — add `## Documentation` section pointing to
+  `custos.alephain.com` (T12)
+- `.gitignore` — add `docs-site/node_modules/`, `docs-site/build/`,
+  `docs-site/.docusaurus/` (T2)
+
+**NOT touched** (SSOT preserved):
+
+- `docs/**` — remains authoritative; site consumes verbatim via `<!-- source: -->`
+  provenance headers, does not fork
+- `src/custos/**` — no code changes
+- `packages/**` — no changes
+- `Makefile` — no changes (docs-site has its own `docs-site/Makefile` if needed)
+- `pyproject.toml` — no changes
+
+## Verification (Docker-runtime-grade evidence, per lesson #24)
+
+Not merely tsc / lint / build — real runtime evidence:
+
+- **T2-T4 acceptance**: `cd docs-site && npm ci && npm run build` produces `build/`
+  directory with all 45 chapter routes rendered (including empty stubs)
+- **T5 acceptance**: `curl` renders `docs-site/build/docs/01-introduction/what-is-custos/`
+  and content matches `docs/domain.md` verbatim (provenance grep verify:
+  `grep 'source: docs/domain.md' docs-site/build/**/*.html`)
+- **T6 acceptance**: `docs-site/build/zh-Hans/docs/01-introduction/…` exists;
+  language toggle in navbar switches between locales at runtime
+- **T7 acceptance**: `docs-site/build/index.html` includes ARX section with
+  canonical positioning phrase (`the neutral quant operating system`); grep
+  verifies no forbidden alias from naming-authority.md is present
+- **T8 acceptance**: mast-strip visible in header on all site pages; ARX CTA
+  points to `mailto:contact@alephain.com?subject=ARX%20private%20beta`
+- **T9 acceptance**: GitHub Action runs green on a test commit; `gh-pages`
+  branch updated; GitHub Pages URL returns HTTP 200
+- **T10 acceptance**: after operator adds DNS record, `dig custos.alephain.com`
+  returns CNAME to `alchymia-labs.github.io`; `curl -I https://custos.alephain.com`
+  returns 200 + valid TLS cert
+- **T11 acceptance**: `docs-site/versioned_docs/version-0.3.0/` exists;
+  version dropdown in navbar shows `0.3.0` as current
+- **T12 acceptance**: plan Status ← ✅; `.forge/README.md` updated; README.md
+  root has documentation link
+
+## Success criteria (business acceptance)
+
+1. External auditor visits `custos.alephain.com`, reads Part V "Non-Custodial
+   Trust Model" red-line pages, can trace each red line to code anchor without
+   cloning repo — signals discovery layer works
+2. Chinese-language operator uses the language toggle, reads translated Part IV
+   Operator Guide, deploys custos successfully — signals i18n works for the
+   subset already translated
+3. Ecosystem landings (`alephain.com` / `alchymia.alephain.com` /
+   `tesseract.alephain.com`) `custos · open source ↗` CTAs no longer point to
+   GitHub as the primary target for depth content — instead route to
+   `custos.alephain.com` for docs (GitHub remains linked but for source review
+   only)
+4. `docs-site/build/` size < 20 MB (Docusaurus static output; if exceeds, audit
+   image assets)
+5. Lighthouse score on homepage ≥ 90 for Performance, Accessibility, Best
+   Practices, SEO
+
+## 偏离与改进日志
+
+*(记录 execution 过程中的 deviation;plan authoring 阶段无条目)*
+
+## Non-Custodial Red Line Verification
+
+- **红线 0.1 (Key/KEK never leaves process)**: docs site has no runtime access
+  to keys; static generator only. ✅ N/A
+- **红线 0.2 (G6 gate not bypassed)**: docs describe G6 semantics; no code
+  change. ✅ N/A
+- **红线 0.3 (Reconcile disconnect ≠ stop)**: docs describe policy; no code
+  change. ✅ N/A
+- **红线 0.4 (Decimal money math)**: docs describe convention; no code change. ✅ N/A
+
+Documentation-only plan; no red-line risk.
+
+## 完成报告 (Close-out Report)
+
+*(填于 T12)*
+
+- **完成日期**: TBD
+- **总 Task 数**: 12
+- **偏离数**: TBD
+- **验证结果**: TBD (per T2-T12 acceptance)
+- **遗留项**: expected — Chinese translation for Parts II-X spans multiple
+  future sessions (T6 partial)

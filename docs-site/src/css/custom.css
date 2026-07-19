@@ -1,0 +1,161 @@
+/**
+ * custos docs site — aligned with The Alephain Guild brand-guide v2:
+ * paper (day) / slate (night) dual theme;
+ * Newsreader italic titles · Inter body · JetBrains Mono metadata/code;
+ * deep gold accent used sparingly.
+ *
+ * Coordinates with:
+ *   - alephain.com  (--accent-2 #B8902F / dark #C8A24A)
+ *   - alchymia.alephain.com  (--gold #B8902C)
+ *   - tesseract.alephain.com  (--gold-soft #B8902C / dark #C9A445)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,300..600;1,300..500&family=Inter:wght@300..600&family=JetBrains+Mono:wght@400..500&family=Noto+Serif+SC:wght@300..600&family=Noto+Sans+SC:wght@300..600&display=swap');
+
+/* ============================================================
+ * Light (paper) mode
+ * ============================================================ */
+:root {
+  --ifm-color-primary: #B8902F;
+  --ifm-color-primary-dark: #a37e28;
+  --ifm-color-primary-darker: #9a7825;
+  --ifm-color-primary-darkest: #7f631e;
+  --ifm-color-primary-light: #c19d3c;
+  --ifm-color-primary-lighter: #c8a54a;
+  --ifm-color-primary-lightest: #d7bb6f;
+
+  --ifm-background-color: #FAFAF7;
+  --ifm-background-surface-color: #F2EFE6;
+  --ifm-color-content: #0F1115;
+  --ifm-color-content-secondary: #5A6270;
+  --ifm-toc-border-color: #E1E1DA;
+  --ifm-hr-background-color: #E1E1DA;
+
+  --ifm-font-family-base:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Noto Sans SC', 'PingFang SC', 'Source Han Sans', sans-serif;
+  --ifm-heading-font-family:
+    'Newsreader', 'Source Serif Pro', 'Noto Serif SC', 'Songti SC', Georgia, serif;
+  --ifm-font-family-monospace:
+    'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  --ifm-heading-font-weight: 300;
+  --ifm-h1-font-size: clamp(32px, 4vw, 48px);
+  --ifm-h2-font-size: clamp(24px, 2.6vw, 32px);
+  --ifm-line-height-base: 1.65;
+  --ifm-code-font-size: 90%;
+
+  --docusaurus-highlighted-code-line-bg: rgba(184, 144, 47, 0.1);
+}
+
+/* ============================================================
+ * Dark (slate) mode
+ * ============================================================ */
+[data-theme='dark'] {
+  --ifm-color-primary: #C8A24A;
+  --ifm-color-primary-dark: #b9903a;
+  --ifm-color-primary-darker: #ae8836;
+  --ifm-color-primary-darkest: #8f702d;
+  --ifm-color-primary-light: #cfae5e;
+  --ifm-color-primary-lighter: #d3b467;
+  --ifm-color-primary-lightest: #dcc487;
+
+  --ifm-background-color: #1A1F26;
+  --ifm-background-surface-color: #20262F;
+  --ifm-color-content: #EDE9DD;
+  --ifm-color-content-secondary: #A8B0BC;
+  --ifm-toc-border-color: #2E3540;
+  --ifm-hr-background-color: #2E3540;
+
+  --docusaurus-highlighted-code-line-bg: rgba(200, 162, 74, 0.15);
+}
+
+/* ============================================================
+ * Editorial serif heading style — italic emphasis in gold
+ * ============================================================ */
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.markdown h1 em,
+.markdown h2 em,
+.markdown h3 em {
+  color: var(--ifm-color-primary);
+  font-style: italic;
+  font-weight: 300;
+}
+
+/* Chinese type stack swap on lang="zh-Hans" */
+html[lang='zh-Hans'] {
+  --ifm-font-family-base:
+    'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Inter', sans-serif;
+  --ifm-heading-font-family:
+    'Noto Serif SC', 'Songti SC', 'STSong', 'Newsreader', serif;
+}
+
+/* ============================================================
+ * Ecosystem mast-strip (rendered by src/theme/Navbar swizzle later; T8)
+ * — placeholder utility classes for stubs to reuse
+ * ============================================================ */
+.eco-badge {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--ifm-color-content-secondary);
+  color: var(--ifm-color-content-secondary);
+  border-radius: 3px;
+  display: inline-block;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+.eco-badge--operating {
+  color: #3C7A5B;
+  border-color: #3C7A5B;
+}
+[data-theme='dark'] .eco-badge--operating {
+  color: #7BB593;
+  border-color: #7BB593;
+}
+.eco-badge--beta {
+  color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+}
+.eco-badge--open-source {
+  color: var(--ifm-color-content);
+  border-color: var(--ifm-color-content);
+}
+.eco-badge--proprietary {
+  color: #A85345;
+  border-color: #A85345;
+}
+[data-theme='dark'] .eco-badge--proprietary {
+  color: #D27E70;
+  border-color: #D27E70;
+}
+
+/* ============================================================
+ * Provenance banner — used on chapters migrated verbatim from docs/**.md
+ * (Plan 20 T5 SSOT preservation)
+ * ============================================================ */
+.doc-provenance {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ifm-color-content-secondary);
+  background: rgba(184, 144, 47, 0.06);
+  padding: 8px 14px;
+  border-left: 3px solid var(--ifm-color-primary);
+  margin: 0 0 24px;
+}
+
+/* ============================================================
+ * Stub / TODO admonition (until T5 fills content)
+ * ============================================================ */
+.theme-admonition-info {
+  border-left-color: var(--ifm-color-primary);
+}
