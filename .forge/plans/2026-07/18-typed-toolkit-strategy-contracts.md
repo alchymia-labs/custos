@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — T1-T5b historical slices and T5c landed; T5d-A and T5d-B are READY at contract-consumer scope only; T5e is PREPARED-BLOCKED on real external runtime receipts; T6-T9 remain open
+> **Status**: ⏳ In progress — T1-T5d and T6 immutable toolkit RC authority are complete; T5e is PREPARED-BLOCKED on real external runtime receipts; T7-T9 remain open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-15 after Sigstore self-reference and PS BOM type correction
+> **Revised**: 2026-07-20 after OCI publication, independent promotion and stable authority registration
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -826,12 +826,14 @@ RED -> GREEN evidence:
   source-generator drift, `make check-authority`, extraction `241/241`, T4b strict-zero,
   wheel-tamper fail-before-output, and unverified Sigstore fail-before-assembly all PASS.
 
-No remote registry, production package credential, OIDC signature or binary publication
-was used in historical T6d readiness. After the OCI correction, T6d is complete only
-when the protected workflow publishes one manifest, verifies the digest-addressed
-artifact and emits the additive OCI PENDING receipt. Until that execution and
-independent T6e promotion occur, T6 remains open and no toolkit RC READY claim is
-allowed.
+Historical T6d readiness used no remote registry, production package credential, OIDC
+signature or binary publication. Production run `29744930596` at source commit
+`bdbdb01c29897574a6891091a83367d1337a84ed` subsequently used the protected workflow,
+GitHub OIDC and package-write token to publish and read back exactly one GHCR OCI
+manifest. Its immutable authority coordinate is
+`ghcr.io/alchymia-labs/custos-strategy-toolkit@sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba`.
+The run emitted only `PENDING_T6E_AUTHORITY_REGISTRATION`; it did not self-authorize
+READY.
 
 #### T6 local readiness checkpoint
 
@@ -861,28 +863,26 @@ outside the stable authority path. Registration remains a separate reviewed comm
 fixture, local fake, main-worktree result, historical V1 receipt or missing remote
 evidence can create the committed READY receipt.
 
-Local T6a-T6e implementation readiness is frozen at exact verification HEAD
-`bfa08e41236d22745f2d7af61859c76e13fb718d`. A clean full `make verify` passed with
-`556 passed, 4 skipped, 1 xfailed`; all `179` Python files were formatted, Ruff,
-generated-asset drift, authority, extraction `241/241`, and strict mypy base `0/41`
-plus adapter `0/59` passed.
+Local T6a-T6e implementation readiness remains historically frozen at exact verification
+HEAD `bfa08e41236d22745f2d7af61859c76e13fb718d`, where full `make verify` passed with
+`556 passed, 4 skipped, 1 xfailed`; all `179` Python files were formatted and the
+generated-asset, authority, extraction `241/241`, Ruff and strict-mypy gates passed.
 
-This checkpoint closes local contract, reproducible-build, publication-protocol, durable
-recovery, promotion-verifier, formal SBOM, exact dependency-lock, provenance, workflow,
-and fail-closed authority readiness only. It is not production evidence, does not complete
-T6 or Plan 18, and does not create an immutable toolkit RC or READY authority receipt.
-The remaining external T6 gates are exactly:
+The external gates are now closed without weakening that checkpoint. Read-only promotion
+run `29745590539` independently fetched the exact OCI manifest and every descriptor by
+digest, reverified Sigstore identity/provenance and emitted the V2 READY candidate as an
+ephemeral workflow artifact. Its portable sidecar passed `sha256sum -c`; candidate
+SHA-256 is `62bd0ce6040543d71b605fd535006b09fd62d85bf40a991e5f3d3076205e315e`.
+Authority commit `e19835e` registered those exact bytes at
+`docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json` and binds both
+workflow run IDs, the source commit, OCI manifest digest and promotion artifact digest.
 
-1. the additive OCI contract/client, recovery verifier and authority gates land;
-2. the protected release environment has allowlisted package-write authority and no
-   reusable registry/admin secret;
-3. one protected run performs real GitHub OIDC Sigstore signing, single-manifest OCI
-   publication and digest-addressed immutable readback;
-4. T6e independently fetches and verifies the manifest and every descriptor by digest,
-   then a reviewed authority commit registers the resulting `READY_TOOLKIT_RC` receipt.
-
-All four gates are required and fail closed. T7-T9 remain downstream and unclaimed after
-the READY receipt; they are not additional local T6-readiness blockers.
+This completes only the immutable Custos base/Nautilus toolkit RC and its cross-repo
+handoff authority. The receipt deliberately keeps `loaded=false`, `engine_ready=false`,
+`runtime_ready=false`, `production_ready=false` and
+`strategy_release_bom_created=false`. T5e and T7-T9 therefore remain downstream and
+unclaimed; PS still owns the strategy artifact/BOM and Crucible still owns
+`StrategyRelease`.
 
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
@@ -987,10 +987,10 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T5 Verifier/attestation | [x] | 2026-07-15 | Scoped `READY_PRE_IMPORT_VERIFIER`: producer `f3adde2...`, index `6fd49708...`, schema `d6e21b0a...`, Crucible review `3f41f32...`, PS review `267e23b...`, implementation `560e9f5...`, and exact verification HEAD `a856455...` (528 passed/4 skipped/1 xfailed; all authority/typing/extraction gates PASS); handoff covers schema + verifier library only, while loaded/engine/runtime/production remain false and runtime invocation stays Plan19 |
 | T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
-| T6c OCI publication protocol | [~] | 2026-07-20 | CEO-approved ownership correction replaces the unowned bespoke artifact service with one digest-addressed OCI manifest. Historical artifact-service V1 stays non-production; additive OCI contract/client and failure matrix are in implementation |
-| T6d Production runner readiness | [~] | 2026-07-20 | Historical local readiness at `b5f0449...` remains evidence for build/SBOM/Sigstore inputs, but the protected workflow must be corrected to packages-write OCI publication and digest readback before T6d is complete |
-| T6e OCI recovery/promotion | [~] | 2026-07-20 | Historical recovery implementation at `12cdad0...` is superseded for production because its service has no owner. Additive registry HEAD/GET lost-response recovery, digest verification and OCI READY promotion remain in implementation |
-| T6 Toolkit candidate | [ ] | — | Four external gates remain: artifact-service immutable receipt recovery support; protected runner/environment/secrets; real OIDC Sigstore plus atomic publish/readback; independent T6e promotion verification plus READY authority commit. T7-T9 and Plan 18 remain uncompleted |
+| T6c OCI publication protocol | [x] | 2026-07-20 | `13c5aff` replaced the unowned bespoke artifact service with one digest-addressed OCI manifest; `bdbdb01` added registry Bearer-scope authentication. Historical artifact-service V1 remains non-production with no fallback |
+| T6d Production runner readiness | [x] | 2026-07-20 | Protected run `29744930596` at `bdbdb01...` produced OIDC Sigstore evidence, atomically published GHCR manifest `sha256:ba17a10...07ba`, and completed digest/tag/descriptor readback |
+| T6e OCI recovery/promotion | [x] | 2026-07-20 | Read-only independent run `29745590539` verified the exact digest and emitted the V2 READY candidate; portable sidecar and V2 contract passed, then authority commit `e19835e` registered exact receipt SHA `62bd0ce6...315e` |
+| T6 Toolkit candidate | [x] | 2026-07-20 | Immutable base/Nautilus toolkit RC `0.1.0rc1` is READY for scoped consumer handoff. Runtime, strategy BOM, engine and production flags remain false; T5e/T7-T9 and Plan 18 remain uncompleted |
 | T5c ArtifactRefV2 producer ABI | [x] | 2026-07-15 | Additive v3 schema/golden/index and Custos producer receipt; v1/v2 byte-pinned and barred from runtime fallback; receipt remains `PRODUCED_AWAITING_CONSUMER_REVIEWS`, so no handoff/runtime/production claim |
 | T5d-A BOM/evidence consumption | [x] | 2026-07-15 | `READY_CONTRACT_CONSUMER_ONLY`: exact PS and Crucible owner assets byte-vendored with path/commit/hash/size; additive ReceiptV2 schema/golden/negatives and consumer receipt published; T5d-B/runtime/production remain false |
 | T5d-B command consumption / Plan 19 T2 | [x] | 2026-07-15 | `READY_COMMAND_CONSUMER_CONTRACT_ONLY`: corrected current CR89 A2/B2 assets byte-vendored and pinned; one consumer parser validates full BOM, ArtifactRefV2, detached reference, full evidence, semantic acceptance and exact event fingerprint; old A/B are NON_CURRENT; no Custos command schema or runtime wiring |
@@ -1030,6 +1030,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | READINESS | T6e full local checkpoint | Exact HEAD `bfa08e41236d22745f2d7af61859c76e13fb718d` passed full `make verify`; T6 and Plan 18 remain open until artifact-service support, protected release infrastructure, real OIDC atomic publication/readback, and independent promotion plus READY authority commit all complete | Recorded 2026-07-15 |
 | READINESS | T6e promotion hardening checkpoint | Exact commit `12cdad0b90017d9b33a208bc7f1d3256afbd976d` passed non-sandbox `make verify` with 559 passed/4 skipped/1 xfailed; this does not satisfy an external T6 gate and READY remains blocked | Recorded 2026-07-15 |
 | RECOVERY | T6e durable receipt | A production publication must remain recoverable after commit-response loss; workflow-local `$RUNNER_TEMP` evidence cannot authorize READY | Accepted 2026-07-15 |
+| PRODUCTION EVIDENCE | T6 immutable toolkit RC | Protected publication run `29744930596`, independent read-only promotion run `29745590539`, OCI manifest `sha256:ba17a10...07ba`, receipt SHA `62bd0ce6...315e` and authority commit `e19835e` close T6 without claiming runtime, strategy BOM or production readiness | Closed 2026-07-20 |
 
 ## Slice 18a handoff and Task 2 READY provenance
 
