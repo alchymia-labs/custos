@@ -3,7 +3,7 @@
 # Standalone open-source repository entrypoint. Standardized validation targets
 # keep shell execution deterministic and avoid permission drift from ad-hoc commands.
 
-.PHONY: help install install-nt install-lts fmt fmt-check lint check toolkit-typecheck test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 clean toolkit-sync-check strategy-contract-assets check-strategy-contract-assets dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
+.PHONY: help install install-nt install-lts fmt fmt-check lint check toolkit-typecheck test test-baseline test-nt test-docker test-docker-existing verify verify-base-clean verify-nt verify-runtime verify-runtime-existing verify-local-v030 verify-nats-revocation clean toolkit-sync-check strategy-contract-assets check-strategy-contract-assets dist sign docker-build docker-build-local-v030 docker-sign verify-release release check-commit-hook commit-hook-dry-run
 
 # Default target: help
 .DEFAULT_GOAL := help
@@ -45,6 +45,9 @@ commit-hook-dry-run:  ## Validate the pre-commit hook path in a dry way (no real
 
 test:  ## Run full pytest (base profile; NT tests importorskip; includes known-failing wire_shapes)
 	uv run pytest tests/
+
+verify-nats-revocation:  ## Run the opt-in real NATS forced-disconnect/reconnect-denial gate
+	CUSTOS_RUN_REAL_NATS_REVOCATION=1 uv run pytest tests/integration/test_plan19_t7c_nats_revocation.py -v
 
 test-baseline:  ## Run the standalone green baseline
 	# Base gate does not hard-require NT: if nautilus is missing, NT host tests are skipped by pytest.importorskip.

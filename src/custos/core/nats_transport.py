@@ -1405,7 +1405,7 @@ class RunnerNatsTransportConnectionProfile:
                     seed[index] = 0
 
         async def guarded_error_cb(error: Exception) -> None:
-            if isinstance(error, nats_errors.AuthorizationError):
+            if _is_explicit_nats_authorization_rejection(error):
                 self.mark_authorization_denied()
             if error_cb is not None:
                 result = error_cb(error)
@@ -1419,18 +1419,33 @@ class RunnerNatsTransportConnectionProfile:
                 if inspect.isawaitable(result):
                     await result
 
-        return await nats.connect(
-            servers=[self.nats_url],
-            name=name,
-            tls=context,
-            tls_hostname=self.server_name,
-            user_jwt_cb=user_jwt_cb,
-            signature_cb=signature_cb,
-            error_cb=guarded_error_cb,
-            disconnected_cb=guarded_disconnected_cb,
-            allow_reconnect=allow_reconnect,
-            max_reconnect_attempts=max_reconnect_attempts,
-        )
+        try:
+            return await nats.connect(
+                servers=[self.nats_url],
+                name=name,
+                tls=context,
+                tls_hostname=self.server_name,
+                user_jwt_cb=user_jwt_cb,
+                signature_cb=signature_cb,
+                error_cb=guarded_error_cb,
+                disconnected_cb=guarded_disconnected_cb,
+                allow_reconnect=allow_reconnect,
+                max_reconnect_attempts=max_reconnect_attempts,
+            )
+        except nats_errors.Error as exc:
+            if _is_explicit_nats_authorization_rejection(exc):
+                self.mark_authorization_denied()
+            raise
+
+
+def _is_explicit_nats_authorization_rejection(error: Exception) -> bool:
+    """Classify only the exact authentication rejection emitted by nats-py."""
+
+    if isinstance(error, nats_errors.AuthorizationError):
+        return True
+    # nats-py 2.x currently leaves its connect-handshake authorization mapping
+    # as a FIXME and raises the base Error for this canonical server response.
+    return type(error) is nats_errors.Error and error.args == ("nats: 'Authorization Violation'",)
 
 
 async def assert_old_generation_reconnect_denied(
@@ -1439,7 +1454,7 @@ async def assert_old_generation_reconnect_denied(
     name: str,
     timeout_seconds: float,
 ) -> None:
-    """Accept only an explicit broker authorization denial for the exact old JWT."""
+    """Accept only an explicit broker authorization rejection for the exact old JWT."""
 
     if timeout_seconds <= 0:
         raise RunnerNatsTransportError("old-generation reconnect timeout must be positive")

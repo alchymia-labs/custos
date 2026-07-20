@@ -1059,9 +1059,13 @@ Execution checkpoint T7C two-stage consumer code (2026-07-20):
   `/revoke-superseded` route with old credential/generation plus the active
   replacement revision. The emergency current-generation `/revoke` route is
   not reused for rotation cleanup.
-- Only a typed NATS `AuthorizationError` proves old-generation reconnect
-  denial. Timeout, resolver delay and generic network failure remain
-  unconfirmed and fail closed.
+- Only a typed NATS `AuthorizationError` or the exact canonical
+  `nats.errors.Error("nats: 'Authorization Violation'")` emitted by the
+  nats-py 2.x connect-handshake FIXME proves old-generation reconnect denial.
+  Custos maps that one protocol response into its local typed revocation
+  boundary; timeout, EOF, TLS, resolver delay, `NoServersError`, unrelated
+  protocol errors and generic network failure remain unconfirmed and fail
+  closed.
 - Submission response loss preserves the complete local observation and
   `arx-runner nats-transport activate` exact-reads the persisted challenge
   before resubmission. Daemon startup, local verify and another rotation all

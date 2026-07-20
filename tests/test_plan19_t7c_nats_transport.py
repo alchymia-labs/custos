@@ -17,6 +17,7 @@ from uuid import UUID
 import nkeys
 import pytest
 from nats.errors import AuthorizationError
+from nats.errors import Error as NatsError
 
 from custos.cli.subcommands import nats_transport as nats_transport_cli
 from custos.core import nats_transport
@@ -686,6 +687,23 @@ async def test_old_generation_probe_requires_typed_authorization_denial(
         timeout_seconds=1,
     )
 
+    async def protocol_rejected(**_kwargs):  # type: ignore[no-untyped-def]
+        raise NatsError("nats: 'Authorization Violation'")
+
+    monkeypatch.setattr(nats_transport.nats, "connect", protocol_rejected)
+    protocol_profile = RunnerNatsTransportConnectionProfile(
+        credential,
+        "tls://nats.internal:4222",
+        ca,
+        "nats.internal",
+        credential.issuer_account_public_nkey,
+    )
+    await assert_old_generation_reconnect_denied(
+        protocol_profile,
+        name="old-generation",
+        timeout_seconds=1,
+    )
+
     async def unavailable(**_kwargs):  # type: ignore[no-untyped-def]
         raise OSError("network unavailable")
 
@@ -700,6 +718,24 @@ async def test_old_generation_probe_requires_typed_authorization_denial(
     with pytest.raises(RunnerNatsTransportError, match="without explicit"):
         await assert_old_generation_reconnect_denied(
             second_profile,
+            name="old-generation",
+            timeout_seconds=1,
+        )
+
+    async def unrelated_protocol_error(**_kwargs):  # type: ignore[no-untyped-def]
+        raise NatsError("nats: 'Permissions Violation for Publish'")
+
+    monkeypatch.setattr(nats_transport.nats, "connect", unrelated_protocol_error)
+    fourth_profile = RunnerNatsTransportConnectionProfile(
+        credential,
+        "tls://nats.internal:4222",
+        ca,
+        "nats.internal",
+        credential.issuer_account_public_nkey,
+    )
+    with pytest.raises(RunnerNatsTransportError, match="without explicit"):
+        await assert_old_generation_reconnect_denied(
+            fourth_profile,
             name="old-generation",
             timeout_seconds=1,
         )
