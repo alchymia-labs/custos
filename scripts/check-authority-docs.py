@@ -68,6 +68,7 @@ PLAN_19_T7C_RECEIPT_PATH = (
 )
 PLAN_19_T7C_VENDOR_ROOT = "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1"
 PLAN_19_T7C_CONSUMER_COMMIT = "dcd1ca09d01c0c7e9861b06b80fda7d384e5326b"
+PLAN_19_T7C_REAL_NATS_GATE_COMMIT = "51fdc9ae514d1670dde492d8cc2da4dde2d24f62"
 PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-candidate-assets-v1.json"
 PLAN_19_T8A_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json"
@@ -2456,11 +2457,11 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         "replacement_connectivity_and_challenge_freshness_durable": True,
         "response_loss_restart_resubmission_ready": True,
         "network_failure_cannot_count_as_reconnect_denial": True,
-        "local_nkey_broker_protocol_gate_passed": True,
+        "local_user_jwt_memory_resolver_gate_passed": True,
         "production_transport_credential_provisioned": False,
         "production_durable_verified": False,
         "old_generation_reconnect_denial_attested": False,
-        "real_nats_integration_passed": False,
+        "real_nats_integration_passed": True,
         "team_daemon_enabled": False,
         "live_ready": False,
         "runtime_ready": False,
@@ -2472,6 +2473,20 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         for key, value in expected_truth.items():
             if truth.get(key) != value:
                 errors.append(f"Plan 19 T7C receipt truth {key} differs")
+    local_gate = receipt.get("local_real_nats_user_jwt_resolver_verification")
+    expected_local_gate = {
+        "result": "1 passed",
+        "command": "make verify-nats-revocation",
+        "image": "nats:2.10-alpine",
+        "gate_commit": PLAN_19_T7C_REAL_NATS_GATE_COMMIT,
+        "production_equivalent_runtime_receipt": False,
+    }
+    if not isinstance(local_gate, dict):
+        errors.append("Plan 19 T7C local real-NATS gate evidence is missing")
+    else:
+        for key, value in expected_local_gate.items():
+            if local_gate.get(key) != value:
+                errors.append(f"Plan 19 T7C local real-NATS gate {key} differs")
 
     sources = {name: path.read_text(encoding="utf-8") for name, path in source_paths.items()}
     markers = {
@@ -2516,8 +2531,11 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         ),
         "real_nats_acceptance": (
             "CUSTOS_RUN_REAL_NATS_REVOCATION",
-            "test_real_nats_forces_old_disconnect_and_denies_exact_reconnect",
-            "_is_explicit_nats_authorization_rejection",
+            "test_real_nats_memory_resolver_revokes_old_user_jwt_and_keeps_replacement",
+            "_encode_nats_jwt",
+            "_account_jwt",
+            "RunnerNatsTransportConnectionProfile",
+            "assert_old_generation_reconnect_denied",
         ),
         "makefile": ("verify-nats-revocation",),
     }
@@ -2573,11 +2591,12 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         "retiring_generation_fail_closed": True,
         "response_loss_resubmission_ready": True,
         "consumer_code_commit": PLAN_19_T7C_CONSUMER_COMMIT,
-        "local_nkey_broker_protocol_gate_passed": True,
+        "local_user_jwt_memory_resolver_gate_passed": True,
+        "local_user_jwt_memory_resolver_gate_commit": (PLAN_19_T7C_REAL_NATS_GATE_COMMIT),
         "production_transport_credential_provisioned": False,
         "production_durable_verified": False,
         "old_generation_reconnect_denial_attested": False,
-        "real_nats_integration_passed": False,
+        "real_nats_integration_passed": True,
         "team_daemon_enabled": False,
         "live_ready": False,
         "runtime_ready": False,
