@@ -326,6 +326,10 @@ def test_dedicated_production_workflow_is_manual_oidc_and_fail_closed() -> None:
     assert "push:" not in source
     assert "permissions:\n  contents: read\n  packages: write\n  id-token: write" in source
     assert "environment: toolkit-rc-release" in source
+    assert "runs-on: ubuntu-24.04" in source
+    assert "astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b" in source
+    assert "version: '0.11.16'" in source
+    assert "uv sync --frozen --extra lts" in source
     assert "SOURCE_DATE_EPOCH: '1704067200'" in source
     assert "python scripts/toolkit_rc_build.py" in source
     assert "python scripts/toolkit_rc_release_readiness.py prepare" in source
@@ -340,6 +344,7 @@ def test_dedicated_production_workflow_is_manual_oidc_and_fail_closed() -> None:
     assert "CUSTOS_TOOLKIT_OCI_REGISTRY: ghcr.io" in source
     assert "CUSTOS_TOOLKIT_OCI_REPOSITORY: alchymia-labs/custos-strategy-toolkit" in source
     assert "CUSTOS_TOOLKIT_ARTIFACT_SERVICE" not in source
+    assert "self-hosted" not in source
     assert "actions/upload-artifact" not in source
     assert "softprops/action-gh-release" not in source
     assert "skip-existing" not in source

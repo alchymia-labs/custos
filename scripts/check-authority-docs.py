@@ -1476,6 +1476,9 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "workflow_dispatch:",
             "permissions:\n  contents: read\n  packages: write\n  id-token: write",
             "environment: toolkit-rc-release",
+            "runs-on: ubuntu-24.04",
+            "astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b",
+            "uv sync --frozen --extra lts",
             (
                 "https://github.com/alchymia-labs/custos/.github/workflows/"
                 "release-toolkit-rc.yml@refs/heads/main"
@@ -1498,6 +1501,7 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "skip-existing",
             "CUSTOS_TOOLKIT_ARTIFACT_SERVICE",
             "--artifact-service-url",
+            "self-hosted",
         ):
             if forbidden in workflow:
                 errors.append(f"T6d production workflow contains forbidden {forbidden!r}")

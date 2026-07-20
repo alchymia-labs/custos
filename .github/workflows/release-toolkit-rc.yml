@@ -20,7 +20,7 @@ concurrency:
 jobs:
   release-candidate:
     if: github.repository == 'alchymia-labs/custos' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, linux, x64, custos-release]
+    runs-on: ubuntu-24.04
     environment: toolkit-rc-release
     env:
       SOURCE_DATE_EPOCH: '1704067200'
@@ -39,7 +39,22 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Validate immutable operator input and pre-provisioned tools
+      - name: Install the pinned uv release toolchain
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: '0.11.16'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Hydrate the locked release environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --frozen --extra lts
+          uv run --frozen --extra lts python --version
+          uv run --frozen --extra lts sigstore --version
+
+      - name: Validate immutable operator input and release tools
         shell: bash
         run: |
           set -euo pipefail
@@ -51,15 +66,14 @@ jobs:
           test -n "$CUSTOS_TOOLKIT_OCI_USERNAME"
           test -n "$CUSTOS_TOOLKIT_OCI_TOKEN"
           command -v uv
-          command -v sigstore
           uv --version
-          sigstore --version
+          uv run --frozen --extra lts sigstore --version
 
       - name: Rebuild and compare both toolkit distributions offline
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/toolkit_rc_build.py \
+          uv run --frozen --extra lts python scripts/toolkit_rc_build.py \
             --repository-root "$GITHUB_WORKSPACE" \
             --source-commit "$GITHUB_SHA" \
             --source-date-epoch "$SOURCE_DATE_EPOCH" \
@@ -70,7 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/toolkit_rc_release_readiness.py prepare \
+          uv run --frozen --extra lts python scripts/toolkit_rc_release_readiness.py prepare \
             --repository-root "$GITHUB_WORKSPACE" \
             --build-root "$RUNNER_TEMP/toolkit-rc-build" \
             --output-root "$RUNNER_TEMP/toolkit-rc-readiness"
@@ -81,8 +95,8 @@ jobs:
           set -euo pipefail
           provenance="$RUNNER_TEMP/toolkit-rc-readiness/toolkit-rc.intoto.json"
           bundle="$RUNNER_TEMP/toolkit-rc-provenance.sigstore.json"
-          sigstore sign --bundle "$bundle" "$provenance"
-          sigstore verify identity \
+          uv run --frozen --extra lts sigstore sign --bundle "$bundle" "$provenance"
+          uv run --frozen --extra lts sigstore verify identity \
             --bundle "$bundle" \
             --cert-identity "$EXPECTED_SIGSTORE_IDENTITY" \
             --cert-oidc-issuer "$EXPECTED_SIGSTORE_ISSUER" \
@@ -92,7 +106,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/toolkit_rc_release_readiness.py assemble \
+          uv run --frozen --extra lts python scripts/toolkit_rc_release_readiness.py assemble \
             --repository-root "$GITHUB_WORKSPACE" \
             --build-root "$RUNNER_TEMP/toolkit-rc-build" \
             --readiness-root "$RUNNER_TEMP/toolkit-rc-readiness" \
@@ -104,7 +118,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/toolkit_rc_publish.py \
+          uv run --frozen --extra lts python scripts/toolkit_rc_publish.py \
             --manifest "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-manifest.json" \
             --build-manifest "$RUNNER_TEMP/toolkit-rc-build/toolkit-rc-build-manifest-input.json" \
             --object-sources "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-object-sources.json" \
