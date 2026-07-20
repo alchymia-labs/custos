@@ -1382,14 +1382,28 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "ready_receipt_published": False,
         },
         {
-            "role": "toolkit_rc_authority_receipt_schema_v1",
+            "role": "toolkit_rc_authority_receipt_schema_v1_historical_non_production",
             "path": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+            "legacy_non_production": True,
+            "runtime_fallback_allowed": False,
+            "receipt_status": "NON_PRODUCTION_SUPERSEDED",
+            "ready_receipt_published": False,
+        },
+        {
+            "role": "toolkit_rc_authority_receipt_schema_v2",
+            "path": "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
             "contract_only": True,
             "stable_ready_path": (
                 "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
             ),
             "receipt_present": False,
-            "receipt_status": "PENDING_T6E_EXTERNAL_RELEASE",
+            "receipt_status": "PENDING_T6E_OCI_PUBLICATION",
+            "ready_receipt_published": False,
+        },
+        {
+            "role": "toolkit_rc_oci_distribution_client",
+            "path": "scripts/toolkit_rc_oci.py",
+            "contract_only": True,
             "ready_receipt_published": False,
         },
         {
@@ -1460,7 +1474,7 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
         workflow = workflow_path.read_text(encoding="utf-8")
         required_phrases = (
             "workflow_dispatch:",
-            "permissions:\n  contents: read\n  id-token: write",
+            "permissions:\n  contents: read\n  packages: write\n  id-token: write",
             "environment: toolkit-rc-release",
             (
                 "https://github.com/alchymia-labs/custos/.github/workflows/"
@@ -1470,17 +1484,20 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "sigstore verify identity",
             "--production-release-runner",
             "group: toolkit-rc-${{ inputs.candidate_version }}",
-            "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}",
+            "oci_coordinate=${{ steps.publish.outputs.oci_coordinate }}",
+            "manifest_digest=${{ steps.publish.outputs.manifest_digest }}",
+            "CUSTOS_TOOLKIT_OCI_REGISTRY: ghcr.io",
         )
         for phrase in required_phrases:
             if phrase not in workflow:
                 errors.append(f"T6d production workflow lacks {phrase!r}")
         for forbidden in (
-            "packages: write",
             "contents: write",
             "actions/upload-artifact",
             "softprops/action-gh-release",
             "skip-existing",
+            "CUSTOS_TOOLKIT_ARTIFACT_SERVICE",
+            "--artifact-service-url",
         ):
             if forbidden in workflow:
                 errors.append(f"T6d production workflow contains forbidden {forbidden!r}")
@@ -1498,9 +1515,11 @@ def verify_plan_18_task_6_release_authority(manifest: dict[str, object], errors:
         return
     if not ready_path.exists():
         if (
-            release.get("receipt_status") != "PENDING_T6E_EXTERNAL_RELEASE"
+            release.get("receipt_status") != "PENDING_T6E_OCI_PUBLICATION"
             or release.get("receipt_present") is not False
             or release.get("handoff_ready") is not False
+            or release.get("publication_protocol") != "OCI_DISTRIBUTION_V2"
+            or release.get("tag_is_authority") is not False
         ):
             errors.append("T6e manifest/ecosystem PENDING state differs")
         return
@@ -1516,6 +1535,7 @@ def verify_plan_18_task_6_release_authority(manifest: dict[str, object], errors:
         "runtime_ready": False,
         "production_ready": False,
         "strategy_release_bom_created": False,
+        "receipt_schema_version": 2,
     }
     for name, value in required_ready.items():
         if ready.get(name) != value:

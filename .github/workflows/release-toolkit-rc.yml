@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
   id-token: write
 
 concurrency:
@@ -24,8 +25,10 @@ jobs:
     env:
       SOURCE_DATE_EPOCH: '1704067200'
       CUSTOS_TOOLKIT_RELEASE_ENVIRONMENT: toolkit-rc-release
-      CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL: ${{ vars.TOOLKIT_ARTIFACT_SERVICE_URL }}
-      CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN: ${{ secrets.TOOLKIT_ARTIFACT_SERVICE_TOKEN }}
+      CUSTOS_TOOLKIT_OCI_REGISTRY: ghcr.io
+      CUSTOS_TOOLKIT_OCI_REPOSITORY: alchymia-labs/custos-strategy-toolkit
+      CUSTOS_TOOLKIT_OCI_USERNAME: ${{ github.actor }}
+      CUSTOS_TOOLKIT_OCI_TOKEN: ${{ github.token }}
       EXPECTED_SIGSTORE_IDENTITY: >-
         https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main
       EXPECTED_SIGSTORE_ISSUER: https://token.actions.githubusercontent.com
@@ -43,8 +46,10 @@ jobs:
           [[ "${{ inputs.candidate_version }}" =~ ^0\.1\.0rc[1-9][0-9]*$ ]]
           test "$GITHUB_REPOSITORY" = "alchymia-labs/custos"
           test "$GITHUB_REF" = "refs/heads/main"
-          test -n "$CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL"
-          test -n "$CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN"
+          test "$CUSTOS_TOOLKIT_OCI_REGISTRY" = "ghcr.io"
+          test "$CUSTOS_TOOLKIT_OCI_REPOSITORY" = "alchymia-labs/custos-strategy-toolkit"
+          test -n "$CUSTOS_TOOLKIT_OCI_USERNAME"
+          test -n "$CUSTOS_TOOLKIT_OCI_TOKEN"
           command -v uv
           command -v sigstore
           uv --version
@@ -94,7 +99,7 @@ jobs:
             --sigstore-bundle "$RUNNER_TEMP/toolkit-rc-provenance.sigstore.json" \
             --output-root "$RUNNER_TEMP/toolkit-rc-publication-inputs"
 
-      - name: Atomically publish and verify remote digest readback
+      - name: Commit one OCI manifest and verify digest readback
         id: publish
         shell: bash
         run: |
@@ -103,15 +108,15 @@ jobs:
             --manifest "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-manifest.json" \
             --build-manifest "$RUNNER_TEMP/toolkit-rc-build/toolkit-rc-build-manifest-input.json" \
             --object-sources "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-object-sources.json" \
-            --artifact-service-url "$CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL" \
+            --registry "$CUSTOS_TOOLKIT_OCI_REGISTRY" \
+            --repository "$CUSTOS_TOOLKIT_OCI_REPOSITORY" \
             --pending-receipt "$RUNNER_TEMP/toolkit-rc-remote-publication-pending.json" \
             --production-release-runner
           sha256sum "$RUNNER_TEMP/toolkit-rc-remote-publication-pending.json"
 
-      - name: Report durable publication receipt handoff
+      - name: Report immutable OCI authority handoff
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s\n' "publication_id=${{ steps.publish.outputs.publication_id }}"
-          printf '%s\n' "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}"
-          printf '%s\n' "durable_receipt_sha256=${{ steps.publish.outputs.durable_receipt_sha256 }}"
+          printf '%s\n' "oci_coordinate=${{ steps.publish.outputs.oci_coordinate }}"
+          printf '%s\n' "manifest_digest=${{ steps.publish.outputs.manifest_digest }}"

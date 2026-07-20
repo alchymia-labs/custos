@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -16,9 +12,16 @@ from custos_toolkit.contracts import (
     LockedToolkitDependencyV1,
     ToolkitRcMemberRole,
     ToolkitRcMemberV1,
+    ToolkitRcOciPublicationReceiptV1,
     ToolkitRcReceiptManifestV1,
 )
 
+from scripts.toolkit_rc_oci import (
+    OciCommitUnknownError,
+    OciDescriptor,
+    OciRegistryError,
+    sha256_digest,
+)
 from scripts.toolkit_rc_publish import (
     ArtifactCoordinateExistsError,
     ArtifactPublicationError,
@@ -198,292 +201,131 @@ def _candidate_inputs(root: Path, version: str) -> CandidateInputs:
 
 
 @dataclass(slots=True)
-class FakeArtifactState:
-    objects: dict[str, tuple[str, str, bytes]] = field(default_factory=dict)
-    transactions: dict[str, dict[str, Any]] = field(default_factory=dict)
-    transaction_count: int = 0
-    put_count: int = 0
-    fail_put_at: int | None = None
-    omit_puback: bool = False
-    drift_readback: bool = False
+class FakeOciRegistry:
+    registry: str = "registry.example"
+    repository: str = "custos/toolkit"
+    blobs: dict[str, bytes] = field(default_factory=dict)
+    manifests: dict[str, tuple[str, bytes]] = field(default_factory=dict)
+    upload_count: int = 0
+    fail_upload_at: int | None = None
     drop_commit_response: bool = False
-    drift_receipt: bool = False
-    receipts: dict[str, bytes] = field(default_factory=dict)
+    drift_readback: bool = False
 
+    def resolve_manifest(self, reference: str) -> str | None:
+        value = self.manifests.get(reference)
+        return None if value is None else value[0]
 
-class FakeArtifactHandler(BaseHTTPRequestHandler):
-    server: FakeArtifactServer
+    def upload_blob(self, descriptor: OciDescriptor, content: bytes) -> None:
+        self.upload_count += 1
+        if self.fail_upload_at == self.upload_count:
+            self.fail_upload_at = None
+            raise OciRegistryError("injected blob upload failure")
+        if descriptor.digest != sha256_digest(content) or descriptor.size != len(content):
+            raise OciRegistryError("descriptor mismatch")
+        self.blobs[descriptor.digest] = content
 
-    def log_message(self, format: str, *args: object) -> None:
-        del format, args
+    def put_manifest(self, tag: str, content: bytes) -> str:
+        digest = sha256_digest(content)
+        self.manifests[tag] = (digest, content)
+        self.manifests[digest] = (digest, content)
+        if self.drop_commit_response:
+            self.drop_commit_response = False
+            raise OciCommitUnknownError("injected response loss")
+        return digest
 
-    def _json_body(self) -> dict[str, Any]:
-        length = int(self.headers.get("Content-Length", "0"))
-        return json.loads(self.rfile.read(length))
-
-    def _response(self, status: int, document: dict[str, Any] | None = None) -> None:
-        content = b"" if document is None else json.dumps(document).encode()
-        self.send_response(status)
-        if content:
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(content)))
-        self.end_headers()
-        if content:
-            self.wfile.write(content)
-
-    def do_HEAD(self) -> None:  # noqa: N802
-        object_id = self.path.rsplit("/", 1)[-1]
-        self._response(200 if object_id in self.server.state.objects else 404)
-
-    def do_GET(self) -> None:  # noqa: N802
-        parts = self.path.strip("/").split("/")
-        if len(parts) == 4 and parts[:2] == ["v1", "publications"] and parts[3] == "receipt":
-            content = self.server.state.receipts.get(parts[2])
-            if content is None:
-                self._response(404)
-                return
-            if self.server.state.drift_receipt:
-                document = json.loads(content)
-                document["source_commit"] = "0" * 40
-                content = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
-            return
-        object_id = self.path.rsplit("/", 1)[-1]
-        stored = self.server.state.objects.get(object_id)
-        if stored is None:
-            self._response(404)
-            return
-        content = b"digest drift" if self.server.state.drift_readback else stored[2]
-        self.send_response(200)
-        self.send_header("Content-Length", str(len(content)))
-        self.end_headers()
-        self.wfile.write(content)
-
-    def do_POST(self) -> None:  # noqa: N802
-        state = self.server.state
-        if self.path == "/v1/publications":
-            request = self._json_body()
-            state.transaction_count += 1
-            transaction_id = f"tx-{state.transaction_count}"
-            publication_id = f"publication-{transaction_id}"
-            state.transactions[transaction_id] = {
-                "expected": {item["object_id"]: item for item in request["objects"]},
-                "staged": {},
-                "request": request,
-                "publication_id": publication_id,
-            }
-            self._response(
-                201,
-                {
-                    "accepted": True,
-                    "atomic": True,
-                    "transaction_id": transaction_id,
-                    "publication_id": publication_id,
-                },
-            )
-            return
-        parts = self.path.strip("/").split("/")
-        if len(parts) == 4 and parts[:2] == ["v1", "publications"]:
-            transaction_id = parts[2]
-            transaction = state.transactions[transaction_id]
-            if set(transaction["staged"]) != set(transaction["expected"]):
-                self._response(409, {"error": "partial transaction"})
-                return
-            committed = dict(state.objects)
-            committed.update(transaction["staged"])
-            state.objects = committed
-            objects = [
-                {
-                    "coordinate": coordinate,
-                    "object_id": object_id,
-                    "sha256": digest,
-                }
-                for object_id, (coordinate, digest, _) in sorted(transaction["staged"].items())
-            ]
-            response: dict[str, Any] = {
-                "publication_id": transaction["publication_id"],
-                "objects": objects,
-            }
-            if not state.omit_puback:
-                response["puback"] = True
-            request = transaction["request"]
-            context = request["production_context"]
-            receipt = {
-                "schema_version": "alephain.custos.toolkit-rc-publication-receipt.v1",
-                "status": (
-                    "PENDING_T6E_AUTHORITY_REGISTRATION"
-                    if context is not None
-                    else "PENDING_T6C_PUBLICATION_VERIFIED"
-                ),
-                "ready": False,
-                "handoff_ready": False,
-                "candidate_version": request["candidate_version"],
-                "source_repository": request["source_repository"],
-                "source_commit": request["source_commit"],
-                "source_date_epoch": request["source_date_epoch"],
-                "publication_id": transaction["publication_id"],
-                "transaction_id": transaction_id,
-                "publication_atomic": True,
-                "puback_verified": True,
-                "readback_verified": True,
-                "production_credentials_used": context is not None,
-                "production_signature_verified": context is not None,
-                "workflow_ref": None if context is None else context["workflow_ref"],
-                "workflow_identity": None if context is None else context["workflow_identity"],
-                "oidc_issuer": None if context is None else context["oidc_issuer"],
-                "release_environment": None if context is None else context["release_environment"],
-                "workflow_run_id": None if context is None else context["workflow_run_id"],
-                "workflow_run_attempt": (
-                    None if context is None else context["workflow_run_attempt"]
-                ),
-                "objects": [
-                    {**item, "size_bytes": transaction["expected"][item["object_id"]]["size_bytes"]}
-                    for item in objects
-                ],
-                "authority_registered": False,
-            }
-            state.receipts[transaction["publication_id"]] = (
-                json.dumps(receipt, indent=2, sort_keys=True) + "\n"
-            ).encode()
-            if state.drop_commit_response:
-                state.drop_commit_response = False
-                self.close_connection = True
-                return
-            self._response(200, response)
-            return
-        self._response(404)
-
-    def do_PUT(self) -> None:  # noqa: N802
-        state = self.server.state
-        state.put_count += 1
-        if state.fail_put_at == state.put_count:
-            state.fail_put_at = None
-            self._response(503, {"error": "injected partial failure"})
-            return
-        parts = self.path.strip("/").split("/")
-        if len(parts) != 5 or parts[:2] != ["v1", "publications"]:
-            self._response(404)
-            return
-        transaction = state.transactions[parts[2]]
-        object_id = parts[4]
-        expected = transaction["expected"][object_id]
-        length = int(self.headers["Content-Length"])
-        content = self.rfile.read(length)
-        transaction["staged"][object_id] = (
-            expected["coordinate"],
-            expected["sha256"],
-            content,
-        )
-        self._response(
-            201,
-            {
-                "ack": True,
-                "coordinate": expected["coordinate"],
-                "object_id": object_id,
-                "sha256": expected["sha256"],
-            },
-        )
-
-
-class FakeArtifactServer(ThreadingHTTPServer):
-    state: FakeArtifactState
-
-
-@contextmanager
-def _artifact_service(
-    state: FakeArtifactState | None = None,
-) -> Iterator[tuple[str, FakeArtifactState]]:
-    active_state = state or FakeArtifactState()
-    server = FakeArtifactServer(("127.0.0.1", 0), FakeArtifactHandler)
-    server.state = active_state
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        host, port = server.server_address
-        yield f"http://{host}:{port}", active_state
-    finally:
-        server.shutdown()
-        thread.join()
-        server.server_close()
+    def verify_release(
+        self,
+        *,
+        tag: str,
+        manifest_digest: str,
+        manifest_content: bytes,
+        descriptors: tuple[OciDescriptor, ...],
+    ) -> None:
+        if self.drift_readback:
+            raise OciRegistryError("injected digest drift")
+        if self.manifests.get(tag) != (manifest_digest, manifest_content):
+            raise OciRegistryError("tag readback differs")
+        if self.manifests.get(manifest_digest) != (manifest_digest, manifest_content):
+            raise OciRegistryError("digest readback differs")
+        for descriptor in descriptors:
+            content = self.blobs.get(descriptor.digest)
+            if content is None or len(content) != descriptor.size:
+                raise OciRegistryError("blob readback differs")
 
 
 def _publish(
     inputs: CandidateInputs,
-    service_url: str,
+    registry: FakeOciRegistry,
     pending_path: Path,
 ):
     return publish_toolkit_rc_candidate(
         manifest_path=inputs.manifest_path,
         build_manifest_path=inputs.build_manifest_path,
         object_sources=inputs.object_sources,
-        artifact_service_url=service_url,
+        registry=registry.registry,
+        repository=registry.repository,
         pending_receipt_path=pending_path,
+        registry_client=registry,
     )
 
 
-def test_atomic_publication_is_pending_only_and_rc_coordinate_cannot_overwrite(
+def test_oci_manifest_is_the_only_atomic_authority_and_tag_cannot_drift(
     tmp_path: Path,
 ) -> None:
     rc1 = _candidate_inputs(tmp_path / "rc1", "0.1.0rc1")
     rc2 = _candidate_inputs(tmp_path / "rc2", "0.1.0rc2")
-    with _artifact_service() as (service_url, state):
-        pending_rc1 = tmp_path / "pending-rc1.json"
-        evidence = _publish(rc1, service_url, pending_rc1)
+    registry = FakeOciRegistry()
+    pending_rc1 = tmp_path / "pending-rc1.json"
+    evidence = _publish(rc1, registry, pending_rc1)
+    receipt = ToolkitRcOciPublicationReceiptV1.model_validate_json(pending_rc1.read_bytes())
+    assert evidence.candidate_version == "0.1.0rc1"
+    assert receipt.status == "PENDING_T6D_RELEASE_RUNNER"
+    assert receipt.ready is False
+    assert receipt.publication_atomic is True
+    assert receipt.manifest_commit_verified is True
+    assert receipt.descriptor_readback_verified is True
+    assert receipt.tag_readback_verified is True
+    assert receipt.production_credentials_used is False
+    assert receipt.oci_coordinate == (
+        f"{registry.registry}/{registry.repository}@{evidence.manifest_digest}"
+    )
+    assert registry.resolve_manifest("0.1.0rc1") == evidence.manifest_digest
 
-        document = json.loads(pending_rc1.read_text(encoding="utf-8"))
-        assert evidence.candidate_version == "0.1.0rc1"
-        assert document["status"] == "PENDING_T6D_RELEASE_RUNNER"
-        assert document["ready"] is False
-        assert document["publication_atomic"] is True
-        assert document["puback_verified"] is True
-        assert document["readback_verified"] is True
-        assert document["production_credentials_used"] is False
-        assert document["production_attestation_verified"] is False
-        assert document["durable_receipt_url"].endswith(
-            f"/v1/publications/{evidence.publication_id}/receipt"
-        )
-        assert document["durable_receipt_sha256"] == _sha256(
-            state.receipts[evidence.publication_id]
-        )
-        assert state.objects
+    recovered = _publish(rc1, registry, tmp_path / "recovered-same-digest.json")
+    assert recovered.commit_recovered_by_digest is True
 
-        with pytest.raises(ArtifactCoordinateExistsError):
-            _publish(rc1, service_url, tmp_path / "must-not-exist.json")
-        assert not (tmp_path / "must-not-exist.json").exists()
+    registry.manifests["0.1.0rc1"] = ("sha256:" + "f" * 64, b"drift")
+    with pytest.raises(ArtifactCoordinateExistsError, match="next RC"):
+        _publish(rc1, registry, tmp_path / "must-not-exist.json")
+    assert not (tmp_path / "must-not-exist.json").exists()
 
-        rc2_evidence = _publish(rc2, service_url, tmp_path / "pending-rc2.json")
-        assert rc2_evidence.candidate_version == "0.1.0rc2"
+    rc2_evidence = _publish(rc2, registry, tmp_path / "pending-rc2.json")
+    assert rc2_evidence.candidate_version == "0.1.0rc2"
 
 
-def test_partial_failure_is_invisible_and_same_candidate_can_retry(tmp_path: Path) -> None:
+def test_partial_blob_failure_creates_no_manifest_and_same_candidate_retries(
+    tmp_path: Path,
+) -> None:
     inputs = _candidate_inputs(tmp_path / "inputs", "0.1.0rc1")
-    state = FakeArtifactState(fail_put_at=2)
-    with _artifact_service(state) as (service_url, _):
-        failed_pending = tmp_path / "failed-pending.json"
-        with pytest.raises(ArtifactPublicationError, match="stage"):
-            _publish(inputs, service_url, failed_pending)
-        assert state.objects == {}
-        assert not failed_pending.exists()
+    registry = FakeOciRegistry(fail_upload_at=2)
+    failed_pending = tmp_path / "failed-pending.json"
+    with pytest.raises(ArtifactPublicationError, match="blob staging"):
+        _publish(inputs, registry, failed_pending)
+    assert registry.resolve_manifest(inputs.candidate_version) is None
+    assert not failed_pending.exists()
 
-        retried = _publish(inputs, service_url, tmp_path / "retry-pending.json")
-        assert retried.candidate_version == "0.1.0rc1"
-        assert state.objects
+    retried = _publish(inputs, registry, tmp_path / "retry-pending.json")
+    assert retried.candidate_version == "0.1.0rc1"
+    assert registry.resolve_manifest(inputs.candidate_version) == retried.manifest_digest
 
 
-@pytest.mark.parametrize("failure", ["missing_attestation", "missing_puback", "digest_drift"])
+@pytest.mark.parametrize("failure", ["missing_attestation", "digest_drift"])
 def test_incomplete_or_unverified_publication_never_writes_pending_or_ready_receipt(
     tmp_path: Path,
     failure: str,
 ) -> None:
     inputs = _candidate_inputs(tmp_path / failure, "0.1.0rc1")
-    state = FakeArtifactState(
-        omit_puback=failure == "missing_puback",
-        drift_readback=failure == "digest_drift",
-    )
+    registry = FakeOciRegistry(drift_readback=failure == "digest_drift")
     if failure == "missing_attestation":
         attestation = next(
             coordinate
@@ -493,38 +335,37 @@ def test_incomplete_or_unverified_publication_never_writes_pending_or_ready_rece
         del inputs.object_sources[attestation]
 
     pending_path = tmp_path / f"{failure}-pending.json"
-    with _artifact_service(state) as (service_url, _):
-        with pytest.raises(ArtifactPublicationError):
-            _publish(inputs, service_url, pending_path)
+    with pytest.raises(ArtifactPublicationError):
+        _publish(inputs, registry, pending_path)
     assert not pending_path.exists()
     assert not (tmp_path / "custos-plan-18-task-6-toolkit-rc-receipt.json").exists()
 
 
-def test_contract_cli_is_local_only(tmp_path: Path) -> None:
+def test_commit_unknown_recovers_only_from_the_expected_manifest_digest(
+    tmp_path: Path,
+) -> None:
     inputs = _candidate_inputs(tmp_path / "inputs", "0.1.0rc1")
-    with pytest.raises(ArtifactPublicationError, match="loopback"):
-        _publish(
-            inputs,
-            "https://registry.example.invalid",
-            tmp_path / "must-not-exist.json",
-        )
-
-
-def test_commit_unknown_recovers_from_immutable_publication_receipt(tmp_path: Path) -> None:
-    inputs = _candidate_inputs(tmp_path / "inputs", "0.1.0rc1")
-    state = FakeArtifactState(drop_commit_response=True)
-    with _artifact_service(state) as (service_url, _):
-        pending = tmp_path / "recovered.json"
-        evidence = _publish(inputs, service_url, pending)
+    registry = FakeOciRegistry(drop_commit_response=True)
+    pending = tmp_path / "recovered.json"
+    evidence = _publish(inputs, registry, pending)
     assert pending.is_file()
-    assert evidence.publication_id in state.receipts
+    assert evidence.commit_recovered_by_digest is True
+    assert registry.resolve_manifest(inputs.candidate_version) == evidence.manifest_digest
 
 
-def test_durable_receipt_drift_fails_before_pending_evidence(tmp_path: Path) -> None:
+def test_descriptor_readback_drift_fails_before_pending_evidence(tmp_path: Path) -> None:
     inputs = _candidate_inputs(tmp_path / "inputs", "0.1.0rc1")
-    state = FakeArtifactState(drift_receipt=True)
+    registry = FakeOciRegistry(drift_readback=True)
     pending = tmp_path / "must-not-exist.json"
-    with _artifact_service(state) as (service_url, _):
-        with pytest.raises(ArtifactPublicationError, match="durable publication receipt"):
-            _publish(inputs, service_url, pending)
+    with pytest.raises(ArtifactPublicationError, match="digest readback"):
+        _publish(inputs, registry, pending)
     assert not pending.exists()
+
+
+def test_publication_sources_contain_no_bespoke_artifact_service_fallback() -> None:
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "scripts/toolkit_rc_publish.py").read_text(encoding="utf-8")
+    workflow = (root / ".github/workflows/release-toolkit-rc.yml").read_text(encoding="utf-8")
+    assert "artifact-service" not in source
+    assert "ARTIFACT_SERVICE" not in workflow
+    assert "OCI Distribution" in source

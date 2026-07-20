@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local-only atomic publication protocol for Custos toolkit RC candidates."""
+"""Publish one immutable Custos toolkit release candidate via OCI Distribution."""
 
 from __future__ import annotations
 
@@ -8,25 +8,37 @@ import hashlib
 import json
 import os
 import subprocess
-import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final
-from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlparse
-from urllib.request import Request, urlopen
+from typing import Any, Final, Literal, Protocol
 
 from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
     ToolkitRcMemberV1,
-    ToolkitRcPublicationReceiptV1,
+    ToolkitRcOciDescriptorV1,
+    ToolkitRcOciPublicationReceiptV1,
     ToolkitRcReceiptManifestV1,
 )
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
+
+from scripts.toolkit_rc_oci import (
+    OCI_ARTIFACT_TYPE,
+    OCI_CONFIG_MEDIA_TYPE,
+    OCI_MANIFEST_MEDIA_TYPE,
+    OCI_ROLE_ANNOTATION,
+    OCI_SOURCE_COORDINATE_ANNOTATION,
+    OCI_TITLE_ANNOTATION,
+    OciCommitUnknownError,
+    OciDescriptor,
+    OciRegistryClient,
+    OciRegistryError,
+    canonical_json,
+    sha256_digest,
+)
 
 BINDING_FIELDS: Final = (
     "wheel",
@@ -43,23 +55,44 @@ BINDING_FIELDS: Final = (
 BUILD_DISTRIBUTIONS: Final = frozenset(
     {"custos-strategy-toolkit", "custos-strategy-toolkit-nautilus"}
 )
-LOOPBACK_HOSTS: Final = frozenset({"127.0.0.1", "::1", "localhost"})
-PRODUCTION_WORKFLOW_REF: Final = (
-    "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
-)
+PRODUCTION_WORKFLOW_REF: Final[
+    Literal["alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"]
+] = "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
 PRODUCTION_WORKFLOW_IDENTITY: Final = (
     "https://github.com/alchymia-labs/custos/.github/workflows/"
     "release-toolkit-rc.yml@refs/heads/main"
 )
 PRODUCTION_OIDC_ISSUER: Final = "https://token.actions.githubusercontent.com"
+PRODUCTION_RELEASE_ENVIRONMENT: Final[Literal["toolkit-rc-release"]] = "toolkit-rc-release"
+SOURCE_REPOSITORY: Final = "https://github.com/alchymia-labs/custos"
 
 
 class ArtifactPublicationError(RuntimeError):
-    """The candidate failed closed before a T6d release receipt could exist."""
+    """The candidate failed closed before OCI publication evidence could exist."""
 
 
 class ArtifactCoordinateExistsError(ArtifactPublicationError):
-    """An immutable artifact coordinate already exists."""
+    """The RC discovery tag points at a different immutable manifest."""
+
+
+class _RegistryClient(Protocol):
+    registry: str
+    repository: str
+
+    def resolve_manifest(self, reference: str) -> str | None: ...
+
+    def upload_blob(self, descriptor: OciDescriptor, content: bytes) -> None: ...
+
+    def put_manifest(self, tag: str, content: bytes) -> str: ...
+
+    def verify_release(
+        self,
+        *,
+        tag: str,
+        manifest_digest: str,
+        manifest_content: bytes,
+        descriptors: tuple[OciDescriptor, ...],
+    ) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,10 +103,6 @@ class PublicationObject:
     content: bytes
 
     @property
-    def object_id(self) -> str:
-        return hashlib.sha256(self.coordinate.encode()).hexdigest()
-
-    @property
     def size_bytes(self) -> int:
         return len(self.content)
 
@@ -81,25 +110,19 @@ class PublicationObject:
 @dataclass(frozen=True, slots=True)
 class PendingPublicationEvidence:
     candidate_version: str
-    publication_id: str
-    manifest_sha256: str
+    oci_coordinate: str
+    manifest_digest: str
+    toolkit_manifest_sha256: str
     build_manifest_sha256: str
     pending_receipt_path: Path
     status: str
-    durable_receipt_url: str
-    durable_receipt_sha256: str
-    durable_receipt_size_bytes: int
+    commit_recovered_by_digest: bool
 
 
 @dataclass(frozen=True, slots=True)
-class PublicationReservation:
-    transaction_id: str
-    publication_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class ProductionArtifactServiceAuthorization:
-    bearer_token: str
+class ProductionOciAuthorization:
+    registry_username: str
+    registry_token: str
     workflow_ref: str
     release_environment: str
     oidc_request_url: str
@@ -109,17 +132,16 @@ class ProductionArtifactServiceAuthorization:
 
     def __post_init__(self) -> None:
         if (
-            not self.bearer_token
+            not self.registry_username
+            or not self.registry_token
             or self.workflow_ref != PRODUCTION_WORKFLOW_REF
-            or self.release_environment != "toolkit-rc-release"
+            or self.release_environment != PRODUCTION_RELEASE_ENVIRONMENT
             or not self.oidc_request_url.startswith("https://")
             or not self.oidc_request_token
             or self.workflow_run_id <= 0
             or self.workflow_run_attempt <= 0
         ):
-            raise ArtifactPublicationError(
-                "production artifact-service authorization context differs"
-            )
+            raise ArtifactPublicationError("production OCI authorization context differs")
 
     def receipt_context(self) -> dict[str, object]:
         return {
@@ -129,8 +151,6 @@ class ProductionArtifactServiceAuthorization:
             "release_environment": self.release_environment,
             "workflow_run_id": self.workflow_run_id,
             "workflow_run_attempt": self.workflow_run_attempt,
-            "production_credentials_used": True,
-            "production_signature_verified": True,
         }
 
 
@@ -138,7 +158,7 @@ def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def _canonical_json(value: object) -> bytes:
+def _pretty_json(value: object) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
@@ -155,8 +175,7 @@ def _read_json(path: Path, label: str) -> tuple[bytes, dict[str, Any]]:
 
 def _contains_exact_version(coordinate: str, candidate_version: str) -> bool:
     prefix = coordinate.rsplit("@sha256:", 1)[0]
-    tokens = prefix.replace(":", "/").split("/")
-    return candidate_version in tokens
+    return candidate_version in prefix.replace(":", "/").split("/")
 
 
 def _validate_locked_dependencies(
@@ -209,7 +228,6 @@ def _validate_build_evidence(
     for name, expected in required_flags.items():
         if build_document.get(name) != expected:
             raise ArtifactPublicationError(f"T6b build evidence has invalid {name}")
-
     source_commit = build_document.get("source_commit")
     if not isinstance(source_commit, str) or any(
         member.source_commit != source_commit for member in manifest.members
@@ -224,7 +242,6 @@ def _validate_build_evidence(
         raise ArtifactPublicationError("T6b build evidence requires build-1 and build-2")
     if set(first) != BUILD_DISTRIBUTIONS or set(second) != BUILD_DISTRIBUTIONS:
         raise ArtifactPublicationError("T6b build evidence distribution matrix differs")
-
     members = {member.distribution_name: member for member in manifest.members}
     for distribution in sorted(BUILD_DISTRIBUTIONS):
         first_wheel = first[distribution]
@@ -232,14 +249,13 @@ def _validate_build_evidence(
         if not isinstance(first_wheel, dict) or first_wheel != second_wheel:
             raise ArtifactPublicationError(f"T6b {distribution} build records are not reproducible")
         member = members[distribution]
-        expected = {
+        for name, expected in {
             "distribution_name": member.distribution_name,
             "version": member.version,
             "sha256": member.wheel.sha256,
             "size_bytes": member.wheel.size_bytes,
-        }
-        for name, value in expected.items():
-            if first_wheel.get(name) != value:
+        }.items():
+            if first_wheel.get(name) != expected:
                 raise ArtifactPublicationError(f"T6a manifest and T6b {distribution} {name} differ")
         try:
             python_policy_matches = SpecifierSet(
@@ -291,23 +307,23 @@ def _binding_objects(
                 raise ArtifactPublicationError(
                     f"local source digest or size differs for {member.role.value}.{field_name}"
                 )
-            candidate = PublicationObject(
+            existing = objects.get(coordinate)
+            if existing is not None:
+                if existing.sha256 != binding.sha256 or existing.content != content:
+                    raise ArtifactPublicationError("one coordinate binds different local objects")
+                continue
+            objects[coordinate] = PublicationObject(
                 label=f"{member.role.value}.{field_name}",
                 coordinate=coordinate,
                 sha256=binding.sha256,
                 content=content,
             )
-            existing = objects.get(coordinate)
-            if existing is not None and existing != candidate:
-                raise ArtifactPublicationError("one coordinate binds different local objects")
-            objects[coordinate] = candidate
-
     supplied_coordinates = set(object_sources)
     if supplied_coordinates != expected_coordinates:
-        unexpected = sorted(supplied_coordinates - expected_coordinates)
-        missing = sorted(expected_coordinates - supplied_coordinates)
         raise ArtifactPublicationError(
-            f"object source matrix differs; missing={missing}, unexpected={unexpected}"
+            "object source matrix differs; "
+            f"missing={sorted(expected_coordinates - supplied_coordinates)}, "
+            f"unexpected={sorted(supplied_coordinates - expected_coordinates)}"
         )
     return list(objects.values())
 
@@ -316,18 +332,14 @@ def _verify_production_attestation(
     *,
     manifest: ToolkitRcReceiptManifestV1,
     object_sources: Mapping[str, Path],
-    authorization: ProductionArtifactServiceAuthorization | None,
+    authorization: ProductionOciAuthorization | None,
 ) -> bool:
     if authorization is None:
         return False
     provenance_coordinates = {member.slsa_provenance.coordinate for member in manifest.members}
     bundle_coordinates = {member.sigstore_attestation.coordinate for member in manifest.members}
     if len(provenance_coordinates) != 1 or len(bundle_coordinates) != 1:
-        raise ArtifactPublicationError(
-            "production members must share one complete signed provenance"
-        )
-    provenance_path = object_sources[next(iter(provenance_coordinates))]
-    bundle_path = object_sources[next(iter(bundle_coordinates))]
+        raise ArtifactPublicationError("production members must share one signed provenance")
     try:
         verification = subprocess.run(
             [
@@ -335,12 +347,12 @@ def _verify_production_attestation(
                 "verify",
                 "identity",
                 "--bundle",
-                str(bundle_path),
+                str(object_sources[next(iter(bundle_coordinates))]),
                 "--cert-identity",
                 PRODUCTION_WORKFLOW_IDENTITY,
                 "--cert-oidc-issuer",
                 PRODUCTION_OIDC_ISSUER,
-                str(provenance_path),
+                str(object_sources[next(iter(provenance_coordinates))]),
             ],
             check=False,
             capture_output=True,
@@ -355,259 +367,6 @@ def _verify_production_attestation(
             f"production Sigstore provenance verification failed: {verification.stderr.strip()}"
         )
     return True
-
-
-class _ArtifactServiceClient:
-    def __init__(
-        self,
-        base_url: str,
-        authorization: ProductionArtifactServiceAuthorization | None,
-        read_bearer_token: str | None = None,
-    ) -> None:
-        parsed = urlparse(base_url)
-        is_loopback = parsed.scheme == "http" and parsed.hostname in LOOPBACK_HOSTS
-        is_authenticated_reader = parsed.scheme == "https" and bool(read_bearer_token)
-        is_production = parsed.scheme == "https" and authorization is not None
-        if not is_loopback and not is_production and not is_authenticated_reader:
-            raise ArtifactPublicationError(
-                "T6c requires loopback HTTP or an authorized production HTTPS endpoint"
-            )
-        if is_loopback and authorization is not None:
-            raise ArtifactPublicationError(
-                "production authorization must not be sent to a loopback service"
-            )
-        if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
-            raise ArtifactPublicationError("artifact service URL must contain only its origin")
-        self._base_url = base_url.rstrip("/")
-        self._authorization = authorization
-        self._read_bearer_token = read_bearer_token
-
-    def _request(
-        self,
-        method: str,
-        path: str,
-        *,
-        operation: str,
-        expected_statuses: set[int],
-        content: bytes | None = None,
-        content_type: str | None = None,
-    ) -> tuple[int, bytes]:
-        headers = {} if content_type is None else {"Content-Type": content_type}
-        if self._authorization is not None:
-            headers["Authorization"] = f"Bearer {self._authorization.bearer_token}"
-        elif self._read_bearer_token:
-            headers["Authorization"] = f"Bearer {self._read_bearer_token}"
-        request = Request(
-            f"{self._base_url}{path}",
-            data=content,
-            headers=headers,
-            method=method,
-        )
-        try:
-            with urlopen(request, timeout=5) as response:  # noqa: S310 - loopback only.
-                status = response.status
-                body = response.read()
-        except HTTPError as exc:
-            status = exc.code
-            body = exc.read()
-        except (OSError, URLError) as exc:
-            raise ArtifactPublicationError(f"artifact service {operation} failed: {exc}") from exc
-        if status not in expected_statuses:
-            detail = body.decode(errors="replace")
-            raise ArtifactPublicationError(
-                f"artifact service {operation} failed with HTTP {status}: {detail}"
-            )
-        return status, body
-
-    @staticmethod
-    def _document(body: bytes, operation: str) -> dict[str, Any]:
-        try:
-            document = json.loads(body)
-        except json.JSONDecodeError as exc:
-            raise ArtifactPublicationError(
-                f"artifact service {operation} returned invalid JSON"
-            ) from exc
-        if not isinstance(document, dict):
-            raise ArtifactPublicationError(
-                f"artifact service {operation} returned a non-object response"
-            )
-        return document
-
-    def require_absent(self, artifact: PublicationObject) -> None:
-        status, _ = self._request(
-            "HEAD",
-            f"/v1/artifacts/{artifact.object_id}",
-            operation=f"preflight {artifact.label}",
-            expected_statuses={200, 404},
-        )
-        if status == 200:
-            raise ArtifactCoordinateExistsError(
-                f"immutable coordinate already exists: {artifact.coordinate}"
-            )
-
-    def begin(
-        self,
-        candidate_version: str,
-        source_commit: str,
-        source_date_epoch: int,
-        objects: list[PublicationObject],
-    ) -> PublicationReservation:
-        object_matrix = [
-            {
-                "coordinate": artifact.coordinate,
-                "object_id": artifact.object_id,
-                "sha256": artifact.sha256,
-                "size_bytes": artifact.size_bytes,
-            }
-            for artifact in objects
-        ]
-        publication_request_id = _sha256(
-            _canonical_json(
-                {
-                    "candidate_version": candidate_version,
-                    "source_commit": source_commit,
-                    "objects": object_matrix,
-                }
-            )
-        )
-        request = _canonical_json(
-            {
-                "candidate_version": candidate_version,
-                "source_repository": "https://github.com/alchymia-labs/custos",
-                "source_commit": source_commit,
-                "source_date_epoch": source_date_epoch,
-                "publication_request_id": publication_request_id,
-                "production_context": (
-                    self._authorization.receipt_context()
-                    if self._authorization is not None
-                    else None
-                ),
-                "objects": object_matrix,
-            }
-        )
-        _, body = self._request(
-            "POST",
-            "/v1/publications",
-            operation="begin",
-            expected_statuses={201},
-            content=request,
-            content_type="application/json",
-        )
-        response = self._document(body, "begin")
-        transaction_id = response.get("transaction_id")
-        publication_id = response.get("publication_id")
-        if (
-            response.get("accepted") is not True
-            or response.get("atomic") is not True
-            or not isinstance(transaction_id, str)
-            or not transaction_id
-            or not isinstance(publication_id, str)
-            or not publication_id
-        ):
-            raise ArtifactPublicationError(
-                "artifact service did not accept an atomic publication transaction"
-            )
-        return PublicationReservation(transaction_id, publication_id)
-
-    def stage(self, transaction_id: str, artifact: PublicationObject) -> None:
-        _, body = self._request(
-            "PUT",
-            (f"/v1/publications/{quote(transaction_id, safe='')}/artifacts/{artifact.object_id}"),
-            operation=f"stage {artifact.label}",
-            expected_statuses={201},
-            content=artifact.content,
-            content_type="application/octet-stream",
-        )
-        response = self._document(body, f"stage {artifact.label}")
-        expected = {
-            "ack": True,
-            "coordinate": artifact.coordinate,
-            "object_id": artifact.object_id,
-            "sha256": artifact.sha256,
-        }
-        if any(response.get(name) != value for name, value in expected.items()):
-            raise ArtifactPublicationError(
-                f"artifact service stage ACK differs for {artifact.label}"
-            )
-
-    def commit(self, reservation: PublicationReservation, objects: list[PublicationObject]) -> str:
-        try:
-            _, body = self._request(
-                "POST",
-                f"/v1/publications/{quote(reservation.transaction_id, safe='')}/commit",
-                operation="commit",
-                expected_statuses={200},
-                content=_canonical_json({"commit": True}),
-                content_type="application/json",
-            )
-        except ArtifactPublicationError as error:
-            recovered = self.get_publication_receipt(reservation.publication_id, required=False)
-            if recovered is None:
-                raise ArtifactPublicationError(
-                    "artifact service commit outcome is unknown and has no durable receipt"
-                ) from error
-            return reservation.publication_id
-        response = self._document(body, "commit")
-        publication_id = response.get("publication_id")
-        expected_objects = {
-            (artifact.coordinate, artifact.object_id, artifact.sha256) for artifact in objects
-        }
-        actual_objects = {
-            (item.get("coordinate"), item.get("object_id"), item.get("sha256"))
-            for item in response.get("objects", ())
-            if isinstance(item, dict)
-        }
-        if (
-            response.get("puback") is not True
-            or publication_id != reservation.publication_id
-            or actual_objects != expected_objects
-        ):
-            raise ArtifactPublicationError("artifact service commit returned no complete PubAck")
-        return publication_id
-
-    def publication_receipt_url(self, publication_id: str) -> str:
-        return f"{self._base_url}/v1/publications/{quote(publication_id, safe='')}/receipt"
-
-    def get_publication_receipt(
-        self, publication_id: str, *, required: bool = True
-    ) -> tuple[bytes, ToolkitRcPublicationReceiptV1] | None:
-        status, body = self._request(
-            "GET",
-            f"/v1/publications/{quote(publication_id, safe='')}/receipt",
-            operation="publication receipt readback",
-            expected_statuses={200} if required else {200, 404},
-        )
-        if status == 404:
-            return None
-        document = self._document(body, "publication receipt readback")
-        try:
-            receipt = ToolkitRcPublicationReceiptV1.model_validate(document)
-        except ValueError as exc:
-            raise ArtifactPublicationError(
-                f"artifact service publication receipt contract differs: {exc}"
-            ) from exc
-        return body, receipt
-
-    def read_artifact(self, object_id: str) -> bytes:
-        _, content = self._request(
-            "GET",
-            f"/v1/artifacts/{object_id}",
-            operation="promotion object readback",
-            expected_statuses={200},
-        )
-        return content
-
-    def require_exact_readback(self, artifact: PublicationObject) -> None:
-        _, content = self._request(
-            "GET",
-            f"/v1/artifacts/{artifact.object_id}",
-            operation=f"readback {artifact.label}",
-            expected_statuses={200},
-        )
-        if content != artifact.content or _sha256(content) != artifact.sha256:
-            raise ArtifactPublicationError(
-                f"artifact service readback digest differs for {artifact.label}"
-            )
 
 
 def _provenance_object(
@@ -625,21 +384,54 @@ def _provenance_object(
     )
 
 
+def _layer_descriptor(artifact: PublicationObject) -> OciDescriptor:
+    title = artifact.coordinate.rsplit("@sha256:", 1)[0].rsplit("/", 1)[-1]
+    media_type = (
+        "application/vnd.pypa.wheel"
+        if title.endswith(".whl")
+        else "application/json"
+        if title.endswith((".json", ".json.sha256"))
+        else "application/octet-stream"
+    )
+    return OciDescriptor(
+        media_type=media_type,
+        digest=f"sha256:{artifact.sha256}",
+        size=artifact.size_bytes,
+        annotations={
+            OCI_TITLE_ANNOTATION: title,
+            OCI_ROLE_ANNOTATION: artifact.label,
+            OCI_SOURCE_COORDINATE_ANNOTATION: artifact.coordinate,
+        },
+    )
+
+
+def _model_descriptor(descriptor: OciDescriptor) -> ToolkitRcOciDescriptorV1:
+    return ToolkitRcOciDescriptorV1(
+        media_type=descriptor.media_type,
+        digest=descriptor.digest,
+        size_bytes=descriptor.size,
+        title=descriptor.annotations[OCI_TITLE_ANNOTATION],
+        role=descriptor.annotations[OCI_ROLE_ANNOTATION],
+        source_coordinate=descriptor.annotations.get(OCI_SOURCE_COORDINATE_ANNOTATION),
+    )
+
+
 def publish_toolkit_rc_candidate(
     *,
     manifest_path: Path,
     build_manifest_path: Path,
     object_sources: Mapping[str, Path],
-    artifact_service_url: str,
+    registry: str,
+    repository: str,
     pending_receipt_path: Path,
-    production_authorization: ProductionArtifactServiceAuthorization | None = None,
+    production_authorization: ProductionOciAuthorization | None = None,
+    registry_client: _RegistryClient | None = None,
 ) -> PendingPublicationEvidence:
-    """Publish one candidate atomically to a loopback service and emit PENDING evidence."""
+    """Commit one OCI manifest, then prove every descriptor by digest readback."""
 
     pending_receipt_path = pending_receipt_path.resolve()
     if pending_receipt_path.exists():
         raise ArtifactPublicationError("pending publication evidence must not be overwritten")
-    client = _ArtifactServiceClient(artifact_service_url, production_authorization)
     manifest_content, manifest_document = _read_json(manifest_path, "T6a manifest")
     try:
         manifest = ToolkitRcReceiptManifestV1.model_validate(manifest_document)
@@ -648,7 +440,7 @@ def publish_toolkit_rc_candidate(
     build_content, build_document = _read_json(build_manifest_path, "T6b build manifest")
     _validate_build_evidence(manifest, build_document)
     objects = _binding_objects(manifest=manifest, object_sources=object_sources)
-    production_attestation_verified = _verify_production_attestation(
+    production_signature_verified = _verify_production_attestation(
         manifest=manifest,
         object_sources=object_sources,
         authorization=production_authorization,
@@ -670,156 +462,214 @@ def publish_toolkit_rc_candidate(
         )
     )
     objects.sort(key=lambda artifact: artifact.coordinate)
-    object_ids = [artifact.object_id for artifact in objects]
-    if len(object_ids) != len(set(object_ids)):
-        raise ArtifactPublicationError("artifact coordinate identity collision")
-
-    for artifact in objects:
-        client.require_absent(artifact)
-    reservation = client.begin(
-        manifest.candidate_version,
-        str(build_document["source_commit"]),
-        int(build_document["source_date_epoch"]),
-        objects,
+    layers = tuple(_layer_descriptor(artifact) for artifact in objects)
+    production_context = (
+        production_authorization.receipt_context() if production_authorization is not None else None
     )
-    for artifact in objects:
-        client.stage(reservation.transaction_id, artifact)
-    publication_id = client.commit(reservation, objects)
-    print(
-        json.dumps(
-            {
-                "publication_id": publication_id,
-                "durable_receipt_url": client.publication_receipt_url(publication_id),
-                "status": "COMMIT_ACKNOWLEDGED",
+    config_content = canonical_json(
+        {
+            "schema_version": "alephain.custos.toolkit-rc-oci-config.v1",
+            "candidate_version": manifest.candidate_version,
+            "source_repository": SOURCE_REPOSITORY,
+            "source_commit": build_document["source_commit"],
+            "source_date_epoch": build_document["source_date_epoch"],
+            "registry": registry.removeprefix("https://").removeprefix("http://").rstrip("/"),
+            "repository": repository,
+            "tag": manifest.candidate_version,
+            "toolkit_manifest_sha256": _sha256(manifest_content),
+            "build_manifest_sha256": _sha256(build_content),
+            "production_credentials_used": production_authorization is not None,
+            "production_signature_verified": production_signature_verified,
+            "production_context": production_context,
+        }
+    )
+    config_descriptor = OciDescriptor(
+        media_type=OCI_CONFIG_MEDIA_TYPE,
+        digest=sha256_digest(config_content),
+        size=len(config_content),
+        annotations={
+            OCI_TITLE_ANNOTATION: "toolkit-rc-config.json",
+            OCI_ROLE_ANNOTATION: "release_config",
+        },
+    )
+    oci_manifest_content = canonical_json(
+        {
+            "schemaVersion": 2,
+            "mediaType": OCI_MANIFEST_MEDIA_TYPE,
+            "artifactType": OCI_ARTIFACT_TYPE,
+            "config": config_descriptor.document(),
+            "layers": [descriptor.document() for descriptor in layers],
+            "annotations": {
+                "org.opencontainers.image.source": SOURCE_REPOSITORY,
+                "org.opencontainers.image.revision": build_document["source_commit"],
+                "org.opencontainers.image.version": manifest.candidate_version,
             },
-            sort_keys=True,
+        }
+    )
+    manifest_digest = sha256_digest(oci_manifest_content)
+    client: _RegistryClient = registry_client or OciRegistryClient(
+        registry,
+        repository,
+        username=(
+            production_authorization.registry_username
+            if production_authorization is not None
+            else os.environ.get("CUSTOS_TOOLKIT_OCI_USERNAME", "")
         ),
-        file=sys.stderr,
-        flush=True,
+        token=(
+            production_authorization.registry_token
+            if production_authorization is not None
+            else os.environ.get("CUSTOS_TOOLKIT_OCI_TOKEN", "")
+        ),
     )
-    durable = client.get_publication_receipt(publication_id)
-    assert durable is not None
-    durable_receipt_content, durable_receipt = durable
-    expected_objects = {
-        (artifact.coordinate, artifact.object_id, artifact.sha256, artifact.size_bytes)
-        for artifact in objects
-    }
-    actual_objects = {
-        (item.coordinate, item.object_id, item.sha256, item.size_bytes)
-        for item in durable_receipt.objects
-    }
-    if (
-        durable_receipt.publication_id != publication_id
-        or durable_receipt.transaction_id != reservation.transaction_id
-        or durable_receipt.candidate_version != manifest.candidate_version
-        or durable_receipt.source_commit != build_document["source_commit"]
-        or durable_receipt.source_date_epoch != build_document["source_date_epoch"]
-        or actual_objects != expected_objects
-        or durable_receipt.production_credentials_used != (production_authorization is not None)
-        or durable_receipt.production_signature_verified != production_attestation_verified
-    ):
-        raise ArtifactPublicationError("durable publication receipt differs from exact release")
-    for artifact in objects:
-        client.require_exact_readback(artifact)
+    expected_registry = registry.removeprefix("https://").removeprefix("http://").rstrip("/")
+    if client.registry != expected_registry or client.repository != repository:
+        raise ArtifactPublicationError("OCI client authority coordinate differs")
 
-    status = (
-        "PENDING_T6E_AUTHORITY_REGISTRATION"
-        if production_authorization is not None
-        else "PENDING_T6D_RELEASE_RUNNER"
+    tag = manifest.candidate_version
+    try:
+        observed = client.resolve_manifest(tag)
+    except OciRegistryError as exc:
+        raise ArtifactPublicationError(f"OCI tag preflight failed: {exc}") from exc
+    recovered = False
+    if observed is not None and observed != manifest_digest:
+        raise ArtifactCoordinateExistsError(
+            f"OCI tag {tag} already resolves to a different manifest; use the next RC"
+        )
+    if observed == manifest_digest:
+        recovered = True
+    else:
+        try:
+            client.upload_blob(config_descriptor, config_content)
+            for descriptor, artifact in zip(layers, objects, strict=True):
+                client.upload_blob(descriptor, artifact.content)
+        except OciRegistryError as exc:
+            raise ArtifactPublicationError(
+                f"OCI blob staging failed before authority: {exc}"
+            ) from exc
+        try:
+            committed = client.put_manifest(tag, oci_manifest_content)
+            if committed != manifest_digest:
+                raise ArtifactPublicationError("OCI manifest commit ACK digest differs")
+        except OciCommitUnknownError:
+            recovered = True
+            try:
+                observed = client.resolve_manifest(tag)
+                if observed is None:
+                    try:
+                        observed = client.put_manifest(tag, oci_manifest_content)
+                    except OciCommitUnknownError:
+                        observed = client.resolve_manifest(tag)
+            except OciRegistryError as exc:
+                raise ArtifactPublicationError(
+                    f"OCI manifest commit recovery failed: {exc}"
+                ) from exc
+            if observed != manifest_digest:
+                if observed is not None:
+                    raise ArtifactCoordinateExistsError(
+                        "OCI manifest commit recovery observed tag drift"
+                    ) from None
+                raise ArtifactPublicationError(
+                    "OCI manifest commit outcome remains unknown without digest authority"
+                ) from None
+        except OciRegistryError as exc:
+            raise ArtifactPublicationError(f"OCI manifest commit failed: {exc}") from exc
+    try:
+        client.verify_release(
+            tag=tag,
+            manifest_digest=manifest_digest,
+            manifest_content=oci_manifest_content,
+            descriptors=(config_descriptor, *layers),
+        )
+    except OciRegistryError as exc:
+        raise ArtifactPublicationError(f"OCI digest readback failed: {exc}") from exc
+
+    receipt = ToolkitRcOciPublicationReceiptV1(
+        status=(
+            "PENDING_T6E_AUTHORITY_REGISTRATION"
+            if production_authorization is not None
+            else "PENDING_T6D_RELEASE_RUNNER"
+        ),
+        candidate_version=manifest.candidate_version,
+        source_commit=str(build_document["source_commit"]),
+        source_date_epoch=int(build_document["source_date_epoch"]),
+        registry=client.registry,
+        repository=repository,
+        tag=tag,
+        oci_coordinate=f"{client.registry}/{repository}@{manifest_digest}",
+        manifest_digest=manifest_digest,
+        manifest_size_bytes=len(oci_manifest_content),
+        config=_model_descriptor(config_descriptor),
+        layers=tuple(_model_descriptor(descriptor) for descriptor in layers),
+        production_credentials_used=production_authorization is not None,
+        production_signature_verified=production_signature_verified,
+        workflow_ref=PRODUCTION_WORKFLOW_REF if production_authorization is not None else None,
+        workflow_identity=(
+            PRODUCTION_WORKFLOW_IDENTITY if production_authorization is not None else None
+        ),
+        oidc_issuer=PRODUCTION_OIDC_ISSUER if production_authorization is not None else None,
+        release_environment=(
+            PRODUCTION_RELEASE_ENVIRONMENT if production_authorization is not None else None
+        ),
+        workflow_run_id=(
+            production_authorization.workflow_run_id
+            if production_authorization is not None
+            else None
+        ),
+        workflow_run_attempt=(
+            production_authorization.workflow_run_attempt
+            if production_authorization is not None
+            else None
+        ),
     )
-    pending_document = {
-        "schema_version": "alephain.custos.toolkit-rc-publication-pending.v1",
-        "status": status,
-        "ready": False,
-        "handoff_ready": False,
-        "candidate_version": manifest.candidate_version,
-        "publication_id": publication_id,
-        "manifest_sha256": _sha256(manifest_content),
-        "build_manifest_sha256": _sha256(build_content),
-        "source_commit": build_document["source_commit"],
-        "source_date_epoch": build_document["source_date_epoch"],
-        "publication_atomic": True,
-        "puback_verified": True,
-        "readback_verified": True,
-        "production_credentials_used": production_authorization is not None,
-        "production_attestation_verified": production_attestation_verified,
-        "authority_registered": False,
-        "durable_receipt_url": client.publication_receipt_url(publication_id),
-        "durable_receipt_sha256": _sha256(durable_receipt_content),
-        "durable_receipt_size_bytes": len(durable_receipt_content),
-        "objects": [
-            {
-                "coordinate": artifact.coordinate,
-                "object_id": artifact.object_id,
-                "sha256": artifact.sha256,
-                "size_bytes": artifact.size_bytes,
-            }
-            for artifact in objects
-        ],
-        "t6d_required_gates": [
-            "credentialed production artifact-service runner",
-            "production Sigstore identity and attestation verification",
-            "final deterministic SPDX or CycloneDX SBOMs",
-            "remote immutable-coordinate and digest readback",
-            "final authority receipt registration",
-        ],
-    }
     pending_receipt_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with pending_receipt_path.open("xb") as output:
-            output.write(_canonical_json(pending_document))
+            output.write(_pretty_json(receipt.model_dump(mode="json")))
     except FileExistsError as exc:
         raise ArtifactPublicationError(
             "pending publication evidence must not be overwritten"
         ) from exc
     return PendingPublicationEvidence(
         candidate_version=manifest.candidate_version,
-        publication_id=publication_id,
-        manifest_sha256=_sha256(manifest_content),
+        oci_coordinate=receipt.oci_coordinate,
+        manifest_digest=manifest_digest,
+        toolkit_manifest_sha256=_sha256(manifest_content),
         build_manifest_sha256=_sha256(build_content),
         pending_receipt_path=pending_receipt_path,
-        status=status,
-        durable_receipt_url=client.publication_receipt_url(publication_id),
-        durable_receipt_sha256=_sha256(durable_receipt_content),
-        durable_receipt_size_bytes=len(durable_receipt_content),
+        status=receipt.status,
+        commit_recovered_by_digest=recovered,
     )
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Exercise the local-only atomic toolkit RC publication contract without "
-            "creating release authority."
-        )
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--build-manifest", required=True, type=Path)
-    parser.add_argument(
-        "--object-sources",
-        required=True,
-        type=Path,
-        help="JSON object mapping each T6a coordinate to one local source path.",
-    )
-    parser.add_argument("--artifact-service-url", required=True)
+    parser.add_argument("--object-sources", required=True, type=Path)
+    parser.add_argument("--registry", required=True)
+    parser.add_argument("--repository", required=True)
     parser.add_argument("--pending-receipt", required=True, type=Path)
-    parser.add_argument(
-        "--production-release-runner",
-        action="store_true",
-        help="Require the protected GitHub Actions production authorization context.",
-    )
+    parser.add_argument("--production-release-runner", action="store_true")
     return parser
 
 
-def _production_authorization_from_environment() -> ProductionArtifactServiceAuthorization:
-    if os.environ.get("GITHUB_ACTIONS") != "true":
-        raise ArtifactPublicationError("production publication is restricted to GitHub Actions")
+def _production_authorization_from_environment() -> ProductionOciAuthorization:
+    if (
+        os.environ.get("GITHUB_ACTIONS") != "true"
+        or os.environ.get("GITHUB_REPOSITORY") != "alchymia-labs/custos"
+        or os.environ.get("GITHUB_REF") != "refs/heads/main"
+    ):
+        raise ArtifactPublicationError(
+            "production OCI publication is restricted to protected Custos main"
+        )
     try:
         workflow_run_id = int(os.environ.get("GITHUB_RUN_ID", ""))
         workflow_run_attempt = int(os.environ.get("GITHUB_RUN_ATTEMPT", ""))
     except ValueError as exc:
         raise ArtifactPublicationError("production workflow run identity is invalid") from exc
-    return ProductionArtifactServiceAuthorization(
-        bearer_token=os.environ.get("CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN", ""),
+    return ProductionOciAuthorization(
+        registry_username=os.environ.get("CUSTOS_TOOLKIT_OCI_USERNAME", ""),
+        registry_token=os.environ.get("CUSTOS_TOOLKIT_OCI_TOKEN", ""),
         workflow_ref=os.environ.get("GITHUB_WORKFLOW_REF", ""),
         release_environment=os.environ.get("CUSTOS_TOOLKIT_RELEASE_ENVIRONMENT", ""),
         oidc_request_url=os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL", ""),
@@ -830,8 +680,6 @@ def _production_authorization_from_environment() -> ProductionArtifactServiceAut
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the local contract CLI."""
-
     arguments = _parser().parse_args(argv)
     _, source_document = _read_json(arguments.object_sources, "object source map")
     source_root = arguments.object_sources.resolve().parent
@@ -842,31 +690,34 @@ def main(argv: list[str] | None = None) -> int:
     }
     if len(object_sources) != len(source_document):
         raise ArtifactPublicationError("object source map must contain string paths")
+    authorization = (
+        _production_authorization_from_environment()
+        if arguments.production_release_runner
+        else None
+    )
+    if authorization is not None and arguments.registry.startswith("http://"):
+        raise ArtifactPublicationError("production OCI registry must use HTTPS")
     evidence = publish_toolkit_rc_candidate(
         manifest_path=arguments.manifest,
         build_manifest_path=arguments.build_manifest,
         object_sources=object_sources,
-        artifact_service_url=arguments.artifact_service_url,
+        registry=arguments.registry,
+        repository=arguments.repository,
         pending_receipt_path=arguments.pending_receipt,
-        production_authorization=(
-            _production_authorization_from_environment()
-            if arguments.production_release_runner
-            else None
-        ),
+        production_authorization=authorization,
     )
     result = {
         "candidate_version": evidence.candidate_version,
         "pending_receipt_path": str(evidence.pending_receipt_path),
-        "publication_id": evidence.publication_id,
-        "durable_receipt_url": evidence.durable_receipt_url,
-        "durable_receipt_sha256": evidence.durable_receipt_sha256,
-        "durable_receipt_size_bytes": evidence.durable_receipt_size_bytes,
+        "oci_coordinate": evidence.oci_coordinate,
+        "manifest_digest": evidence.manifest_digest,
+        "commit_recovered_by_digest": evidence.commit_recovered_by_digest,
         "status": evidence.status,
     }
     print(json.dumps(result, sort_keys=True))
     if arguments.production_release_runner and os.environ.get("GITHUB_OUTPUT"):
         with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
-            for name in ("publication_id", "durable_receipt_url", "durable_receipt_sha256"):
+            for name in ("oci_coordinate", "manifest_digest"):
                 output.write(f"{name}={result[name]}\n")
     return 0
 
@@ -875,8 +726,8 @@ __all__ = [
     "ArtifactCoordinateExistsError",
     "ArtifactPublicationError",
     "PendingPublicationEvidence",
-    "ProductionArtifactServiceAuthorization",
-    "PublicationReservation",
+    "ProductionOciAuthorization",
+    "PublicationObject",
     "publish_toolkit_rc_candidate",
 ]
 

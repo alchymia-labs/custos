@@ -151,12 +151,26 @@
       "ready_receipt_published": false
     },
     {
-      "role": "toolkit_rc_authority_receipt_schema_v1",
+      "role": "toolkit_rc_authority_receipt_schema_v1_historical_non_production",
       "path": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+      "legacy_non_production": true,
+      "runtime_fallback_allowed": false,
+      "receipt_status": "NON_PRODUCTION_SUPERSEDED",
+      "ready_receipt_published": false
+    },
+    {
+      "role": "toolkit_rc_authority_receipt_schema_v2",
+      "path": "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
       "contract_only": true,
       "stable_ready_path": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
       "receipt_present": false,
-      "receipt_status": "PENDING_T6E_EXTERNAL_RELEASE",
+      "receipt_status": "PENDING_T6E_OCI_PUBLICATION",
+      "ready_receipt_published": false
+    },
+    {
+      "role": "toolkit_rc_oci_distribution_client",
+      "path": "scripts/toolkit_rc_oci.py",
+      "contract_only": true,
       "ready_receipt_published": false
     },
     {
@@ -572,7 +586,9 @@
       "tests/test_toolkit_zero_rewrite.py",
       "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py",
       "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+      "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
       "scripts/toolkit_rc_release_readiness.py",
+      "scripts/toolkit_rc_oci.py",
       "scripts/toolkit_rc_publish.py",
       "scripts/toolkit_rc_promote.py",
       ".github/workflows/release-toolkit-rc.yml",

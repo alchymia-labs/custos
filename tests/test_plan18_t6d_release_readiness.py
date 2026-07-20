@@ -324,7 +324,7 @@ def test_dedicated_production_workflow_is_manual_oidc_and_fail_closed() -> None:
     assert "workflow_dispatch:" in source
     assert "candidate_version:" in source
     assert "push:" not in source
-    assert "permissions:\n  contents: read\n  id-token: write" in source
+    assert "permissions:\n  contents: read\n  packages: write\n  id-token: write" in source
     assert "environment: toolkit-rc-release" in source
     assert "SOURCE_DATE_EPOCH: '1704067200'" in source
     assert "python scripts/toolkit_rc_build.py" in source
@@ -335,9 +335,11 @@ def test_dedicated_production_workflow_is_manual_oidc_and_fail_closed() -> None:
     assert "python scripts/toolkit_rc_publish.py" in source
     assert "--production-release-runner" in source
     assert "group: toolkit-rc-${{ inputs.candidate_version }}" in source
-    assert "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}" in source
-    assert "CUSTOS_TOOLKIT_ARTIFACT_SERVICE_URL" in source
-    assert "CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN" in source
+    assert "oci_coordinate=${{ steps.publish.outputs.oci_coordinate }}" in source
+    assert "manifest_digest=${{ steps.publish.outputs.manifest_digest }}" in source
+    assert "CUSTOS_TOOLKIT_OCI_REGISTRY: ghcr.io" in source
+    assert "CUSTOS_TOOLKIT_OCI_REPOSITORY: alchymia-labs/custos-strategy-toolkit" in source
+    assert "CUSTOS_TOOLKIT_ARTIFACT_SERVICE" not in source
     assert "actions/upload-artifact" not in source
     assert "softprops/action-gh-release" not in source
     assert "skip-existing" not in source

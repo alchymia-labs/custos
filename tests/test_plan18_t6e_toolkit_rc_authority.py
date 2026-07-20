@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -11,13 +12,26 @@ from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
     LockedToolkitDependencyV1,
     ToolkitRcAuthorityReceiptV1,
+    ToolkitRcAuthorityReceiptV2,
     ToolkitRcMemberRole,
     ToolkitRcMemberV1,
-    ToolkitRcPublicationObjectV1,
-    ToolkitRcPublicationReceiptV1,
+    ToolkitRcOciDescriptorV1,
+    ToolkitRcOciPublicationReceiptV1,
     ToolkitRcReceiptManifestV1,
 )
 
+from scripts.toolkit_rc_oci import (
+    OCI_ARTIFACT_TYPE,
+    OCI_CONFIG_MEDIA_TYPE,
+    OCI_MANIFEST_MEDIA_TYPE,
+    OCI_ROLE_ANNOTATION,
+    OCI_SOURCE_COORDINATE_ANNOTATION,
+    OCI_TITLE_ANNOTATION,
+    OciDescriptor,
+    OciRegistryError,
+    canonical_json,
+    sha256_digest,
+)
 from scripts.toolkit_rc_promote import (
     OIDC_ISSUER,
     WORKFLOW_IDENTITY,
@@ -27,7 +41,8 @@ from scripts.toolkit_rc_promote import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA = ROOT / "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
+SCHEMA_V1 = ROOT / "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
+SCHEMA = ROOT / "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json"
 READY = ROOT / "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
 SOURCE_COMMIT = "a" * 40
 SOURCE_DATE_EPOCH = 1_704_067_200
@@ -58,9 +73,33 @@ def _subject(binding: ImmutableToolkitArtifactBindingV1) -> dict[str, object]:
     return {"name": filename, "digest": {"sha256": binding.sha256}}
 
 
+@dataclass(slots=True)
+class FakePromotionClient:
+    registry: str
+    repository: str
+    blobs: dict[str, bytes]
+    manifests: dict[str, tuple[str, bytes]]
+
+    def resolve_manifest(self, reference: str) -> str | None:
+        value = self.manifests.get(reference)
+        return None if value is None else value[0]
+
+    def read_manifest(self, reference: str) -> tuple[bytes, str]:
+        value = self.manifests.get(reference)
+        if value is None:
+            raise OciRegistryError("manifest missing")
+        return value[1], value[0]
+
+    def read_blob(self, digest: str) -> bytes:
+        try:
+            return self.blobs[digest]
+        except KeyError as exc:
+            raise OciRegistryError("blob missing") from exc
+
+
 def _promotion_case(
     *, omit_signed_subject: bool = False, drift_build_policy: bool = False
-) -> tuple[bytes, ToolkitRcPublicationReceiptV1, dict[str, bytes]]:
+) -> tuple[FakePromotionClient, str]:
     prerequisite_paths = (
         ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
         ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
@@ -283,45 +322,94 @@ def _promotion_case(
     build_object = _binding("provenance", "toolkit-rc-build-manifest-input.json", build_content)
     remote_objects[manifest_object.coordinate] = manifest_content
     remote_objects[build_object.coordinate] = build_content
-    publication_objects = tuple(
-        ToolkitRcPublicationObjectV1(
-            coordinate=coordinate,
-            object_id=_sha256(coordinate.encode()),
-            sha256=_sha256(content),
-            size_bytes=len(content),
+    blobs: dict[str, bytes] = {}
+    layers: list[OciDescriptor] = []
+    for index, (coordinate, content) in enumerate(sorted(remote_objects.items())):
+        filename = coordinate.rsplit("@sha256:", 1)[0].rsplit("/", 1)[-1]
+        role = (
+            "t6a_manifest"
+            if filename == "toolkit-rc-receipt-manifest.json"
+            else "t6b_build_manifest"
+            if filename == "toolkit-rc-build-manifest-input.json"
+            else f"release_object_{index}"
         )
-        for coordinate, content in sorted(remote_objects.items())
+        descriptor = OciDescriptor(
+            media_type="application/json",
+            digest=sha256_digest(content),
+            size=len(content),
+            annotations={
+                OCI_TITLE_ANNOTATION: filename,
+                OCI_ROLE_ANNOTATION: role,
+                OCI_SOURCE_COORDINATE_ANNOTATION: coordinate,
+            },
+        )
+        blobs[descriptor.digest] = content
+        layers.append(descriptor)
+    registry = "registry.example"
+    repository = "custos/toolkit"
+    config_content = canonical_json(
+        {
+            "schema_version": "alephain.custos.toolkit-rc-oci-config.v1",
+            "candidate_version": VERSION,
+            "source_repository": "https://github.com/alchymia-labs/custos",
+            "source_commit": SOURCE_COMMIT,
+            "source_date_epoch": SOURCE_DATE_EPOCH,
+            "registry": registry,
+            "repository": repository,
+            "tag": VERSION,
+            "toolkit_manifest_sha256": _sha256(manifest_content),
+            "build_manifest_sha256": _sha256(build_content),
+            "production_credentials_used": True,
+            "production_signature_verified": True,
+            "production_context": {
+                "workflow_ref": (
+                    "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
+                ),
+                "workflow_identity": WORKFLOW_IDENTITY,
+                "oidc_issuer": OIDC_ISSUER,
+                "release_environment": "toolkit-rc-release",
+                "workflow_run_id": 123,
+                "workflow_run_attempt": 1,
+            },
+        }
     )
-    receipt = ToolkitRcPublicationReceiptV1(
-        schema_version="alephain.custos.toolkit-rc-publication-receipt.v1",
-        status="PENDING_T6E_AUTHORITY_REGISTRATION",
-        ready=False,
-        handoff_ready=False,
-        candidate_version=VERSION,
-        source_repository="https://github.com/alchymia-labs/custos",
-        source_commit=SOURCE_COMMIT,
-        source_date_epoch=SOURCE_DATE_EPOCH,
-        publication_id="publication-production",
-        transaction_id="transaction-production",
-        publication_atomic=True,
-        puback_verified=True,
-        readback_verified=True,
-        production_credentials_used=True,
-        production_signature_verified=True,
-        workflow_ref=(
-            "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
+    config = OciDescriptor(
+        media_type=OCI_CONFIG_MEDIA_TYPE,
+        digest=sha256_digest(config_content),
+        size=len(config_content),
+        annotations={
+            OCI_TITLE_ANNOTATION: "toolkit-rc-config.json",
+            OCI_ROLE_ANNOTATION: "release_config",
+        },
+    )
+    blobs[config.digest] = config_content
+    oci_manifest = canonical_json(
+        {
+            "schemaVersion": 2,
+            "mediaType": OCI_MANIFEST_MEDIA_TYPE,
+            "artifactType": OCI_ARTIFACT_TYPE,
+            "config": config.document(),
+            "layers": [descriptor.document() for descriptor in layers],
+            "annotations": {
+                "org.opencontainers.image.source": "https://github.com/alchymia-labs/custos",
+                "org.opencontainers.image.revision": SOURCE_COMMIT,
+                "org.opencontainers.image.version": VERSION,
+            },
+        }
+    )
+    digest = sha256_digest(oci_manifest)
+    return (
+        FakePromotionClient(
+            registry=registry,
+            repository=repository,
+            blobs=blobs,
+            manifests={
+                VERSION: (digest, oci_manifest),
+                digest: (digest, oci_manifest),
+            },
         ),
-        workflow_identity=WORKFLOW_IDENTITY,
-        oidc_issuer=OIDC_ISSUER,
-        release_environment="toolkit-rc-release",
-        workflow_run_id=123,
-        workflow_run_attempt=1,
-        objects=publication_objects,
-        authority_registered=False,
+        digest,
     )
-    receipt_content = _json_bytes(receipt.model_dump(mode="json"))
-    by_object_id = {item.object_id: remote_objects[item.coordinate] for item in publication_objects}
-    return receipt_content, receipt, by_object_id
 
 
 def _run_promotion(
@@ -331,28 +419,11 @@ def _run_promotion(
     omit_signed_subject: bool = False,
     drift_build_policy: bool = False,
 ) -> Path:
-    receipt_content, receipt, remote_objects = _promotion_case(
+    client, manifest_digest = _promotion_case(
         omit_signed_subject=omit_signed_subject,
         drift_build_policy=drift_build_policy,
     )
 
-    class FakePromotionClient:
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            del args, kwargs
-
-        def get_publication_receipt(
-            self, publication_id: str
-        ) -> tuple[bytes, ToolkitRcPublicationReceiptV1]:
-            assert publication_id == receipt.publication_id
-            return receipt_content, receipt
-
-        def read_artifact(self, object_id: str) -> bytes:
-            return remote_objects[object_id]
-
-        def publication_receipt_url(self, publication_id: str) -> str:
-            return f"https://artifacts.example/v1/publications/{publication_id}/receipt"
-
-    monkeypatch.setattr("scripts.toolkit_rc_promote._ArtifactServiceClient", FakePromotionClient)
     monkeypatch.setattr(
         "scripts.toolkit_rc_promote.subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr=""),
@@ -360,21 +431,22 @@ def _run_promotion(
     output = tmp_path / "ready-candidate.json"
     promote_toolkit_rc(
         repository_root=ROOT,
-        artifact_service_url="https://artifacts.example",
-        artifact_service_token="production-reader",
-        publication_id=receipt.publication_id,
-        expected_receipt_sha256=_sha256(receipt_content),
+        registry=client.registry,
+        repository=client.repository,
+        manifest_digest=manifest_digest,
         expected_candidate_version=VERSION,
         expected_source_commit=SOURCE_COMMIT,
         output_path=output,
+        registry_client=client,
     )
     return output
 
 
-def test_authority_union_schema_is_source_generated_without_repo_receipt() -> None:
+def test_v1_stays_historical_and_v2_schema_is_source_generated() -> None:
+    historical = json.loads(SCHEMA_V1.read_text(encoding="utf-8"))
+    assert historical == ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
-    assert schema == ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
-    assert schema["discriminator"]["propertyName"] == "status"
+    assert schema == ToolkitRcAuthorityReceiptV2.model_json_schema(mode="validation")
 
     assert not READY.exists()
 
@@ -382,28 +454,44 @@ def test_authority_union_schema_is_source_generated_without_repo_receipt() -> No
 def test_unknown_or_mutated_pending_state_fails_closed() -> None:
     document = {"status": "PENDING_T6E_EXTERNAL_RELEASE", "ready": False}
     with pytest.raises(ValueError):
-        ToolkitRcAuthorityReceiptV1.model_validate(document)
+        ToolkitRcAuthorityReceiptV2.model_validate(document)
     document["status"] = "READY_BY_TEST"
     with pytest.raises(ValueError):
-        ToolkitRcAuthorityReceiptV1.model_validate(document)
+        ToolkitRcAuthorityReceiptV2.model_validate(document)
 
 
 def test_nonproduction_publication_cannot_enter_promotion() -> None:
-    coordinate = "artifact://custos/toolkit-rc/0.1.0rc1/wheels/base@sha256:" + "a" * 64
-    publication = ToolkitRcPublicationReceiptV1(
-        schema_version="alephain.custos.toolkit-rc-publication-receipt.v1",
-        status="PENDING_T6C_PUBLICATION_VERIFIED",
-        ready=False,
-        handoff_ready=False,
+    config = ToolkitRcOciDescriptorV1(
+        media_type=OCI_CONFIG_MEDIA_TYPE,
+        digest="sha256:" + "a" * 64,
+        size_bytes=1,
+        title="config.json",
+        role="release_config",
+        source_coordinate=None,
+    )
+    layer = ToolkitRcOciDescriptorV1(
+        media_type="application/json",
+        digest="sha256:" + "b" * 64,
+        size_bytes=1,
+        title="manifest.json",
+        role="t6a_manifest",
+        source_coordinate=(
+            "artifact://custos/toolkit-rc/0.1.0rc1/provenance/manifest.json@sha256:" + "b" * 64
+        ),
+    )
+    publication = ToolkitRcOciPublicationReceiptV1(
+        status="PENDING_T6D_RELEASE_RUNNER",
         candidate_version="0.1.0rc1",
-        source_repository="https://github.com/alchymia-labs/custos",
         source_commit="a" * 40,
         source_date_epoch=1_704_067_200,
-        publication_id="publication-local",
-        transaction_id="transaction-local",
-        publication_atomic=True,
-        puback_verified=True,
-        readback_verified=True,
+        registry="registry.example",
+        repository="custos/toolkit",
+        tag="0.1.0rc1",
+        oci_coordinate="registry.example/custos/toolkit@sha256:" + "c" * 64,
+        manifest_digest="sha256:" + "c" * 64,
+        manifest_size_bytes=1,
+        config=config,
+        layers=(layer,),
         production_credentials_used=False,
         production_signature_verified=False,
         workflow_ref=None,
@@ -412,25 +500,19 @@ def test_nonproduction_publication_cannot_enter_promotion() -> None:
         release_environment=None,
         workflow_run_id=None,
         workflow_run_attempt=None,
-        objects=(
-            ToolkitRcPublicationObjectV1(
-                coordinate=coordinate,
-                object_id=__import__("hashlib").sha256(coordinate.encode()).hexdigest(),
-                sha256="a" * 64,
-                size_bytes=1,
-            ),
-        ),
-        authority_registered=False,
     )
     with pytest.raises(ToolkitRcPromotionError, match="not production"):
         require_production_publication_receipt(publication)
 
 
-def test_workflow_has_single_candidate_concurrency_and_durable_locator_output() -> None:
+def test_workflow_has_single_candidate_concurrency_and_digest_output() -> None:
     workflow = (ROOT / ".github/workflows/release-toolkit-rc.yml").read_text(encoding="utf-8")
     assert "group: toolkit-rc-${{ inputs.candidate_version }}" in workflow
     assert "cancel-in-progress: false" in workflow
-    assert "durable_receipt_url=${{ steps.publish.outputs.durable_receipt_url }}" in workflow
+    assert "oci_coordinate=${{ steps.publish.outputs.oci_coordinate }}" in workflow
+    assert "manifest_digest=${{ steps.publish.outputs.manifest_digest }}" in workflow
+    assert "packages: write" in workflow
+    assert "ARTIFACT_SERVICE" not in workflow
     assert "actions/upload-artifact" not in workflow
 
 
@@ -441,8 +523,10 @@ def test_independent_promotion_emits_only_a_digest_bound_ready_candidate(
     document = json.loads(output.read_text(encoding="utf-8"))
 
     assert document["status"] == "READY_TOOLKIT_RC"
-    assert document["predecessor_pending_receipt"]["coordinate"].endswith(
-        "@sha256:" + document["publication_receipt_sha256"]
+    assert document["receipt_schema_version"] == 2
+    assert (
+        document["predecessor_oci_manifest"]["coordinate"]
+        == document["publication_receipt"]["oci_coordinate"]
     )
     assert output != READY
     assert not READY.exists()

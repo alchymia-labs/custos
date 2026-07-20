@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify one durable toolkit publication and emit a READY candidate only."""
+"""Read one toolkit OCI manifest by digest and emit a READY V2 candidate."""
 
 from __future__ import annotations
 
@@ -9,24 +9,34 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Protocol
 
 from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
-    ToolkitRcAuthorityReadyReceiptV1,
-    ToolkitRcPublicationReceiptV1,
+    ToolkitRcAuthorityReadyReceiptV2,
+    ToolkitRcOciDescriptorV1,
+    ToolkitRcOciPublicationReceiptV1,
     ToolkitRcReceiptManifestV1,
 )
 
-from scripts.toolkit_rc_publish import (
-    ArtifactPublicationError,
-    _ArtifactServiceClient,
-    _validate_build_evidence,
+from scripts.toolkit_rc_oci import (
+    OCI_ROLE_ANNOTATION,
+    OCI_SOURCE_COORDINATE_ANNOTATION,
+    OCI_TITLE_ANNOTATION,
+    OciDescriptor,
+    OciRegistryClient,
+    OciRegistryError,
+    parse_manifest_document,
+    sha256_digest,
 )
+from scripts.toolkit_rc_publish import ArtifactPublicationError, _validate_build_evidence
 
 WORKFLOW_IDENTITY: Final = (
     "https://github.com/alchymia-labs/custos/.github/workflows/"
     "release-toolkit-rc.yml@refs/heads/main"
+)
+WORKFLOW_REF: Final = (
+    "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
 )
 OIDC_ISSUER: Final = "https://token.actions.githubusercontent.com"
 STABLE_READY_PATH: Final = Path(
@@ -62,7 +72,18 @@ SOURCE_REPOSITORY: Final = "https://github.com/alchymia-labs/custos"
 
 
 class ToolkitRcPromotionError(RuntimeError):
-    """Durable evidence cannot be promoted without weakening authority."""
+    """OCI evidence cannot be promoted without weakening authority."""
+
+
+class _RegistryClient(Protocol):
+    registry: str
+    repository: str
+
+    def resolve_manifest(self, reference: str) -> str | None: ...
+
+    def read_manifest(self, reference: str) -> tuple[bytes, str]: ...
+
+    def read_blob(self, digest: str) -> bytes: ...
 
 
 def _sha256(content: bytes) -> str:
@@ -70,7 +91,7 @@ def _sha256(content: bytes) -> str:
 
 
 def require_production_publication_receipt(
-    receipt: ToolkitRcPublicationReceiptV1,
+    receipt: ToolkitRcOciPublicationReceiptV1,
 ) -> None:
     if (
         receipt.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
@@ -79,19 +100,11 @@ def require_production_publication_receipt(
         or not receipt.production_credentials_used
         or not receipt.production_signature_verified
         or receipt.authority_registered
+        or receipt.workflow_ref != WORKFLOW_REF
         or receipt.workflow_identity != WORKFLOW_IDENTITY
         or receipt.oidc_issuer != OIDC_ISSUER
     ):
-        raise ToolkitRcPromotionError("publication receipt is not production promotion evidence")
-
-
-def _binding_for(path: Path, coordinate: str) -> ImmutableToolkitArtifactBindingV1:
-    content = path.read_bytes()
-    return ImmutableToolkitArtifactBindingV1(
-        coordinate=coordinate,
-        sha256=_sha256(content),
-        size_bytes=len(content),
-    )
+        raise ToolkitRcPromotionError("OCI publication receipt is not production evidence")
 
 
 def _json_object(content: bytes, label: str) -> dict[str, Any]:
@@ -159,8 +172,7 @@ def _validate_dependency_lock(
     distributions = document.get("distributions")
     if not isinstance(distributions, dict):
         raise ToolkitRcPromotionError("dependency lock distribution matrix is absent")
-    expected_distributions = {member.distribution_name for member in manifest.members}
-    if set(distributions) != expected_distributions:
+    if set(distributions) != {member.distribution_name for member in manifest.members}:
         raise ToolkitRcPromotionError("dependency lock distribution matrix differs")
     for member in manifest.members:
         records = distributions[member.distribution_name]
@@ -190,7 +202,6 @@ def _validate_signed_provenance(
         _validate_build_evidence(manifest, build)
     except ArtifactPublicationError as exc:
         raise ToolkitRcPromotionError(f"build evidence differs during promotion: {exc}") from exc
-
     for field_name in SHARED_EVIDENCE_FIELDS:
         _shared_binding(manifest, field_name)
     uv_lock_sha256 = _validate_dependency_lock(
@@ -205,7 +216,6 @@ def _validate_signed_provenance(
         or provenance.get("predicateType") != "https://slsa.dev/provenance/v1"
     ):
         raise ToolkitRcPromotionError("signed provenance statement type differs")
-
     expected_subjects: dict[str, str] = {}
     for member in manifest.members:
         for field_name in SIGNED_SUBJECT_FIELDS:
@@ -220,7 +230,6 @@ def _validate_signed_provenance(
         expected_subjects
     ):
         raise ToolkitRcPromotionError("signed provenance subject matrix differs")
-
     predicate = provenance.get("predicate")
     if not isinstance(predicate, dict):
         raise ToolkitRcPromotionError("signed provenance predicate is absent")
@@ -228,19 +237,19 @@ def _validate_signed_provenance(
     run_details = predicate.get("runDetails")
     if not isinstance(build_definition, dict) or not isinstance(run_details, dict):
         raise ToolkitRcPromotionError("signed provenance build identity is absent")
-    expected_external = {
-        "candidate_version": manifest.candidate_version,
-        "source_commit": source_commit,
-        "source_date_epoch": source_date_epoch,
-    }
-    expected_internal = {
-        "build_seam": "scripts/toolkit_rc_build.py",
-        "release_readiness_seam": "scripts/toolkit_rc_release_readiness.py",
-    }
     if (
         build_definition.get("buildType") != BUILD_TYPE
-        or build_definition.get("externalParameters") != expected_external
-        or build_definition.get("internalParameters") != expected_internal
+        or build_definition.get("externalParameters")
+        != {
+            "candidate_version": manifest.candidate_version,
+            "source_commit": source_commit,
+            "source_date_epoch": source_date_epoch,
+        }
+        or build_definition.get("internalParameters")
+        != {
+            "build_seam": "scripts/toolkit_rc_build.py",
+            "release_readiness_seam": "scripts/toolkit_rc_release_readiness.py",
+        }
     ):
         raise ToolkitRcPromotionError("signed provenance build definition differs")
     dependencies = build_definition.get("resolvedDependencies")
@@ -262,90 +271,184 @@ def _validate_signed_provenance(
     if run_details.get("builder") != {"id": WORKFLOW_IDENTITY}:
         raise ToolkitRcPromotionError("signed provenance builder identity differs")
     dependency_binding = _shared_binding(manifest, "dependency_lock_evidence")
-    expected_byproducts = {
+    if _subject_matrix(run_details.get("byproducts"), "signed provenance byproducts") != {
         "toolkit-rc-build-manifest-input.json": _sha256(build_content),
         _coordinate_filename(dependency_binding): dependency_binding.sha256,
-    }
-    if (
-        _subject_matrix(run_details.get("byproducts"), "signed provenance byproducts")
-        != expected_byproducts
-    ):
+    }:
         raise ToolkitRcPromotionError("signed provenance byproduct matrix differs")
+
+
+def _model_descriptor(descriptor: OciDescriptor) -> ToolkitRcOciDescriptorV1:
+    return ToolkitRcOciDescriptorV1(
+        media_type=descriptor.media_type,
+        digest=descriptor.digest,
+        size_bytes=descriptor.size,
+        title=descriptor.annotations[OCI_TITLE_ANNOTATION],
+        role=descriptor.annotations[OCI_ROLE_ANNOTATION],
+        source_coordinate=descriptor.annotations.get(OCI_SOURCE_COORDINATE_ANNOTATION),
+    )
+
+
+def _read_oci_publication(
+    *,
+    client: _RegistryClient,
+    manifest_digest: str,
+    expected_candidate_version: str,
+) -> tuple[
+    ToolkitRcOciPublicationReceiptV1,
+    bytes,
+    dict[str, bytes],
+    dict[str, Any],
+]:
+    try:
+        manifest_content, observed_digest = client.read_manifest(manifest_digest)
+        if observed_digest != manifest_digest or sha256_digest(manifest_content) != manifest_digest:
+            raise ToolkitRcPromotionError("OCI manifest digest readback differs")
+        if client.resolve_manifest(expected_candidate_version) != manifest_digest:
+            raise ToolkitRcPromotionError("OCI discovery tag drifted from immutable digest")
+        config_descriptor, layers = parse_manifest_document(manifest_content)
+        if (
+            config_descriptor.annotations.get(OCI_TITLE_ANNOTATION) != "toolkit-rc-config.json"
+            or config_descriptor.annotations.get(OCI_ROLE_ANNOTATION) != "release_config"
+            or OCI_SOURCE_COORDINATE_ANNOTATION in config_descriptor.annotations
+        ):
+            raise ToolkitRcPromotionError("OCI config descriptor annotations differ")
+        config_content = client.read_blob(config_descriptor.digest)
+        if len(config_content) != config_descriptor.size:
+            raise ToolkitRcPromotionError("OCI config size differs")
+        config = _json_object(config_content, "OCI release config")
+        objects: dict[str, bytes] = {}
+        roles: set[str] = set()
+        for descriptor in layers:
+            role = descriptor.annotations.get(OCI_ROLE_ANNOTATION)
+            coordinate = descriptor.annotations.get(OCI_SOURCE_COORDINATE_ANNOTATION)
+            title = descriptor.annotations.get(OCI_TITLE_ANNOTATION)
+            if not role or role in roles or not coordinate or not title:
+                raise ToolkitRcPromotionError("OCI layer annotations differ")
+            roles.add(role)
+            content = client.read_blob(descriptor.digest)
+            if len(content) != descriptor.size:
+                raise ToolkitRcPromotionError("OCI layer size differs")
+            if coordinate in objects and objects[coordinate] != content:
+                raise ToolkitRcPromotionError("OCI coordinate maps to different layer bytes")
+            objects[coordinate] = content
+    except OciRegistryError as exc:
+        raise ToolkitRcPromotionError(f"OCI publication readback failed: {exc}") from exc
+
+    context = config.get("production_context")
+    if not isinstance(context, dict):
+        context = {}
+    expected_config = {
+        "schema_version": "alephain.custos.toolkit-rc-oci-config.v1",
+        "candidate_version": expected_candidate_version,
+        "source_repository": SOURCE_REPOSITORY,
+        "registry": client.registry,
+        "repository": client.repository,
+        "tag": expected_candidate_version,
+        "production_credentials_used": True,
+        "production_signature_verified": True,
+    }
+    for name, value in expected_config.items():
+        if config.get(name) != value:
+            raise ToolkitRcPromotionError(f"OCI release config {name} differs")
+    source_commit = config.get("source_commit")
+    source_date_epoch = config.get("source_date_epoch")
+    if (
+        not isinstance(source_commit, str)
+        or not isinstance(source_date_epoch, int)
+        or isinstance(source_date_epoch, bool)
+    ):
+        raise ToolkitRcPromotionError("OCI release source identity differs")
+    receipt = ToolkitRcOciPublicationReceiptV1(
+        status="PENDING_T6E_AUTHORITY_REGISTRATION",
+        candidate_version=expected_candidate_version,
+        source_commit=source_commit,
+        source_date_epoch=source_date_epoch,
+        registry=client.registry,
+        repository=client.repository,
+        tag=expected_candidate_version,
+        oci_coordinate=f"{client.registry}/{client.repository}@{manifest_digest}",
+        manifest_digest=manifest_digest,
+        manifest_size_bytes=len(manifest_content),
+        config=_model_descriptor(config_descriptor),
+        layers=tuple(_model_descriptor(descriptor) for descriptor in layers),
+        production_credentials_used=True,
+        production_signature_verified=True,
+        workflow_ref=context.get("workflow_ref"),
+        workflow_identity=context.get("workflow_identity"),
+        oidc_issuer=context.get("oidc_issuer"),
+        release_environment=context.get("release_environment"),
+        workflow_run_id=context.get("workflow_run_id"),
+        workflow_run_attempt=context.get("workflow_run_attempt"),
+    )
+    require_production_publication_receipt(receipt)
+    return receipt, manifest_content, objects, config
 
 
 def promote_toolkit_rc(
     *,
     repository_root: Path,
-    artifact_service_url: str,
-    artifact_service_token: str,
-    publication_id: str,
-    expected_receipt_sha256: str,
+    registry: str,
+    repository: str,
+    manifest_digest: str,
     expected_candidate_version: str,
     expected_source_commit: str,
     output_path: Path,
+    registry_username: str = "",
+    registry_token: str = "",
+    registry_client: _RegistryClient | None = None,
 ) -> Path:
     repository_root = repository_root.resolve()
     output_path = output_path.resolve()
-    stable_ready = (repository_root / STABLE_READY_PATH).resolve()
-    if output_path == stable_ready:
+    if output_path == (repository_root / STABLE_READY_PATH).resolve():
         raise ToolkitRcPromotionError("promotion writes a candidate, never the authority path")
     if output_path.exists():
         raise ToolkitRcPromotionError("READY candidate output is immutable and must not exist")
-    if not artifact_service_token:
-        raise ToolkitRcPromotionError("artifact-service token is required")
-
-    client = _ArtifactServiceClient(
-        artifact_service_url,
-        authorization=None,
-        read_bearer_token=artifact_service_token,
+    if not manifest_digest.startswith("sha256:") or len(manifest_digest) != 71:
+        raise ToolkitRcPromotionError("operator manifest digest is invalid")
+    client: _RegistryClient = registry_client or OciRegistryClient(
+        registry,
+        repository,
+        username=registry_username,
+        token=registry_token,
     )
-    durable = client.get_publication_receipt(publication_id)
-    assert durable is not None
-    receipt_content, receipt = durable
-    if _sha256(receipt_content) != expected_receipt_sha256:
-        raise ToolkitRcPromotionError("durable publication receipt digest differs")
-    require_production_publication_receipt(receipt)
-    if (
-        receipt.publication_id != publication_id
-        or receipt.candidate_version != expected_candidate_version
-        or receipt.source_commit != expected_source_commit
-    ):
-        raise ToolkitRcPromotionError("operator expectation differs from publication receipt")
+    expected_registry = registry.removeprefix("https://").removeprefix("http://").rstrip("/")
+    if client.registry != expected_registry or client.repository != repository:
+        raise ToolkitRcPromotionError("OCI client authority coordinate differs")
+    receipt, oci_manifest_content, objects, config = _read_oci_publication(
+        client=client,
+        manifest_digest=manifest_digest,
+        expected_candidate_version=expected_candidate_version,
+    )
+    if receipt.source_commit != expected_source_commit:
+        raise ToolkitRcPromotionError("operator source expectation differs from OCI config")
 
-    objects: dict[str, bytes] = {}
-    for item in receipt.objects:
-        content = client.read_artifact(item.object_id)
-        if len(content) != item.size_bytes or _sha256(content) != item.sha256:
-            raise ToolkitRcPromotionError("remote object readback differs from publication receipt")
-        objects[item.coordinate] = content
-
-    def unique_named(filename: str) -> tuple[str, bytes]:
+    def unique_named(filename: str) -> bytes:
         matches = [
-            (coordinate, content)
+            content
             for coordinate, content in objects.items()
             if coordinate.rsplit("@sha256:", 1)[0].rsplit("/", 1)[-1] == filename
         ]
         if len(matches) != 1:
-            raise ToolkitRcPromotionError(f"publication must contain one {filename}")
+            raise ToolkitRcPromotionError(f"OCI publication must contain one {filename}")
         return matches[0]
 
-    _, manifest_content = unique_named("toolkit-rc-receipt-manifest.json")
-    _, build_content = unique_named("toolkit-rc-build-manifest-input.json")
+    manifest_content = unique_named("toolkit-rc-receipt-manifest.json")
+    build_content = unique_named("toolkit-rc-build-manifest-input.json")
     try:
         manifest = ToolkitRcReceiptManifestV1.model_validate(json.loads(manifest_content))
         build = json.loads(build_content)
     except (ValueError, json.JSONDecodeError) as exc:
-        raise ToolkitRcPromotionError(f"publication manifests are invalid: {exc}") from exc
+        raise ToolkitRcPromotionError(f"OCI publication manifests are invalid: {exc}") from exc
     if (
         manifest.candidate_version != receipt.candidate_version
         or build.get("candidate_version") != receipt.candidate_version
         or build.get("source_commit") != receipt.source_commit
         or build.get("source_date_epoch") != receipt.source_date_epoch
-        or build.get("reproducible") is not True
+        or config.get("toolkit_manifest_sha256") != _sha256(manifest_content)
+        or config.get("build_manifest_sha256") != _sha256(build_content)
     ):
-        raise ToolkitRcPromotionError("manifest/build evidence differs from durable receipt")
-
-    published = set(objects)
+        raise ToolkitRcPromotionError("OCI config and release manifests differ")
     for member in manifest.members:
         if member.source_commit != receipt.source_commit:
             raise ToolkitRcPromotionError("toolkit member source commit differs")
@@ -367,10 +470,7 @@ def promote_toolkit_rc(
                 or len(content) != binding.size_bytes
                 or _sha256(content) != binding.sha256
             ):
-                raise ToolkitRcPromotionError("manifest binding differs from remote object matrix")
-            if not published:
-                raise ToolkitRcPromotionError("empty publication object matrix")
-
+                raise ToolkitRcPromotionError("manifest binding differs from OCI layer matrix")
     _validate_signed_provenance(
         manifest=manifest,
         build=build,
@@ -379,14 +479,16 @@ def promote_toolkit_rc(
         source_commit=receipt.source_commit,
         source_date_epoch=receipt.source_date_epoch,
     )
-
     first = manifest.members[0]
-    prerequisite_bindings = (
-        first.t4_zero_rewrite_receipt,
-        first.t4b_typing_closure_receipt,
-        first.t5_pre_import_verifier_receipt,
-    )
-    for path, binding in zip(PREREQUISITE_PATHS, prerequisite_bindings, strict=True):
+    for path, binding in zip(
+        PREREQUISITE_PATHS,
+        (
+            first.t4_zero_rewrite_receipt,
+            first.t4b_typing_closure_receipt,
+            first.t5_pre_import_verifier_receipt,
+        ),
+        strict=True,
+    ):
         authoritative = (repository_root / path).read_bytes()
         if _sha256(authoritative) != binding.sha256 or len(authoritative) != binding.size_bytes:
             raise ToolkitRcPromotionError(f"authoritative prerequisite drifted: {path}")
@@ -426,41 +528,21 @@ def promote_toolkit_rc(
         provenance_path.unlink(missing_ok=True)
         bundle_path.unlink(missing_ok=True)
 
-    receipt_digest = _sha256(receipt_content)
     predecessor = ImmutableToolkitArtifactBindingV1(
-        coordinate=(f"{client.publication_receipt_url(publication_id)}@sha256:{receipt_digest}"),
-        sha256=receipt_digest,
-        size_bytes=len(receipt_content),
+        coordinate=receipt.oci_coordinate,
+        sha256=manifest_digest.removeprefix("sha256:"),
+        size_bytes=len(oci_manifest_content),
     )
-    ready = ToolkitRcAuthorityReadyReceiptV1(
-        receipt_schema_version=1,
-        contract_version="alephain.custos.toolkit-rc-authority-receipt.v1",
-        status="READY_TOOLKIT_RC",
-        ready=True,
-        handoff_ready=True,
+    ready = ToolkitRcAuthorityReadyReceiptV2(
         candidate_version=receipt.candidate_version,
-        source_repository=receipt.source_repository,
         source_commit=receipt.source_commit,
         source_date_epoch=receipt.source_date_epoch,
-        publication_receipt_url=client.publication_receipt_url(publication_id),
-        publication_receipt_sha256=_sha256(receipt_content),
-        publication_receipt_size_bytes=len(receipt_content),
         publication_receipt=receipt,
         toolkit_manifest=manifest,
         toolkit_manifest_sha256=_sha256(manifest_content),
         build_manifest_sha256=_sha256(build_content),
-        predecessor_pending_receipt=predecessor,
-        production_credentials_used=True,
-        production_signature_verified=True,
-        remote_publication_verified=True,
-        authority_registered=True,
+        predecessor_oci_manifest=predecessor,
         final_blockers=(),
-        handoff_scope="Custos base and Nautilus toolkit RC only",
-        loaded=False,
-        engine_ready=False,
-        runtime_ready=False,
-        production_ready=False,
-        strategy_release_bom_created=False,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("xb") as output:
@@ -473,23 +555,23 @@ def promote_toolkit_rc(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository-root", type=Path, default=Path.cwd())
-    parser.add_argument("--artifact-service-url", required=True)
-    parser.add_argument("--publication-id", required=True)
-    parser.add_argument("--expected-receipt-sha256", required=True)
+    parser.add_argument("--registry", required=True)
+    parser.add_argument("--repository", required=True)
+    parser.add_argument("--manifest-digest", required=True)
     parser.add_argument("--expected-candidate-version", required=True)
     parser.add_argument("--expected-source-commit", required=True)
     parser.add_argument("--output", required=True, type=Path)
     arguments = parser.parse_args()
-    token = os.environ.get("CUSTOS_TOOLKIT_ARTIFACT_SERVICE_TOKEN", "")
     result = promote_toolkit_rc(
         repository_root=arguments.repository_root,
-        artifact_service_url=arguments.artifact_service_url,
-        artifact_service_token=token,
-        publication_id=arguments.publication_id,
-        expected_receipt_sha256=arguments.expected_receipt_sha256,
+        registry=arguments.registry,
+        repository=arguments.repository,
+        manifest_digest=arguments.manifest_digest,
         expected_candidate_version=arguments.expected_candidate_version,
         expected_source_commit=arguments.expected_source_commit,
         output_path=arguments.output,
+        registry_username=os.environ.get("CUSTOS_TOOLKIT_OCI_USERNAME", ""),
+        registry_token=os.environ.get("CUSTOS_TOOLKIT_OCI_TOKEN", ""),
     )
     print(
         json.dumps(
