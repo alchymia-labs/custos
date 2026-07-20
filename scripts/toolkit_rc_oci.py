@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
@@ -116,10 +117,11 @@ class OciRegistryClient:
         self.repository = repository
         self._origin = f"{parsed.scheme}://{parsed.netloc}"
         self._timeout_seconds = timeout_seconds
-        self._authorization = ""
+        self._basic_authorization = ""
+        self._bearer_authorization = ""
         if token:
             encoded = base64.b64encode(f"{username}:{token}".encode()).decode()
-            self._authorization = f"Basic {encoded}"
+            self._basic_authorization = f"Basic {encoded}"
 
     def _url(self, path_or_url: str) -> str:
         if path_or_url.startswith(("http://", "https://")):
@@ -130,21 +132,21 @@ class OciRegistryClient:
             return path_or_url
         return urljoin(f"{self._origin}/", path_or_url.lstrip("/"))
 
-    def _request(
+    def _perform_request(
         self,
         method: str,
-        path_or_url: str,
+        url: str,
         *,
         data: bytes | None = None,
         headers: Mapping[str, str] | None = None,
-        allowed_statuses: tuple[int, ...],
+        authorization: str = "",
         commit_unknown: bool = False,
     ) -> _Response:
         request_headers = dict(headers or {})
-        if self._authorization:
-            request_headers["Authorization"] = self._authorization
+        if authorization:
+            request_headers["Authorization"] = authorization
         request = Request(
-            self._url(path_or_url),
+            url,
             data=data,
             headers=request_headers,
             method=method,
@@ -164,14 +166,102 @@ class OciRegistryClient:
                     f"OCI manifest commit response was lost: {exc}"
                 ) from exc
             raise OciRegistryError(f"OCI registry {method} failed: {exc}") from exc
-        if status not in allowed_statuses:
-            detail = body.decode(errors="replace")[:500]
-            if commit_unknown and status >= 500:
-                raise OciCommitUnknownError(
-                    f"OCI manifest commit returned ambiguous HTTP {status}: {detail}"
-                )
-            raise OciRegistryError(f"OCI registry {method} returned HTTP {status}: {detail}")
         return _Response(status, response_headers, body)
+
+    def _exchange_bearer_challenge(self, challenge: str) -> str:
+        if not challenge.lower().startswith("bearer "):
+            raise OciRegistryError("OCI registry returned unsupported authentication challenge")
+        parameters = {
+            key.lower(): value
+            for key, value in re.findall(r'([A-Za-z][A-Za-z0-9_-]*)="([^"]*)"', challenge)
+        }
+        realm = parameters.get("realm")
+        if not realm:
+            raise OciRegistryError("OCI Bearer challenge omitted realm")
+        parsed_realm = urlsplit(realm)
+        parsed_origin = urlsplit(self._origin)
+        if (parsed_realm.scheme, parsed_realm.netloc) != (
+            parsed_origin.scheme,
+            parsed_origin.netloc,
+        ):
+            raise OciRegistryError("OCI Bearer realm escaped the registry origin")
+        query = parse_qsl(parsed_realm.query, keep_blank_values=True)
+        for name in ("service", "scope"):
+            value = parameters.get(name)
+            if value:
+                query.append((name, value))
+        token_url = urlunsplit(
+            (
+                parsed_realm.scheme,
+                parsed_realm.netloc,
+                parsed_realm.path,
+                urlencode(query),
+                parsed_realm.fragment,
+            )
+        )
+        response = self._perform_request(
+            "GET",
+            token_url,
+            headers={"Accept": "application/json"},
+            authorization=self._basic_authorization,
+        )
+        if response.status != 200:
+            detail = response.body.decode(errors="replace")[:500]
+            raise OciRegistryError(
+                f"OCI Bearer token exchange returned HTTP {response.status}: {detail}"
+            )
+        try:
+            document: Any = json.loads(response.body)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise OciRegistryError(f"OCI Bearer token response is invalid JSON: {exc}") from exc
+        if not isinstance(document, dict):
+            raise OciRegistryError("OCI Bearer token response must be an object")
+        token = document.get("token") or document.get("access_token")
+        if not isinstance(token, str) or not token:
+            raise OciRegistryError("OCI Bearer token response omitted token")
+        return f"Bearer {token}"
+
+    def _request(
+        self,
+        method: str,
+        path_or_url: str,
+        *,
+        data: bytes | None = None,
+        headers: Mapping[str, str] | None = None,
+        allowed_statuses: tuple[int, ...],
+        commit_unknown: bool = False,
+    ) -> _Response:
+        url = self._url(path_or_url)
+        authorization = self._bearer_authorization or self._basic_authorization
+        response = self._perform_request(
+            method,
+            url,
+            data=data,
+            headers=headers,
+            authorization=authorization,
+            commit_unknown=commit_unknown,
+        )
+        if response.status == 401:
+            challenge = response.headers.get("www-authenticate", "")
+            self._bearer_authorization = self._exchange_bearer_challenge(challenge)
+            response = self._perform_request(
+                method,
+                url,
+                data=data,
+                headers=headers,
+                authorization=self._bearer_authorization,
+                commit_unknown=commit_unknown,
+            )
+        if response.status not in allowed_statuses:
+            detail = response.body.decode(errors="replace")[:500]
+            if commit_unknown and response.status >= 500:
+                raise OciCommitUnknownError(
+                    f"OCI manifest commit returned ambiguous HTTP {response.status}: {detail}"
+                )
+            raise OciRegistryError(
+                f"OCI registry {method} returned HTTP {response.status}: {detail}"
+            )
+        return response
 
     def _repository_path(self, suffix: str) -> str:
         repository = quote(self.repository, safe="/")
