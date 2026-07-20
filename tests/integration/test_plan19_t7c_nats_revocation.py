@@ -1,25 +1,33 @@
-"""Plan 19 T7C real-NATS revocation protocol acceptance."""
+"""Plan 19 T7C real-NATS User JWT resolver revocation acceptance."""
 
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
+import json
 import os
 import shutil
-import ssl
 import subprocess
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import uuid4
+from typing import Any
+from uuid import UUID, uuid4
 
-import nats
 import nkeys  # type: ignore[import-untyped]
 import pytest
-from nats.errors import Error as NatsError
 
-from custos.core.nats_transport import _is_explicit_nats_authorization_rejection
+from custos.core.nats_transport import (
+    RunnerNatsTransportConnectionProfile,
+    RunnerNatsTransportCredential,
+    assert_old_generation_reconnect_denied,
+)
 
 _IMAGE = os.environ.get("CUSTOS_NATS_TEST_IMAGE", "nats:2.10-alpine")
 _ENABLED = os.environ.get("CUSTOS_RUN_REAL_NATS_REVOCATION") == "1"
+_TENANT = "tenant-t7c"
+_RUNNER = UUID("77777777-7777-4777-8777-777777777777")
 
 
 def _require_local_gate() -> None:
@@ -50,22 +58,208 @@ def _run(*command: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _nkey() -> tuple[str, str]:
-    seed = nkeys.encode_seed(os.urandom(32), nkeys.PREFIX_BYTE_USER)
+def _keypair(prefix: int) -> tuple[bytes, Any, str]:
+    seed = nkeys.encode_seed(os.urandom(32), prefix)
     pair = nkeys.from_seed(bytearray(seed))
-    try:
-        return seed.decode("ascii"), pair.public_key.decode("ascii")
-    finally:
-        pair.wipe()
+    return seed, pair, pair.public_key.decode("ascii")
 
 
-def _server_config(*, old_public: str | None, new_public: str) -> str:
-    users = [f'{{ nkey: "{new_public}" }}']
-    if old_public is not None:
-        users.insert(0, f'{{ nkey: "{old_public}" }}')
+def _b64url(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _compact_json(value: dict[str, Any]) -> bytes:
+    return json.dumps(value, separators=(",", ":"), ensure_ascii=True).encode()
+
+
+def _encode_nats_jwt(
+    *,
+    signer: Any,
+    subject: str,
+    issued_at: datetime,
+    nats_claims: dict[str, Any],
+    expires_at: datetime | None = None,
+) -> str:
+    """Encode the subset of the official NATS JWT v2 contract used by this gate."""
+
+    issuer = signer.public_key.decode("ascii")
+    claims_without_jti: dict[str, Any] = {}
+    if expires_at is not None:
+        claims_without_jti["exp"] = int(expires_at.timestamp())
+    claims_without_jti["iat"] = int(issued_at.timestamp())
+    claims_without_jti["iss"] = issuer
+    claims_without_jti["sub"] = subject
+    digest = hashlib.new("sha512_256", _compact_json(claims_without_jti)).digest()
+    jti = base64.b32encode(digest).decode("ascii").rstrip("=")
+
+    payload: dict[str, Any] = {}
+    if expires_at is not None:
+        payload["exp"] = int(expires_at.timestamp())
+    payload["jti"] = jti
+    payload["iat"] = int(issued_at.timestamp())
+    payload["iss"] = issuer
+    payload["sub"] = subject
+    payload["nats"] = nats_claims
+    header = _b64url(_compact_json({"typ": "JWT", "alg": "ed25519-nkey"}))
+    claims = _b64url(_compact_json(payload))
+    signing_input = f"{header}.{claims}".encode("ascii")
+    return f"{header}.{claims}.{_b64url(signer.sign(signing_input))}"
+
+
+def _permission_profile() -> dict[str, Any]:
+    runner = str(_RUNNER)
+    durable = f"custos-v4-{_TENANT}-{runner}"
+    return {
+        "schema_version": 1,
+        "profile": "runner-v1",
+        "tenant_id": _TENANT,
+        "runner_id": runner,
+        "authorized_modes": ["sandbox", "testnet"],
+        "publish_allow": [
+            f"crucible.runner_fact.sandbox.{_TENANT}.{runner}.>",
+            f"crucible.runner_fact.testnet.{_TENANT}.{runner}.>",
+            f"$JS.ACK.CRUCIBLE_DOMAIN_AUDIT.{durable}.>",
+            f"$JS.API.CONSUMER.INFO.CRUCIBLE_DOMAIN_AUDIT.{durable}",
+        ],
+        "subscribe_allow": [
+            f"custos.runner_command_v4_delivery.{_TENANT}.{runner}",
+            "_INBOX.>",
+        ],
+        "publish_deny": [
+            "$JS.API.STREAM.>",
+            "$JS.API.CONSUMER.CREATE.>",
+            "$JS.API.CONSUMER.DURABLE.CREATE.>",
+            "$JS.API.CONSUMER.DELETE.>",
+            "$SYS.>",
+        ],
+        "subscribe_deny": ["$SYS.>"],
+    }
+
+
+def _durable_config() -> dict[str, Any]:
+    runner = str(_RUNNER)
+    return {
+        "schema_version": 1,
+        "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
+        "durable_name": f"custos-v4-{_TENANT}-{runner}",
+        "delivery_subject": f"custos.runner_command_v4_delivery.{_TENANT}.{runner}",
+        "filter_subjects": [
+            (
+                f"crucible_rust.domain.{_TENANT}.{mode}.deployment."
+                f"RunnerDeploymentCommandV4.{runner}.*"
+            )
+            for mode in ("sandbox", "testnet")
+        ],
+        "deliver_policy": "all",
+        "ack_policy": "explicit",
+        "replay_policy": "instant",
+        "max_ack_pending": 1,
+        "consumer_mode": "push_existing_only",
+    }
+
+
+def _sha256_document(value: dict[str, Any]) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _transport_credential(
+    *,
+    user_seed: bytes,
+    user_public: str,
+    account_pair: Any,
+    account_public: str,
+    issued_at: datetime,
+    expires_at: datetime,
+    generation: int,
+) -> RunnerNatsTransportCredential:
+    permission = _permission_profile()
+    durable = _durable_config()
+    user_jwt = _encode_nats_jwt(
+        signer=account_pair,
+        subject=user_public,
+        issued_at=issued_at,
+        expires_at=expires_at,
+        nats_claims={
+            "pub": {
+                "allow": permission["publish_allow"],
+                "deny": permission["publish_deny"],
+            },
+            "sub": {
+                "allow": permission["subscribe_allow"],
+                "deny": permission["subscribe_deny"],
+            },
+            "subs": -1,
+            "data": -1,
+            "payload": -1,
+            "type": "user",
+            "version": 2,
+        },
+    )
+    response = {
+        "transport_credential_id": str(uuid4()),
+        "transport_credential_version": generation,
+        "transport_generation": generation,
+        "nats_transport_profile": "runner-v1",
+        "nats_user_public_key": user_public,
+        "nats_user_jwt": user_jwt,
+        "nats_user_jwt_sha256": hashlib.sha256(user_jwt.encode()).hexdigest(),
+        "issuer_account_public_nkey": account_public,
+        "permission_profile": permission,
+        "permission_profile_sha256": _sha256_document(permission),
+        "durable_config": durable,
+        "durable_config_sha256": _sha256_document(durable),
+        "issued_at": issued_at.isoformat().replace("+00:00", "Z"),
+        "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
+    }
+    return RunnerNatsTransportCredential.from_issued_response(
+        response,
+        tenant_id=_TENANT,
+        runner_id=_RUNNER,
+        nats_user_seed=user_seed,
+        expected_issuer_account_public_nkey=account_public,
+    )
+
+
+def _account_jwt(
+    *,
+    operator_pair: Any,
+    account_public: str,
+    issued_at: datetime,
+    revoked_user: str | None = None,
+    revoke_at: datetime | None = None,
+) -> str:
+    nats_claims: dict[str, Any] = {
+        "limits": {
+            "subs": -1,
+            "data": -1,
+            "payload": -1,
+            "imports": -1,
+            "exports": -1,
+            "wildcards": True,
+            "conn": -1,
+            "leaf": -1,
+        }
+    }
+    if revoked_user is not None and revoke_at is not None:
+        nats_claims["revocations"] = {
+            revoked_user: int(revoke_at.timestamp()),
+        }
+    nats_claims["type"] = "account"
+    nats_claims["version"] = 2
+    return _encode_nats_jwt(
+        signer=operator_pair,
+        subject=account_public,
+        issued_at=issued_at,
+        nats_claims=nats_claims,
+    )
+
+
+def _server_config(*, account_public: str, account_jwt: str) -> str:
     return (
         'port: 4222\nserver_name: "custos-t7c-real-nats"\n'
-        f"authorization {{ users = [ {', '.join(users)} ] }}\n"
+        'operator: "/config/operator.jwt"\nresolver: MEMORY\n'
+        f'resolver_preload: {{ {account_public}: "{account_jwt}" }}\n'
         'tls { cert_file: "/config/server.crt"; '
         'key_file: "/config/server.key"; timeout: 2 }\n'
     )
@@ -120,60 +314,59 @@ def _wait_ready(container: str) -> None:
 
 async def _exercise_revocation(
     *,
-    port: int,
+    old_credential: RunnerNatsTransportCredential,
+    replacement_credential: RunnerNatsTransportCredential,
+    nats_url: str,
     certificate: Path,
-    old_seed: str,
-    new_seed: str,
     container: str,
     active_config: Path,
     revoked_config: str,
 ) -> None:
-    context = ssl.create_default_context(cafile=str(certificate))
-    disconnected = asyncio.Event()
-
-    async def record_disconnect() -> None:
-        disconnected.set()
-
-    async def ignore_expected_error(_error: Exception) -> None:
-        return
-
-    url = f"tls://localhost:{port}"
-    old = await nats.connect(
-        url,
-        nkeys_seed_str=old_seed,
-        tls=context,
-        tls_hostname="localhost",
-        disconnected_cb=record_disconnect,
-        error_cb=ignore_expected_error,
-        reconnect_time_wait=0.1,
+    old_profile = RunnerNatsTransportConnectionProfile(
+        old_credential,
+        nats_url,
+        certificate,
+        "localhost",
+        old_credential.issuer_account_public_nkey,
+    )
+    replacement_profile = RunnerNatsTransportConnectionProfile(
+        replacement_credential,
+        nats_url,
+        certificate,
+        "localhost",
+        replacement_credential.issuer_account_public_nkey,
+    )
+    old = await old_profile.connect(
+        name="custos-t7c-old",
         max_reconnect_attempts=1,
     )
-    replacement = await nats.connect(
-        url,
-        nkeys_seed_str=new_seed,
-        tls=context,
-        tls_hostname="localhost",
+    replacement = await replacement_profile.connect(
+        name="custos-t7c-replacement",
         allow_reconnect=False,
+        max_reconnect_attempts=0,
     )
     try:
         active_config.write_text(revoked_config)
         _run("docker", "kill", "--signal", "HUP", container)
-        await asyncio.wait_for(disconnected.wait(), timeout=8)
+        await asyncio.wait_for(old_profile.wait_disconnected(), timeout=8)
         await asyncio.sleep(0.3)
 
-        with pytest.raises(NatsError) as rejected:
-            await nats.connect(
-                url,
-                nkeys_seed_str=old_seed,
-                tls=context,
-                tls_hostname="localhost",
-                allow_reconnect=False,
-                connect_timeout=1,
-                error_cb=ignore_expected_error,
-            )
-        assert _is_explicit_nats_authorization_rejection(rejected.value)
+        reconnect_profile = RunnerNatsTransportConnectionProfile(
+            old_credential,
+            nats_url,
+            certificate,
+            "localhost",
+            old_credential.issuer_account_public_nkey,
+        )
+        await assert_old_generation_reconnect_denied(
+            reconnect_profile,
+            name="custos-t7c-old-reconnect",
+            timeout_seconds=3,
+        )
 
-        await replacement.publish("custos.t7c.revocation-gate", b"replacement-active")
+        subject = f"crucible.runner_fact.sandbox.{_TENANT}.{_RUNNER}.resolver-replacement"
+        replacement_profile.assert_publish_subject(subject)
+        await replacement.publish(subject, b"replacement-active")
         await replacement.flush(timeout=2)
         assert replacement.is_connected
     finally:
@@ -184,18 +377,75 @@ async def _exercise_revocation(
 
 @pytest.mark.integration
 @pytest.mark.docker
-def test_real_nats_forces_old_disconnect_and_denies_exact_reconnect(
+def test_real_nats_memory_resolver_revokes_old_user_jwt_and_keeps_replacement(
     tmp_path: Path,
 ) -> None:
     _require_local_gate()
-    old_seed, old_public = _nkey()
-    new_seed, new_public = _nkey()
+    now = datetime.now(UTC).replace(microsecond=0)
+    operator_seed, operator_pair, operator_public = _keypair(nkeys.PREFIX_BYTE_OPERATOR)
+    account_seed, account_pair, account_public = _keypair(nkeys.PREFIX_BYTE_ACCOUNT)
+    old_seed, old_pair, old_public = _keypair(nkeys.PREFIX_BYTE_USER)
+    new_seed, new_pair, new_public = _keypair(nkeys.PREFIX_BYTE_USER)
+    try:
+        operator_jwt = _encode_nats_jwt(
+            signer=operator_pair,
+            subject=operator_public,
+            issued_at=now - timedelta(seconds=20),
+            nats_claims={"type": "operator", "version": 2},
+        )
+        initial_account_jwt = _account_jwt(
+            operator_pair=operator_pair,
+            account_public=account_public,
+            issued_at=now - timedelta(seconds=15),
+        )
+        revoked_account_jwt = _account_jwt(
+            operator_pair=operator_pair,
+            account_public=account_public,
+            issued_at=now,
+            revoked_user=old_public,
+            revoke_at=now - timedelta(seconds=1),
+        )
+        issued_at = now - timedelta(seconds=5)
+        expires_at = now + timedelta(hours=1)
+        old_credential = _transport_credential(
+            user_seed=old_seed,
+            user_public=old_public,
+            account_pair=account_pair,
+            account_public=account_public,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            generation=1,
+        )
+        replacement_credential = _transport_credential(
+            user_seed=new_seed,
+            user_public=new_public,
+            account_pair=account_pair,
+            account_public=account_public,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            generation=2,
+        )
+    finally:
+        for pair in (operator_pair, account_pair, old_pair, new_pair):
+            pair.wipe()
+        del operator_seed, account_seed
+
     certificate = _write_tls_material(tmp_path)
+    (tmp_path / "operator.jwt").write_text(operator_jwt)
     active_config = tmp_path / "nats.conf"
-    active_config.write_text(_server_config(old_public=old_public, new_public=new_public))
-    revoked_config = _server_config(old_public=None, new_public=new_public)
+    active_config.write_text(
+        _server_config(
+            account_public=account_public,
+            account_jwt=initial_account_jwt,
+        )
+    )
+    revoked_config = _server_config(
+        account_public=account_public,
+        account_jwt=revoked_account_jwt,
+    )
     tmp_path.chmod(0o755)
     certificate.chmod(0o644)
+    (tmp_path / "operator.jwt").chmod(0o644)
     active_config.chmod(0o644)
 
     container = f"custos-t7c-{uuid4().hex}"
@@ -221,10 +471,10 @@ def test_real_nats_forces_old_disconnect_and_denies_exact_reconnect(
         port = int(port_output.rsplit(":", 1)[1])
         asyncio.run(
             _exercise_revocation(
-                port=port,
+                old_credential=old_credential,
+                replacement_credential=replacement_credential,
+                nats_url=f"tls://localhost:{port}",
                 certificate=certificate,
-                old_seed=old_seed,
-                new_seed=new_seed,
                 container=container,
                 active_config=active_config,
                 revoked_config=revoked_config,
@@ -232,7 +482,7 @@ def test_real_nats_forces_old_disconnect_and_denies_exact_reconnect(
         )
         logs = _run("docker", "logs", container, check=False)
         combined = f"{logs.stdout}\n{logs.stderr}"
-        assert "Reloaded: authorization nkey users" in combined
+        assert "Server is ready" in combined
         assert "Reloaded server configuration" in combined
     finally:
         _run("docker", "stop", "-t", "1", container, check=False)

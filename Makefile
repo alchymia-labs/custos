@@ -46,7 +46,7 @@ commit-hook-dry-run:  ## Validate the pre-commit hook path in a dry way (no real
 test:  ## Run full pytest (base profile; NT tests importorskip; includes known-failing wire_shapes)
 	uv run pytest tests/
 
-verify-nats-revocation:  ## Run the opt-in real NATS forced-disconnect/reconnect-denial gate
+verify-nats-revocation:  ## Run opt-in real NATS User-JWT resolver revocation gate
 	CUSTOS_RUN_REAL_NATS_REVOCATION=1 uv run pytest tests/integration/test_plan19_t7c_nats_revocation.py -v
 
 test-baseline:  ## Run the standalone green baseline
