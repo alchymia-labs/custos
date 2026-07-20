@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import base64
 import hashlib
@@ -36,6 +37,38 @@ _TENANT = "tenant-a"
 _RUNNER = UUID("66666666-6666-4666-8666-666666666666")
 _TRANSPORT_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 _MACHINE_ID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+
+
+def test_cli_registers_each_transport_action_without_option_conflicts() -> None:
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command")
+
+    nats_transport_cli.register(subparsers)
+
+    common = [
+        "--nats-url",
+        "tls://nats.example.test:4222",
+        "--nats-server-name",
+        "nats.example.test",
+        "--issuer-account-public-nkey",
+        "ACRUCIBLE",
+    ]
+    for action in ("enroll", "rotate", "activate"):
+        parsed = parser.parse_args(
+            [
+                "nats-transport",
+                action,
+                *common,
+                "--crucible-url",
+                "https://crucible.example.test",
+            ]
+        )
+        assert parsed.transport_action == action
+        assert parsed.issuer_account_public_nkey == "ACRUCIBLE"
+
+    parsed = parser.parse_args(["nats-transport", "verify", *common])
+    assert parsed.transport_action == "verify"
+    assert parsed.issuer_account_public_nkey == "ACRUCIBLE"
 
 
 def _b64url(value: bytes) -> str:

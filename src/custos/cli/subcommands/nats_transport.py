@@ -60,11 +60,6 @@ def _add_authority_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="age public recipient; defaults to SOPS_AGE_RECIPIENT.",
     )
-    parser.add_argument(
-        "--issuer-account-public-nkey",
-        default=os.environ.get("CRUCIBLE_NATS_ISSUER_ACCOUNT_NKEY", ""),
-        help="Pinned CR100 NATS Account public NKey.",
-    )
 
 
 def _add_local_arguments(parser: argparse.ArgumentParser) -> None:
@@ -85,6 +80,7 @@ def _add_nats_connection_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--issuer-account-public-nkey",
         default=os.environ.get("CRUCIBLE_NATS_ISSUER_ACCOUNT_NKEY", ""),
+        help="Pinned CR100 NATS Account public NKey.",
     )
 
 
