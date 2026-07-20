@@ -118,7 +118,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          uv run --frozen --extra lts python scripts/toolkit_rc_publish.py \
+          uv run --frozen --extra lts python -m scripts.toolkit_rc_publish \
             --manifest "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-manifest.json" \
             --build-manifest "$RUNNER_TEMP/toolkit-rc-build/toolkit-rc-build-manifest-input.json" \
             --object-sources "$RUNNER_TEMP/toolkit-rc-publication-inputs/toolkit-rc-object-sources.json" \
