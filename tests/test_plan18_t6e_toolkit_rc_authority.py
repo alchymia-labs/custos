@@ -525,6 +525,9 @@ def test_independent_promotion_workflow_is_digest_only_and_read_only() -> None:
     assert "source_commit:" in workflow
     assert "python -m scripts.toolkit_rc_promote" in workflow
     assert "ToolkitRcAuthorityReceiptV2.model_validate_json" in workflow
+    assert 'cd "$output_dir"' in workflow
+    assert 'sha256sum "$output_name" > "$output_name.sha256"' in workflow
+    assert 'sha256sum "$output" > "$output.sha256"' not in workflow
     assert "id-token: write" not in workflow
     assert "packages: write" not in workflow
     assert "contents: write" not in workflow

@@ -70,7 +70,12 @@ jobs:
             --expected-candidate-version "${{ inputs.candidate_version }}" \
             --expected-source-commit "${{ inputs.source_commit }}" \
             --output "$output"
-          sha256sum "$output" > "$output.sha256"
+          output_dir="$(dirname "$output")"
+          output_name="$(basename "$output")"
+          (
+            cd "$output_dir"
+            sha256sum "$output_name" > "$output_name.sha256"
+          )
           uv run --frozen --extra lts python -c \
             'from pathlib import Path; from custos_toolkit.contracts import ToolkitRcAuthorityReceiptV2; ToolkitRcAuthorityReceiptV2.model_validate_json(Path("'"$output"'").read_bytes())'
 
