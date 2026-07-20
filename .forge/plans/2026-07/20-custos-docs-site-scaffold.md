@@ -154,10 +154,12 @@ Grep-verified 现状:
     remains SSOT — site pages carry `<!-- source: docs/domain.md -->` header for
     provenance grep-verifiability
   - `docs/authority/*` **NOT** migrated (internal receipts; may reference by hash)
-- **T6 — Chinese translation (initial pass)**: build zh-Hans locale scaffold; translate
+- **T6 — Chinese translation (initial pass)** — status: 🟡 In progress (Session 3 first slice · 4/46 chapters translated · 2026-07-20): build zh-Hans locale scaffold; translate
   Part I introduction + Getting started (chapters 1-7) as first slice; remaining
   parts get `TODO: 翻译` placeholder pages so URL structure is complete but content
-  is deferred (multi-session scope; T6 spans multiple slices)
+  is deferred (multi-session scope; T6 spans multiple slices). Session 3 delivered
+  Part I (3 chapters) + Part II enrollment (1 chapter); the remaining 3 Part II
+  chapters wait for en content (they are still T4 stubs — no explicit T5 source).
 - **T7 — Homepage + ARX section**: `docs-site/src/pages/index.tsx` custom homepage
   featuring:
   - Hero: "custos — the non-custodial execution runner"
@@ -344,6 +346,16 @@ Not merely tsc / lint / build — real runtime evidence:
 - **修复 commit**: `0b5a73a`(整合到 T5 migration commit,因为 fix 是在新迁移的内容上做的)
 - **副作用**: 3 处 broken-link warning(non-blocking,不阻断 build)在 `configuration.md`(`../../.forge/README.md` + `../../.claude/rules/common-errors.md`)+ `trust-model.md`(`../domain.md`)—— 这些是 SSOT 原文里对 repo 内部路径的引用,site 上下文里不可达。**留待 Session 3 fix**(改成 site-internal link 或 remove reference),不阻断 T5 关闭。
 
+### DEVIATION-06: Session 3 部分 broken-link 在翻译时顺手修 (zh 侧,en 侧待补)
+
+- **等级**: 低(non-blocking warning,不影响 build)
+- **原因**: DEVIATION-04 遗留的 broken-link warning 里,`trust-model.md` 和 `architecture-at-a-glance.md` 的 repo-internal `.md` 引用在 zh 翻译改写时被顺手改成 site-internal path(如 `../01-architecture.md` → `./architecture-at-a-glance`)。en 侧同源引用未同步修 → **zh 已修,en 未修的暂时不对称状态**
+- **影响**: `configuration.md` 的 `.forge/README.md` 和 `.claude/rules/common-errors.md` 引用改成 GitHub raw URL 更 clean(SSOT 保留内部路径,site 侧改绝对 URL)—— 这个决策留 Session 4
+- **决定**: Session 3 zh 侧的 broken-link fix 是 T6 翻译工作的自然副产品,不单独 commit;en 侧的对称 fix 与其他 en 迁移后 polish 一起做,推到 Session 4-5
+- **相关 commit**: `1c594fd`(T6 partial · zh 侧修 broken-link 在同一 commit 内)
+
+### DEVIATION-05: T9 提前到 Session 2 tail(Session 5 → Session 2)
+
 ## Non-Custodial Red Line Verification
 
 - **红线 0.1 (Key/KEK never leaves process)**: docs site has no runtime access
@@ -423,10 +435,41 @@ Documentation-only plan; no red-line risk.
   - DNS: CNAME `custos` → `alchymia-labs.github.io`,Cloudflare proxy 关闭
 - **首次 deploy**: push origin/main → workflow 触发 → `gh-pages` branch 自动生成 → GitHub Pages 拉起 → CNAME 生效后 `custos.alephain.com` 上线
 
+### Session 3 (T6 partial — Part I-II first slice) — 2026-07-20
+
+- **完成 Task**: T6 🟡 partial(4/46 chapters translated · Part I 3 章 + Part II enrollment 1 章)
+- **偏离数**: 1(DEVIATION-06 — zh 侧顺手修 3 个 broken-link,en 侧同源待 Session 4-5 补对称 fix)
+- **交付内容**:
+  - `01-introduction/what-is-custos` → **什么是 custos**(22 行 · 全译 · warning banner 移除)
+  - `01-introduction/trust-model` → **信任模型**(81 行 · 已中文 polish · English section titles → Chinese · repo-internal links → site-internal)
+  - `01-introduction/architecture-at-a-glance` → **架构一览**(135 行 · 已中文 polish · BC 表 cross-reference 改指真实 site path)
+  - `02-getting-started/enrollment` → **注册 (Enrollment)**(132 行 · 全译 · CLI/paths/struct names 保英文)
+- **术语字典 (session-canonical)**:non-custodial → 非托管 · reconcile → 对账 · trust boundary → 信任边界 · red lines → 红线 · circuit breaker → 熔断器 · watchdog → 看门狗 · control plane / data plane → 控制面 / 数据面 · machine credential → 机器凭据 · proof of possession (PoP) → 所有权证明 (PoP) · fail closed → 失败关闭 · rotation / revocation → 轮换 / 撤销 · long-term support (LTS) → 长期支持
+- **保留英文 (technical identifiers)**:custos · ARX · Crucible · NautilusTrader (NT) · DeploymentSpec · RunnerFact · EnrollmentToken · MessageBus · JetStream · sops · age · Ed25519 · KEK · 所有 `arx-runner` subcommand · 所有 file paths / env vars / API endpoints
+- **验证结果**:
+  - `npm run build` 双 locale 全绿
+  - `npm run serve` 本地 200 for all translated routes
+  - Chrome 视觉验证 2 章 pass(截图见 verify 会话记录):
+    - `/zh-Hans/introduction/what-is-custos` — 5 中文 bullet · warning banner 移除 · 下一页"信任模型 »"
+    - `/zh-Hans/getting-started/enrollment` — 标题双语(中 + 英括号)· 6 步骤 · fenced code + `~/.arx/*` inline code · sidebar 混合(1 中 + 3 英未译反映进度)
+- **交付 commit**(main branch,2 commit + 1 push 触发 CI):
+  - commit 1(4 zh translations): `feat(custos): plan 20 T6 partial — translate Part I 3 chapters + Part II enrollment to zh-Hans` (`1c594fd`)
+  - commit 2(plan close-out): `feat(custos): plan 20 Session 3 close-out — T6 partial + terminology dict + DEVIATION-06`
+- **Session 3 数据**:
+  - 4 章 translated / 46 章 total = **9% 翻译率**(第一片切片)
+  - 42 章仍带 warning banner(**未翻译**);其中 24 章英文本身也是 T4 stub 尚未写(需要 en 内容先行,如 Part IX reference 表、Part X license inline)
+  - 3 处 broken-link warning(zh 侧修完,en 侧待 Session 4-5 补对称)
+- **T6 剩余切片规划**(未来 sessions):
+  - Slice 2:Part III 核心概念 5 章 · Part IV 运维指南 6 章(共 11 章 有 en real content)
+  - Slice 3:Part V 信任模型 5 章 · Part VI 集成指南 5 章(共 10 章)
+  - Slice 4:Part VII 引擎 3 章 · Part VIII 工具包 3 章(共 6 章)
+  - Slice 5:Part IX + X 剩余 · 24 en stubs 转 en real 之后再补 zh 翻译
+- **CI 状态**: push 后 GitHub Actions docs-deploy workflow 会自动 rebuild + push gh-pages → 用户在 `custos.alephain.com/zh-Hans/introduction/what-is-custos` 等路由看到中文翻译
+
 ### 顶级 Close-out(填于 T12)
 
 - **完成日期**: TBD
 - **总 Task 数**: 12
-- **偏离总数**: TBD (Session 1-2 至今 4)
+- **偏离总数**: TBD (Session 1-3 至今 5)
 - **验证结果**: TBD (per T2-T12 acceptance)
-- **遗留项**: expected — Chinese translation for Parts III-X spans multiple future sessions
+- **遗留项**: expected — Chinese translation for remaining 42 chapters spans multiple future sessions (T6 slice 2-5)
