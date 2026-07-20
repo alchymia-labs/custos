@@ -516,6 +516,20 @@ def test_workflow_has_single_candidate_concurrency_and_digest_output() -> None:
     assert "actions/upload-artifact" not in workflow
 
 
+def test_independent_promotion_workflow_is_digest_only_and_read_only() -> None:
+    workflow = (ROOT / ".github/workflows/promote-toolkit-rc.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "permissions:\n  contents: read\n  packages: read" in workflow
+    assert "manifest_digest:" in workflow
+    assert "source_commit:" in workflow
+    assert "python -m scripts.toolkit_rc_promote" in workflow
+    assert "ToolkitRcAuthorityReceiptV2.model_validate_json" in workflow
+    assert "id-token: write" not in workflow
+    assert "packages: write" not in workflow
+    assert "contents: write" not in workflow
+
+
 def test_independent_promotion_emits_only_a_digest_bound_ready_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

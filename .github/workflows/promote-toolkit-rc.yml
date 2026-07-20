@@ -1,0 +1,95 @@
+name: Independently verify toolkit OCI authority candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_version:
+        description: Exact published candidate version in the form 0.1.0rcN
+        required: true
+        type: string
+      source_commit:
+        description: Full Custos commit bound by the OCI release config
+        required: true
+        type: string
+      manifest_digest:
+        description: Immutable OCI manifest digest in the form sha256:<hex>
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: toolkit-rc-authority-${{ inputs.manifest_digest }}
+  cancel-in-progress: false
+
+jobs:
+  promote-candidate:
+    if: github.repository == 'alchymia-labs/custos' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    env:
+      CUSTOS_TOOLKIT_OCI_REGISTRY: ghcr.io
+      CUSTOS_TOOLKIT_OCI_REPOSITORY: alchymia-labs/custos-strategy-toolkit
+      CUSTOS_TOOLKIT_OCI_USERNAME: ${{ github.actor }}
+      CUSTOS_TOOLKIT_OCI_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out the exact published source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_commit }}
+          persist-credentials: false
+
+      - name: Install the pinned uv verification toolchain
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: '0.11.16'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Validate exact operator inputs and hydrate the locked environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ inputs.candidate_version }}" =~ ^0\.1\.0rc[1-9][0-9]*$ ]]
+          [[ "${{ inputs.source_commit }}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${{ inputs.manifest_digest }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$(git rev-parse HEAD)" = "${{ inputs.source_commit }}"
+          uv sync --frozen --extra lts
+          uv run --frozen --extra lts sigstore --version
+
+      - name: Read by digest and emit a V2 READY candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/custos-toolkit-rc-ready-candidate-v2.json"
+          uv run --frozen --extra lts python -m scripts.toolkit_rc_promote \
+            --registry "$CUSTOS_TOOLKIT_OCI_REGISTRY" \
+            --repository "$CUSTOS_TOOLKIT_OCI_REPOSITORY" \
+            --manifest-digest "${{ inputs.manifest_digest }}" \
+            --expected-candidate-version "${{ inputs.candidate_version }}" \
+            --expected-source-commit "${{ inputs.source_commit }}" \
+            --output "$output"
+          sha256sum "$output" > "$output.sha256"
+          uv run --frozen --extra lts python -c \
+            'from pathlib import Path; from custos_toolkit.contracts import ToolkitRcAuthorityReceiptV2; ToolkitRcAuthorityReceiptV2.model_validate_json(Path("'"$output"'").read_bytes())'
+
+      - name: Upload the independently verified authority candidate
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: toolkit-rc-authority-${{ inputs.candidate_version }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/custos-toolkit-rc-ready-candidate-v2.json
+            ${{ runner.temp }}/custos-toolkit-rc-ready-candidate-v2.json.sha256
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+
+      - name: Report candidate artifact identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "artifact_id=${{ steps.upload.outputs.artifact-id }}"
+          printf '%s\n' "artifact_digest=${{ steps.upload.outputs.artifact-digest }}"
+          printf '%s\n' "manifest_digest=${{ inputs.manifest_digest }}"

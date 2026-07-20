@@ -180,6 +180,12 @@
       "ready_receipt_published": false
     },
     {
+      "role": "toolkit_rc_t6e_independent_promotion_workflow",
+      "path": ".github/workflows/promote-toolkit-rc.yml",
+      "contract_only": true,
+      "ready_receipt_published": false
+    },
+    {
       "role": "local_runner_fact",
       "path": "docs/design/runner_fact.md"
     },
@@ -591,6 +597,7 @@
       "scripts/toolkit_rc_oci.py",
       "scripts/toolkit_rc_publish.py",
       "scripts/toolkit_rc_promote.py",
+      ".github/workflows/promote-toolkit-rc.yml",
       ".github/workflows/release-toolkit-rc.yml",
       "tests/test_plan18_t6c_toolkit_rc_publication.py",
       "tests/test_plan18_t6d_release_readiness.py",

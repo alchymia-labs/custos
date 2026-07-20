@@ -1413,6 +1413,12 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "ready_receipt_published": False,
         },
         {
+            "role": "toolkit_rc_t6e_independent_promotion_workflow",
+            "path": ".github/workflows/promote-toolkit-rc.yml",
+            "contract_only": True,
+            "ready_receipt_published": False,
+        },
+        {
             "role": "toolkit_rc_t6d_release_readiness_runner",
             "path": "scripts/toolkit_rc_release_readiness.py",
             "contract_only": True,
@@ -1505,6 +1511,24 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
         ):
             if forbidden in workflow:
                 errors.append(f"T6d production workflow contains forbidden {forbidden!r}")
+
+    promotion_workflow_path = resolve(".github/workflows/promote-toolkit-rc.yml")
+    if promotion_workflow_path.is_file():
+        promotion_workflow = promotion_workflow_path.read_text(encoding="utf-8")
+        for phrase in (
+            "candidate_version:",
+            "source_commit:",
+            "manifest_digest:",
+            "permissions:\n  contents: read\n  packages: read",
+            "python -m scripts.toolkit_rc_promote",
+            "ToolkitRcAuthorityReceiptV2.model_validate_json",
+            "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+        ):
+            if phrase not in promotion_workflow:
+                errors.append(f"T6e promotion workflow lacks {phrase!r}")
+        for forbidden in ("id-token: write", "packages: write", "contents: write"):
+            if forbidden in promotion_workflow:
+                errors.append(f"T6e promotion workflow contains forbidden {forbidden!r}")
 
     verify_plan_18_task_6_release_authority(manifest, errors)
 

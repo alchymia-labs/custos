@@ -322,6 +322,7 @@
     "tag_is_authority": false,
     "release_environment": "toolkit-rc-release",
     "workflow_identity": "https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
+    "independent_promotion_workflow": ".github/workflows/promote-toolkit-rc.yml",
     "open_blockers": [
       "protected production release runner commits and reads back the immutable OCI manifest",
       "verified READY candidate is registered by an independent authority commit"
