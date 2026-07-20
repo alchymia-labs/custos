@@ -43,9 +43,17 @@ RUNNER_COMMAND_STREAM = "CRUCIBLE_DOMAIN_AUDIT"
 _ISSUE_PATH = "/internal/v1/runner-nats-transport/enroll"
 _ROTATE_PATH = "/internal/v1/runner-nats-transport/rotate"
 _ACTIVATE_PATH = "/internal/v1/runner-nats-transport/activate"
+_REVOKE_SUPERSEDED_PATH = "/internal/v1/runner-nats-transport/revoke-superseded"
+_REVOCATION_CHALLENGE_PATH = "/internal/v1/runner-nats-transport/revocation-challenge"
+_REVOCATION_EVIDENCE_PATH = "/internal/v1/runner-nats-transport/revocation-evidence"
 _CANONICAL_ISSUE_PATH = "/api/v1/runner-nats-transport/enroll"
 _CANONICAL_ROTATE_PATH = "/api/v1/runner-nats-transport/rotate"
 _CANONICAL_ACTIVATE_PATH = "/api/v1/runner-nats-transport/activate"
+_CANONICAL_REVOKE_SUPERSEDED_PATH = "/api/v1/runner-nats-transport/revoke-superseded"
+_CANONICAL_REVOCATION_CHALLENGE_PATH = "/api/v1/runner-nats-transport/revocation-challenge"
+_CANONICAL_REVOCATION_EVIDENCE_PATH = "/api/v1/runner-nats-transport/revocation-evidence"
+_REVOCATION_CHALLENGE_PROFILE = "crucible.runner.nats-revocation-challenge.v1"
+_REVOCATION_EVIDENCE_PROFILE = "custos.runner.nats-revocation-evidence.v1"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ACCOUNT_NKEY = re.compile(r"^A[A-Z2-7]{55}$")
@@ -377,9 +385,7 @@ class RunnerNatsTransportCredential:
             or any(mode not in {"sandbox", "testnet", "live"} for mode in modes)
         ):
             raise RunnerNatsTransportError("authorized_modes is invalid")
-        expected_permission = _expected_permission_profile(
-            self.tenant_id, self.runner_id, modes
-        )
+        expected_permission = _expected_permission_profile(self.tenant_id, self.runner_id, modes)
         if self.permission_profile != expected_permission:
             raise RunnerNatsTransportError("permission profile is not exact CR100 authority")
         expected_durable = _expected_durable_config(self.tenant_id, self.runner_id, modes)
@@ -458,9 +464,7 @@ class RunnerNatsTransportCredential:
             nats_user_jwt=str(value["nats_user_jwt"]),
             nats_user_jwt_sha256=str(value["nats_user_jwt_sha256"]),
             issuer_account_public_nkey=str(value["issuer_account_public_nkey"]),
-            permission_profile=_required_mapping(
-                value["permission_profile"], "permission_profile"
-            ),
+            permission_profile=_required_mapping(value["permission_profile"], "permission_profile"),
             permission_profile_sha256=str(value["permission_profile_sha256"]),
             durable_config=_required_mapping(value["durable_config"], "durable_config"),
             durable_config_sha256=str(value["durable_config_sha256"]),
@@ -525,47 +529,340 @@ class RunnerNatsTransportCredential:
 
 
 @dataclass(frozen=True, slots=True)
+class RunnerNatsRevocationChallenge:
+    profile: str
+    tenant_id: str
+    runner_id: UUID
+    transport_credential_id: UUID
+    generation: int
+    user_public_nkey: str
+    resolver_account_jwt_sha256: str
+    revoke_before: datetime
+    challenge_nonce: UUID
+    expected_binding_revision: int
+    issued_at: datetime
+    expires_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.profile != _REVOCATION_CHALLENGE_PROFILE:
+            raise RunnerNatsTransportError("CR100 revocation challenge profile is invalid")
+        if not _SAFE_ID.fullmatch(self.tenant_id):
+            raise RunnerNatsTransportError("revocation challenge tenant_id is invalid")
+        object.__setattr__(self, "runner_id", _required_uuid(self.runner_id, "runner_id"))
+        object.__setattr__(
+            self,
+            "transport_credential_id",
+            _required_uuid(self.transport_credential_id, "transport_credential_id"),
+        )
+        object.__setattr__(
+            self,
+            "challenge_nonce",
+            _required_uuid(self.challenge_nonce, "challenge_nonce"),
+        )
+        if type(self.generation) is not int or self.generation < 1:
+            raise RunnerNatsTransportError("revocation challenge generation is invalid")
+        if type(self.expected_binding_revision) is not int or self.expected_binding_revision < 1:
+            raise RunnerNatsTransportError("revocation challenge binding revision is invalid")
+        if not _USER_NKEY.fullmatch(self.user_public_nkey):
+            raise RunnerNatsTransportError("revocation challenge User NKey is invalid")
+        if not _LOWER_SHA256.fullmatch(self.resolver_account_jwt_sha256):
+            raise RunnerNatsTransportError("revocation challenge resolver digest is invalid")
+        for field_name in ("revoke_before", "issued_at", "expires_at"):
+            value = getattr(self, field_name)
+            if value.tzinfo is None:
+                raise RunnerNatsTransportError(
+                    f"revocation challenge {field_name} must include a timezone"
+                )
+            object.__setattr__(self, field_name, value.astimezone(UTC))
+        if self.expires_at <= self.issued_at or self.revoke_before > self.expires_at:
+            raise RunnerNatsTransportError("revocation challenge time window is invalid")
+
+    def assert_fresh(self, *, now: datetime | None = None) -> None:
+        if self.expires_at <= (now or datetime.now(UTC)).astimezone(UTC):
+            raise RunnerNatsTransportError("CR100 revocation challenge is expired")
+
+    def assert_credential_binding(self, credential: RunnerNatsTransportCredential) -> None:
+        expected = (
+            self.tenant_id == credential.tenant_id
+            and self.runner_id == credential.runner_id
+            and self.transport_credential_id == credential.transport_credential_id
+            and self.generation == credential.transport_generation
+            and self.user_public_nkey == credential.nats_user_public_key
+        )
+        if not expected:
+            raise RunnerNatsTransportError("CR100 revocation challenge credential binding mismatch")
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "profile": self.profile,
+            "tenant_id": self.tenant_id,
+            "runner_id": str(self.runner_id),
+            "transport_credential_id": str(self.transport_credential_id),
+            "generation": self.generation,
+            "user_public_nkey": self.user_public_nkey,
+            "resolver_account_jwt_sha256": self.resolver_account_jwt_sha256,
+            "revoke_before": _timestamp_text(self.revoke_before),
+            "challenge_nonce": str(self.challenge_nonce),
+            "expected_binding_revision": self.expected_binding_revision,
+            "issued_at": _timestamp_text(self.issued_at),
+            "expires_at": _timestamp_text(self.expires_at),
+        }
+
+    @classmethod
+    def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsRevocationChallenge:
+        expected_fields = {
+            "profile",
+            "tenant_id",
+            "runner_id",
+            "transport_credential_id",
+            "generation",
+            "user_public_nkey",
+            "resolver_account_jwt_sha256",
+            "revoke_before",
+            "challenge_nonce",
+            "expected_binding_revision",
+            "issued_at",
+            "expires_at",
+        }
+        if set(value) != expected_fields:
+            raise RunnerNatsTransportError("CR100 revocation challenge shape is invalid")
+        return cls(
+            profile=str(value["profile"]),
+            tenant_id=str(value["tenant_id"]),
+            runner_id=_required_uuid(value["runner_id"], "runner_id"),
+            transport_credential_id=_required_uuid(
+                value["transport_credential_id"], "transport_credential_id"
+            ),
+            generation=value["generation"],
+            user_public_nkey=str(value["user_public_nkey"]),
+            resolver_account_jwt_sha256=str(value["resolver_account_jwt_sha256"]),
+            revoke_before=_required_timestamp(value["revoke_before"], "revoke_before"),
+            challenge_nonce=_required_uuid(value["challenge_nonce"], "challenge_nonce"),
+            expected_binding_revision=value["expected_binding_revision"],
+            issued_at=_required_timestamp(value["issued_at"], "issued_at"),
+            expires_at=_required_timestamp(value["expires_at"], "expires_at"),
+        )
+
+    @classmethod
+    def from_response(
+        cls,
+        value: Mapping[str, Any],
+        credential: RunnerNatsTransportCredential,
+    ) -> RunnerNatsRevocationChallenge:
+        challenge = cls.from_document(value)
+        challenge.assert_credential_binding(credential)
+        challenge.assert_fresh()
+        return challenge
+
+
+@dataclass(frozen=True, slots=True)
+class RunnerNatsRevocationObservation:
+    challenge: RunnerNatsRevocationChallenge
+    forced_disconnect_observed_at: datetime | None = None
+    old_generation_reconnect_denied_at: datetime | None = None
+    completed_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "forced_disconnect_observed_at",
+            "old_generation_reconnect_denied_at",
+            "completed_at",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                if value.tzinfo is None:
+                    raise RunnerNatsTransportError(
+                        f"revocation observation {field_name} must include a timezone"
+                    )
+                object.__setattr__(self, field_name, value.astimezone(UTC))
+        if (
+            self.old_generation_reconnect_denied_at is not None
+            and self.forced_disconnect_observed_at is None
+        ):
+            raise RunnerNatsTransportError(
+                "old-generation denial cannot precede forced-disconnect evidence"
+            )
+        if self.completed_at is not None and not self.evidence_ready:
+            raise RunnerNatsTransportError(
+                "revocation completion requires both Custos observations"
+            )
+
+    @property
+    def evidence_ready(self) -> bool:
+        return (
+            self.forced_disconnect_observed_at is not None
+            and self.old_generation_reconnect_denied_at is not None
+        )
+
+    def mark_forced_disconnect(self, observed_at: datetime) -> RunnerNatsRevocationObservation:
+        return replace(
+            self,
+            forced_disconnect_observed_at=(
+                self.forced_disconnect_observed_at or observed_at.astimezone(UTC)
+            ),
+        )
+
+    def mark_reconnect_denied(self, observed_at: datetime) -> RunnerNatsRevocationObservation:
+        if self.forced_disconnect_observed_at is None:
+            raise RunnerNatsTransportError(
+                "forced disconnect must be durable before reconnect denial"
+            )
+        return replace(
+            self,
+            old_generation_reconnect_denied_at=(
+                self.old_generation_reconnect_denied_at or observed_at.astimezone(UTC)
+            ),
+        )
+
+    def mark_completed(self, completed_at: datetime) -> RunnerNatsRevocationObservation:
+        if not self.evidence_ready:
+            raise RunnerNatsTransportError("incomplete revocation evidence cannot complete")
+        return replace(self, completed_at=completed_at.astimezone(UTC))
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "challenge": self.challenge.to_document(),
+            "forced_disconnect_observed_at": (
+                _timestamp_text(self.forced_disconnect_observed_at)
+                if self.forced_disconnect_observed_at is not None
+                else None
+            ),
+            "old_generation_reconnect_denied_at": (
+                _timestamp_text(self.old_generation_reconnect_denied_at)
+                if self.old_generation_reconnect_denied_at is not None
+                else None
+            ),
+            "completed_at": (
+                _timestamp_text(self.completed_at) if self.completed_at is not None else None
+            ),
+        }
+
+    @classmethod
+    def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsRevocationObservation:
+        if set(value) != {
+            "challenge",
+            "forced_disconnect_observed_at",
+            "old_generation_reconnect_denied_at",
+            "completed_at",
+        }:
+            raise RunnerNatsTransportError("revocation observation shape is invalid")
+
+        def optional_timestamp(field_name: str) -> datetime | None:
+            field_value = value[field_name]
+            return _required_timestamp(field_value, field_name) if field_value is not None else None
+
+        return cls(
+            challenge=RunnerNatsRevocationChallenge.from_document(
+                _required_mapping(value["challenge"], "challenge")
+            ),
+            forced_disconnect_observed_at=optional_timestamp("forced_disconnect_observed_at"),
+            old_generation_reconnect_denied_at=optional_timestamp(
+                "old_generation_reconnect_denied_at"
+            ),
+            completed_at=optional_timestamp("completed_at"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class RunnerNatsTransportBundle:
     active: RunnerNatsTransportCredential | None
     pending: RunnerNatsTransportCredential | None
+    retiring: RunnerNatsTransportCredential | None = None
+    revocation: RunnerNatsRevocationObservation | None = None
 
     def __post_init__(self) -> None:
-        if self.active is None and self.pending is None:
+        if self.active is None and self.pending is None and self.retiring is None:
             raise RunnerNatsTransportError("NATS transport vault has no credential")
         if self.active is not None and self.pending is not None:
             if (
                 self.active.tenant_id != self.pending.tenant_id
                 or self.active.runner_id != self.pending.runner_id
-                or self.active.issuer_account_public_nkey
-                != self.pending.issuer_account_public_nkey
+                or self.active.issuer_account_public_nkey != self.pending.issuer_account_public_nkey
                 or self.pending.transport_generation <= self.active.transport_generation
             ):
                 raise RunnerNatsTransportError("pending NATS generation is not a valid rotation")
+        if self.pending is not None and self.retiring is not None:
+            raise RunnerNatsTransportError("pending and retiring NATS generations cannot coexist")
+        if self.retiring is not None:
+            if self.active is None or (
+                self.retiring.tenant_id != self.active.tenant_id
+                or self.retiring.runner_id != self.active.runner_id
+                or self.retiring.issuer_account_public_nkey
+                != self.active.issuer_account_public_nkey
+                or self.retiring.transport_generation >= self.active.transport_generation
+            ):
+                raise RunnerNatsTransportError(
+                    "retiring NATS generation is not superseded by active authority"
+                )
+        if self.revocation is not None:
+            if self.retiring is None:
+                if self.revocation.completed_at is None:
+                    raise RunnerNatsTransportError(
+                        "incomplete revocation requires the retiring credential"
+                    )
+            else:
+                self.revocation.challenge.assert_credential_binding(self.retiring)
 
     def promote_pending(self) -> RunnerNatsTransportBundle:
         if self.pending is None:
             raise RunnerNatsTransportError("NATS transport vault has no pending generation")
-        return RunnerNatsTransportBundle(active=self.pending, pending=None)
+        return RunnerNatsTransportBundle(
+            active=self.pending,
+            pending=None,
+            retiring=self.active,
+            revocation=None,
+        )
+
+    def with_revocation(
+        self, observation: RunnerNatsRevocationObservation
+    ) -> RunnerNatsTransportBundle:
+        if self.retiring is None:
+            raise RunnerNatsTransportError("NATS transport vault has no retiring generation")
+        observation.challenge.assert_credential_binding(self.retiring)
+        return replace(self, revocation=observation)
+
+    def complete_retirement(self, completed_at: datetime) -> RunnerNatsTransportBundle:
+        if self.retiring is None or self.revocation is None:
+            raise RunnerNatsTransportError("NATS transport retirement is not in progress")
+        return replace(
+            self,
+            retiring=None,
+            revocation=self.revocation.mark_completed(completed_at),
+        )
 
     def to_document(self) -> dict[str, Any]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "active": self.active.to_document() if self.active is not None else None,
             "pending": self.pending.to_document() if self.pending is not None else None,
+            "retiring": (self.retiring.to_document() if self.retiring is not None else None),
+            "revocation": (self.revocation.to_document() if self.revocation is not None else None),
         }
 
     @classmethod
     def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsTransportBundle:
-        if set(value) != {"schema_version", "active", "pending"}:
+        version = value.get("schema_version")
+        expected = (
+            {"schema_version", "active", "pending"}
+            if version == 1
+            else {"schema_version", "active", "pending", "retiring", "revocation"}
+        )
+        if set(value) != expected:
             raise RunnerNatsTransportError("NATS transport vault shape is invalid")
-        if value.get("schema_version") != 1:
+        if version not in {1, 2}:
             raise RunnerNatsTransportError("NATS transport vault version is unsupported")
         active_value = value.get("active")
         pending_value = value.get("pending")
+        retiring_value = value.get("retiring")
+        revocation_value = value.get("revocation")
         if active_value is not None and not isinstance(active_value, dict):
             raise RunnerNatsTransportError("active NATS transport credential is invalid")
         if pending_value is not None and not isinstance(pending_value, dict):
             raise RunnerNatsTransportError("pending NATS transport credential is invalid")
+        if retiring_value is not None and not isinstance(retiring_value, dict):
+            raise RunnerNatsTransportError("retiring NATS transport credential is invalid")
+        if revocation_value is not None and not isinstance(revocation_value, dict):
+            raise RunnerNatsTransportError("NATS revocation observation is invalid")
         return cls(
             active=(
                 RunnerNatsTransportCredential.from_document(active_value)
@@ -575,6 +872,16 @@ class RunnerNatsTransportBundle:
             pending=(
                 RunnerNatsTransportCredential.from_document(pending_value)
                 if pending_value is not None
+                else None
+            ),
+            retiring=(
+                RunnerNatsTransportCredential.from_document(retiring_value)
+                if retiring_value is not None
+                else None
+            ),
+            revocation=(
+                RunnerNatsRevocationObservation.from_document(revocation_value)
+                if revocation_value is not None
                 else None
             ),
         )
@@ -622,15 +929,19 @@ class RunnerNatsTransportVault:
         bundle = RunnerNatsTransportBundle.from_document(document)
         return RunnerNatsTransportBundle(
             active=(
-                replace(bundle.active, source_path=self.path)
-                if bundle.active is not None
-                else None
+                replace(bundle.active, source_path=self.path) if bundle.active is not None else None
             ),
             pending=(
                 replace(bundle.pending, source_path=self.path)
                 if bundle.pending is not None
                 else None
             ),
+            retiring=(
+                replace(bundle.retiring, source_path=self.path)
+                if bundle.retiring is not None
+                else None
+            ),
+            revocation=bundle.revocation,
         )
 
     def persist(self, bundle: RunnerNatsTransportBundle, *, age_recipient: str) -> None:
@@ -811,6 +1122,127 @@ class RunnerNatsTransportAuthorityClient:
             raise RunnerNatsTransportError("CR100 activation revision is invalid")
         return response
 
+    def revoke_superseded(
+        self,
+        credential: RunnerNatsTransportCredential,
+        *,
+        expected_active_revision: int,
+        reason: str,
+    ) -> RunnerNatsRevocationChallenge:
+        self._assert_credential_binding(credential)
+        if type(expected_active_revision) is not int or expected_active_revision < 1:
+            raise RunnerNatsTransportError("active NATS binding revision is invalid")
+        if not reason.strip():
+            raise RunnerNatsTransportError("NATS revocation reason is required")
+        correlation_id = uuid4()
+        body = {
+            "tenant_id": self.machine_credential.tenant_id,
+            "runner_id": str(self.machine_credential.runner_id),
+            "credential_id": str(self.machine_credential.credential_id),
+            "credential_version": self.machine_credential.credential_version,
+            "correlation_id": str(correlation_id),
+            "transport_credential_id": str(credential.transport_credential_id),
+            "transport_generation": credential.transport_generation,
+            "expected_active_revision": expected_active_revision,
+            "reason": reason,
+        }
+        response = self.http.post(
+            _REVOKE_SUPERSEDED_PATH,
+            body,
+            canonical_path=_CANONICAL_REVOKE_SUPERSEDED_PATH,
+            correlation_id=correlation_id,
+        )
+        return RunnerNatsRevocationChallenge.from_response(response, credential)
+
+    def read_revocation_challenge(
+        self, credential: RunnerNatsTransportCredential
+    ) -> RunnerNatsRevocationChallenge:
+        self._assert_credential_binding(credential)
+        correlation_id = uuid4()
+        body = {
+            "tenant_id": self.machine_credential.tenant_id,
+            "runner_id": str(self.machine_credential.runner_id),
+            "credential_id": str(self.machine_credential.credential_id),
+            "credential_version": self.machine_credential.credential_version,
+            "correlation_id": str(correlation_id),
+            "transport_credential_id": str(credential.transport_credential_id),
+            "transport_generation": credential.transport_generation,
+        }
+        response = self.http.post(
+            _REVOCATION_CHALLENGE_PATH,
+            body,
+            canonical_path=_CANONICAL_REVOCATION_CHALLENGE_PATH,
+            correlation_id=correlation_id,
+        )
+        return RunnerNatsRevocationChallenge.from_response(response, credential)
+
+    def submit_revocation_evidence(
+        self,
+        observation: RunnerNatsRevocationObservation,
+        *,
+        reason: str,
+    ) -> datetime:
+        if not observation.evidence_ready:
+            raise RunnerNatsTransportError("Custos revocation evidence is incomplete")
+        observation.challenge.assert_fresh()
+        if not reason.strip():
+            raise RunnerNatsTransportError("NATS revocation evidence reason is required")
+        correlation_id = uuid4()
+        challenge = observation.challenge
+        assert observation.old_generation_reconnect_denied_at is not None
+        body = {
+            "profile": _REVOCATION_EVIDENCE_PROFILE,
+            "tenant_id": self.machine_credential.tenant_id,
+            "runner_id": str(self.machine_credential.runner_id),
+            "credential_id": str(self.machine_credential.credential_id),
+            "credential_version": self.machine_credential.credential_version,
+            "correlation_id": str(correlation_id),
+            "transport_credential_id": str(challenge.transport_credential_id),
+            "transport_generation": challenge.generation,
+            "user_public_nkey": challenge.user_public_nkey,
+            "resolver_account_jwt_sha256": challenge.resolver_account_jwt_sha256,
+            "revoke_before": _timestamp_text(challenge.revoke_before),
+            "challenge_nonce": str(challenge.challenge_nonce),
+            "expected_binding_revision": challenge.expected_binding_revision,
+            "forced_disconnect_observed": True,
+            "old_generation_reconnect_denied": True,
+            "observed_at": _timestamp_text(observation.old_generation_reconnect_denied_at),
+            "reason": reason,
+        }
+        response = self.http.post(
+            _REVOCATION_EVIDENCE_PATH,
+            body,
+            canonical_path=_CANONICAL_REVOCATION_EVIDENCE_PATH,
+            correlation_id=correlation_id,
+        )
+        expected_fields = {
+            "tenant_id",
+            "runner_id",
+            "transport_credential_id",
+            "generation",
+            "resolver_account_jwt_sha256",
+            "completed_at",
+        }
+        expected_values = {
+            "tenant_id": challenge.tenant_id,
+            "runner_id": str(challenge.runner_id),
+            "transport_credential_id": str(challenge.transport_credential_id),
+            "generation": challenge.generation,
+            "resolver_account_jwt_sha256": challenge.resolver_account_jwt_sha256,
+        }
+        if set(response) != expected_fields or any(
+            response.get(key) != value for key, value in expected_values.items()
+        ):
+            raise RunnerNatsTransportError("CR100 revocation completion binding mismatch")
+        return _required_timestamp(response["completed_at"], "completed_at")
+
+    def _assert_credential_binding(self, credential: RunnerNatsTransportCredential) -> None:
+        if (
+            credential.tenant_id != self.machine_credential.tenant_id
+            or credential.runner_id != self.machine_credential.runner_id
+        ):
+            raise RunnerNatsTransportError("NATS credential has wrong machine authority binding")
+
 
 @dataclass(slots=True)
 class RunnerNatsTransportConnectionProfile:
@@ -820,6 +1252,11 @@ class RunnerNatsTransportConnectionProfile:
     server_name: str
     pinned_issuer_account_public_nkey: str
     _authorization_denied: asyncio.Event = field(
+        default_factory=asyncio.Event,
+        init=False,
+        repr=False,
+    )
+    _disconnected: asyncio.Event = field(
         default_factory=asyncio.Event,
         init=False,
         repr=False,
@@ -842,9 +1279,7 @@ class RunnerNatsTransportConnectionProfile:
         self.ca_path = self.ca_path.expanduser().resolve()
         if not self.ca_path.is_file():
             raise RunnerNatsTransportError("NATS TLS CA file is missing")
-        if self.pinned_issuer_account_public_nkey != (
-            self.credential.issuer_account_public_nkey
-        ):
+        if self.pinned_issuer_account_public_nkey != (self.credential.issuer_account_public_nkey):
             raise RunnerNatsTransportError("NATS issuer Account pin mismatch")
         self.credential.assert_active()
 
@@ -870,8 +1305,15 @@ class RunnerNatsTransportConnectionProfile:
     async def wait_authorization_denied(self) -> None:
         await self._authorization_denied.wait()
 
+    @property
+    def authorization_denied(self) -> bool:
+        return self._authorization_denied.is_set()
+
     def mark_authorization_denied(self) -> None:
         self._authorization_denied.set()
+
+    async def wait_disconnected(self) -> None:
+        await self._disconnected.wait()
 
     def assert_publish_subject(self, subject: str) -> None:
         self.assert_active()
@@ -884,6 +1326,9 @@ class RunnerNatsTransportConnectionProfile:
         *,
         name: str,
         error_cb: Callable[[Exception], Awaitable[None] | None] | None = None,
+        disconnected_cb: Callable[[], Awaitable[None] | None] | None = None,
+        allow_reconnect: bool = True,
+        max_reconnect_attempts: int = -1,
     ) -> Any:
         self.assert_active()
         context = ssl.create_default_context(cafile=str(self.ca_path))
@@ -913,6 +1358,13 @@ class RunnerNatsTransportConnectionProfile:
                 if inspect.isawaitable(result):
                     await result
 
+        async def guarded_disconnected_cb() -> None:
+            self._disconnected.set()
+            if disconnected_cb is not None:
+                result = disconnected_cb()
+                if inspect.isawaitable(result):
+                    await result
+
         return await nats.connect(
             servers=[self.nats_url],
             name=name,
@@ -921,9 +1373,48 @@ class RunnerNatsTransportConnectionProfile:
             user_jwt_cb=user_jwt_cb,
             signature_cb=signature_cb,
             error_cb=guarded_error_cb,
-            allow_reconnect=True,
-            max_reconnect_attempts=-1,
+            disconnected_cb=guarded_disconnected_cb,
+            allow_reconnect=allow_reconnect,
+            max_reconnect_attempts=max_reconnect_attempts,
         )
+
+
+async def assert_old_generation_reconnect_denied(
+    profile: RunnerNatsTransportConnectionProfile,
+    *,
+    name: str,
+    timeout_seconds: float,
+) -> None:
+    """Accept only an explicit broker authorization denial for the exact old JWT."""
+
+    if timeout_seconds <= 0:
+        raise RunnerNatsTransportError("old-generation reconnect timeout must be positive")
+
+    async def attempt() -> None:
+        connection: Any | None = None
+        try:
+            connection = await profile.connect(
+                name=name,
+                allow_reconnect=False,
+                max_reconnect_attempts=0,
+            )
+        except Exception as exc:  # noqa: BLE001 - typed callback is the evidence boundary
+            if profile.authorization_denied:
+                return
+            raise RunnerNatsTransportError(
+                "old-generation reconnect failed without explicit authorization denial"
+            ) from exc
+        finally:
+            if connection is not None and not connection.is_closed:
+                await connection.close()
+        raise RunnerNatsTransportError("revoked old NATS generation reconnected")
+
+    try:
+        await asyncio.wait_for(attempt(), timeout=timeout_seconds)
+    except TimeoutError as exc:
+        raise RunnerNatsTransportError(
+            "old-generation reconnect timed out without authorization denial"
+        ) from exc
 
 
 def _subject_matches(pattern: str, subject: str) -> bool:

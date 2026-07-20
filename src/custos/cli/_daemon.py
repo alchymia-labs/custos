@@ -226,9 +226,7 @@ def _build_runner_safety_boundary_factory(
     async def build(spec: dict):
         limits = await safety_policy_resolver.resolve(str(spec["trading_mode"]))
         if not limits.owner_policy or limits.policy_id is None:
-            raise RuntimeError(
-                "runner safety execution requires a durable verified owner policy"
-            )
+            raise RuntimeError("runner safety execution requires a durable verified owner policy")
         from custos.engines.nautilus.runner_safety import RunnerReservationBoundary
 
         return RunnerReservationBoundary(
@@ -240,9 +238,7 @@ def _build_runner_safety_boundary_factory(
     return build
 
 
-async def _supervise_long_running_tasks(
-    tasks: list[asyncio.Task], stop: asyncio.Event
-) -> None:
+async def _supervise_long_running_tasks(tasks: list[asyncio.Task], stop: asyncio.Event) -> None:
     """Fail the daemon when a long-running task exits before an intentional stop."""
 
     if not tasks:
@@ -328,6 +324,11 @@ async def run_daemon(args: argparse.Namespace) -> int:
     if transport_bundle.active is None:
         raise RunnerNatsTransportError(
             "NATS transport has no active generation; run nats-transport activate"
+        )
+    if transport_bundle.retiring is not None:
+        raise RunnerNatsTransportError(
+            "NATS transport has unresolved retiring-generation evidence; "
+            "run nats-transport activate to resume fail-closed retirement"
         )
     transport_profile = RunnerNatsTransportConnectionProfile(
         credential=transport_bundle.active,

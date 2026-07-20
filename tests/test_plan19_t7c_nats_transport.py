@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -16,14 +17,19 @@ import nkeys
 import pytest
 from nats.errors import AuthorizationError
 
+from custos.cli.subcommands import nats_transport as nats_transport_cli
 from custos.core import nats_transport
+from custos.core.machine_credential_vault import MachineCredentialTransportError
 from custos.core.nats_transport import (
+    RunnerNatsRevocationChallenge,
+    RunnerNatsRevocationObservation,
     RunnerNatsTransportAuthorityClient,
     RunnerNatsTransportBundle,
     RunnerNatsTransportConnectionProfile,
     RunnerNatsTransportCredential,
     RunnerNatsTransportError,
     RunnerNatsTransportRevokedError,
+    assert_old_generation_reconnect_denied,
 )
 
 _TENANT = "tenant-a"
@@ -194,6 +200,51 @@ def _credential(
         del account_seed
 
 
+def _rotation_bundle(
+    *,
+    now: datetime | None = None,
+) -> RunnerNatsTransportBundle:
+    current = (now or datetime.now(UTC)).replace(microsecond=0)
+    account_seed, account_pair, account_public = _keypair(nkeys.PREFIX_BYTE_ACCOUNT)
+    user_seed_1, user_pair_1, user_public_1 = _keypair(nkeys.PREFIX_BYTE_USER)
+    user_seed_2, user_pair_2, user_public_2 = _keypair(nkeys.PREFIX_BYTE_USER)
+    try:
+        active = RunnerNatsTransportCredential.from_issued_response(
+            _issued(
+                user_seed=user_seed_1,
+                user_public_key=user_public_1,
+                account_pair=account_pair,
+                account_public_key=account_public,
+                generation=1,
+                now=current,
+            ),
+            tenant_id=_TENANT,
+            runner_id=_RUNNER,
+            nats_user_seed=user_seed_1,
+            expected_issuer_account_public_nkey=account_public,
+        )
+        pending = RunnerNatsTransportCredential.from_issued_response(
+            _issued(
+                user_seed=user_seed_2,
+                user_public_key=user_public_2,
+                account_pair=account_pair,
+                account_public_key=account_public,
+                generation=2,
+                now=current,
+            ),
+            tenant_id=_TENANT,
+            runner_id=_RUNNER,
+            nats_user_seed=user_seed_2,
+            expected_issuer_account_public_nkey=account_public,
+        )
+        return RunnerNatsTransportBundle(active=active, pending=pending)
+    finally:
+        account_pair.wipe()
+        user_pair_1.wipe()
+        user_pair_2.wipe()
+        del account_seed
+
+
 def test_issued_credential_verifies_jwt_acl_durable_and_redacts_secrets() -> None:
     credential = _credential()
 
@@ -300,6 +351,8 @@ async def test_connect_uses_pinned_tls_jwt_and_local_nonce_signature(
         assert pair.verify(b"nonce", signature) is True
     finally:
         pair.wipe()
+    await kwargs["disconnected_cb"]()
+    await asyncio.wait_for(profile.wait_disconnected(), timeout=0.1)
 
 
 @pytest.mark.asyncio
@@ -368,11 +421,37 @@ def test_rotation_keeps_old_generation_active_until_pending_promotes() -> None:
         assert staged.pending is pending
         assert promoted.active is pending
         assert promoted.pending is None
+        assert promoted.retiring is active
+        assert promoted.revocation is None
     finally:
         account_pair.wipe()
         user_pair_1.wipe()
         user_pair_2.wipe()
         del account_seed
+
+
+def test_v1_vault_document_upgrades_to_v2_retirement_state_without_secret_loss() -> None:
+    staged = _rotation_bundle()
+    assert staged.active is not None
+    legacy = {
+        "schema_version": 1,
+        "active": staged.active.to_document(),
+        "pending": None,
+    }
+
+    upgraded = RunnerNatsTransportBundle.from_document(legacy)
+    promoted = staged.promote_pending()
+    assert promoted.retiring is not None
+    challenge = RunnerNatsRevocationChallenge.from_response(
+        _revocation_challenge(promoted.retiring),
+        promoted.retiring,
+    )
+    persisted = promoted.with_revocation(RunnerNatsRevocationObservation(challenge))
+    restored = RunnerNatsTransportBundle.from_document(persisted.to_document())
+
+    assert upgraded.to_document()["schema_version"] == 2
+    assert restored == persisted
+    assert restored.retiring.nats_user_jwt == staged.active.nats_user_jwt
 
 
 def test_issue_request_exposes_only_public_nkey_and_uses_canonical_signature_path() -> None:
@@ -418,3 +497,278 @@ def test_issue_request_exposes_only_public_nkey_and_uses_canonical_signature_pat
     finally:
         account_pair.wipe()
         del account_seed
+
+
+def _revocation_challenge(
+    credential: RunnerNatsTransportCredential,
+    *,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    issued_at = (now or datetime.now(UTC)).replace(microsecond=0)
+    return {
+        "profile": "crucible.runner.nats-revocation-challenge.v1",
+        "tenant_id": credential.tenant_id,
+        "runner_id": str(credential.runner_id),
+        "transport_credential_id": str(credential.transport_credential_id),
+        "generation": credential.transport_generation,
+        "user_public_nkey": credential.nats_user_public_key,
+        "resolver_account_jwt_sha256": "d" * 64,
+        "revoke_before": issued_at.isoformat().replace("+00:00", "Z"),
+        "challenge_nonce": "33333333-3333-4333-8333-333333333333",
+        "expected_binding_revision": 2,
+        "issued_at": issued_at.isoformat().replace("+00:00", "Z"),
+        "expires_at": (issued_at + timedelta(minutes=5)).isoformat().replace("+00:00", "Z"),
+    }
+
+
+def test_revocation_challenge_and_observation_round_trip_without_secret_material() -> None:
+    credential = _credential(now=datetime.now(UTC))
+    challenge = RunnerNatsRevocationChallenge.from_response(
+        _revocation_challenge(credential),
+        credential,
+    )
+    forced_at = datetime.now(UTC)
+    observation = RunnerNatsRevocationObservation(challenge).mark_forced_disconnect(forced_at)
+    observation = observation.mark_reconnect_denied(forced_at + timedelta(seconds=1))
+
+    restored = RunnerNatsRevocationObservation.from_document(observation.to_document())
+    rendered = json.dumps(restored.to_document(), sort_keys=True)
+
+    assert restored == observation
+    assert credential.nats_user_jwt not in rendered
+    assert "seed" not in rendered.lower()
+
+
+def test_revocation_challenge_rejects_cross_generation_substitution() -> None:
+    credential = _credential(now=datetime.now(UTC))
+    response = _revocation_challenge(credential)
+    response["generation"] = credential.transport_generation + 1
+
+    with pytest.raises(RunnerNatsTransportError, match="binding mismatch"):
+        RunnerNatsRevocationChallenge.from_response(response, credential)
+
+
+def test_authority_client_uses_targeted_superseded_route_and_public_evidence() -> None:
+    credential = _credential(now=datetime.now(UTC))
+    machine = SimpleNamespace(
+        tenant_id=_TENANT,
+        runner_id=_RUNNER,
+        credential_id=_MACHINE_ID,
+        credential_version=1,
+    )
+    captured: list[tuple[str, dict[str, object], dict[str, object]]] = []
+    completed_at = datetime.now(UTC).replace(microsecond=0)
+
+    class _Http:
+        def post(self, path, body, **kwargs):  # type: ignore[no-untyped-def]
+            captured.append((path, body, kwargs))
+            if path.endswith("revoke-superseded") or path.endswith("revocation-challenge"):
+                return _revocation_challenge(credential)
+            return {
+                "tenant_id": _TENANT,
+                "runner_id": str(_RUNNER),
+                "transport_credential_id": str(credential.transport_credential_id),
+                "generation": credential.transport_generation,
+                "resolver_account_jwt_sha256": "d" * 64,
+                "completed_at": completed_at.isoformat().replace("+00:00", "Z"),
+            }
+
+    client = RunnerNatsTransportAuthorityClient(
+        "https://crucible.internal",
+        machine,  # type: ignore[arg-type]
+    )
+    client.http = _Http()  # type: ignore[assignment]
+
+    challenge = client.revoke_superseded(
+        credential,
+        expected_active_revision=2,
+        reason="replacement active",
+    )
+    observation = RunnerNatsRevocationObservation(challenge).mark_forced_disconnect(
+        datetime.now(UTC)
+    )
+    observation = observation.mark_reconnect_denied(datetime.now(UTC))
+    assert client.read_revocation_challenge(credential) == challenge
+    assert client.submit_revocation_evidence(observation, reason="old JWT denied") == completed_at
+
+    assert [call[0] for call in captured] == [
+        "/internal/v1/runner-nats-transport/revoke-superseded",
+        "/internal/v1/runner-nats-transport/revocation-challenge",
+        "/internal/v1/runner-nats-transport/revocation-evidence",
+    ]
+    assert captured[0][2]["canonical_path"] == ("/api/v1/runner-nats-transport/revoke-superseded")
+    serialized = json.dumps([body for _, body, _ in captured], sort_keys=True)
+    assert credential.nats_user_jwt not in serialized
+    assert "seed" not in serialized.lower()
+
+
+@pytest.mark.asyncio
+async def test_old_generation_probe_requires_typed_authorization_denial(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    credential = _credential(now=datetime.now(UTC))
+    ca = tmp_path / "ca.pem"
+    ca.write_text("test-ca")
+    context = MagicMock()
+    monkeypatch.setattr(nats_transport.ssl, "create_default_context", lambda **_: context)
+
+    async def rejected(**kwargs):  # type: ignore[no-untyped-def]
+        await kwargs["error_cb"](AuthorizationError())
+        raise OSError("broker rejected credentials")
+
+    monkeypatch.setattr(nats_transport.nats, "connect", rejected)
+    profile = RunnerNatsTransportConnectionProfile(
+        credential,
+        "tls://nats.internal:4222",
+        ca,
+        "nats.internal",
+        credential.issuer_account_public_nkey,
+    )
+
+    await assert_old_generation_reconnect_denied(
+        profile,
+        name="old-generation",
+        timeout_seconds=1,
+    )
+
+    async def unavailable(**_kwargs):  # type: ignore[no-untyped-def]
+        raise OSError("network unavailable")
+
+    monkeypatch.setattr(nats_transport.nats, "connect", unavailable)
+    second_profile = RunnerNatsTransportConnectionProfile(
+        credential,
+        "tls://nats.internal:4222",
+        ca,
+        "nats.internal",
+        credential.issuer_account_public_nkey,
+    )
+    with pytest.raises(RunnerNatsTransportError, match="without explicit"):
+        await assert_old_generation_reconnect_denied(
+            second_profile,
+            name="old-generation",
+            timeout_seconds=1,
+        )
+
+
+@pytest.mark.asyncio
+async def test_rotation_submission_loss_keeps_retiring_state_and_restart_resubmits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    staged = _rotation_bundle()
+    assert staged.active is not None
+    assert staged.pending is not None
+    challenge = RunnerNatsRevocationChallenge.from_response(
+        _revocation_challenge(staged.active),
+        staged.active,
+    )
+    completed_at = datetime.now(UTC)
+
+    class _Connection:
+        is_closed = False
+
+        async def close(self) -> None:
+            self.is_closed = True
+
+    class _Profile:
+        def __init__(self, credential, *_args, **_kwargs):  # type: ignore[no-untyped-def]
+            self.credential = credential
+
+        async def connect(self, **_kwargs):  # type: ignore[no-untyped-def]
+            return _Connection()
+
+        async def wait_disconnected(self) -> None:
+            return None
+
+    class _Vault:
+        def __init__(self) -> None:
+            self.persisted: list[RunnerNatsTransportBundle] = []
+
+        def persist(self, bundle, **_kwargs):  # type: ignore[no-untyped-def]
+            self.persisted.append(bundle)
+
+    class _Authority:
+        fail_submit = True
+
+        def activate(self, credential):  # type: ignore[no-untyped-def]
+            return {
+                "tenant_id": credential.tenant_id,
+                "runner_id": str(credential.runner_id),
+                "transport_credential_id": str(credential.transport_credential_id),
+                "generation": credential.transport_generation,
+                "status": "active",
+                "revision": 2,
+            }
+
+        def revoke_superseded(self, *_args, **_kwargs):  # type: ignore[no-untyped-def]
+            return challenge
+
+        def read_revocation_challenge(self, *_args):  # type: ignore[no-untyped-def]
+            return challenge
+
+        def submit_revocation_evidence(self, *_args, **_kwargs):  # type: ignore[no-untyped-def]
+            if self.fail_submit:
+                raise MachineCredentialTransportError("response lost")
+            return completed_at
+
+    async def denial(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        return None
+
+    monkeypatch.setattr(
+        nats_transport_cli,
+        "RunnerNatsTransportConnectionProfile",
+        _Profile,
+    )
+    monkeypatch.setattr(
+        nats_transport_cli,
+        "assert_old_generation_reconnect_denied",
+        denial,
+    )
+    args = SimpleNamespace(
+        nats_url="tls://nats.internal:4222",
+        nats_ca=tmp_path / "ca.pem",
+        nats_server_name="nats.internal",
+        issuer_account_public_nkey=staged.active.issuer_account_public_nkey,
+        revocation_timeout_secs=300.0,
+    )
+    vault = _Vault()
+    authority = _Authority()
+
+    with pytest.raises(MachineCredentialTransportError, match="response lost"):
+        await nats_transport_cli._activate_and_complete_retirement(  # noqa: SLF001
+            args=args,
+            authority=authority,  # type: ignore[arg-type]
+            vault=vault,  # type: ignore[arg-type]
+            bundle=staged,
+            age_recipient="age1test",
+        )
+
+    durable = vault.persisted[-1]
+    assert durable.retiring is staged.active
+    assert durable.revocation is not None
+    assert durable.revocation.evidence_ready is True
+
+    authority.fail_submit = False
+    resumed = await nats_transport_cli._activate_and_complete_retirement(  # noqa: SLF001
+        args=args,
+        authority=authority,  # type: ignore[arg-type]
+        vault=vault,  # type: ignore[arg-type]
+        bundle=durable,
+        age_recipient="age1test",
+    )
+
+    assert resumed.retiring is None
+    assert resumed.revocation is not None
+    assert resumed.revocation.completed_at == completed_at
+
+
+def test_expired_revocation_challenge_fails_closed() -> None:
+    credential = _credential(now=datetime.now(UTC))
+    response = _revocation_challenge(
+        credential,
+        now=datetime.now(UTC) - timedelta(minutes=10),
+    )
+
+    with pytest.raises(RunnerNatsTransportError, match="expired"):
+        RunnerNatsRevocationChallenge.from_response(response, credential)
