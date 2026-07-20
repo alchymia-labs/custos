@@ -1,0 +1,73 @@
+{
+  "$id": "https://schemas.alephain.org/custos/runner-nats-revocation-evidence-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "challenge_nonce": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "expected_binding_revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "forced_disconnect_observed": {
+      "const": true
+    },
+    "generation": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "old_generation_reconnect_denied": {
+      "const": true
+    },
+    "profile": {
+      "const": "custos.runner.nats-revocation-evidence.v1"
+    },
+    "resolver_account_jwt_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "revoke_before": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "runner_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "tenant_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "transport_credential_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "user_public_nkey": {
+      "pattern": "^U[A-Z2-7]{55}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile",
+    "tenant_id",
+    "runner_id",
+    "transport_credential_id",
+    "generation",
+    "user_public_nkey",
+    "resolver_account_jwt_sha256",
+    "revoke_before",
+    "challenge_nonce",
+    "expected_binding_revision",
+    "forced_disconnect_observed",
+    "old_generation_reconnect_denied",
+    "observed_at"
+  ],
+  "title": "Custos Runner NATS Revocation Evidence V1",
+  "type": "object"
+}

@@ -2,6 +2,7 @@
   "receipt_schema_version": 1,
   "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
   "receipt_status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
+  "consumer_code_commit": "ed5e59dd0b35c058996d1dd8ed9d769006eb1f30",
   "repository": "tesseract-trading/custos",
   "plan": "Custos Plan 19",
   "task": "T7C authenticated NATS transport code checkpoint",
@@ -23,6 +24,11 @@
     "revocation_receipt": {
       "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-revocation-v1.json",
       "sha256": "c044c91656458ad470afef4fccb7accf048831f527a237dcac2ec2d6f0e37521"
+    },
+    "revocation_evidence_receipt": {
+      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-revocation-evidence-v1.json",
+      "sha256": "fb93ff51b4c8c0b594addd2d9b9634d088f1da8f29e0f434ece932ef00a48f97",
+      "producer_authority_commit": "9538d6237c762347d136b2779f13f5455675e142"
     },
     "current_stream": "CRUCIBLE_DOMAIN_AUDIT",
     "historical_second_stream_rejected": true
@@ -62,6 +68,11 @@
     "rotation_stages_pending_generation_before_local_promotion": true,
     "failed_activation_keeps_old_generation_active": true,
     "broker_authorization_denial_stops_execution": true,
+    "superseded_revocation_route_consumed": true,
+    "retiring_generation_durable_until_evidence_acceptance": true,
+    "replacement_connectivity_and_challenge_freshness_durable": true,
+    "response_loss_restart_resubmission_ready": true,
+    "network_failure_cannot_count_as_reconnect_denial": true,
     "production_transport_credential_provisioned": false,
     "production_durable_verified": false,
     "old_generation_reconnect_denial_attested": false,
@@ -72,7 +83,7 @@
     "production_ready": false
   },
   "focused_verification": {
-    "result": "20 passed",
+    "result": "27 passed",
     "suites": [
       "tests/test_plan19_t7c_nats_transport.py",
       "tests/test_crucible_nats_client.py",
@@ -83,7 +94,7 @@
   "open_blockers": [
     "production Account signer and System Account resolver credentials are not provisioned",
     "production tenant runner durable has no exact runtime readback receipt",
-    "old generation forced disconnect and reconnect denial have no Custos runtime attestation",
+    "real production-equivalent forced disconnect and old-generation reconnect denial have no runtime receipt",
     "cross repository T8 runtime composition is not complete"
   ]
 }

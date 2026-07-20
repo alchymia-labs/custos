@@ -69,6 +69,7 @@ PLAN_19_T7C_RECEIPT_PATH = (
 PLAN_19_T7C_VENDOR_ROOT = (
     "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1"
 )
+PLAN_19_T7C_CONSUMER_COMMIT = "ed5e59dd0b35c058996d1dd8ed9d769006eb1f30"
 PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-candidate-assets-v1.json"
 PLAN_19_T8A_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json"
@@ -2389,6 +2390,21 @@ def verify_plan_19_task_7c_nats_transport(
         "docs/authority/receipts/crucible-plan-100-runner-nats-transport-revocation-v1.json": (
             "c044c91656458ad470afef4fccb7accf048831f527a237dcac2ec2d6f0e37521"
         ),
+        "docs/authority/schemas/crucible-runner-nats-revocation-challenge-v1.schema.json": (
+            "0e7caa5f782e97e840eddc72dc3f4b25cb0296ec267ab01abd5fa095cbfbee7f"
+        ),
+        "docs/authority/schemas/custos-runner-nats-revocation-evidence-v1.schema.json": (
+            "eee82d7d01d98469d525849486e57714395eaaf754c30b21b8f5c7a0121ccd4f"
+        ),
+        "docs/authority/golden/crucible-runner-nats-revocation-evidence-v1.json": (
+            "05e65717161213ced103a78a33b646de92995fb4635aded8e5a6d957ce0ba8e3"
+        ),
+        "docs/authority/crucible-runner-nats-revocation-evidence-assets-v1.json": (
+            "a982bd6692fdebd5a0362d718a31df9172d3ca293657b28db7c7e17175ee3914"
+        ),
+        "docs/authority/receipts/crucible-plan-100-runner-nats-revocation-evidence-v1.json": (
+            "fb93ff51b4c8c0b594addd2d9b9634d088f1da8f29e0f434ece932ef00a48f97"
+        ),
     }
     if not receipt_path.is_file() or not all(path.is_file() for path in source_paths.values()):
         errors.append("Plan 19 T7C code inventory is incomplete")
@@ -2419,6 +2435,8 @@ def verify_plan_19_task_7c_nats_transport(
     receipt = load_json(receipt_path)
     if receipt.get("receipt_status") != "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY":
         errors.append("Plan 19 T7C receipt status differs")
+    if receipt.get("consumer_code_commit") != PLAN_19_T7C_CONSUMER_COMMIT:
+        errors.append("Plan 19 T7C consumer code commit differs")
     truth = receipt.get("truth")
     expected_truth = {
         "custos_user_nkey_seed_owner": True,
@@ -2442,6 +2460,11 @@ def verify_plan_19_task_7c_nats_transport(
         "rotation_stages_pending_generation_before_local_promotion": True,
         "failed_activation_keeps_old_generation_active": True,
         "broker_authorization_denial_stops_execution": True,
+        "superseded_revocation_route_consumed": True,
+        "retiring_generation_durable_until_evidence_acceptance": True,
+        "replacement_connectivity_and_challenge_freshness_durable": True,
+        "response_loss_restart_resubmission_ready": True,
+        "network_failure_cannot_count_as_reconnect_denial": True,
         "production_transport_credential_provisioned": False,
         "production_durable_verified": False,
         "old_generation_reconnect_denial_attested": False,
@@ -2470,6 +2493,8 @@ def verify_plan_19_task_7c_nats_transport(
             "user_jwt_cb",
             "signature_cb",
             "mark_authorization_denied",
+            "RunnerNatsRevocationObservation",
+            "assert_old_generation_reconnect_denied",
         ),
         "consumer": (
             "consumer_info",
@@ -2483,16 +2508,21 @@ def verify_plan_19_task_7c_nats_transport(
         "daemon": (
             "RunnerNatsTransportVault",
             "_watch_nats_transport_authority",
+            "unresolved retiring-generation evidence",
         ),
         "cli": (
             "issue_initial",
             "issue_rotation",
             "promote_pending",
+            "revoke_superseded",
+            "_activate_and_complete_retirement",
         ),
         "acceptance": (
             "test_connect_uses_pinned_tls_jwt_and_local_nonce_signature",
             "test_broker_authorization_denial_invalidates_generation",
             "test_rotation_keeps_old_generation_active_until_pending_promotes",
+            "test_rotation_submission_loss_keeps_retiring_state_and_restart_resubmits",
+            "test_old_generation_probe_requires_typed_authorization_denial",
         ),
     }
     for source_name, required in markers.items():
@@ -2513,6 +2543,7 @@ def verify_plan_19_task_7c_nats_transport(
         if entry.get("role")
         in {
             "crucible_plan_100_runner_nats_transport_vendor_index",
+            "crucible_plan_100_runner_nats_revocation_evidence_vendor_index",
             "plan_19_task_7c_nats_transport_consumer_receipt",
         }
     }
@@ -2520,6 +2551,10 @@ def verify_plan_19_task_7c_nats_transport(
         "crucible_plan_100_runner_nats_transport_vendor_index": (
             f"{PLAN_19_T7C_VENDOR_ROOT}/docs/authority/"
             "crucible-runner-nats-transport-authority-assets-v1.json"
+        ),
+        "crucible_plan_100_runner_nats_revocation_evidence_vendor_index": (
+            f"{PLAN_19_T7C_VENDOR_ROOT}/docs/authority/"
+            "crucible-runner-nats-revocation-evidence-assets-v1.json"
         ),
         "plan_19_task_7c_nats_transport_consumer_receipt": PLAN_19_T7C_RECEIPT_PATH,
     }:
@@ -2538,6 +2573,10 @@ def verify_plan_19_task_7c_nats_transport(
         "exact_existing_tenant_runner_durable": True,
         "anonymous_or_plaintext_runtime_path": False,
         "wildcard_command_subscription": False,
+        "superseded_revocation_consumer_ready": True,
+        "retiring_generation_fail_closed": True,
+        "response_loss_resubmission_ready": True,
+        "consumer_code_commit": PLAN_19_T7C_CONSUMER_COMMIT,
         "production_transport_credential_provisioned": False,
         "production_durable_verified": False,
         "old_generation_reconnect_denial_attested": False,

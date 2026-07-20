@@ -460,10 +460,17 @@
       "path": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1/docs/authority/crucible-runner-nats-transport-authority-assets-v1.json"
     },
     {
+      "role": "crucible_plan_100_runner_nats_revocation_evidence_vendor_index",
+      "path": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1/docs/authority/crucible-runner-nats-revocation-evidence-assets-v1.json"
+    },
+    {
       "role": "plan_19_task_7c_nats_transport_consumer_receipt",
       "path": "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json",
       "receipt_status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
       "authenticated_transport_consumer_ready": true,
+      "consumer_code_commit": "ed5e59dd0b35c058996d1dd8ed9d769006eb1f30",
+      "superseded_revocation_consumer_ready": true,
+      "retiring_generation_fail_closed": true,
       "old_generation_reconnect_denial_attested": false,
       "live_ready": false,
       "runtime_ready": false,
