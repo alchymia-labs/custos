@@ -66,10 +66,8 @@ PLAN_19_T7B_RECEIPT_PATH = (
 PLAN_19_T7C_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json"
 )
-PLAN_19_T7C_VENDOR_ROOT = (
-    "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1"
-)
-PLAN_19_T7C_CONSUMER_COMMIT = "ed5e59dd0b35c058996d1dd8ed9d769006eb1f30"
+PLAN_19_T7C_VENDOR_ROOT = "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1"
+PLAN_19_T7C_CONSUMER_COMMIT = "dcd1ca09d01c0c7e9861b06b80fda7d384e5326b"
 PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-candidate-assets-v1.json"
 PLAN_19_T8A_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json"
@@ -87,9 +85,7 @@ PLAN_19_T8B_CR90_RECEIPT_PATH = (
     "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/"
     "crucible-plan-90-runner-fact-phase-a-compatibility-v1.json"
 )
-PLAN_19_T8B_CR90_RECEIPT_SHA256 = (
-    "e4f936c68dad1f82d99aa4ac638ebc26e551664f821e0910e1ff143f6ff098ca"
-)
+PLAN_19_T8B_CR90_RECEIPT_SHA256 = "e4f936c68dad1f82d99aa4ac638ebc26e551664f821e0910e1ff143f6ff098ca"
 TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 TASK_5D_B_CR89_CONTRACT_COMMIT = "51d23eba8aaefb30e936fc9fae1eac0e791164aa"
 TASK_5D_B_CR89_PUBLICATION_COMMIT = "06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d"
@@ -2198,12 +2194,8 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         "safety": resolve("src/custos/engines/nautilus/runner_safety.py"),
         "test": resolve("tests/test_plan19_t7b_runner_policy_runtime_code.py"),
         "reservation_test": resolve("tests/test_plan19_t7b_order_reservation.py"),
-        "boundary_test": resolve(
-            "tests/engines/nautilus/test_runner_safety_execution_boundary.py"
-        ),
-        "host_test": resolve(
-            "tests/engines/nautilus/test_runner_safety_host_wiring.py"
-        ),
+        "boundary_test": resolve("tests/engines/nautilus/test_runner_safety_execution_boundary.py"),
+        "host_test": resolve("tests/engines/nautilus/test_runner_safety_host_wiring.py"),
         "daemon_test": resolve("tests/cli/test_runner_safety_daemon_composition.py"),
     }
     if not receipt_path.is_file() or not all(path.is_file() for path in paths.values()):
@@ -2325,8 +2317,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
     registrations = [
         entry
         for entry in manifest.get("authority_documents", [])
-        if entry.get("role")
-        == "plan_19_task_7b_runner_policy_daemon_composition_receipt"
+        if entry.get("role") == "plan_19_task_7b_runner_policy_daemon_composition_receipt"
     ]
     if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T7B_RECEIPT_PATH:
         errors.append("Plan 19 T7B receipt manifest registration differs")
@@ -2365,9 +2356,7 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
                 errors.append(f"runner_safety_policy_consumer {key} differs")
 
 
-def verify_plan_19_task_7c_nats_transport(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
+def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = resolve(PLAN_19_T7C_RECEIPT_PATH)
     source_paths = {
         "transport": resolve("src/custos/core/nats_transport.py"),
@@ -2376,6 +2365,8 @@ def verify_plan_19_task_7c_nats_transport(
         "daemon": resolve("src/custos/cli/_daemon.py"),
         "cli": resolve("src/custos/cli/subcommands/nats_transport.py"),
         "acceptance": resolve("tests/test_plan19_t7c_nats_transport.py"),
+        "real_nats_acceptance": resolve("tests/integration/test_plan19_t7c_nats_revocation.py"),
+        "makefile": resolve("Makefile"),
     }
     vendor_receipts = {
         "docs/authority/receipts/crucible-plan-100-runner-nats-transport-contract-v1.json": (
@@ -2465,6 +2456,7 @@ def verify_plan_19_task_7c_nats_transport(
         "replacement_connectivity_and_challenge_freshness_durable": True,
         "response_loss_restart_resubmission_ready": True,
         "network_failure_cannot_count_as_reconnect_denial": True,
+        "local_nkey_broker_protocol_gate_passed": True,
         "production_transport_credential_provisioned": False,
         "production_durable_verified": False,
         "old_generation_reconnect_denial_attested": False,
@@ -2481,9 +2473,7 @@ def verify_plan_19_task_7c_nats_transport(
             if truth.get(key) != value:
                 errors.append(f"Plan 19 T7C receipt truth {key} differs")
 
-    sources = {
-        name: path.read_text(encoding="utf-8") for name, path in source_paths.items()
-    }
+    sources = {name: path.read_text(encoding="utf-8") for name, path in source_paths.items()}
     markers = {
         "transport": (
             "generate_runner_user_nkey",
@@ -2524,6 +2514,12 @@ def verify_plan_19_task_7c_nats_transport(
             "test_rotation_submission_loss_keeps_retiring_state_and_restart_resubmits",
             "test_old_generation_probe_requires_typed_authorization_denial",
         ),
+        "real_nats_acceptance": (
+            "CUSTOS_RUN_REAL_NATS_REVOCATION",
+            "test_real_nats_forces_old_disconnect_and_denies_exact_reconnect",
+            "_is_explicit_nats_authorization_rejection",
+        ),
+        "makefile": ("verify-nats-revocation",),
     }
     for source_name, required in markers.items():
         for marker in required:
@@ -2577,6 +2573,7 @@ def verify_plan_19_task_7c_nats_transport(
         "retiring_generation_fail_closed": True,
         "response_loss_resubmission_ready": True,
         "consumer_code_commit": PLAN_19_T7C_CONSUMER_COMMIT,
+        "local_nkey_broker_protocol_gate_passed": True,
         "production_transport_credential_provisioned": False,
         "production_durable_verified": False,
         "old_generation_reconnect_denial_attested": False,
@@ -3064,17 +3061,13 @@ def verify_plan_19_task_8a_runner_fact_candidate(
         errors.append("Plan 19 T8a active authority still links telemetry_actor.md")
 
 
-def verify_plan_19_task_8b_phase_a_consumer(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
+def verify_plan_19_task_8b_phase_a_consumer(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = resolve(PLAN_19_T8B_RECEIPT_PATH)
     producer_path = resolve(PLAN_19_T8B_CR90_RECEIPT_PATH)
     if not receipt_path.is_file() or not producer_path.is_file():
         errors.append("Plan 19 T8b authority inventory is incomplete")
         return
-    if hashlib.sha256(producer_path.read_bytes()).hexdigest() != (
-        PLAN_19_T8B_CR90_RECEIPT_SHA256
-    ):
+    if hashlib.sha256(producer_path.read_bytes()).hexdigest() != (PLAN_19_T8B_CR90_RECEIPT_SHA256):
         errors.append("Plan 19 T8b vendored Crucible Phase-A receipt drifted")
         return
     receipt = load_json(receipt_path)
@@ -3155,8 +3148,9 @@ def verify_plan_19_task_8b_phase_a_consumer(
         truth.get(key) != value for key, value in expected_truth.items()
     ):
         errors.append("Plan 19 T8b consumer truth differs")
-    if hashlib.sha256(resolve(PLAN_19_T8A_RECEIPT_PATH).read_bytes()).hexdigest() != (
-        expected_candidate["receipt_sha256"]
+    if (
+        hashlib.sha256(resolve(PLAN_19_T8A_RECEIPT_PATH).read_bytes()).hexdigest()
+        != (expected_candidate["receipt_sha256"])
     ):
         errors.append("Plan 19 T8b local T8a receipt no longer matches Phase A")
     if hashlib.sha256(resolve(PLAN_19_T8A_INDEX_PATH).read_bytes()).hexdigest() != (

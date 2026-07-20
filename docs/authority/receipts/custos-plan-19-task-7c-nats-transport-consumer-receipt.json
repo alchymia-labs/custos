@@ -2,7 +2,7 @@
   "receipt_schema_version": 1,
   "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
   "receipt_status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
-  "consumer_code_commit": "ed5e59dd0b35c058996d1dd8ed9d769006eb1f30",
+  "consumer_code_commit": "dcd1ca09d01c0c7e9861b06b80fda7d384e5326b",
   "repository": "tesseract-trading/custos",
   "plan": "Custos Plan 19",
   "task": "T7C authenticated NATS transport code checkpoint",
@@ -43,7 +43,8 @@
     "acceptance": [
       "tests/test_plan19_t7c_nats_transport.py",
       "tests/test_crucible_nats_client.py",
-      "tests/test_runner_fact_outbox.py"
+      "tests/test_runner_fact_outbox.py",
+      "tests/integration/test_plan19_t7c_nats_revocation.py"
     ]
   },
   "truth": {
@@ -73,6 +74,7 @@
     "replacement_connectivity_and_challenge_freshness_durable": true,
     "response_loss_restart_resubmission_ready": true,
     "network_failure_cannot_count_as_reconnect_denial": true,
+    "local_nkey_broker_protocol_gate_passed": true,
     "production_transport_credential_provisioned": false,
     "production_durable_verified": false,
     "old_generation_reconnect_denial_attested": false,
@@ -91,10 +93,17 @@
       "tests/test_plan19_t5_daemon_supervision.py"
     ]
   },
+  "local_real_nats_protocol_verification": {
+    "result": "1 passed",
+    "command": "make verify-nats-revocation",
+    "image": "nats:2.10-alpine",
+    "scope": "isolated TLS bare-NKey broker reload, forced disconnect, exact protocol authorization rejection, and replacement connectivity",
+    "production_equivalent_user_jwt_account_resolver": false
+  },
   "open_blockers": [
     "production Account signer and System Account resolver credentials are not provisioned",
     "production tenant runner durable has no exact runtime readback receipt",
-    "real production-equivalent forced disconnect and old-generation reconnect denial have no runtime receipt",
+    "production-equivalent User JWT and Account resolver forced-disconnect/reconnect-denial chain has no runtime receipt",
     "cross repository T8 runtime composition is not complete"
   ]
 }

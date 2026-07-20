@@ -1055,6 +1055,13 @@ Execution checkpoint T7C two-stage consumer code (2026-07-20):
   `ed5e59dd0b35c058996d1dd8ed9d769006eb1f30` add the backward-compatible
   vault-v2 `active/pending/retiring/revocation` state machine. Old seed/JWT
   material remains encrypted until Crucible accepts the exact evidence.
+- Commit `dcd1ca09d01c0c7e9861b06b80fda7d384e5326b` repairs the real nats-py
+  connect-handshake classification and adds the opt-in
+  `make verify-nats-revocation` gate. The isolated TLS NATS 2.10 gate is
+  `1 passed`: removing the old bare NKey forces disconnect, exact old-key
+  reconnect returns the canonical authorization rejection, and N+1 remains
+  connected. This is broker-protocol evidence only, not a production User JWT,
+  Account resolver or Crucible challenge/evidence receipt.
 - Rotation consumes Crucible's explicit machine-auth
   `/revoke-superseded` route with old credential/generation plus the active
   replacement revision. The emergency current-generation `/revoke` route is
@@ -1070,10 +1077,11 @@ Execution checkpoint T7C two-stage consumer code (2026-07-20):
   `arx-runner nats-transport activate` exact-reads the persisted challenge
   before resubmission. Daemon startup, local verify and another rotation all
   reject unresolved `retiring` state.
-- The current focused transport/outbox/daemon verification is 27 passed;
-  scoped Ruff and mypy gates are clean. This is code evidence only: no real
-  NATS forced-disconnect receipt, production credential/durable or runtime
-  readiness is claimed.
+- The current focused transport/client verification is 21 passed; the
+  isolated real-NATS protocol gate is 1 passed; scoped Ruff and mypy gates are
+  clean. This remains code plus local broker-protocol evidence only: no
+  production-equivalent User JWT/resolver forced-disconnect receipt,
+  production credential/durable or runtime readiness is claimed.
 
 T7C publishes a code/consumer receipt first. It must keep
 `production_transport_credential_provisioned`,
@@ -1233,7 +1241,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
 | T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
 | T7 Signed local safety | [~] | 2026-07-19 | T7A contract consumer plus T7B `READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY`; schema v4, native NT facade and daemon now share one outbox/store and fail closed without an owner policy. CR89 command authority identity plus CR99 main/0117/publication/runtime receipts remain open |
-| T7C Authenticated NATS transport | [~] | 2026-07-20 | `READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY`: exact CR100 two-stage evidence assets vendored; vault-v2 retains old material through targeted superseded revocation, persists replacement/challenge/disconnect/denial evidence, resumes response-loss submission and blocks daemon/verify/rotation while unresolved. Production credential/durable plus real forced-disconnect/old-JWT reconnect-denial attestation remain open; runtime/production false |
+| T7C Authenticated NATS transport | [~] | 2026-07-20 | `READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY`: exact CR100 two-stage evidence assets vendored; vault-v2 retains old material through targeted superseded revocation, persists replacement/challenge/disconnect/denial evidence, resumes response-loss submission and blocks daemon/verify/rotation while unresolved. Local bare-NKey TLS broker-protocol gate is 1 passed at `dcd1ca0`; production User JWT/Account resolver credential, durable and real Crucible attestation remain open; runtime/production false |
 | T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；current `.2` A2 producer `af8a391` + v2 authority receipt；`.1` unchanged `NON_CURRENT_SUPERSEDED`；stream-safe/stable event IDs、exact signing preimage、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
 | T8b Plan 90 Phase A | [x] | 2026-07-19 | `READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY`; exact candidate coordinate, producer/authority commits and all seven asset digests bind Crucible receipt `e4f936c6...`; only the Task 9 Phase-A gate is open, runtime/Phase-B/live/production remain false |
 | T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |
