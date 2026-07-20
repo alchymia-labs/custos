@@ -718,52 +718,60 @@ T6b creates no committed wheel, registry access, upload, READY toolkit receipt,
 Sigstore bundle, final SBOM, strategy artifact, `StrategyReleaseBomV1`, runtime claim or
 production authority. Those remain in the open T6 release slices.
 
-#### T6c: Immutable artifact-service publication protocol
+#### T6c: Immutable OCI publication protocol
 
-T6c adds a dedicated local-only HTTP artifact-service contract and CLI. It accepts only
-a valid T6a `ToolkitRcReceiptManifestV1`, the matching T6b reproducible-build manifest,
-and the exact local bytes for every digest-pinned binding. It cross-checks candidate
-version, source commit, both build records, wheel digest/size, semantic Python
-specifier equivalence, top-level modules, and resolved exact dependency locks against
-the T6b wheel requirements before any service call.
+The original T6c client contract targeted a bespoke HTTP artifact service that had no
+repository owner, production implementation or deployment plan anywhere in the
+v1.team topology. CEO approval on 2026-07-20 replaces that unavailable service with the
+existing OCI Distribution boundary. Custos owns the toolkit publication workflow and
+receipt; it does not own or introduce a new always-on artifact service.
 
-Every manifest, build-evidence, wheel, SBOM, schema/index, attestation, and prerequisite
-receipt object receives a stable coordinate identity. All coordinates must contain the
-exact `0.1.0rcN` version. The client first requires every coordinate to be absent, then
-opens one atomic transaction, requires an exact per-object staging ACK, requires one
-complete commit PubAck for the entire object set, and reads every object back to compare
-exact bytes and SHA-256. Existing coordinates fail closed; a partial staging failure is
-not globally visible and the same candidate can be retried. Once a candidate commits,
-the only allowed path is a new `rcN` coordinate.
+T6c accepts only a valid T6a `ToolkitRcReceiptManifestV1`, the matching T6b
+reproducible-build manifest and the exact local bytes for every digest-pinned binding.
+It cross-checks candidate version, source commit, both build records, wheel digest/size,
+semantic Python specifier equivalence, top-level modules and resolved exact dependency
+locks before any registry write.
 
-Successful T6c execution may write only an immutable ephemeral
+One OCI artifact manifest with artifact type
+`application/vnd.alephain.custos.strategy-toolkit.rc.v1` is the atomic commit boundary.
+Its config and layers bind the two wheels, formal SBOMs, exact dependency evidence,
+SLSA provenance, Sigstore bundle, schemas/indexes and prerequisite receipts. All layer
+descriptors carry exact media type, `sha256:` digest and size. The immutable authority
+coordinate is `<registry>/<repository>@sha256:<manifest-digest>`; the unique
+`0.1.0rcN` tag is a discovery alias only and never consumer authority.
+
+Before upload, the workflow requires the rc tag to be absent. Blobs may be uploaded in
+any order, but no candidate is visible as authority until the single OCI manifest is
+committed. Registry response digest, digest-addressed manifest readback, exact
+descriptor matrix, every blob readback and tag-to-digest equality are required. A
+partial blob upload creates no authority receipt and may be retried; an existing or
+drifted tag fails closed and requires a new rc coordinate. Protected-environment
+concurrency serializes one rc coordinate, while all downstream consumers remain
+digest-addressed even if a mutable registry tag is later changed.
+
+Successful local T6c execution may write only an immutable ephemeral
 `PENDING_T6D_RELEASE_RUNNER` evidence file with `ready=false`,
 `production_credentials_used=false`, and
 `production_attestation_verified=false`. Missing attestation bytes, a partial staging
-failure, missing/incomplete PubAck, readback drift, non-loopback endpoint, or existing
-coordinate writes no PENDING or READY file. The root `custos-runner` release authority
-and T6b build-only workflow are not reused.
+failure, missing manifest commit response, descriptor/readback drift, a non-allowlisted
+registry/repository, or an existing coordinate writes no PENDING or READY file. The
+root `custos-runner` release authority and T6b build-only workflow are not reused.
 
 RED -> GREEN evidence:
 
-- RED: focused collection failed because the dedicated
-  `scripts/toolkit_rc_publish.py` contract did not exist.
-- RED: the first implementation exposed a representation-only mismatch between T6a
-  `>=3.12,<3.13` and normalized wheel METADATA `<3.13,>=3.12`; the protocol now compares
-  `SpecifierSet` semantics instead of fragile strings.
-- GREEN: the local HTTP fake artifact service suite is `6 passed in 2.38s`, covering
-  existing coordinate, partial failure, invisible retry, missing PubAck, missing
-  attestation, digest drift, `rcN` increment and loopback-only enforcement. The combined
-  T6a-T6c focused suite is `15 passed in 4.07s`; Ruff format/lint, generated-contract
-  drift, extraction `241/241`, T4b strict-zero and `make check-authority` PASS.
+- RED: the additive OCI receipt/descriptor contract and OCI Distribution client do not
+  exist; the historical artifact-service V1 contract cannot authorize production.
+- GREEN requires failure tests for existing tag, descriptor drift, partial blob upload,
+  missing manifest digest, lost commit response recovery, tag drift, wrong registry,
+  missing attestation and digest-addressed readback failure. Existing semantic
+  `SpecifierSet`, extraction `241/241`, T4b strict-zero and authority gates remain green.
 
-T6c does not access a remote service, commit binaries, create test signatures, claim a
-production attestation, or register a receipt. T6d remains the hard final gate for a
-credentialed production runner, an artifact service with equivalent atomic/PubAck
-semantics, deterministic final SPDX or CycloneDX SBOMs, production Sigstore provenance
-that binds the staged metadata transform/source/epoch/digests, remote digest readback,
-resolved exact dependency evidence, and final authority receipt registration. Two
-independent PyPI uploads alone do not satisfy this atomic contract.
+T6c local tests use a protocol fake or disposable local registry and do not publish a
+production artifact, create a production signature or register READY. T6d remains the
+hard protected-runner gate for deterministic final SBOMs, production Sigstore
+provenance, OCI manifest publication, digest-addressed remote readback, resolved exact
+dependency evidence and final authority registration. Two independent PyPI uploads or
+two unrelated OCI artifacts do not satisfy the single-manifest atomic contract.
 
 #### T6d: Production release-runner readiness
 
@@ -791,11 +799,13 @@ OIDC issuer; structurally plausible or test/fake bundles cannot enter publicatio
 
 The dedicated `.github/workflows/release-toolkit-rc.yml` is manual `0.1.0rcN` input only,
 restricted to `alchymia-labs/custos` protected main and environment
-`toolkit-rc-release`. Permissions are only `contents: read` and `id-token: write`. It
-re-runs T6b with the fixed epoch, prepares T6d evidence, performs OIDC Sigstore sign and
-exact identity verification, assembles T6a/T6c inputs, then invokes authenticated T6c
-atomic publication and remote digest readback. It does not reuse root `release.yml`, root
-wheel signing, GitHub Release upload, `skip-existing`, GHCR, or the legacy release lane.
+`toolkit-rc-release`. Permissions are exactly `contents: read`, `packages: write` and
+`id-token: write`. It logs in only to the allowlisted OCI registry with the
+workflow-scoped package token, re-runs T6b with the fixed epoch, prepares T6d evidence,
+performs OIDC Sigstore sign and exact identity verification, assembles T6a/T6c inputs,
+then commits one OCI artifact manifest and performs digest-addressed readback. It does
+not reuse root `release.yml`, root wheel signing, GitHub Release upload,
+`skip-existing`, PyPI publication or the legacy release lane.
 
 The source-generated `ToolkitRcT6dPendingReceiptV1` and authority checker fail closed on
 all production flags. It records complete formal SBOM/lock/provenance readiness while
@@ -816,30 +826,40 @@ RED -> GREEN evidence:
   source-generator drift, `make check-authority`, extraction `241/241`, T4b strict-zero,
   wheel-tamper fail-before-output, and unverified Sigstore fail-before-assembly all PASS.
 
-No remote endpoint, production credential, OIDC signature or binary publication was used
-in T6d readiness. There is now exactly one remaining T6 blocker: execute the protected
-production release runner with real credentials, verify its immutable remote receipt,
-and register that receipt in the authority chain. Until that operational action occurs,
-T6 remains open and no toolkit RC READY claim is allowed.
+No remote registry, production package credential, OIDC signature or binary publication
+was used in historical T6d readiness. After the OCI correction, T6d is complete only
+when the protected workflow publishes one manifest, verifies the digest-addressed
+artifact and emits the additive OCI PENDING receipt. Until that execution and
+independent T6e promotion occur, T6 remains open and no toolkit RC READY claim is
+allowed.
 
 #### T6 local readiness checkpoint
 
-#### T6e: Durable publication recovery and authority promotion
+#### T6e: OCI recovery and authority promotion
 
-T6e corrects the external-operator gap discovered before the first production run. The
-artifact-service contract now reserves a publication identity before commit and exposes an
-authenticated immutable `GET /v1/publications/{publication_id}/receipt` endpoint. A lost
-commit response is recoverable only from that exact durable receipt. Receipt bytes bind the
-candidate, source, workflow run, complete object matrix, atomic PubAck and readback state;
-the workflow reports the locator and SHA-256 without using GitHub Release or upload-artifact.
+T6e recovers publication without a bespoke receipt service. Before commit it persists
+the expected canonical OCI manifest bytes and digest in protected-runner state. After a
+lost manifest PUT response, recovery performs an authenticated registry HEAD/GET for
+the exact rc tag, requires the returned digest to equal the precomputed manifest digest,
+then downloads the manifest and every descriptor by digest. A missing tag may retry the
+same manifest; a tag pointing elsewhere is terminal and requires a new rc. No workflow
+artifact, local temp file or mutable tag alone is durable authority.
+
+The additive `ToolkitRcOciPublicationReceiptV1` binds registry, repository, discovery
+tag, canonical digest reference, manifest bytes/digest/media type, full descriptor
+matrix, source/workflow identity, package-token registry audience, atomic commit
+response and digest-addressed readback. Historical
+`ToolkitRcPublicationReceiptV1` artifact-service bytes remain registered as
+`NON_PRODUCTION_SUPERSEDED` and are rejected as runtime or promotion fallback.
 
 The authority state is monotonic. Existing `PENDING_T6D_RELEASE_RUNNER` evidence remains
 pre-production readiness only. A successful protected run produces
-`PENDING_T6E_AUTHORITY_REGISTRATION`; only `scripts/toolkit_rc_promote.py` may download the
-receipt and every object, recompute size/digest, reverify Sigstore identity, provenance,
-manifest, T4, T4b and T5 bindings, and emit a `READY_TOOLKIT_RC` candidate outside the stable
-authority path. Registration remains a separate reviewed commit. No fixture, local fake,
-main-worktree test result or missing remote evidence can create the committed READY receipt.
+`PENDING_T6E_AUTHORITY_REGISTRATION`; only `scripts/toolkit_rc_promote.py` may fetch the
+OCI manifest and every descriptor by digest, recompute size/digest, reverify Sigstore
+identity, provenance, T4, T4b and T5 bindings, and emit a `READY_TOOLKIT_RC` candidate
+outside the stable authority path. Registration remains a separate reviewed commit. No
+fixture, local fake, main-worktree result, historical V1 receipt or missing remote
+evidence can create the committed READY receipt.
 
 Local T6a-T6e implementation readiness is frozen at exact verification HEAD
 `bfa08e41236d22745f2d7af61859c76e13fb718d`. A clean full `make verify` passed with
@@ -853,20 +873,21 @@ and fail-closed authority readiness only. It is not production evidence, does no
 T6 or Plan 18, and does not create an immutable toolkit RC or READY authority receipt.
 The remaining external T6 gates are exactly:
 
-1. the production artifact service implements the authenticated immutable publication-
-   receipt recovery endpoint;
-2. the protected release runner, environment and production secrets are configured;
-3. one protected run performs real GitHub OIDC Sigstore signing, atomic publication and
-   immutable remote readback;
-4. T6e independently fetches and verifies the durable receipt and every object, then a
-   reviewed authority commit registers the resulting `READY_TOOLKIT_RC` receipt.
+1. the additive OCI contract/client, recovery verifier and authority gates land;
+2. the protected release environment has allowlisted package-write authority and no
+   reusable registry/admin secret;
+3. one protected run performs real GitHub OIDC Sigstore signing, single-manifest OCI
+   publication and digest-addressed immutable readback;
+4. T6e independently fetches and verifies the manifest and every descriptor by digest,
+   then a reviewed authority commit registers the resulting `READY_TOOLKIT_RC` receipt.
 
 All four gates are required and fail closed. T7-T9 remain downstream and unclaimed after
 the READY receipt; they are not additional local T6-readiness blockers.
 
 1. 对 base contracts 与 Nautilus toolkit distributions 各做两次 reproducible build，
    比较 exact wheel bytes/digests。
-2. 发布不可覆盖的 toolkit `0.1.0rcN` artifacts；失败时递增 rc，不覆盖旧制品。
+2. 发布单一 OCI manifest 绑定的 toolkit `0.1.0rcN` artifact；authority 只使用
+   manifest digest，失败或 tag 冲突时递增 rc，不覆盖旧制品。
 3. 生成 Custos-owned immutable toolkit RC receipt，精确绑定 base/Nautilus wheels、
    distribution digests、SBOM、contract schema/index、Sigstore/source provenance，及
    T4b typing closure 与 T5 production-verifier evidence。
@@ -966,9 +987,9 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | T5 Verifier/attestation | [x] | 2026-07-15 | Scoped `READY_PRE_IMPORT_VERIFIER`: producer `f3adde2...`, index `6fd49708...`, schema `d6e21b0a...`, Crucible review `3f41f32...`, PS review `267e23b...`, implementation `560e9f5...`, and exact verification HEAD `a856455...` (528 passed/4 skipped/1 xfailed; all authority/typing/extraction gates PASS); handoff covers schema + verifier library only, while loaded/engine/runtime/production remain false and runtime invocation stays Plan19 |
 | T6a Contract foundation | [x] | 2026-07-15 | Single typed immutable toolkit RC receipt/manifest + generated contract-only schema; five RED->GREEN focused behaviors cover exact member/evidence matrix, Python/NT policy, immutable coordinates/dependencies, forbidden claims, authority registration and unchanged v1/v2 indexes; no wheel or READY receipt produced |
 | T6b Reproducible build inputs | [x] | 2026-07-15 | Dedicated offline build seam archives one exact source commit into two isolated roots; four real base/Nautilus builds are byte-identical and enforce immutable RC/Python/NT/dependency/top-level/SBOM-input policy; outputs remain ephemeral and candidate-only, with no registry, READY receipt, signing or runtime authority |
-| T6c Atomic publication protocol | [x] | 2026-07-15 | Local-only artifact-service contract validates exact T6a/T6b/object bytes, preflights every immutable rcN coordinate, requires atomic staging ACK + complete PubAck + digest readback, and emits PENDING-only evidence; fake HTTP failure/retry matrix passes, while production service/credentials/signatures/SBOM/final receipt remain T6d |
-| T6d Production runner readiness | [x] | 2026-07-15 | Local T6a-T6d readiness verified at `b5f0449df04ffb74192e65346127e9abf7463d0f`: full `make verify` 550 passed/4 skipped/1 xfailed, 177 formatted, Ruff/generator/authority/extraction 241/241, strict mypy base 0/41 + adapter 0/59; no remote/signature/binary execution |
-| T6e Durable evidence/promotion | [x] | 2026-07-15 | Local contract/recovery implementation was verified at `bfa08e4...`; promotion hardening then landed at exact commit `12cdad0b90017d9b33a208bc7f1d3256afbd976d`, where non-sandbox `make verify` passed 559/4/1, 179 formatted, authority/extraction 241/241 and strict mypy 0/41 + 0/59. This is local-only evidence: no remote call or READY receipt |
+| T6c OCI publication protocol | [~] | 2026-07-20 | CEO-approved ownership correction replaces the unowned bespoke artifact service with one digest-addressed OCI manifest. Historical artifact-service V1 stays non-production; additive OCI contract/client and failure matrix are in implementation |
+| T6d Production runner readiness | [~] | 2026-07-20 | Historical local readiness at `b5f0449...` remains evidence for build/SBOM/Sigstore inputs, but the protected workflow must be corrected to packages-write OCI publication and digest readback before T6d is complete |
+| T6e OCI recovery/promotion | [~] | 2026-07-20 | Historical recovery implementation at `12cdad0...` is superseded for production because its service has no owner. Additive registry HEAD/GET lost-response recovery, digest verification and OCI READY promotion remain in implementation |
 | T6 Toolkit candidate | [ ] | — | Four external gates remain: artifact-service immutable receipt recovery support; protected runner/environment/secrets; real OIDC Sigstore plus atomic publish/readback; independent T6e promotion verification plus READY authority commit. T7-T9 and Plan 18 remain uncompleted |
 | T5c ArtifactRefV2 producer ABI | [x] | 2026-07-15 | Additive v3 schema/golden/index and Custos producer receipt; v1/v2 byte-pinned and barred from runtime fallback; receipt remains `PRODUCED_AWAITING_CONSUMER_REVIEWS`, so no handoff/runtime/production claim |
 | T5d-A BOM/evidence consumption | [x] | 2026-07-15 | `READY_CONTRACT_CONSUMER_ONLY`: exact PS and Crucible owner assets byte-vendored with path/commit/hash/size; additive ReceiptV2 schema/golden/negatives and consumer receipt published; T5d-B/runtime/production remain false |
@@ -1000,6 +1021,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | AUTHORITY | T4 canonical move | 241 个 canonical implementations 必须 move 到新 distributions；旧树只能临时保留无实现 shim，并在 T8 删除 | Accepted 2026-07-15 |
 | SAFETY | T5 scoped handoff | Exact reviews, implementation and clean full verification advance only schema + production verifier library to `READY_PRE_IMPORT_VERIFIER`; loaded/engine/runtime/production remain false, while Plan19 runtime invocation does not block T6 | Closed 2026-07-15 |
 | OWNERSHIP | T6 toolkit RC | Custos publishes only the immutable toolkit RC receipt; PS54 owns strategy artifact/manifest/full `StrategyReleaseBomV1`, PS56 is not a T6 START gate, and the legacy Python lane is unchanged | Accepted 2026-07-15 |
+| ARCHITECTURE | T6 OCI publication | CEO-approved correction removes the unowned bespoke artifact service and uses one OCI artifact manifest as the atomic publication/recovery boundary; historical V1 bytes are non-production and no fallback is allowed | Accepted 2026-07-20 |
 | SAFETY | T6c publication ceiling | Local transaction/PubAck/readback proof may emit PENDING-only evidence; only T6d production runner, credentials, final SBOM, Sigstore provenance and remote readback may create the final authority receipt | Accepted 2026-07-15 |
 | SECURITY | Artifact evidence split | Published v1/v2 bytes remain immutable historical evidence, but their self-referential ArtifactRef is barred from production; T5c adds pre-sign ArtifactRef plus PS detached attestation and Crucible post-verification evidence | Accepted 2026-07-15 |
 | VERSIONING | Corrected ArtifactRef | Published `StrategyArtifactRefV1/schema_version: 1` cannot be redefined. The corrected pre-sign wire is `StrategyArtifactRefV2/schema_version: 2` in the additive v3 asset collection, with no alias or legacy runtime fallback | Accepted 2026-07-15 |
