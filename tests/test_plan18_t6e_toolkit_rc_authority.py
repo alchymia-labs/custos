@@ -442,13 +442,17 @@ def _run_promotion(
     return output
 
 
-def test_v1_stays_historical_and_v2_schema_is_source_generated() -> None:
+def test_v1_stays_historical_and_v2_ready_receipt_is_source_generated() -> None:
     historical = json.loads(SCHEMA_V1.read_text(encoding="utf-8"))
     assert historical == ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     assert schema == ToolkitRcAuthorityReceiptV2.model_json_schema(mode="validation")
 
-    assert not READY.exists()
+    ready = ToolkitRcAuthorityReceiptV2.model_validate_json(READY.read_bytes()).root
+    assert ready.status == "READY_TOOLKIT_RC"
+    assert ready.ready is True
+    assert ready.handoff_ready is True
+    assert ready.final_blockers == ()
 
 
 def test_unknown_or_mutated_pending_state_fails_closed() -> None:
@@ -517,9 +521,7 @@ def test_workflow_has_single_candidate_concurrency_and_digest_output() -> None:
 
 
 def test_independent_promotion_workflow_is_digest_only_and_read_only() -> None:
-    workflow = (ROOT / ".github/workflows/promote-toolkit-rc.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (ROOT / ".github/workflows/promote-toolkit-rc.yml").read_text(encoding="utf-8")
     assert "permissions:\n  contents: read\n  packages: read" in workflow
     assert "manifest_digest:" in workflow
     assert "source_commit:" in workflow
@@ -536,6 +538,7 @@ def test_independent_promotion_workflow_is_digest_only_and_read_only() -> None:
 def test_independent_promotion_emits_only_a_digest_bound_ready_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    stable_ready = READY.read_bytes()
     output = _run_promotion(tmp_path, monkeypatch)
     document = json.loads(output.read_text(encoding="utf-8"))
 
@@ -546,7 +549,7 @@ def test_independent_promotion_emits_only_a_digest_bound_ready_candidate(
         == document["publication_receipt"]["oci_coordinate"]
     )
     assert output != READY
-    assert not READY.exists()
+    assert READY.read_bytes() == stable_ready
 
 
 def test_promotion_rejects_signed_provenance_with_an_omitted_release_subject(

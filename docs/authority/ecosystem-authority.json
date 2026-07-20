@@ -312,9 +312,9 @@
     "authority_schema": "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
     "historical_non_production_schema": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
     "stable_ready_receipt": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
-    "receipt_status": "PENDING_T6E_OCI_PUBLICATION",
-    "receipt_present": false,
-    "handoff_ready": false,
+    "receipt_status": "READY_TOOLKIT_RC",
+    "receipt_present": true,
+    "handoff_ready": true,
     "publication_protocol": "OCI_DISTRIBUTION_V2",
     "artifact_type": "application/vnd.alephain.custos.strategy-toolkit.rc.v1",
     "registry_repository": "ghcr.io/alchymia-labs/custos-strategy-toolkit",
@@ -323,13 +323,17 @@
     "release_environment": "toolkit-rc-release",
     "workflow_identity": "https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
     "independent_promotion_workflow": ".github/workflows/promote-toolkit-rc.yml",
-    "open_blockers": [
-      "protected production release runner commits and reads back the immutable OCI manifest",
-      "verified READY candidate is registered by an independent authority commit"
-    ],
+    "open_blockers": [],
     "strategy_release_bom_ready": false,
     "runtime_ready": false,
-    "production_ready": false
+    "production_ready": false,
+    "receipt_sha256": "62bd0ce6040543d71b605fd535006b09fd62d85bf40a991e5f3d3076205e315e",
+    "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+    "oci_coordinate": "ghcr.io/alchymia-labs/custos-strategy-toolkit@sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+    "manifest_digest": "sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+    "publication_workflow_run_id": 29744930596,
+    "promotion_workflow_run_id": 29745590539,
+    "promotion_artifact_digest": "sha256:7612c345f8266273b53f166e8ca7623e96351a0645498b92fe86f64e2b60e3ee"
   },
   "migration_heads": {
     "arx": "0068",

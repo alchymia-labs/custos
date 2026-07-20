@@ -1,0 +1,350 @@
+{
+  "authority_registered": true,
+  "build_manifest_sha256": "058d51c5ec956fbfa8c1f89b5a199d1e3a1b369e0270c95d35ddcde1e74aaf45",
+  "candidate_version": "0.1.0rc1",
+  "contract_version": "alephain.custos.toolkit-rc-authority-receipt.v2",
+  "engine_ready": false,
+  "final_blockers": [],
+  "handoff_ready": true,
+  "handoff_scope": "Custos base and Nautilus toolkit RC only",
+  "loaded": false,
+  "predecessor_oci_manifest": {
+    "coordinate": "ghcr.io/alchymia-labs/custos-strategy-toolkit@sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+    "sha256": "ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+    "size_bytes": 7582
+  },
+  "production_credentials_used": true,
+  "production_ready": false,
+  "production_signature_verified": true,
+  "publication_receipt": {
+    "artifact_type": "application/vnd.alephain.custos.strategy-toolkit.rc.v1",
+    "authority_registered": false,
+    "candidate_version": "0.1.0rc1",
+    "config": {
+      "digest": "sha256:a15417c9a2e3409ea5b7c924cafb5b49d3ce8102a59bec0b832289d7b205fe3e",
+      "media_type": "application/vnd.alephain.custos.strategy-toolkit.rc.config.v1+json",
+      "role": "release_config",
+      "size_bytes": 986,
+      "source_coordinate": null,
+      "title": "toolkit-rc-config.json"
+    },
+    "contract_version": "alephain.custos.toolkit-rc-oci-publication-receipt.v1",
+    "descriptor_readback_verified": true,
+    "handoff_ready": false,
+    "layers": [
+      {
+        "digest": "sha256:c2f16601aa45a7b1f599871345ea890d9aafa5c93b68137a2f2b6a0c32544342",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.sigstore_attestation",
+        "size_bytes": 9967,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/attestations/toolkit-rc-provenance.sigstore.json@sha256:c2f16601aa45a7b1f599871345ea890d9aafa5c93b68137a2f2b6a0c32544342",
+        "title": "toolkit-rc-provenance.sigstore.json"
+      },
+      {
+        "digest": "sha256:6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.contract_asset_index",
+        "size_bytes": 1910,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/contracts/strategy-contract-assets-v2.json@sha256:6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+        "title": "strategy-contract-assets-v2.json"
+      },
+      {
+        "digest": "sha256:0c401eb3c207cc7063054ad23a70e0808b54a3c5c5c25c8870657ba6eb770564",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.contract_schema",
+        "size_bytes": 6107,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/contracts/toolkit_rc_receipt_manifest_v1.schema.json@sha256:0c401eb3c207cc7063054ad23a70e0808b54a3c5c5c25c8870657ba6eb770564",
+        "title": "toolkit_rc_receipt_manifest_v1.schema.json"
+      },
+      {
+        "digest": "sha256:60ff13751a89150abd8d6a54b94036bfdc1e32251781acc97a803b833f708874",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.dependency_lock_evidence",
+        "size_bytes": 4218,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/dependencies/toolkit-rc-dependency-locks.json@sha256:60ff13751a89150abd8d6a54b94036bfdc1e32251781acc97a803b833f708874",
+        "title": "toolkit-rc-dependency-locks.json"
+      },
+      {
+        "digest": "sha256:439c5e0b93bc3d6593091df0fc997908f70a303b2403f813cdb05bbde2dcefe3",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.t5_pre_import_verifier_receipt",
+        "size_bytes": 5165,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-2-schema-receipt-v2.json@sha256:439c5e0b93bc3d6593091df0fc997908f70a303b2403f813cdb05bbde2dcefe3",
+        "title": "custos-plan-18-task-2-schema-receipt-v2.json"
+      },
+      {
+        "digest": "sha256:37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.t4_zero_rewrite_receipt",
+        "size_bytes": 4918,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-4-extraction-receipt.json@sha256:37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+        "title": "custos-plan-18-task-4-extraction-receipt.json"
+      },
+      {
+        "digest": "sha256:6d072f42412cf605f1d9d6e3e090e324027e8e96b478f703af02ad952380d5b0",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.t4b_typing_closure_receipt",
+        "size_bytes": 2098,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-4b-typing-closure-receipt.json@sha256:6d072f42412cf605f1d9d6e3e090e324027e8e96b478f703af02ad952380d5b0",
+        "title": "custos-plan-18-task-4b-typing-closure-receipt.json"
+      },
+      {
+        "digest": "sha256:058d51c5ec956fbfa8c1f89b5a199d1e3a1b369e0270c95d35ddcde1e74aaf45",
+        "media_type": "application/json",
+        "role": "t6b_build_manifest",
+        "size_bytes": 4643,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/provenance/toolkit-rc-build-manifest-input.json@sha256:058d51c5ec956fbfa8c1f89b5a199d1e3a1b369e0270c95d35ddcde1e74aaf45",
+        "title": "toolkit-rc-build-manifest-input.json"
+      },
+      {
+        "digest": "sha256:d8ad2158c8a9ba18ba1df9761a0cabeab47cf4195d1940339bd959ffaae90be4",
+        "media_type": "application/json",
+        "role": "t6a_manifest",
+        "size_bytes": 8655,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/provenance/toolkit-rc-receipt-manifest.json@sha256:d8ad2158c8a9ba18ba1df9761a0cabeab47cf4195d1940339bd959ffaae90be4",
+        "title": "toolkit-rc-receipt-manifest.json"
+      },
+      {
+        "digest": "sha256:f8f5c7885ae9f468b4c42a1f4f69142d33e4777b452dd3c135f5e62e9e596380",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.slsa_provenance",
+        "size_bytes": 3721,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/provenance/toolkit-rc.intoto.json@sha256:f8f5c7885ae9f468b4c42a1f4f69142d33e4777b452dd3c135f5e62e9e596380",
+        "title": "toolkit-rc.intoto.json"
+      },
+      {
+        "digest": "sha256:c7dd2db9c4138c2927a23057fd93d945ecd635e5a36ebff9463178be5c939dba",
+        "media_type": "application/json",
+        "role": "nautilus_wheel.sbom",
+        "size_bytes": 2852,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/sbom/custos-strategy-toolkit-nautilus.cdx.json@sha256:c7dd2db9c4138c2927a23057fd93d945ecd635e5a36ebff9463178be5c939dba",
+        "title": "custos-strategy-toolkit-nautilus.cdx.json"
+      },
+      {
+        "digest": "sha256:785f907a9362a2b14ec8e693aaff118da4e5b1e94a76da90fd1593c749faa917",
+        "media_type": "application/json",
+        "role": "base_contracts_wheel.sbom",
+        "size_bytes": 1820,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/sbom/custos-strategy-toolkit.cdx.json@sha256:785f907a9362a2b14ec8e693aaff118da4e5b1e94a76da90fd1593c749faa917",
+        "title": "custos-strategy-toolkit.cdx.json"
+      },
+      {
+        "digest": "sha256:5c89d294fa685af58472ee42ea6e95b90eb7b23dadc90d9acb3c2cb860270de4",
+        "media_type": "application/vnd.pypa.wheel",
+        "role": "base_contracts_wheel.wheel",
+        "size_bytes": 72657,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/wheels/custos_strategy_toolkit-0.1.0rc1-py3-none-any.whl@sha256:5c89d294fa685af58472ee42ea6e95b90eb7b23dadc90d9acb3c2cb860270de4",
+        "title": "custos_strategy_toolkit-0.1.0rc1-py3-none-any.whl"
+      },
+      {
+        "digest": "sha256:ff11fc362b68f3d34846c7582b3848842f134880d8575a8e90459d54de77300d",
+        "media_type": "application/vnd.pypa.wheel",
+        "role": "nautilus_wheel.wheel",
+        "size_bytes": 349798,
+        "source_coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/wheels/custos_strategy_toolkit_nautilus-0.1.0rc1-py3-none-any.whl@sha256:ff11fc362b68f3d34846c7582b3848842f134880d8575a8e90459d54de77300d",
+        "title": "custos_strategy_toolkit_nautilus-0.1.0rc1-py3-none-any.whl"
+      }
+    ],
+    "manifest_commit_verified": true,
+    "manifest_digest": "sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+    "manifest_media_type": "application/vnd.oci.image.manifest.v1+json",
+    "manifest_size_bytes": 7582,
+    "oci_coordinate": "ghcr.io/alchymia-labs/custos-strategy-toolkit@sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "production_credentials_used": true,
+    "production_signature_verified": true,
+    "publication_atomic": true,
+    "ready": false,
+    "registry": "ghcr.io",
+    "release_environment": "toolkit-rc-release",
+    "repository": "alchymia-labs/custos-strategy-toolkit",
+    "schema_version": 1,
+    "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+    "source_date_epoch": 1704067200,
+    "source_repository": "https://github.com/alchymia-labs/custos",
+    "status": "PENDING_T6E_AUTHORITY_REGISTRATION",
+    "tag": "0.1.0rc1",
+    "tag_readback_verified": true,
+    "workflow_identity": "https://github.com/alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
+    "workflow_ref": "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main",
+    "workflow_run_attempt": 1,
+    "workflow_run_id": 29744930596
+  },
+  "ready": true,
+  "receipt_schema_version": 2,
+  "remote_publication_verified": true,
+  "runtime_ready": false,
+  "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+  "source_date_epoch": 1704067200,
+  "source_repository": "https://github.com/alchymia-labs/custos",
+  "status": "READY_TOOLKIT_RC",
+  "strategy_release_bom_created": false,
+  "toolkit_manifest": {
+    "candidate_version": "0.1.0rc1",
+    "contract_version": "alephain.custos.toolkit-rc-receipt-manifest.v1",
+    "immutable": true,
+    "members": [
+      {
+        "contract_asset_index": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/contracts/strategy-contract-assets-v2.json@sha256:6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+          "sha256": "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+          "size_bytes": 1910
+        },
+        "contract_schema": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/contracts/toolkit_rc_receipt_manifest_v1.schema.json@sha256:0c401eb3c207cc7063054ad23a70e0808b54a3c5c5c25c8870657ba6eb770564",
+          "sha256": "0c401eb3c207cc7063054ad23a70e0808b54a3c5c5c25c8870657ba6eb770564",
+          "size_bytes": 6107
+        },
+        "dependencies": [
+          {
+            "name": "pydantic",
+            "requirement": "pydantic==2.13.4",
+            "version": "2.13.4"
+          },
+          {
+            "name": "pyyaml",
+            "requirement": "pyyaml==6.0.3",
+            "version": "6.0.3"
+          }
+        ],
+        "dependency_lock_evidence": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/dependencies/toolkit-rc-dependency-locks.json@sha256:60ff13751a89150abd8d6a54b94036bfdc1e32251781acc97a803b833f708874",
+          "sha256": "60ff13751a89150abd8d6a54b94036bfdc1e32251781acc97a803b833f708874",
+          "size_bytes": 4218
+        },
+        "distribution_name": "custos-strategy-toolkit",
+        "nautilus_version": null,
+        "python_requires": ">=3.11",
+        "role": "base_contracts_wheel",
+        "sbom": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/sbom/custos-strategy-toolkit.cdx.json@sha256:785f907a9362a2b14ec8e693aaff118da4e5b1e94a76da90fd1593c749faa917",
+          "sha256": "785f907a9362a2b14ec8e693aaff118da4e5b1e94a76da90fd1593c749faa917",
+          "size_bytes": 1820
+        },
+        "sigstore_attestation": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/attestations/toolkit-rc-provenance.sigstore.json@sha256:c2f16601aa45a7b1f599871345ea890d9aafa5c93b68137a2f2b6a0c32544342",
+          "sha256": "c2f16601aa45a7b1f599871345ea890d9aafa5c93b68137a2f2b6a0c32544342",
+          "size_bytes": 9967
+        },
+        "slsa_provenance": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/provenance/toolkit-rc.intoto.json@sha256:f8f5c7885ae9f468b4c42a1f4f69142d33e4777b452dd3c135f5e62e9e596380",
+          "sha256": "f8f5c7885ae9f468b4c42a1f4f69142d33e4777b452dd3c135f5e62e9e596380",
+          "size_bytes": 3721
+        },
+        "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+        "source_repository": "https://github.com/alchymia-labs/custos",
+        "t4_zero_rewrite_receipt": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-4-extraction-receipt.json@sha256:37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+          "sha256": "37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+          "size_bytes": 4918
+        },
+        "t4b_typing_closure_receipt": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-4b-typing-closure-receipt.json@sha256:6d072f42412cf605f1d9d6e3e090e324027e8e96b478f703af02ad952380d5b0",
+          "sha256": "6d072f42412cf605f1d9d6e3e090e324027e8e96b478f703af02ad952380d5b0",
+          "size_bytes": 2098
+        },
+        "t5_pre_import_verifier_receipt": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-2-schema-receipt-v2.json@sha256:439c5e0b93bc3d6593091df0fc997908f70a303b2403f813cdb05bbde2dcefe3",
+          "sha256": "439c5e0b93bc3d6593091df0fc997908f70a303b2403f813cdb05bbde2dcefe3",
+          "size_bytes": 5165
+        },
+        "top_level_modules": [
+          "custos_toolkit"
+        ],
+        "version": "0.1.0rc1",
+        "wheel": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/wheels/custos_strategy_toolkit-0.1.0rc1-py3-none-any.whl@sha256:5c89d294fa685af58472ee42ea6e95b90eb7b23dadc90d9acb3c2cb860270de4",
+          "sha256": "5c89d294fa685af58472ee42ea6e95b90eb7b23dadc90d9acb3c2cb860270de4",
+          "size_bytes": 72657
+        }
+      },
+      {
+        "contract_asset_index": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/contracts/strategy-contract-assets-v2.json@sha256:6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+          "sha256": "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc",
+          "size_bytes": 1910
+        },
+        "contract_schema": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/contracts/toolkit_rc_receipt_manifest_v1.schema.json@sha256:0c401eb3c207cc7063054ad23a70e0808b54a3c5c5c25c8870657ba6eb770564",
+          "sha256": "0c401eb3c207cc7063054ad23a70e0808b54a3c5c5c25c8870657ba6eb770564",
+          "size_bytes": 6107
+        },
+        "dependencies": [
+          {
+            "name": "custos-strategy-toolkit",
+            "requirement": "custos-strategy-toolkit==0.1.0rc1",
+            "version": "0.1.0rc1"
+          },
+          {
+            "name": "nautilus-trader",
+            "requirement": "nautilus-trader==1.230.0",
+            "version": "1.230.0"
+          },
+          {
+            "name": "packaging",
+            "requirement": "packaging==26.2",
+            "version": "26.2"
+          },
+          {
+            "name": "pyyaml",
+            "requirement": "pyyaml==6.0.3",
+            "version": "6.0.3"
+          }
+        ],
+        "dependency_lock_evidence": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/dependencies/toolkit-rc-dependency-locks.json@sha256:60ff13751a89150abd8d6a54b94036bfdc1e32251781acc97a803b833f708874",
+          "sha256": "60ff13751a89150abd8d6a54b94036bfdc1e32251781acc97a803b833f708874",
+          "size_bytes": 4218
+        },
+        "distribution_name": "custos-strategy-toolkit-nautilus",
+        "nautilus_version": "1.230.0",
+        "python_requires": ">=3.12,<3.13",
+        "role": "nautilus_wheel",
+        "sbom": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/sbom/custos-strategy-toolkit-nautilus.cdx.json@sha256:c7dd2db9c4138c2927a23057fd93d945ecd635e5a36ebff9463178be5c939dba",
+          "sha256": "c7dd2db9c4138c2927a23057fd93d945ecd635e5a36ebff9463178be5c939dba",
+          "size_bytes": 2852
+        },
+        "sigstore_attestation": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/attestations/toolkit-rc-provenance.sigstore.json@sha256:c2f16601aa45a7b1f599871345ea890d9aafa5c93b68137a2f2b6a0c32544342",
+          "sha256": "c2f16601aa45a7b1f599871345ea890d9aafa5c93b68137a2f2b6a0c32544342",
+          "size_bytes": 9967
+        },
+        "slsa_provenance": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/provenance/toolkit-rc.intoto.json@sha256:f8f5c7885ae9f468b4c42a1f4f69142d33e4777b452dd3c135f5e62e9e596380",
+          "sha256": "f8f5c7885ae9f468b4c42a1f4f69142d33e4777b452dd3c135f5e62e9e596380",
+          "size_bytes": 3721
+        },
+        "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+        "source_repository": "https://github.com/alchymia-labs/custos",
+        "t4_zero_rewrite_receipt": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-4-extraction-receipt.json@sha256:37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+          "sha256": "37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+          "size_bytes": 4918
+        },
+        "t4b_typing_closure_receipt": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-4b-typing-closure-receipt.json@sha256:6d072f42412cf605f1d9d6e3e090e324027e8e96b478f703af02ad952380d5b0",
+          "sha256": "6d072f42412cf605f1d9d6e3e090e324027e8e96b478f703af02ad952380d5b0",
+          "size_bytes": 2098
+        },
+        "t5_pre_import_verifier_receipt": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/prerequisites/custos-plan-18-task-2-schema-receipt-v2.json@sha256:439c5e0b93bc3d6593091df0fc997908f70a303b2403f813cdb05bbde2dcefe3",
+          "sha256": "439c5e0b93bc3d6593091df0fc997908f70a303b2403f813cdb05bbde2dcefe3",
+          "size_bytes": 5165
+        },
+        "top_level_modules": [
+          "custos_toolkit_nautilus"
+        ],
+        "version": "0.1.0rc1",
+        "wheel": {
+          "coordinate": "artifact://custos/toolkit-rc/0.1.0rc1/wheels/custos_strategy_toolkit_nautilus-0.1.0rc1-py3-none-any.whl@sha256:ff11fc362b68f3d34846c7582b3848842f134880d8575a8e90459d54de77300d",
+          "sha256": "ff11fc362b68f3d34846c7582b3848842f134880d8575a8e90459d54de77300d",
+          "size_bytes": 349798
+        }
+      }
+    ],
+    "overwrite_allowed": false,
+    "schema_version": 1
+  },
+  "toolkit_manifest_sha256": "d8ad2158c8a9ba18ba1df9761a0cabeab47cf4195d1940339bd959ffaae90be4"
+}

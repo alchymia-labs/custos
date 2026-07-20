@@ -163,9 +163,9 @@
       "path": "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
       "contract_only": true,
       "stable_ready_path": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
-      "receipt_present": false,
-      "receipt_status": "PENDING_T6E_OCI_PUBLICATION",
-      "ready_receipt_published": false
+      "receipt_present": true,
+      "receipt_status": "READY_TOOLKIT_RC",
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_oci_distribution_client",
@@ -511,6 +511,18 @@
       "t8b_stop": true,
       "runtime_ready": false,
       "production_ready": false
+    },
+    {
+      "role": "plan_18_task_6_toolkit_rc_ready_receipt",
+      "path": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
+      "sha256": "62bd0ce6040543d71b605fd535006b09fd62d85bf40a991e5f3d3076205e315e",
+      "receipt_status": "READY_TOOLKIT_RC",
+      "ready_receipt_published": true,
+      "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+      "oci_manifest_digest": "sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
+      "publication_workflow_run_id": 29744930596,
+      "promotion_workflow_run_id": 29745590539,
+      "promotion_artifact_digest": "sha256:7612c345f8266273b53f166e8ca7623e96351a0645498b92fe86f64e2b60e3ee"
     }
   ],
   "external_optional_documents": [

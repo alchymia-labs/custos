@@ -1396,9 +1396,9 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
             "stable_ready_path": (
                 "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
             ),
-            "receipt_present": False,
-            "receipt_status": "PENDING_T6E_OCI_PUBLICATION",
-            "ready_receipt_published": False,
+            "receipt_present": True,
+            "receipt_status": "READY_TOOLKIT_RC",
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_oci_distribution_client",
@@ -1576,13 +1576,56 @@ def verify_plan_18_task_6_release_authority(manifest: dict[str, object], errors:
         for entry in manifest.get("authority_documents", [])
         if entry.get("role") == "plan_18_task_6_toolkit_rc_ready_receipt"
     ]
-    if len(ready_entries) != 1 or ready_entries[0].get("sha256") != ready_sha256:
+    expected_manifest_registration = {
+        "path": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
+        "sha256": ready_sha256,
+        "receipt_status": "READY_TOOLKIT_RC",
+        "ready_receipt_published": True,
+        "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
+        "oci_manifest_digest": (
+            "sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba"
+        ),
+        "publication_workflow_run_id": 29744930596,
+        "promotion_workflow_run_id": 29745590539,
+        "promotion_artifact_digest": (
+            "sha256:7612c345f8266273b53f166e8ca7623e96351a0645498b92fe86f64e2b60e3ee"
+        ),
+    }
+    if len(ready_entries) != 1 or any(
+        ready_entries[0].get(name) != value
+        for name, value in expected_manifest_registration.items()
+    ):
         errors.append("T6e READY receipt manifest registration differs")
+    publication = ready.get("publication_receipt")
+    predecessor = ready.get("predecessor_oci_manifest")
+    expected_manifest_digest = (
+        "sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba"
+    )
+    if (
+        not isinstance(publication, dict)
+        or publication.get("source_commit") != "bdbdb01c29897574a6891091a83367d1337a84ed"
+        or publication.get("manifest_digest") != expected_manifest_digest
+        or publication.get("workflow_run_id") != 29744930596
+        or not isinstance(predecessor, dict)
+        or predecessor.get("coordinate")
+        != f"ghcr.io/alchymia-labs/custos-strategy-toolkit@{expected_manifest_digest}"
+        or predecessor.get("sha256") != expected_manifest_digest.removeprefix("sha256:")
+    ):
+        errors.append("T6e READY receipt OCI provenance differs")
     if (
         release.get("receipt_status") != "READY_TOOLKIT_RC"
         or release.get("receipt_present") is not True
         or release.get("handoff_ready") is not True
         or release.get("receipt_sha256") != ready_sha256
+        or release.get("source_commit") != "bdbdb01c29897574a6891091a83367d1337a84ed"
+        or release.get("manifest_digest") != expected_manifest_digest
+        or release.get("oci_coordinate")
+        != f"ghcr.io/alchymia-labs/custos-strategy-toolkit@{expected_manifest_digest}"
+        or release.get("publication_workflow_run_id") != 29744930596
+        or release.get("promotion_workflow_run_id") != 29745590539
+        or release.get("promotion_artifact_digest")
+        != "sha256:7612c345f8266273b53f166e8ca7623e96351a0645498b92fe86f64e2b60e3ee"
+        or release.get("open_blockers") != []
     ):
         errors.append("T6e READY receipt ecosystem registration differs")
 
