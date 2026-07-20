@@ -265,6 +265,7 @@ async def _activate_and_complete_retirement(
     pending_connection: Any | None = None
     retiring_connection: Any | None = None
     retiring_profile: RunnerNatsTransportConnectionProfile | None = None
+    replacement_connected_at: datetime | None = None
     try:
         if bundle.pending is not None:
             pending_profile = _connection_profile(args, bundle.pending)
@@ -274,6 +275,7 @@ async def _activate_and_complete_retirement(
                 allow_reconnect=False,
                 max_reconnect_attempts=0,
             )
+            replacement_connected_at = datetime.now(UTC)
             if bundle.active is not None:
                 retiring_profile = _connection_profile(args, bundle.active)
                 retiring_connection = await _connect(
@@ -301,6 +303,14 @@ async def _activate_and_complete_retirement(
                 else authority.activate(bundle.active)["revision"]
             )
             if bundle.revocation is None:
+                active_profile = _connection_profile(args, bundle.active)
+                pending_connection = await _connect(
+                    active_profile,
+                    name=f"custos-transport-resume-{bundle.active.runner_id}",
+                    allow_reconnect=False,
+                    max_reconnect_attempts=0,
+                )
+                replacement_connected_at = datetime.now(UTC)
                 retiring_profile = _connection_profile(args, bundle.retiring)
                 retiring_connection = await _connect(
                     retiring_profile,
@@ -327,7 +337,19 @@ async def _activate_and_complete_retirement(
                 )
             except MachineCredentialTransportError:
                 challenge = authority.read_revocation_challenge(retiring)
-            bundle = bundle.with_revocation(RunnerNatsRevocationObservation(challenge=challenge))
+            if bundle.active is None or replacement_connected_at is None:
+                raise RunnerNatsTransportError(
+                    "replacement generation connectivity was not observed"
+                )
+            bundle = bundle.with_revocation(
+                RunnerNatsRevocationObservation(
+                    challenge=challenge,
+                    replacement_transport_credential_id=(bundle.active.transport_credential_id),
+                    replacement_generation=bundle.active.transport_generation,
+                    replacement_connected_at=replacement_connected_at,
+                    challenge_validated_at=datetime.now(UTC),
+                )
+            )
             observation = bundle.revocation
             assert observation is not None
             vault.persist(bundle, age_recipient=age_recipient)

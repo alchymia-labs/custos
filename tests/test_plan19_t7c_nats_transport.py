@@ -446,7 +446,8 @@ def test_v1_vault_document_upgrades_to_v2_retirement_state_without_secret_loss()
         _revocation_challenge(promoted.retiring),
         promoted.retiring,
     )
-    persisted = promoted.with_revocation(RunnerNatsRevocationObservation(challenge))
+    assert promoted.active is not None
+    persisted = promoted.with_revocation(_observation(challenge, replacement=promoted.active))
     restored = RunnerNatsTransportBundle.from_document(persisted.to_document())
 
     assert upgraded.to_document()["schema_version"] == 2
@@ -521,6 +522,28 @@ def _revocation_challenge(
     }
 
 
+def _observation(
+    challenge: RunnerNatsRevocationChallenge,
+    *,
+    replacement: RunnerNatsTransportCredential | None = None,
+) -> RunnerNatsRevocationObservation:
+    return RunnerNatsRevocationObservation(
+        challenge=challenge,
+        replacement_transport_credential_id=(
+            replacement.transport_credential_id
+            if replacement is not None
+            else challenge.transport_credential_id
+        ),
+        replacement_generation=(
+            replacement.transport_generation
+            if replacement is not None
+            else challenge.generation + 1
+        ),
+        replacement_connected_at=datetime.now(UTC),
+        challenge_validated_at=datetime.now(UTC),
+    )
+
+
 def test_revocation_challenge_and_observation_round_trip_without_secret_material() -> None:
     credential = _credential(now=datetime.now(UTC))
     challenge = RunnerNatsRevocationChallenge.from_response(
@@ -528,7 +551,7 @@ def test_revocation_challenge_and_observation_round_trip_without_secret_material
         credential,
     )
     forced_at = datetime.now(UTC)
-    observation = RunnerNatsRevocationObservation(challenge).mark_forced_disconnect(forced_at)
+    observation = _observation(challenge).mark_forced_disconnect(forced_at)
     observation = observation.mark_reconnect_denied(forced_at + timedelta(seconds=1))
 
     restored = RunnerNatsRevocationObservation.from_document(observation.to_document())
@@ -584,9 +607,7 @@ def test_authority_client_uses_targeted_superseded_route_and_public_evidence() -
         expected_active_revision=2,
         reason="replacement active",
     )
-    observation = RunnerNatsRevocationObservation(challenge).mark_forced_disconnect(
-        datetime.now(UTC)
-    )
+    observation = _observation(challenge).mark_forced_disconnect(datetime.now(UTC))
     observation = observation.mark_reconnect_denied(datetime.now(UTC))
     assert client.read_revocation_challenge(credential) == challenge
     assert client.submit_revocation_evidence(observation, reason="old JWT denied") == completed_at

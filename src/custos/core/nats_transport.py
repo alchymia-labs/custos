@@ -658,12 +658,36 @@ class RunnerNatsRevocationChallenge:
 @dataclass(frozen=True, slots=True)
 class RunnerNatsRevocationObservation:
     challenge: RunnerNatsRevocationChallenge
+    replacement_transport_credential_id: UUID
+    replacement_generation: int
+    replacement_connected_at: datetime
+    challenge_validated_at: datetime
+    challenge_expiry_outcome: str = "fresh"
     forced_disconnect_observed_at: datetime | None = None
     old_generation_reconnect_denied_at: datetime | None = None
     completed_at: datetime | None = None
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "replacement_transport_credential_id",
+            _required_uuid(
+                self.replacement_transport_credential_id,
+                "replacement_transport_credential_id",
+            ),
+        )
+        if (
+            type(self.replacement_generation) is not int
+            or self.replacement_generation <= self.challenge.generation
+        ):
+            raise RunnerNatsTransportError(
+                "replacement generation must supersede the revoked generation"
+            )
+        if self.challenge_expiry_outcome != "fresh":
+            raise RunnerNatsTransportError("only a fresh revocation challenge may produce evidence")
         for field_name in (
+            "replacement_connected_at",
+            "challenge_validated_at",
             "forced_disconnect_observed_at",
             "old_generation_reconnect_denied_at",
             "completed_at",
@@ -722,6 +746,11 @@ class RunnerNatsRevocationObservation:
     def to_document(self) -> dict[str, Any]:
         return {
             "challenge": self.challenge.to_document(),
+            "replacement_transport_credential_id": str(self.replacement_transport_credential_id),
+            "replacement_generation": self.replacement_generation,
+            "replacement_connected_at": _timestamp_text(self.replacement_connected_at),
+            "challenge_validated_at": _timestamp_text(self.challenge_validated_at),
+            "challenge_expiry_outcome": self.challenge_expiry_outcome,
             "forced_disconnect_observed_at": (
                 _timestamp_text(self.forced_disconnect_observed_at)
                 if self.forced_disconnect_observed_at is not None
@@ -741,6 +770,11 @@ class RunnerNatsRevocationObservation:
     def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsRevocationObservation:
         if set(value) != {
             "challenge",
+            "replacement_transport_credential_id",
+            "replacement_generation",
+            "replacement_connected_at",
+            "challenge_validated_at",
+            "challenge_expiry_outcome",
             "forced_disconnect_observed_at",
             "old_generation_reconnect_denied_at",
             "completed_at",
@@ -755,6 +789,18 @@ class RunnerNatsRevocationObservation:
             challenge=RunnerNatsRevocationChallenge.from_document(
                 _required_mapping(value["challenge"], "challenge")
             ),
+            replacement_transport_credential_id=_required_uuid(
+                value["replacement_transport_credential_id"],
+                "replacement_transport_credential_id",
+            ),
+            replacement_generation=value["replacement_generation"],
+            replacement_connected_at=_required_timestamp(
+                value["replacement_connected_at"], "replacement_connected_at"
+            ),
+            challenge_validated_at=_required_timestamp(
+                value["challenge_validated_at"], "challenge_validated_at"
+            ),
+            challenge_expiry_outcome=str(value["challenge_expiry_outcome"]),
             forced_disconnect_observed_at=optional_timestamp("forced_disconnect_observed_at"),
             old_generation_reconnect_denied_at=optional_timestamp(
                 "old_generation_reconnect_denied_at"
@@ -795,6 +841,14 @@ class RunnerNatsTransportBundle:
                     "retiring NATS generation is not superseded by active authority"
                 )
         if self.revocation is not None:
+            if self.active is None or (
+                self.revocation.replacement_transport_credential_id
+                != self.active.transport_credential_id
+                or self.revocation.replacement_generation != self.active.transport_generation
+            ):
+                raise RunnerNatsTransportError(
+                    "revocation observation replacement binding mismatch"
+                )
             if self.retiring is None:
                 if self.revocation.completed_at is None:
                     raise RunnerNatsTransportError(
