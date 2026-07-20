@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — T1-T5d and T6 immutable toolkit RC authority are complete; T5e is PREPARED-BLOCKED on real external runtime receipts; T7-T9 remain open
+> **Status**: ⏳ In progress — canonical first-production V1 reset is the current blocking slice; prior T5/T6 evidence is non-current until republished against the reset contract
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-20 after OCI publication, independent promotion and stable authority registration
+> **Revised**: 2026-07-20 for the canonical first-production V1 reset
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -14,6 +14,81 @@
 > **Cross-repo dependency name**: historical requirements may cite the full `Custos Plan 18` artifact-contract receipt, but T5c is pre-sign-only. Production command/runtime consumers MUST depend on the T5d-A corrected evidence receipt plus the T5d-B / Plan 19 Task 2 exact Crucible Plan 89 consumer receipt, never on internal slice aliases.
 > **Task 2 READY gates**: exact Crucible Plan 88 consumer requirements-review receipt plus exact PS Plan 54 producer requirements-review receipt for the same Custos producer commit and asset-index digest
 > **Downstream, not Task 2 READY gates**: PS Plan 54 immutable artifact/BOM production and Crucible Plan 88 StrategyRelease completion consume the READY Task 2 receipt; they cannot be prerequisites of that receipt
+
+## 2026-07-20 normative canonical first-production V1 reset
+
+This section is the current execution authority for Plan 18. It supersedes every
+conflicting additive-version, immutable-draft, predecessor-pin, compatibility-parser,
+historical-runtime and multi-generation asset statement below. The implementation
+slice MUST finish by rewriting the remaining plan text to the same single-contract
+model; this amendment is not a permanent compatibility overlay.
+
+The v1.team Rust lane has no external production consumer and therefore has no wire
+compatibility obligation. Internal commits, review receipts, candidate OCI objects and
+authority-manifest entries are audit evidence, not published production contracts.
+Git history and immutable registry digests retain that evidence. They MUST NOT force a
+second runtime parser, schema generation or authority-current entry.
+
+### Canonical contract
+
+- The technically corrected pre-sign shape currently named
+  `StrategyArtifactRefV2` becomes the sole `StrategyArtifactRefV1` with
+  `schema_version: 1`.
+- The technically corrected pre-import verifier shape currently named
+  `StrategyArtifactPreImportVerificationReceiptV2` becomes the sole
+  `StrategyArtifactPreImportVerificationReceiptV1` with `schema_version: 1`.
+- The technically corrected READY authority shape currently named
+  `ToolkitRcAuthorityReceiptV2` becomes the sole `ToolkitRcAuthorityReceiptV1`.
+- The current OCI-backed toolkit publication topology is the only production topology
+  and uses V1 names and discriminators. The superseded artifact-service receipt is
+  removed from active code and authority.
+- `StrategyManifestV1`, `StrategyExecutionContextV1`,
+  `StrategyExecutionCommandBindingV1`, runner-local policy and RunnerFact contracts
+  remain first-production V1 contracts, but every field referring to an artifact uses
+  the canonical corrected `StrategyArtifactRefV1`.
+- Runtime source type names SHOULD be unversioned where they are not serialized wire
+  discriminators. External JSON Schema ids and wire discriminators remain V1.
+
+### Required deletion
+
+- Delete the obsolete V1 classes whose shapes contain bundle or request-selected
+  trust-policy data; do not retain a historical parser or rejected union branch.
+- Delete additive `docs/gateway-contract/v2`, `v3` and `v4` strategy/toolkit contract
+  assets after their corrected shapes are regenerated under `v1`.
+- Replace `strategy-contract-assets-v1` with the one canonical index and delete
+  `strategy-contract-assets-v2`, `v3`, `v4`, their goldens, sidecars and predecessor
+  pins.
+- Delete superseded producer/consumer receipts and authority-manifest entries. A new
+  canonical V1 receipt set binds the final bytes once; it does not embed a chain of
+  internal draft receipts.
+- Delete fallback, alias, dual-parser and unknown-version migration code. Unknown
+  schema versions continue to fail closed.
+
+### Coordinated cutover
+
+1. Custos regenerates and commits the canonical V1 source model, schemas, goldens,
+   asset index and toolkit authority receipt.
+2. PS Plan 54 consumes those exact V1 bytes and replaces its V2/V3/V5 pins without
+   retaining vendored predecessor collections.
+3. Crucible Plan 88 consumes the same exact V1 bytes and removes its V1/V2 scoped
+   handoff split. The currently dirty Crucible worktree is externally owned and MUST
+   not be overwritten by this Custos execution session.
+4. ARX consumes Crucible's sole HTTP V1 projection and retains only authorization,
+   transport DTOs and structural validation.
+5. Final cross-repo receipts are regenerated only after all producers and consumers
+   agree on the same bytes. Until then, runtime and production readiness remain false.
+
+### Reset task
+
+| Slice | Work | Exit gate |
+|---|---|---|
+| CR1 | Correct this live plan and inventory every generated/runtime/authority reference | no design decision requires additive pre-production versions |
+| CR2 | Collapse Custos runtime models and generators to canonical V1 | one ArtifactRef and one pre-import receipt parser |
+| CR3 | Regenerate V1 schemas, goldens, asset index and toolkit authority | no `v2`/`v3`/`v4` strategy/toolkit contract path remains active |
+| CR4 | Remove superseded receipts and authority entries | authority manifest has one current contract per semantic concept |
+| CR5 | Obtain exact PS and Crucible V1 consumer receipts | both consumers pin the same producer commit and bytes |
+| CR6 | Republish candidate/authority receipts against canonical V1 | old OCI digest remains audit-only and is never a runtime dependency |
+| CR7 | Rewrite historical plan sections and close the reset | Plan 18 contains one coherent first-production contract narrative |
 
 ## 上下文 (Context)
 
