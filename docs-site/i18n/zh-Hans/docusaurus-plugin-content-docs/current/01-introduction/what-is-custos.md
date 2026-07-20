@@ -1,26 +1,21 @@
 ---
-title: "What is custos?"
+title: "什么是 custos"
 sidebar_position: 1
 ---
 
 <!-- source: docs/domain.md §Bounded context -->
 
-# What is custos?
+# 什么是 custos
 
-:::warning 🔄 中文翻译进行中 · PLAN 20 T6
-本章中文正文将在 Plan 20 T6 完成。当前显示英文占位。
-:::
+## 限界上下文
 
-## Bounded context
+custos 只承担本地执行机制:
 
-Custos owns local execution mechanics only:
+- runner enrollment 材料与本地机器凭据;
+- Crucible 签名指令的验证;
+- 期望部署态到本地引擎的对账 (reconcile);
+- 进程监督、看门狗与本地安全熔断器;
+- 观察到的 runner facts 的签名与发布.
 
-- runner enrollment material and local machine credentials;
-- verification of Crucible-signed commands;
-- reconciliation of desired deployment state into a local engine;
-- process supervision, watchdogs and local safety circuit breakers;
-- signing and publishing observed runner facts.
-
-Custos does not own actor authorization, approval workflows, strategy or risk
-configuration, promotion decisions, portfolio truth, settlement truth or the
-canonical deployment lifecycle.
+custos **不**承担 actor 授权、审批流、策略与风控配置、发布决策、组合真相、结算真相
+或规范的部署生命周期.
