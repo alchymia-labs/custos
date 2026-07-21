@@ -338,7 +338,7 @@ def test_incomplete_or_unverified_publication_never_writes_pending_or_ready_rece
     with pytest.raises(ArtifactPublicationError):
         _publish(inputs, registry, pending_path)
     assert not pending_path.exists()
-    assert not (tmp_path / "custos-plan-18-task-6-toolkit-rc-receipt.json").exists()
+    assert not (tmp_path / "custos-toolkit-rc-authority-v1.json").exists()
 
 
 def test_commit_unknown_recovers_only_from_the_expected_manifest_digest(

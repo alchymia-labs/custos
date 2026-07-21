@@ -40,7 +40,7 @@ WORKFLOW_REF: Final = (
 )
 OIDC_ISSUER: Final = "https://token.actions.githubusercontent.com"
 STABLE_READY_PATH: Final = Path(
-    "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
+    "docs/authority/receipts/custos-toolkit-rc-authority-v1.json"
 )
 PREREQUISITE_PATHS: Final = (
     Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),

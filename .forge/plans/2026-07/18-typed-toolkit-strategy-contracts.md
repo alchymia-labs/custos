@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — canonical first-production V1 local artifact/toolkit gates pass; authenticated Crucible resolution, protected PS publication and final cross-repo acceptance remain open
+> **Status**: ⏳ In progress — immutable V1 toolkit RC handoff READY; authenticated Crucible resolution, protected PS publication and final cross-repo acceptance remain open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-20 for the canonical first-production V1 reset
 > **Project**: Custos
@@ -572,6 +572,19 @@ Execution checkpoint (2026-07-21):
 5. Promotion reuses identical bytes and requires independent registry readback,
    signature verification and downstream consumer receipts.
 
+Execution checkpoint (2026-07-21):
+
+- Protected release run `29846674028` published `0.1.0rc2` from source
+  `ccae31ef1d906cea86bda00066b9ffbc159f2c6e` after required-reviewer approval on
+  the main-only `toolkit-rc-release` environment with admin bypass disabled.
+- The immutable OCI manifest is
+  `sha256:7e5415877e8240aa316fba28d25fa5a41a9b0aeaa3b604e1015de619dfb5dcaf`.
+- Independent read-only promotion run `29846846571` emitted the exact
+  `READY_TOOLKIT_RC` receipt with workflow-artifact digest
+  `sha256:d2756e8c8f9e069e5f4f83a064707338da6054a915b55fff240041c249aa0858`.
+- Toolkit handoff is READY; engine/runtime/production readiness remains false until
+  the PS artifact and Crucible StrategyRelease receipts complete Tasks 7-9.
+
 ### Task 7: Collect v1.team artifact-chain receipts
 
 必须全部指向 exact candidate release BOM digest 和完整 BOM member digests：
@@ -647,6 +660,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | Work | State | Current boundary |
 |---|---|---|
 | Canonical V1 models and source | local gates pass | sole V1 source, generated assets and focused verification are current |
+| Immutable toolkit RC | READY handoff | `0.1.0rc2` exact OCI bytes and independently promoted authority receipt are pinned; runtime remains false |
 | Old contract/runtime generations | removed | old runtime module and command-owned evidence path are absent |
 | PS V1 handoff | pending final pins | PS source uses the sole V1 OCI topology |
 | Crucible V1 handoff | blocked by active Plan 88 work | must consume final Custos/PS V1 bytes |

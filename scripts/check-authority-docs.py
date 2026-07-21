@@ -586,55 +586,67 @@ def verify_plan_18_canonical_source(
         errors.append("canonical V1 contract receipt must not retain predecessor authority")
 
 
-def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors: list[str]) -> None:
+def verify_toolkit_rc_release_authority(manifest: dict[str, object], errors: list[str]) -> None:
     expected_entries = (
         {
             "role": "toolkit_rc_t6d_pending_receipt_schema_v1_contract_only",
             "path": ("docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"),
             "contract_only": True,
-            "ready_receipt_published": False,
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_authority_receipt_schema_v1",
             "path": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
-            "contract_only": True,
-            "ready_receipt_published": False,
+            "contract_only": False,
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_oci_distribution_client",
             "path": "scripts/toolkit_rc_oci.py",
-            "contract_only": True,
-            "ready_receipt_published": False,
+            "contract_only": False,
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_t6e_promotion_runner",
             "path": "scripts/toolkit_rc_promote.py",
-            "contract_only": True,
-            "ready_receipt_published": False,
+            "contract_only": False,
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_t6e_independent_promotion_workflow",
             "path": ".github/workflows/promote-toolkit-rc.yml",
-            "contract_only": True,
-            "ready_receipt_published": False,
+            "contract_only": False,
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_t6d_release_readiness_runner",
             "path": "scripts/toolkit_rc_release_readiness.py",
-            "contract_only": True,
-            "ready_receipt_published": False,
+            "contract_only": False,
+            "ready_receipt_published": True,
         },
         {
             "role": "toolkit_rc_t6d_production_release_workflow",
             "path": ".github/workflows/release-toolkit-rc.yml",
-            "contract_only": True,
-            "ready_receipt_published": False,
+            "contract_only": False,
+            "ready_receipt_published": True,
+        },
+        {
+            "role": "toolkit_rc_authority_receipt_v1",
+            "path": "docs/authority/receipts/custos-toolkit-rc-authority-v1.json",
+            "contract_only": False,
+            "ready_receipt_published": True,
+        },
+        {
+            "role": "toolkit_rc_authority_receipt_v1_sha256",
+            "path": "docs/authority/receipts/custos-toolkit-rc-authority-v1.json.sha256",
+            "contract_only": False,
+            "ready_receipt_published": True,
         },
     )
     entries = manifest.get("authority_documents", [])
     for entry in expected_entries:
         if entry not in entries:
-            errors.append(f"authority manifest lacks T6d contract-only entry {entry['role']}")
+            errors.append(f"authority manifest lacks Toolkit RC authority entry {entry['role']}")
 
     pending_schema_path = resolve(
         "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
@@ -655,9 +667,11 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
         return
     expected = {
         "authority_schema": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
-        "receipt_status": "PENDING_CANONICAL_V1_REPUBLICATION",
-        "receipt_present": False,
-        "handoff_ready": False,
+        "receipt_status": "READY_TOOLKIT_RC",
+        "receipt_present": True,
+        "receipt_path": "docs/authority/receipts/custos-toolkit-rc-authority-v1.json",
+        "receipt_sha256": "45cd1ea2d5de7ca96e220cf696c13b9474b8361d7531eaa3caf1f117b886cbc9",
+        "handoff_ready": True,
         "publication_protocol": "OCI_DISTRIBUTION_V1",
         "runtime_ready": False,
         "production_ready": False,
@@ -670,33 +684,92 @@ def verify_plan_18_task_6_release_readiness(manifest: dict[str, object], errors:
     blockers = release.get("open_blockers")
     if not isinstance(blockers, list) or not blockers:
         errors.append("canonical Toolkit RC release must remain fail-closed with explicit blockers")
+    _verify_toolkit_rc_receipt(errors)
 
 
-def verify_plan_18_task_6_release_authority(manifest: dict[str, object], errors: list[str]) -> None:
+def _verify_toolkit_rc_receipt(errors: list[str]) -> None:
     ecosystem_path = resolve("docs/authority/ecosystem-authority.json")
     ecosystem = load_json(ecosystem_path) if ecosystem_path.is_file() else {}
     release = ecosystem.get("toolkit_rc_release", {})
     if not isinstance(release, dict):
         errors.append("ecosystem toolkit_rc_release must be an object")
         return
-    stale_receipt = ROOT / "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
-    if stale_receipt.exists():
-        errors.append(
-            f"old Toolkit RC READY receipt must not remain authoritative: {stale_receipt}"
-        )
+    receipt_path = ROOT / "docs/authority/receipts/custos-toolkit-rc-authority-v1.json"
+    sidecar_path = receipt_path.with_suffix(f"{receipt_path.suffix}.sha256")
+    if not receipt_path.is_file() or not sidecar_path.is_file():
+        errors.append("canonical Toolkit RC READY receipt or sidecar is missing")
+        return
+    receipt_bytes = receipt_path.read_bytes()
+    receipt_digest = hashlib.sha256(receipt_bytes).hexdigest()
+    expected_sidecar = f"{receipt_digest}  {receipt_path.name}\n"
+    if sidecar_path.read_text(encoding="ascii") != expected_sidecar:
+        errors.append("canonical Toolkit RC READY receipt sidecar differs")
+    receipt = load_json(receipt_path)
+    expected_receipt = {
+        "candidate_version": "0.1.0rc2",
+        "source_commit": "ccae31ef1d906cea86bda00066b9ffbc159f2c6e",
+        "status": "READY_TOOLKIT_RC",
+        "ready": True,
+        "handoff_ready": True,
+        "remote_publication_verified": True,
+        "production_credentials_used": True,
+        "production_signature_verified": True,
+        "runtime_ready": False,
+        "production_ready": False,
+    }
+    for key, value in expected_receipt.items():
+        if receipt.get(key) != value:
+            errors.append(f"canonical Toolkit RC READY receipt {key} differs")
+    if receipt.get("final_blockers") != []:
+        errors.append("canonical Toolkit RC READY receipt retains publication blockers")
+    publication = receipt.get("publication_receipt")
+    if not isinstance(publication, dict):
+        errors.append("canonical Toolkit RC READY receipt lacks publication evidence")
+    else:
+        expected_publication = {
+            "manifest_digest": "sha256:7e5415877e8240aa316fba28d25fa5a41a9b0aeaa3b604e1015de619dfb5dcaf",
+            "workflow_run_id": 29846674028,
+            "release_environment": "toolkit-rc-release",
+            "tag_readback_verified": True,
+            "manifest_commit_verified": True,
+        }
+        for key, value in expected_publication.items():
+            if publication.get(key) != value:
+                errors.append(f"canonical Toolkit RC publication {key} differs")
+    expected_release = {
+        "promotion_run_id": 29846846571,
+        "promotion_artifact_digest": "sha256:d2756e8c8f9e069e5f4f83a064707338da6054a915b55fff240041c249aa0858",
+        "receipt_sha256": receipt_digest,
+    }
+    for key, value in expected_release.items():
+        if release.get(key) != value:
+            errors.append(f"ecosystem Toolkit RC release {key} differs")
+    expected_policy = {
+        "environment_id": 18436102486,
+        "required_reviewer": "wukai9203",
+        "prevent_self_review": False,
+        "can_admins_bypass": False,
+        "deployment_branch": "main",
+        "verified_at": "2026-07-21T16:00:38Z",
+    }
+    if release.get("release_environment_policy") != expected_policy:
+        errors.append("ecosystem Toolkit RC environment protection evidence differs")
 
-    for relative in (
-        "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py",
-        "scripts/toolkit_rc_promote.py",
-        ".github/workflows/promote-toolkit-rc.yml",
+    for relative, required_symbol in (
+        (
+            "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py",
+            "ToolkitRcAuthorityReceiptV1",
+        ),
+        ("scripts/toolkit_rc_promote.py", "ToolkitRcAuthorityReadyReceiptV1"),
+        (".github/workflows/promote-toolkit-rc.yml", "ToolkitRcAuthorityReceiptV1"),
     ):
         source = ROOT / relative
         if not source.is_file():
             errors.append(f"missing canonical Toolkit RC authority source: {source}")
             continue
         value = source.read_text(encoding="utf-8")
-        if "ToolkitRcAuthorityReceiptV1" not in value:
-            errors.append(f"{relative} does not consume ToolkitRcAuthorityReceiptV1")
+        if required_symbol not in value:
+            errors.append(f"{relative} does not consume {required_symbol}")
         if "predecessor_oci_manifest" in value:
             errors.append(f"{relative} retains a superseded Toolkit RC authority contract")
 
@@ -1448,7 +1521,7 @@ def main() -> int:
         path = resolve(entry["path"])
         if not path.is_file():
             errors.append(f"missing {entry['role']}: {path}")
-    verify_plan_18_task_6_release_readiness(manifest, errors)
+    verify_toolkit_rc_release_authority(manifest, errors)
     snapshot_path = resolve("docs/authority/ecosystem-authority.json")
     if snapshot_path.is_file():
         snapshot = load_json(snapshot_path)

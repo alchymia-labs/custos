@@ -49,50 +49,50 @@
     {
       "role": "toolkit_rc_receipt_manifest_schema_v1_contract_foundation",
       "path": "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_t6d_pending_receipt_schema_v1_contract_only",
       "path": "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json",
       "contract_only": true,
-      "ready_receipt_published": false
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_t6d_release_readiness_runner",
       "path": "scripts/toolkit_rc_release_readiness.py",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_t6d_production_release_workflow",
       "path": ".github/workflows/release-toolkit-rc.yml",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_authority_receipt_schema_v1",
       "path": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_oci_distribution_client",
       "path": "scripts/toolkit_rc_oci.py",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_t6e_promotion_runner",
       "path": "scripts/toolkit_rc_promote.py",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "toolkit_rc_t6e_independent_promotion_workflow",
       "path": ".github/workflows/promote-toolkit-rc.yml",
-      "contract_only": true,
-      "ready_receipt_published": false
+      "contract_only": false,
+      "ready_receipt_published": true
     },
     {
       "role": "local_runner_fact",
@@ -254,6 +254,18 @@
     {
       "role": "plan_19_task_6_portfolio_semantics_receipt",
       "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
+    },
+    {
+      "role": "toolkit_rc_authority_receipt_v1",
+      "path": "docs/authority/receipts/custos-toolkit-rc-authority-v1.json",
+      "contract_only": false,
+      "ready_receipt_published": true
+    },
+    {
+      "role": "toolkit_rc_authority_receipt_v1_sha256",
+      "path": "docs/authority/receipts/custos-toolkit-rc-authority-v1.json.sha256",
+      "contract_only": false,
+      "ready_receipt_published": true
     }
   ],
   "external_optional_documents": [
@@ -284,7 +296,7 @@
     "normal_server_migrator_target": "0114",
     "normal_server_migrator_rule": "stop successfully at 0114 and never attempt 0115",
     "retirement_migration": "0115",
-    "retirement_execution_path": "dedicated crucible_cr87_retire_0115 runner only",
+    "retirement_execution_path": "dedicated legacy-mode-schema retirement runner only",
     "retirement_required_gates": [
       "immutable operator permit bundle",
       "CR87-RETIRE-LEGACY-MODE-SCHEMAS-V1 capability",
@@ -295,7 +307,7 @@
       "DB-CUTOVER": "PENDING"
     },
     "legacy_schema_claim_rule": "legacy schemas must not be described as dropped while either required actual receipt is PENDING",
-    "cr89_migration": "0116"
+    "post_retirement_migration": "0116"
   },
   "doc_drift": {
     "paths": [
@@ -307,6 +319,8 @@
       "Makefile",
       "docs/authority/crucible-runner-command-consumer-assets-v1.json",
       "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json",
+      "docs/authority/receipts/custos-toolkit-rc-authority-v1.json",
+      "docs/authority/receipts/custos-toolkit-rc-authority-v1.json.sha256",
       "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json",

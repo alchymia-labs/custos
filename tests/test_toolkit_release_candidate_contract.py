@@ -172,13 +172,13 @@ def test_contract_rejects_legacy_modules_mutability_and_non_rc_claims() -> None:
             ToolkitRcReceiptManifestV1.model_validate(claimed)
 
 
-def test_authority_registers_only_the_v1_contract_without_a_stale_ready_receipt() -> None:
+def test_authority_registers_exact_v1_ready_receipt() -> None:
     manifest = json.loads((ROOT / "authority-manifest.json").read_text(encoding="utf-8"))
     assert {
         "role": "toolkit_rc_receipt_manifest_schema_v1_contract_foundation",
         "path": "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json",
-        "contract_only": True,
-        "ready_receipt_published": False,
+        "contract_only": False,
+        "ready_receipt_published": True,
     } in manifest["authority_documents"]
     assert CONTRACT_INDEX.is_file()
     assert not any(
@@ -189,6 +189,8 @@ def test_authority_registers_only_the_v1_contract_without_a_stale_ready_receipt(
         for entry in manifest["authority_documents"]
         if isinstance(entry, dict)
     )
-    assert not (
-        ROOT / "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
-    ).exists()
+    receipt_path = ROOT / "docs/authority/receipts/custos-toolkit-rc-authority-v1.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["status"] == "READY_TOOLKIT_RC"
+    assert receipt["candidate_version"] == "0.1.0rc2"
+    assert receipt["source_commit"] == "ccae31ef1d906cea86bda00066b9ffbc159f2c6e"
