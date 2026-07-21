@@ -303,11 +303,11 @@
     "retirement_execution_path": "dedicated legacy-mode-schema retirement runner only",
     "retirement_required_gates": [
       "immutable operator permit bundle",
-      "CR87-RETIRE-LEGACY-MODE-SCHEMAS-V1 capability",
+      "LEGACY-MODE-SCHEMA-RETIREMENT-V1 capability",
       "strict local database identity"
     ],
     "required_actual_receipts": {
-      "CR87-RETIREMENT-0115": "PENDING",
+      "LEGACY-MODE-RETIREMENT-0115": "PENDING",
       "DB-CUTOVER": "PENDING"
     },
     "legacy_schema_claim_rule": "legacy schemas must not be described as dropped while either required actual receipt is PENDING",
