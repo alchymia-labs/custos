@@ -9,7 +9,7 @@ publisher is used.
 ## Prerequisites
 
 - Docker with Compose v2.
-- A reviewed strategy at `strategy/strategy.py`.
+- A released strategy artifact selected by Crucible.
 - Crucible HTTP and NATS endpoints plus its domain-event public key.
 - A one-time runner enrollment token.
 - Binance testnet credentials with withdrawal disabled.
@@ -64,19 +64,15 @@ printf '%s\n' '<binance-testnet-api-secret>' | docker run --rm -i \
   --permission-scope trade_no_withdraw
 ```
 
-## 3. Validate and run
+## 3. Run the signed-command consumer
 
 ```bash
-docker run --rm \
-  -v "$PWD/spec-example.json:/spec.json:ro" \
-  custos-runner:v0.3.0 deployment validate --spec-file /spec.json
-
 docker compose up
 ```
 
-The local JSON file is an offline execution-view fixture. Create, approve,
-promote, stop, or archive the real deployment through Crucible. Custos consumes
-the signed command and emits signed lifecycle facts; it never becomes the
-business fact owner. Observe only the runner with `docker compose logs -f runner`.
+Create, approve, promote, stop, or archive the deployment through Crucible.
+Custos consumes the signed command, resolves the authenticated StrategyRelease
+and emits signed lifecycle facts; it never becomes the business fact owner.
+Observe only the runner with `docker compose logs -f runner`.
 
 Remote release remains deferred; this workflow consumes no GHCR artifact.

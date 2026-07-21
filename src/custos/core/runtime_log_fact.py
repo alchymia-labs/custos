@@ -78,7 +78,7 @@ _PUBLIC_IDENTIFIER_KEYS = frozenset(
 )
 _SECRET_PATTERNS = (
     re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"\brkc2\.[A-Za-z0-9._~-]+"),
+    re.compile(r"\brkc1\.[A-Za-z0-9._~-]+"),
     re.compile(r"\bAGE-SECRET-KEY-[A-Z0-9-]+"),
     re.compile(
         r"-----BEGIN (?:ENCRYPTED |EC |RSA |OPENSSH )?PRIVATE KEY-----.*?"

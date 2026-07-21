@@ -38,8 +38,9 @@ Follow the 5-step template in
 [`docs/design/engine_protocol.md`](../design/engine_protocol.md#engine-onboarding-template-5-steps):
 implement `ExecutionEngineProtocol` in a new `custos/engines/hummingbot/host.py`,
 fill the (currently empty) `hummingbot` extra in `pyproject.toml`, and add
-venue adapters as needed. The G6 gate and reconciler require no changes —
-they already operate exclusively through `ExecutionEngineProtocol`.
+venue adapters as needed. The command coordinator and admission rules require
+no engine-specific branch; they operate through `ExecutionEngineProtocol` and
+the verified artifact ABI.
 
 ## Follow-up plan
 

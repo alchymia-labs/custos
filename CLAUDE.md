@@ -42,7 +42,7 @@
 
 | 模块 | 职责 | 设计文档 | 承担红线 |
 |------|------|---------|---------|
-| **enrollment** | nonce-bound Ed25519 PoP; encrypted `rkc2` credential; rotate/revoke | [`docs/design/enrollment.md`](docs/design/enrollment.md) | 私钥不出机 + startup fail closed |
+| **enrollment** | nonce-bound Ed25519 PoP; encrypted `rkc1` credential; rotate/revoke | [`docs/design/enrollment.md`](docs/design/enrollment.md) | 私钥不出机 + startup fail closed |
 | **reconcile** | Verify signed desired state → start/stop NT → enqueue typed lifecycle RunnerFact | [`docs/design/reconcile.md`](docs/design/reconcile.md) | 失联≠停止 (红线 0.3) |
 | **nautilus_host** | NT 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | [`docs/design/nautilus_host.md`](docs/design/nautilus_host.md) | **G6 不绕过 (红线 0.2)** |
 | **runner_fact** | NT MessageBus → typed signed RunnerFact outbox → Crucible | [`docs/design/runner_fact.md`](docs/design/runner_fact.md) | Key 不出进程 (红线 0.1) + Decimal (0.4) |
@@ -172,3 +172,7 @@ Global CLAUDE.md already sets this; executors have historically drifted, so it i
 authority-manifest.json is the machine-readable entry point for ecosystem
 ownership, migration and architecture documents. Run make check-authority when
 changing ownership or cross-service protocols.
+
+## First-production V1 contract rule
+
+`authority-manifest.json` defines the only current production contract set. Custos owns the execution ABI, `StrategyArtifactRefV1`, local verification, and RunnerFact/runtime state; it must not copy PS or Crucible owner schemas into its own schema. New features change V1 in place, without predecessor parsers or compatibility aliases. V2 requires a real external production consumer and an explicit migration window.

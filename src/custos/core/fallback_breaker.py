@@ -41,9 +41,7 @@ class FallbackBreakerConfig:
     source: str = "explicit_local_config"
 
     @classmethod
-    def from_verified_policy(
-        cls, policy: RunnerAggregateCapPolicyV1
-    ) -> FallbackBreakerConfig:
+    def from_verified_policy(cls, policy: RunnerAggregateCapPolicyV1) -> FallbackBreakerConfig:
         if not isinstance(policy, RunnerAggregateCapPolicyV1):
             raise TypeError("fallback breaker requires a verified CR99 policy model")
         return cls(

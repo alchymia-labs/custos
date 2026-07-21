@@ -1,0 +1,113 @@
+{
+  "asset_index_schema_version": 1,
+  "authority_coordinate": "custos.runner-fact.v1",
+  "status": "CANONICAL_V1_PENDING_RUNTIME_RECEIPTS",
+  "phase_a_input_ready": true,
+  "crucible_phase_a_compatible": false,
+  "projector_compatibility_ready": false,
+  "runtime_rc": false,
+  "real_runtime_round_trip_ready": false,
+  "live_ready": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "schema_version": 1,
+  "canonicalization": "utf8-json-sort-keys-compact-v1",
+  "cross_language_numeric_policy": "integer-or-canonical-decimal-string",
+  "signing_domain_base64": "Q1JVQ0lCTEUtUlVOTkVSLUZBQ1QtQkFUQ0gtVjEA",
+  "signing_header_fields": [
+    "schema_version",
+    "batch_id",
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id",
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation",
+    "strategy_id",
+    "capability_version_id",
+    "capability_version",
+    "capability_manifest_digest",
+    "key_id",
+    "emitted_at",
+    "source_seq_start",
+    "source_seq_end",
+    "payload_digest"
+  ],
+  "signing_header_excluded_batch_fields": [
+    "facts",
+    "signature"
+  ],
+  "signing_preimage_formula": "DOMAIN || canonical_json(header)",
+  "golden_subject": "crucible.runner.fact.v1.acme.10000000-0000-4000-8000-000000000001.sandbox",
+  "stream_identity_fields": [
+    "tenant_id",
+    "trading_mode",
+    "runner_id",
+    "deployment_instance_id"
+  ],
+  "signed_fencing_fields": [
+    "deployment_spec_id",
+    "deployment_spec_digest",
+    "generation"
+  ],
+  "fact_kind_projectors": {
+    "execution_fill": "settlement",
+    "fill": "settlement",
+    "position_closed": "settlement",
+    "fee": "settlement",
+    "period_closed": "settlement",
+    "equity_snapshot": "risk",
+    "position_snapshot": "risk",
+    "heartbeat": "health",
+    "RunnerRuntimeLogFact.v1": "health",
+    "venue_ledger_snapshot_manifest": "reconciliation",
+    "venue_ledger_snapshot_chunk": "reconciliation",
+    "reconciliation_period_closed": "reconciliation",
+    "RunnerDeploymentLifecycleFact.v1": "deployment_lifecycle"
+  },
+  "synthetic_signature": {
+    "algorithm": "ed25519",
+    "key_id": "ed25519-65b60673d6ed884bf01c2c222d82ada0",
+    "public_key_base64": "ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=",
+    "runtime_evidence": false
+  },
+  "assets": [
+    {
+      "role": "runner_fact_batch_schema",
+      "path": "docs/gateway-contract/v1/runner_fact_batch_v1.schema.json",
+      "sha256": "4448c41b5b2390923d8ad0f1fe94114fc61b259adce822e363213e5e0c682c31",
+      "size_bytes": 31187
+    },
+    {
+      "role": "runner_fact_batch_golden",
+      "path": "docs/authority/runner-fact-golden-v1.json",
+      "sha256": "76adf72c2dbfdea4bd4438288c3151540dd95dcb7415c934ea0ada65851aa045",
+      "size_bytes": 6461
+    },
+    {
+      "role": "runner_fact_capability_manifest",
+      "path": "docs/authority/runner-fact-capability-manifest-v1.json",
+      "sha256": "382c97aafdba7f13fe80d4e740f0967339f22b9477fd87d5c800fbf492a159f3",
+      "size_bytes": 3025
+    },
+    {
+      "role": "runner_fact_capability_receipt_golden",
+      "path": "docs/authority/runner-fact-capability-receipt-golden-v1.json",
+      "sha256": "e669f37d5739ae1861c967479ebd202d52a9eca643890c36584f97c973e3d84b",
+      "size_bytes": 6221
+    },
+    {
+      "role": "runtime_event_fact_parity_matrix",
+      "path": "docs/authority/runner-fact-parity-matrix-v1.json",
+      "sha256": "dc2c2a0a7afecb87ad78b03e6f1d56db8090eced0ed0aab7829a40b0961192ed",
+      "size_bytes": 3780
+    },
+    {
+      "role": "runner_fact_signing_preimage_golden",
+      "path": "docs/authority/runner-fact-signing-preimage-golden-v1.json",
+      "sha256": "703e6d3a4fa16d55790abbebabff0acfcd46a9b5a9a8dce4eec51b35602ad4fc",
+      "size_bytes": 5434
+    }
+  ]
+}

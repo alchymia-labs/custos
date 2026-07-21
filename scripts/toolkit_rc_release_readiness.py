@@ -786,7 +786,7 @@ def _add_common_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--contract-asset-index",
         type=Path,
-        default=Path("docs/authority/strategy-contract-assets-v2.json"),
+        default=Path("docs/authority/strategy-contract-assets-v1.json"),
     )
     parser.add_argument(
         "--t4-zero-rewrite-receipt",
@@ -801,7 +801,7 @@ def _add_common_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--t5-pre-import-verifier-receipt",
         type=Path,
-        default=Path("docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"),
+        default=Path("docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"),
     )
 
 

@@ -2,7 +2,7 @@
 
 ## Input contract
 
-The reconciler consumes a Crucible-signed domain event on:
+The runner command coordinator consumes a Crucible-signed domain event on:
 
     crucible_rust.domain.<tenant>.<mode>.deployment.
       DeploymentSpecReadyForRunner.<runner_id>.<deployment_instance_id>
@@ -27,29 +27,31 @@ deployment_spec_id is never used as the map key. This permits multiple
 instances of one immutable spec and prevents a retry from controlling the
 wrong process.
 
-The older in-memory `DeploymentReconciler` watermarks remain an explicitly
-separate compatibility lane. They are not v1.team production authority and
-must never be used as a fallback when the signed-command/store path is blocked.
+There is no in-memory reconciler, spec-keyed watermark or compatibility
+fallback. A command which cannot enter the RunnerFact authority is rejected
+fail closed; runtime code never reconstructs authority from a local path or an
+older payload shape.
 
 ## Reconciliation algorithm
 
-1. Verify the signed envelope and subject binding.
-2. Validate tenant, mode, runner, instance, spec digest and live evidence.
-3. Compare generation with the accepted generation for that instance.
-4. Load the exact T3-verified command from the T4 durable desired record.
-5. Require the real Plan 18 T5e artifact capability; live remains fail closed.
-6. Apply start/reconfigure/stop through `EngineLifecycleSupervisor` using the instance id.
-7. Wait for the typed seven-check `EngineReadyReceipt`; task creation alone is insufficient.
-8. Atomically commit applied state and the deterministic lifecycle fact in the T4 transaction.
-9. ACK only after that transaction; matching restart/redelivery probes ready state and does not
-   repeat deploy.
+1. Verify the signed envelope and exact subject binding before parsing payload fields.
+2. Validate tenant, mode, runner, instance, spec digest, release binding and generation.
+3. Persist the exact command and compare it with the accepted generation for that instance.
+4. On `PREPARED_FOR_APPLY` or `IDEMPOTENT_PENDING`, load the exact durable desired record.
+5. Resolve Crucible-owned StrategyRelease material through the authenticated V1 resolver.
+6. Verify and activate the exact artifact under the immutable activation root. An exact
+   redelivery reloads the durable activation; it never imports a mutable source path.
+7. Resolve the signed credential scope locally and apply through
+   `EngineLifecycleSupervisor`, passing the verified activated artifact as a required ABI input.
+8. Wait for the typed seven-check `EngineReadyReceipt`; task creation alone is insufficient.
+9. Atomically commit applied state and the deterministic lifecycle fact in the T4 transaction.
+10. ACK only after that transaction. A matching restart/redelivery probes ready state and does
+    not repeat deployment.
 
 The lifecycle event ID is derived from stream authority, spec id/digest,
 generation, lifecycle state, stable command fingerprint and outcome; observation
-time remains payload only. The non-production legacy signed-spec compatibility
-lane uses the verified DeploymentSpec digest as its stable apply fingerprint and
-`applied` as its outcome. It does not invent a timestamp-based identity or
-become a fallback for the v1.team command path.
+time remains payload only. No timestamp, local file or reconstructed payload can
+replace the signed command fingerprint.
 
 ## Delivery disposition
 
@@ -58,7 +60,7 @@ become a fallback for the v1.team command path.
 | bad signature, subject mismatch or invalid contract | durable untrusted rejection, then TERM |
 | same generation and exact bytes | replay the prior durable disposition |
 | same generation with different bytes, stale, retry exhausted | atomic terminal outcome/fact, then TERM |
-| successful reconciliation | atomic applied state/fact, then ACK |
+| successful command application | atomic applied state/fact, then ACK |
 | transient engine or local dependency failure | NAK for redelivery |
 
 A poison command must not create an infinite redelivery loop. A transient
@@ -86,4 +88,4 @@ exception or typed unreliable status immediately freezes the breaker and request
 flattening; missing mark or equity can never skip a tick or be treated as zero
 risk. This T6 safety behavior is local execution evidence only. It does not replace
 the Crucible-signed versioned runner policy required by T7, and DeploymentSpec
-`risk_config` cannot define or override the runner aggregate cap.
+execution configuration cannot define or override the runner aggregate cap.

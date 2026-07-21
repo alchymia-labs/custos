@@ -49,18 +49,18 @@ custos/
 │   │   ├── runner_toml.py     ← ~/.arx/runner.toml 原子写 + 0600 mode 契约
 │   │   ├── nats_client.py     ← JetStream client + build_subject() 函数
 │   │   ├── reconcile.py       ← ReconcileLoop (level-triggered)
-│   │   ├── deployment_reconciler.py ← reconcile 高层编排
+│   │   ├── runner_command_runtime.py ← signed command/runtime 唯一 V1 coordinator
 │   │   ├── runner_fact.py     ← single SQLite state/sequence/signed-outbox deep module
 │   │   ├── runner_fact_producer.py ← typed engine observations → RunnerFact builders
 │   │   └── log.py             ← structlog 配置
 │   ├── engines/nautilus/      ← NT Python 引擎
-│   │   ├── host.py            ← NoopHost + NtTradingNodeHost + G6 gate
+│   │   ├── host.py            ← NoopHost + NtTradingNodeHost + execution admission
 │   │   ├── risk.py            ← 本地 fallback breaker (drawdown + max_notional)
-│   │   ├── strategy_loader.py ← 策略加载
+│   │   ├── runtime_loader.py ← 已验证 activation 的唯一 V1 entry-point loader
 │   │   └── venue_binance.py   ← Binance venue 适配
 │   └── cli/
 │       ├── main.py            ← 0.2.0 legacy stub (`python -m custos` → sys.exit(2) + pointer)
-│       ├── _daemon.py         ← run_daemon coroutine + _build_vault/_build_host/_build_reconciler/_heartbeat_loop
+│       ├── _daemon.py         ← run_daemon coroutine + local vault/host/safety composition
 │       ├── validators.py      ← boundary 校验 (`validate_id` + `validate_backend_url` scheme allowlist)
 │       └── subcommands/       ← `arx-runner` 五子命令
 │           ├── __init__.py    ← main(argv) dispatcher (argparse add_subparsers)

@@ -7,10 +7,11 @@ services:
       SOPS_AGE_KEY_FILE: /home/custos/.arx/age.key
       CRUCIBLE_DOMAIN_EVENT_KEY_ID: ${CRUCIBLE_DOMAIN_EVENT_KEY_ID}
     volumes:
-      - ./strategy:/opt/custos/strategies/supertrend:ro
       - ./runtime/.arx:/home/custos/.arx
     command:
       - start
+      - --enabled-mode
+      - testnet
       - --nats-url
       - ${CRUCIBLE_NATS_URL:-nats://host.docker.internal:4222}
       - --engine

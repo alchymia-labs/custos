@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from custos.core.engine_protocol import EngineStatus
+from custos.core.engine_safety import EngineSafetySupervisor
+from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig
 from custos.engines.nautilus.host import NtTradingNodeHost
 from custos.engines.nautilus.portfolio_snapshot import (
     NautilusPortfolioPosition,
@@ -189,9 +192,7 @@ async def test_host_marks_inactive_or_unreliable_status_fail_closed() -> None:
     assert inactive.reliable is False
     assert inactive.unreliable_reason == "deployment_not_active"
 
-    provider = _RecordingProvider(
-        NautilusPortfolioSnapshot.unreliable("portfolio_equity_invalid")
-    )
+    provider = _RecordingProvider(NautilusPortfolioSnapshot.unreliable("portfolio_equity_invalid"))
     host = NtTradingNodeHost(
         tenant_id="tenant",
         runner_id="runner",
@@ -202,3 +203,70 @@ async def test_host_marks_inactive_or_unreliable_status_fail_closed() -> None:
     assert status.phase == "degraded"
     assert status.reliable is False
     assert status.unreliable_reason == "portfolio_equity_invalid"
+
+
+class _SafetyEngine:
+    def __init__(self, status: EngineStatus) -> None:
+        self.status = status
+        self.status_calls = 0
+        self.flattened: list[tuple[str, str]] = []
+
+    async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus:
+        self.status_calls += 1
+        return self.status
+
+    async def flatten_positions(self, deployment_instance_id: str, reason: str) -> None:
+        self.flattened.append((deployment_instance_id, reason))
+
+
+def _safety_breaker() -> FallbackBreaker:
+    return FallbackBreaker(
+        FallbackBreakerConfig(
+            max_notional=Decimal("100"),
+            max_drawdown_pct=Decimal("10"),
+        )
+    )
+
+
+async def test_safety_tick_uses_one_status_snapshot_and_flattens_a_breach() -> None:
+    engine = _SafetyEngine(
+        EngineStatus(
+            phase="running",
+            position_count=1,
+            order_count=0,
+            open_notional=Decimal("101"),
+            peak_equity=Decimal("1000"),
+            current_equity=Decimal("1000"),
+            drawdown_pct=Decimal("0"),
+        )
+    )
+    supervisor = EngineSafetySupervisor(engine=engine, breaker=_safety_breaker())
+
+    tick = await supervisor.evaluate_once("instance-1")
+
+    assert engine.status_calls == 1
+    assert tick.verdict.reason == "notional_breach"
+    assert engine.flattened == [("instance-1", "notional_breach")]
+
+
+async def test_safety_tick_fails_closed_on_an_unreliable_status() -> None:
+    engine = _SafetyEngine(
+        EngineStatus(
+            phase="degraded",
+            position_count=0,
+            order_count=0,
+            open_notional=Decimal("0"),
+            peak_equity=Decimal("0"),
+            current_equity=Decimal("0"),
+            drawdown_pct=Decimal("0"),
+            reliable=False,
+            unreliable_reason="portfolio_equity_missing:USDT",
+        )
+    )
+    supervisor = EngineSafetySupervisor(engine=engine, breaker=_safety_breaker())
+
+    tick = await supervisor.evaluate_once("instance-2")
+
+    assert tick.verdict.reason == "portfolio_equity_missing:USDT"
+    assert supervisor.breaker.frozen is True
+    assert engine.flattened == [("instance-2", "portfolio_equity_missing:USDT")]

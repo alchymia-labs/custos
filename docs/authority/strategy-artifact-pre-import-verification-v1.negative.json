@@ -1,0 +1,93 @@
+{
+  "base_golden": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
+  "base_golden_sha256": "fb78d43cc1a763945c86bb9c733dccde8c8d1bdaf9cd075f23b00bc3ab289d46",
+  "canonical_name": "Custos Plan 18 ReceiptV1 negative mutations",
+  "cases": [
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "artifact_ref",
+          "bundle_sha256"
+        ],
+        "value": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "name": "artifact_ref_bundle_field_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "artifact_ref",
+          "policy_digest"
+        ],
+        "value": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "name": "artifact_ref_policy_field_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "replace",
+        "path": [
+          "release_bom"
+        ],
+        "value": []
+      },
+      "name": "bom_array_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "replace",
+        "path": [
+          "detached_attestation_ref",
+          "bundle_sha256"
+        ],
+        "value": "8d46cc9e3a4d3e56f27d73608186c493f46ccc776c2f12e19042012db7069a01"
+      },
+      "name": "bundle_self_reference_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "replace",
+        "path": [
+          "runner_local_policy_decision",
+          "policy_digest"
+        ],
+        "value": "9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "name": "crucible_policy_reuse_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "release_bom_members"
+        ],
+        "value": []
+      },
+      "name": "release_bom_members_alias_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "runner_local_policy_decision",
+          "requested_by_command"
+        ],
+        "value": true
+      },
+      "name": "request_selected_policy_forbidden"
+    },
+    {
+      "mutation": {
+        "operation": "add",
+        "path": [
+          "verified_members"
+        ],
+        "value": []
+      },
+      "name": "verified_members_alias_forbidden"
+    }
+  ],
+  "fixture_schema_version": 1
+}

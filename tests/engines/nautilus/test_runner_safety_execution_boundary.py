@@ -17,6 +17,7 @@ from nautilus_trader.model.identifiers import ClientId, Venue  # noqa: E402
 from nautilus_trader.model.objects import Currency  # noqa: E402
 from nautilus_trader.test_kit.stubs.component import TestComponentStubs  # noqa: E402
 
+from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig  # noqa: E402
 from custos.engines.nautilus.runner_safety import (  # noqa: E402
     GuardedLiveExecutionClient,
     RunnerReservationBoundary,
@@ -97,7 +98,9 @@ class _InnerClient:
         self.log.append(("submit", command.order.client_order_id))
 
     def submit_order_list(self, command) -> None:
-        self.log.append(("submit_list", tuple(o.client_order_id for o in command.order_list.orders)))
+        self.log.append(
+            ("submit_list", tuple(o.client_order_id for o in command.order_list.orders))
+        )
 
     def modify_order(self, command) -> None:
         self.log.append(("modify_upstream", command.client_order_id))
@@ -119,9 +122,7 @@ class _InnerClient:
         reason,
         ts_event,
     ) -> None:
-        self.rejections.append(
-            (strategy_id, instrument_id, client_order_id, reason, ts_event)
-        )
+        self.rejections.append((strategy_id, instrument_id, client_order_id, reason, ts_event))
 
     def generate_order_modify_rejected(
         self,
@@ -163,11 +164,25 @@ def _submit_command(order, command_id: str = "submit-1"):
     return SimpleNamespace(order=order, command_id=command_id)
 
 
-def _boundary(store: _Store) -> RunnerReservationBoundary:
+def _breaker() -> FallbackBreaker:
+    return FallbackBreaker(
+        FallbackBreakerConfig(
+            max_notional=Decimal("1000"),
+            max_drawdown_pct=Decimal("10"),
+        )
+    )
+
+
+def _boundary(
+    store: _Store,
+    *,
+    fallback_breaker: FallbackBreaker | None = None,
+) -> RunnerReservationBoundary:
     return RunnerReservationBoundary(
         store=store,
         deployment_instance_id=DEPLOYMENT_INSTANCE_ID,
         policy_id=POLICY_ID,
+        fallback_breaker=fallback_breaker or _breaker(),
         semantics=_Semantics(),
     )
 
@@ -224,15 +239,30 @@ def test_risk_reducing_and_cancel_commands_are_never_blocked() -> None:
         timestamp_ns=lambda: 29,
     )
 
-    dispatch.submit_order(
-        _submit_command(_order("reduce-1", notional="500", reduce_only=True))
-    )
-    dispatch.cancel_order(
-        SimpleNamespace(client_order_id="reduce-1", command_id="cancel-1")
-    )
+    dispatch.submit_order(_submit_command(_order("reduce-1", notional="500", reduce_only=True)))
+    dispatch.cancel_order(SimpleNamespace(client_order_id="reduce-1", command_id="cancel-1"))
 
     assert [entry[0] for entry in log] == ["submit", "cancel_upstream"]
     assert inner.rejections == []
+
+
+def test_frozen_breaker_rejects_risk_increasing_but_not_reduce_only_or_cancel() -> None:
+    log: list[tuple] = []
+    breaker = _breaker()
+    breaker.fail_closed("portfolio_snapshot_unreliable")
+    inner = _InnerClient(log)
+    dispatch = RunnerSafetyExecutionDispatch(
+        inner=inner,
+        boundary=_boundary(_Store(log), fallback_breaker=breaker),
+        timestamp_ns=lambda: 30,
+    )
+
+    dispatch.submit_order(_submit_command(_order("risk-increasing")))
+    dispatch.submit_order(_submit_command(_order("reduce-only", reduce_only=True)))
+    dispatch.cancel_order(SimpleNamespace(client_order_id="reduce-only", command_id="cancel"))
+
+    assert [entry[0] for entry in log] == ["submit", "cancel_upstream"]
+    assert inner.rejections[0][2] == "risk-increasing"
 
 
 def test_modify_reserves_new_notional_before_upstream() -> None:

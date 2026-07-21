@@ -43,7 +43,7 @@ custos 由六个核心模块组成:
 |------|------|-------------|
 | **enrollment** | 一次性 `EnrollmentToken` 配对; `runner_id`; `paper_only` 默认 | Token 一次性 (防重放) |
 | **reconcile** | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | 失联≠停止 |
-| **nautilus_host** | NT 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | **G6 live release gate** |
+| **nautilus_host** | NT 进程监督 + `ExecutionEngineProtocol` + verified-artifact admission | live fail-closed execution boundary |
 | **runner_fact** | NT MessageBus → closed typed facts → signed durable outbox → Crucible | Key 不出进程；unsigned fallback 禁止 |
 | **credential_vault** | sops+age 本地 KEK vault; `trade_no_withdraw` scope | KEK / API key 不出进程 |
 | **nats_client** | JetStream client + envelope schema + subject naming | Wire schema 版本化 + 契约防漂移 |

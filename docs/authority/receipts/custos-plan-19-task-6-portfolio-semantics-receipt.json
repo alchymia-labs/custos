@@ -15,6 +15,9 @@
   "status_breaker_runner_fact_shared_provider": true,
   "breaker_single_snapshot_per_tick": true,
   "breaker_fail_closed_on_unreliable": true,
+  "safety_supervisor": "EngineSafetySupervisor",
+  "risk_increasing_order_freeze_ready": true,
+  "safety_runtime_composed": false,
   "runtime_identity": "deployment_instance_id",
   "runner_safety_policy_ready": false,
   "team_daemon_enabled": false,
@@ -22,7 +25,7 @@
   "runtime_ready": false,
   "production_ready": false,
   "focused_verification": {
-    "result": "19 passed",
+    "result": "20 passed",
     "suites": [
       "Plan 19 T6 reliable portfolio semantics",
       "Nautilus state snapshot regressions",

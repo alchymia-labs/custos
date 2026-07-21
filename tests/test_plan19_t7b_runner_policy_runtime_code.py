@@ -19,7 +19,6 @@ from custos.contracts.crucible_runner_safety_policy import (
     RunnerAggregateCapPolicyPriorV1,
     VerifiedRunnerSafetyPolicy,
 )
-from custos.core.deployment_reconciler import DeploymentReconciler
 from custos.core.fallback_breaker import FallbackBreakerConfig
 from custos.core.local_cap import LocalCapConfig, RunnerNotionalCap
 from custos.core.runner_fact import (
@@ -32,7 +31,6 @@ from custos.core.runner_fact import (
 )
 from custos.core.runner_safety_policy import (
     DurableRunnerSafetyPolicyResolver,
-    RunnerSafetyLimits,
     RunnerSafetyPolicyUnavailableError,
 )
 
@@ -98,7 +96,7 @@ def _verified_policy(
     compact_body = json.dumps(body, separators=(",", ":")).encode()
     payload = {**body, "policy_digest": hashlib.sha256(compact_body).hexdigest()}
     event = {
-        "schema_version": 2,
+        "schema_version": 1,
         "event_id": "30000000-0000-4000-8000-000000000001",
         "tenant_id": tenant_id,
         "event_plane": {"kind": "mode", "trading_mode": trading_mode},
@@ -114,7 +112,7 @@ def _verified_policy(
     }
     event_bytes = json.dumps(event, separators=(",", ":")).encode()
     subject = f"crucible_rust.domain.{tenant_id}.{trading_mode}.risk.runner_safety_policy.v1"
-    signature_input = _frame(b"CRUCIBLE-DOMAIN-EVENT-V2\0", subject, event_bytes)
+    signature_input = _frame(b"CRUCIBLE-DOMAIN-EVENT-V1\0", subject, event_bytes)
     fingerprint = hashlib.sha256(
         _frame(b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0", subject, event_bytes)
     ).hexdigest()
@@ -122,7 +120,7 @@ def _verified_policy(
         "envelope_schema_version": 1,
         "subject": subject,
         "event_bytes_base64url": _b64url(event_bytes),
-        "signature_profile": "crucible-domain-event-v2-exact-bytes",
+        "signature_profile": "crucible-domain-event-v1-exact-bytes",
         "signature_encoding": "application/json;base64url",
         "signature_input_base64url": _b64url(signature_input),
         "signature_key_id": "cr99-runtime-test",
@@ -172,7 +170,7 @@ async def test_verified_policy_is_durable_and_recovers_from_same_database(
     loaded = await store.load_effective_runner_safety_policy("sandbox", now=NOW)
     restarted = await _store(database).load_effective_runner_safety_policy("sandbox", now=NOW)
 
-    assert RUNNER_STATE_SCHEMA_VERSION == 4
+    assert RUNNER_STATE_SCHEMA_VERSION == 1
     assert result.decision is RunnerPolicyIdentityDecision.NEWER
     assert result.committed is True
     assert loaded.policy == verified.policy
@@ -301,48 +299,6 @@ async def test_cap_and_breaker_only_use_verified_policy_or_non_live_fallback() -
     assert fallback.owner_policy is False
     with pytest.raises(RunnerSafetyPolicyUnavailableError, match="live"):
         LocalCapConfig.strictest_local_fallback("live")
-
-
-class _StaticResolver:
-    def __init__(self, limits: RunnerSafetyLimits) -> None:
-        self.limits = limits
-        self.calls: list[str] = []
-
-    async def resolve(self, trading_mode: str) -> RunnerSafetyLimits:
-        self.calls.append(trading_mode)
-        return self.limits
-
-
-@pytest.mark.asyncio
-async def test_reconciler_ignores_deployment_risk_config_and_live_missing_policy_fails() -> None:
-    private_key = Ed25519PrivateKey.generate()
-    policy = _verified_policy(private_key).policy
-    limits = RunnerSafetyLimits.from_verified_policy(policy)
-    resolver = _StaticResolver(limits)
-    subject = object.__new__(DeploymentReconciler)
-    subject.safety_policy_resolver = resolver
-    subject._local_caps = {}
-    subject._fallback_breakers = {}
-
-    injected = {
-        "trading_mode": "sandbox",
-        "risk_config": {
-            "max_notional_per_runner": "999999999",
-            "fallback_breaker": {"max_notional": "999999999"},
-        },
-    }
-    await subject._refresh_instance_guards("instance", injected)
-
-    assert resolver.calls == ["sandbox"]
-    assert subject._local_caps["sandbox"].config == limits.local_cap
-    assert subject._fallback_breakers["instance"].config == limits.breaker
-
-    live = object.__new__(DeploymentReconciler)
-    live.safety_policy_resolver = None
-    live._local_caps = {}
-    live._fallback_breakers = {}
-    with pytest.raises(RunnerSafetyPolicyUnavailableError, match="live"):
-        await live._refresh_instance_guards("live-instance", {"trading_mode": "live"})
 
 
 @pytest.mark.asyncio

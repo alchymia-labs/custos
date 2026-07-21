@@ -3,26 +3,24 @@
 ps ``runner.py._create_node_config`` reads timeout_connection / timeout_reconciliation /
 timeout_portfolio / timeout_disconnection + reconciliation_lookback_mins from the
 strategy config and passes them to ``TradingNodeConfig`` / ``LiveExecEngineConfig``.
-custos ships the same knobs via ``spec["nautilus_config"]`` (a plain dict-key on the
-DeploymentSpec; not a Pydantic field, per plan §DEV-06-DEPLOYMENTSPEC-DICT-NOT-CLASS).
+Custos ships the same knobs through the typed V1 execution config and passes a
+verified activated strategy as a separate engine ABI input.
 
 The assertion is done by intercepting ``TradingNode.__init__`` and inspecting the
 config it receives — this drives the real host-side plumb without needing to bring
 up a full sandbox lifecycle.
 
-Venue mismatch (G6 layer 2) is not asserted here — it already has dedicated
-coverage in ``test_g6_gate_capability_e2e.py`` (asserts the
-``g6_gate_venue_unsupported`` log event fires for live + unsupported venue).
-Duplicating it here would only aim the same guard from a different angle without
-adding independent value.
+Venue admission is covered by the host capability and lifecycle suites; this
+module is intentionally limited to Nautilus config assembly.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 
@@ -31,16 +29,24 @@ pytest.importorskip("nautilus_trader")
 from nautilus_trader.live.node import TradingNode  # noqa: E402
 
 from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
-
-# tests/engines/nautilus/<this> -> tests/fixtures/minimal_supertrend_strategy.py
-_FIXTURE_STRATEGY = Path(__file__).parents[2] / "fixtures" / "minimal_supertrend_strategy.py"
+from tests.fixtures.minimal_supertrend_strategy import create_strategy  # noqa: E402
 
 
-def _spec(**overrides: Any) -> dict:
+def _deployment_instance_id(label: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"custos-test-instance:{label}"))
+
+
+def _deployment_spec_id(label: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"custos-test-spec:{label}"))
+
+
+def _spec(label: str = "cfg-1", **overrides: Any) -> dict:
     spec = {
-        "spec_id": "cfg-1",
-        "deployment_instance_id": "cfg-1",
-        "strategy_path": str(_FIXTURE_STRATEGY),
+        "deployment_spec_id": _deployment_spec_id(label),
+        "deployment_instance_id": _deployment_instance_id(label),
+        "deployment_spec_digest": "d" * 64,
+        "generation": 1,
+        "trading_mode": "sandbox",
         "connector": "binance_perpetual",
         "pairs": ["BTC-USDT"],
         "leverage": 3,
@@ -58,14 +64,21 @@ def _credential() -> dict:
     }
 
 
+def _artifact():
+    return SimpleNamespace(
+        activation_id="activation-cfg-1",
+        strategy=create_strategy({}),
+    )
+
+
 async def _parked_run(self) -> None:
     await asyncio.get_running_loop().create_future()
 
 
-async def _teardown(host: NtTradingNodeHost, spec_id: str) -> None:
+async def _teardown(host: NtTradingNodeHost, deployment_instance_id: str) -> None:
     """Cancel the parked run task and forget the node without invoking a real
     NT shutdown — matching the pattern in test_nt_trading_node_host_integration."""
-    entry = host._active_nodes.pop(spec_id, None)
+    entry = host._active_nodes.pop(deployment_instance_id, None)
     if entry is None:
         return
     _, task = entry
@@ -111,7 +124,7 @@ async def test_nautilus_config_timeouts_plumbed(monkeypatch: pytest.MonkeyPatch)
         },
     )
     try:
-        await host.deploy(spec, _credential())
+        await host.deploy(spec, _credential(), _artifact())
         cfg = _ConfigCaptor.captured
         assert cfg is not None, "TradingNodeConfig must have been assembled"
         assert cfg.timeout_connection == 45.0
@@ -120,7 +133,7 @@ async def test_nautilus_config_timeouts_plumbed(monkeypatch: pytest.MonkeyPatch)
         assert cfg.timeout_disconnection == 12.0
         assert cfg.exec_engine.reconciliation_lookback_mins == 720
     finally:
-        await _teardown(host, "cfg-1")
+        await _teardown(host, spec["deployment_instance_id"])
 
 
 @pytest.mark.asyncio
@@ -130,8 +143,9 @@ async def test_nautilus_config_defaults_when_key_absent(monkeypatch: pytest.Monk
     monkeypatch.setattr(TradingNode, "run_async", _parked_run, raising=True)
 
     host = NtTradingNodeHost()
+    spec = _spec("cfg-def")
     try:
-        await host.deploy(_spec(spec_id="cfg-def"), _credential())
+        await host.deploy(spec, _credential(), _artifact())
         cfg = _ConfigCaptor.captured
         # NT internal defaults (per TradingNodeConfig field defaults).
         assert cfg.timeout_connection == 60.0
@@ -141,7 +155,7 @@ async def test_nautilus_config_defaults_when_key_absent(monkeypatch: pytest.Monk
         # reconciliation_lookback_mins defaults to None on LiveExecEngineConfig.
         assert cfg.exec_engine.reconciliation_lookback_mins is None
     finally:
-        await _teardown(host, "cfg-def")
+        await _teardown(host, spec["deployment_instance_id"])
 
 
 @pytest.mark.asyncio
@@ -156,15 +170,15 @@ async def test_nautilus_config_partial_dict_uses_defaults_for_missing_keys(
 
     host = NtTradingNodeHost()
     spec = _spec(
-        spec_id="cfg-partial",
+        "cfg-partial",
         nautilus_config={"timeout_reconciliation": 25.0},
     )
     try:
-        await host.deploy(spec, _credential())
+        await host.deploy(spec, _credential(), _artifact())
         cfg = _ConfigCaptor.captured
         assert cfg.timeout_reconciliation == 25.0  # overridden
         assert cfg.timeout_connection == 60.0  # NT default
         assert cfg.timeout_portfolio == 10.0  # NT default
         assert cfg.exec_engine.reconciliation_lookback_mins is None  # NT default
     finally:
-        await _teardown(host, "cfg-partial")
+        await _teardown(host, spec["deployment_instance_id"])

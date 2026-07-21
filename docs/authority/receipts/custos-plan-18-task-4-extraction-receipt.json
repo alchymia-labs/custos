@@ -85,7 +85,7 @@
     "executed_at": "2026-07-14T18:28:17Z",
     "required_commands": [
       "git rev-parse HEAD && git status --short",
-      "uv run --extra nautilus pytest tests/test_toolkit_zero_rewrite.py tests/test_toolkit_inventory.py tests/test_toolkit_distribution.py tests/test_toolkit_contracts.py tests/test_plan18_task2_receipt.py tests/engines/nautilus/test_toolkit_provenance.py tests/engines/nautilus/test_toolkit_provenance_schema.py tests/engines/nautilus/test_toolkit_sync_check.py tests/test_strategy_loader.py tests/engines/nautilus/test_strategy_loader_registry_mode.py tests/engines/nautilus/test_real_supertrend_e2e_sandbox.py tests/engines/nautilus/test_real_supertrend_e2e_testnet.py -q",
+      "uv run --extra nautilus pytest tests/test_toolkit_zero_rewrite.py tests/test_toolkit_inventory.py tests/test_toolkit_distribution.py tests/test_toolkit_contracts.py tests/engines/nautilus/test_toolkit_provenance.py tests/engines/nautilus/test_toolkit_provenance_schema.py tests/engines/nautilus/test_toolkit_sync_check.py tests/test_strategy_loader.py tests/engines/nautilus/test_strategy_loader_registry_mode.py tests/engines/nautilus/test_real_supertrend_e2e_sandbox.py tests/engines/nautilus/test_real_supertrend_e2e_testnet.py -q",
       "make check",
       "make check-authority",
       "make toolkit-typecheck",

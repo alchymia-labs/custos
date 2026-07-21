@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 
-from custos.artifacts.corrected_runtime import CorrectedRuntimeCapability
+from custos.artifacts.runtime import ArtifactRuntimeCapabilityV1
 from custos.core.engine_lifecycle import (
     EngineLifecycleBlocked,
     EngineLifecycleConfig,
@@ -122,7 +122,7 @@ class _Engine:
     deploy_calls: int = 0
     stop_calls: int = 0
 
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(self, spec: dict, credential: dict, artifact: object) -> str:
         self.deploy_calls += 1
         self.events.append("deploy")
         return f"handle-{self.deploy_calls}"
@@ -171,27 +171,28 @@ class _Engine:
         assert isinstance(result, EngineReadyReceipt)
         return result
 
-    async def wait_terminal(
-        self, authority: EngineLifecycleAuthority
-    ) -> EngineTerminalEvent:
+    async def wait_terminal(self, authority: EngineLifecycleAuthority) -> EngineTerminalEvent:
         self.events.append("wait_terminal")
         return self.terminal_events.pop(0)
 
 
-def _capability(*, ready: bool = True) -> CorrectedRuntimeCapability:
+@dataclass(frozen=True, slots=True)
+class _Artifact:
+    activation_id: str = "activation-1"
+    strategy: object = field(default_factory=object)
+
+
+def _capability(*, ready: bool = True) -> ArtifactRuntimeCapabilityV1:
     if not ready:
-        return CorrectedRuntimeCapability.prepared_blocked()
-    return CorrectedRuntimeCapability.from_external_receipts(
-        ps_bundle_receipt_digest="1" * 64,
-        crucible_c6_receipt_digest="2" * 64,
-    )
+        return ArtifactRuntimeCapabilityV1.blocked("StrategyRelease resolver is not composed")
+    return ArtifactRuntimeCapabilityV1.production_ready()
 
 
 def _supervisor(
     store: _Store,
     engine: _Engine,
     *,
-    capability: CorrectedRuntimeCapability | None = None,
+    capability: ArtifactRuntimeCapabilityV1 | None = None,
     restart_budget: int = 2,
 ) -> EngineLifecycleSupervisor:
     async def no_sleep(_delay: float) -> None:
@@ -220,9 +221,9 @@ async def test_ready_is_typed_and_committed_after_engine_readiness() -> None:
     receipt = await _supervisor(store, engine).apply(
         delivery_id="delivery-1",
         verified=verified,
-        runtime_spec={"trading_mode": "sandbox"},
+        runtime_spec={"trading_mode": "sandbox", "connector": "binance"},
         credential={},
-        artifact_activation_id="activation-1",
+        artifact=_Artifact(),
     )
 
     assert receipt.deployment_instance_id == INSTANCE
@@ -249,9 +250,9 @@ async def test_restart_replay_probes_ready_without_duplicate_deploy() -> None:
     await _supervisor(store, engine).apply(
         delivery_id="redelivery",
         verified=verified,
-        runtime_spec={"trading_mode": "sandbox"},
+        runtime_spec={"trading_mode": "sandbox", "connector": "binance"},
         credential={},
-        artifact_activation_id="activation-1",
+        artifact=_Artifact(),
     )
 
     assert engine.deploy_calls == 0
@@ -269,9 +270,9 @@ async def test_readiness_timeout_exhausts_durable_budget_and_quarantines() -> No
         await _supervisor(store, engine, restart_budget=2).apply(
             delivery_id="delivery-timeout",
             verified=verified,
-            runtime_spec={"trading_mode": "sandbox"},
+            runtime_spec={"trading_mode": "sandbox", "connector": "binance"},
             credential={},
-            artifact_activation_id="activation-1",
+            artifact=_Artifact(),
         )
 
     assert engine.deploy_calls == 3
@@ -311,9 +312,9 @@ async def test_terminal_and_zombie_events_use_same_durable_quarantine_or_restart
     restarted = await subject.supervise_once(
         delivery_id="delivery-zombie",
         verified=verified,
-        runtime_spec={"trading_mode": "sandbox"},
+        runtime_spec={"trading_mode": "sandbox", "connector": "binance"},
         credential={},
-        artifact_activation_id="activation-1",
+        artifact=_Artifact(),
     )
     assert restarted is not None
     assert engine.stop_calls == 1
@@ -323,9 +324,9 @@ async def test_terminal_and_zombie_events_use_same_durable_quarantine_or_restart
         await subject.supervise_once(
             delivery_id="delivery-terminal",
             verified=verified,
-            runtime_spec={"trading_mode": "sandbox"},
+            runtime_spec={"trading_mode": "sandbox", "connector": "binance"},
             credential={},
-            artifact_activation_id="activation-1",
+            artifact=_Artifact(),
         )
     assert store.terminal[-1] == ("retry_exhausted", "engine_task_failed")
 
@@ -338,17 +339,16 @@ async def test_blocked_artifact_capability_and_live_mode_fail_before_engine_acti
         await _supervisor(store, engine, capability=_capability(ready=False)).apply(
             delivery_id="blocked",
             verified=_verified(),
-            runtime_spec={"trading_mode": "sandbox"},
+            runtime_spec={"trading_mode": "sandbox", "connector": "binance"},
             credential={},
-            artifact_activation_id="activation-1",
+            artifact=_Artifact(),
         )
     with pytest.raises(EngineLifecycleBlocked, match="live"):
         await _supervisor(store, engine).apply(
             delivery_id="live",
             verified=_verified(mode="live"),
-            runtime_spec={"trading_mode": "live"},
-            credential={},
-            artifact_activation_id="activation-1",
+            runtime_spec={"trading_mode": "live", "connector": "binance"},
+            credential={"permission_scope": "trade_no_withdraw"},
+            artifact=_Artifact(),
         )
     assert engine.events == []
-

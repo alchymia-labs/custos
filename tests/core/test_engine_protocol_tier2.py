@@ -38,7 +38,7 @@ async def test_get_open_notional_returns_decimal() -> None:
 class _MissingGetOpenNotional:
     """Full Tier-1 surface but no Tier-2 ``get_open_notional``."""
 
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(self, spec: dict, credential: dict, artifact: object) -> str:
         return "cid"
 
     async def reconfigure(self, spec: dict) -> None: ...
@@ -135,7 +135,7 @@ class _MissingGetEngineStatus:
     """Full Tier-1 + Tier-2 minus ``get_engine_status`` — relaxed-double
     for T2.1's protocol expansion."""
 
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(self, spec: dict, credential: dict, artifact: object) -> str:
         return "cid"
 
     async def reconfigure(self, spec: dict) -> None: ...

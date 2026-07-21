@@ -9,8 +9,8 @@
 | 1 | `enrollment` | 一次性 `EnrollmentToken` 配对 + `runner_id` 签发 + `paper_only` 默认 | Token 一次性 (防重放) | offline → online / draining | [`enrollment.md`](enrollment.md) |
 | 2 | `credential_vault` | sops+age 本地 KEK vault + `trade_no_withdraw` scope + 明文永不出进程 | 红线 0.1 Key / KEK 不出进程 | derived → active → cleared (TTL) | [`credential_vault.md`](credential_vault.md) |
 | 3 | `nats_client` | JetStream client + subject naming + envelope schema 版本化 | Wire schema 版本化 + 契约防漂移 | connected → reconnecting (auto) | [`nats_client.md`](nats_client.md) |
-| 4 | `reconcile` | Declarative loop: pull `DeploymentSpec` → start/stop NT → report `DeploymentStatus` | 红线 0.3 失联 ≠ 停止 | pending → running → degraded → stopped | [`reconcile.md`](reconcile.md) |
-| 5 | `nautilus_host` | NT `TradingNode` 进程监督 + `ExecutionEngineAdapter` (CEX/NT) + **G6 host gate** | **红线 0.2 G6 gate 不绕过** | INITIALIZED → STARTED → STOPPED → DISPOSED | [`nautilus_host.md`](nautilus_host.md) |
+| 4 | `runner_command_runtime` | verified command → authenticated release resolution → immutable activation → lifecycle fact | 红线 0.3 失联 ≠ 停止 | desired → activating → applied / quarantined | [`reconcile.md`](reconcile.md) |
+| 5 | `nautilus_host` | NT `TradingNode` 进程监督 + `ExecutionEngineProtocol` + execution admission | 红线 0.2 live fail closed | INITIALIZED → STARTED → STOPPED → DISPOSED | [`nautilus_host.md`](nautilus_host.md) |
 | 6 | `runner_fact` | NT observations → closed typed facts → signed SQLite outbox → Crucible | 红线 0.1 + 0.4 (脱敏 + canonical decimal wire) | durable sequence/outbox | [`runner_fact.md`](runner_fact.md) |
 
 ## 依赖顺序 (启动)
@@ -22,8 +22,8 @@
 2. enrollment        (读取本地 runner_id 或走 EnrollmentToken 首次配对)
 3. nats_client       (建立 JetStream 连接; connected 后)
 4. runner_fact producer (打开 sole SQLite state/outbox；准备 typed signed publication)
-5. reconcile         (启 ReconcileLoop; 拉 DeploymentSpec 前置准备好)
-6. nautilus_host     (由 reconcile 按 spec 触发 start; G6 gate 在此判定)
+5. runner command runtime (验签、durable intake、release resolve、artifact activate)
+6. nautilus_host     (仅由 lifecycle supervisor 传入 verified artifact 后启动)
 ```
 
 ## 关键跨模块契约
@@ -35,11 +35,11 @@
 - `HostIdentity.pubkey` (ed25519) 由 enrollment 本地生成, 私钥只在 credential_vault
   管理
 
-### reconcile ↔ nautilus_host
+### runner_command_runtime ↔ nautilus_host
 
-- reconcile 拉 `DeploymentSpec` 后组装 `TradingNodeConfig` (`venues[].api_key =
-  VaultRef(key_id)`), 传给 `nautilus_host.start(spec)`
-- `nautilus_host.start()` 内部走 **G6 host gate**; `NoopHost` 拒 live
+- coordinator 从 signed credential scope 本地解密 credential，并把 verified
+  `ActivatedEngineArtifactV1` 与 runtime spec 一起交给 lifecycle supervisor
+- host 不解析 StrategyRelease、不加载 source path，也不决定 ACK / NAK / TERM
 - reconcile 探测 `ActualState` 通过 `nautilus_host.probe(spec_id)` 获取 NT 进程状态
 
 ### nautilus_host ↔ runner_fact

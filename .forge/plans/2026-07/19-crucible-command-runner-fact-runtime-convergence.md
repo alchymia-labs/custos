@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable policy + reservation lifecycle and native interception READY-CODE-ONLY; T7C reopened for approved per-mode SIM/LIVE transport correction; T8a producer candidate and T8b Phase-A compatibility READY; real T7C runtime attestation and T9-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable policy + reservation lifecycle and native interception READY-CODE-ONLY; T7C corrected per-mode SIM/LIVE consumer CODE-ONLY; T8a exact-subject candidate READY and T8b Phase-A REOPENED; real T7C runtime attestation and T9-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-20 through T7C two-stage revocation consumer code
 > **Project**: Custos
@@ -855,6 +855,19 @@ Execution checkpoint (2026-07-15):
 - Status is `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; runner policy, team daemon,
   live, runtime and production remain false. T7 must wait for Crucible Plan 99.
 
+Canonical V1 correction checkpoint (2026-07-21):
+
+- The deleted in-memory `DeploymentReconciler` is not restored. A narrow
+  `EngineSafetySupervisor` now owns the only breaker tick and consumes exactly
+  one `EngineStatus` snapshot per active `deployment_instance_id`.
+- Unreliable or failed snapshots freeze the shared `FallbackBreaker` and flatten
+  locally; the Nautilus execution boundary rejects risk-increasing submissions
+  while preserving reduce-only and cancellation paths.
+- This is code capability only. The authenticated StrategyRelease resolver and
+  team daemon composition remain false, so runtime/live/production stay blocked.
+- Fresh focused verification across portfolio, breaker, native order boundary
+  and host wiring is `20 passed`.
+
 提交：
 
 ```bash
@@ -920,9 +933,17 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
     and real per-mode round-trip receipts exist, daemon production readiness and
     all live readiness remain false.
 
+> **Execution status (2026-07-21)**: `CORRECTED_CODE_ONLY_PENDING_CR100_RUNTIME`.
+> Custos now consumes the exact CR100 authority shape, stores one encrypted vault
+> per mode, composes a supervisor-local `RunnerNatsTransportSet`, opens independent
+> mode sessions, double-binds command mode and routes RunnerFact batches by their
+> signed mode. Focused transport/runtime tests pass, but the real CR100 producer,
+> SIM/LIVE broker readback and explicit real-NATS gate remain mandatory.
+
 ### Task 8: Complete the sole RunnerFact V1 contract
 
-1. Generate one RunnerFact V1 schema, golden, negative set and asset index.
+1. Generate one RunnerFact V1 schema, golden, negative set and asset index; the
+   transport subject is exactly `crucible.runner.fact.v1.<tenant>.<runner>.<mode>`.
 2. Bind every fact to tenant, runner, mode, deployment instance, deployment
    spec, generation and command fingerprint.
 3. Consume Crucible compatibility and persistence receipts only after they bind

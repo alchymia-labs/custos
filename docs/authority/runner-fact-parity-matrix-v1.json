@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.2",
+  "authority_coordinate": "custos.runner-fact.v1",
   "closed_fact_union": true,
   "unknown_fact_kind": "terminal_unsupported_contract",
   "unsigned_telemetry_fallback": false,

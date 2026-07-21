@@ -31,13 +31,25 @@ from custos.core.nats_transport import (
     RunnerNatsTransportCredential,
     RunnerNatsTransportError,
     RunnerNatsTransportRevokedError,
+    RunnerNatsTransportSet,
+    RunnerNatsTransportVault,
     assert_old_generation_reconnect_denied,
+    runner_command_stream,
+    runner_nats_transport_domain,
 )
 
 _TENANT = "tenant-a"
 _RUNNER = UUID("66666666-6666-4666-8666-666666666666")
 _TRANSPORT_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 _MACHINE_ID = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+_OPERATION_ID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+_MODE = "sandbox"
+_DOMAIN = "sim"
+_AUTHORITY_IDS = {
+    "sandbox": _TRANSPORT_ID,
+    "testnet": UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd"),
+    "live": UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+}
 
 
 def test_cli_registers_each_transport_action_without_option_conflicts() -> None:
@@ -51,8 +63,10 @@ def test_cli_registers_each_transport_action_without_option_conflicts() -> None:
         "tls://nats.example.test:4222",
         "--nats-server-name",
         "nats.example.test",
-        "--issuer-account-public-nkey",
+        "--issuer-public-key",
         "ACRUCIBLE",
+        "--trading-mode",
+        _MODE,
     ]
     for action in ("enroll", "rotate", "activate"):
         parsed = parser.parse_args(
@@ -65,11 +79,11 @@ def test_cli_registers_each_transport_action_without_option_conflicts() -> None:
             ]
         )
         assert parsed.transport_action == action
-        assert parsed.issuer_account_public_nkey == "ACRUCIBLE"
+        assert parsed.issuer_public_key == "ACRUCIBLE"
 
     parsed = parser.parse_args(["nats-transport", "verify", *common])
     assert parsed.transport_action == "verify"
-    assert parsed.issuer_account_public_nkey == "ACRUCIBLE"
+    assert parsed.issuer_public_key == "ACRUCIBLE"
 
 
 def _b64url(value: bytes) -> str:
@@ -82,22 +96,24 @@ def _keypair(prefix: int) -> tuple[bytes, object, str]:
     return seed, pair, pair.public_key.decode("ascii")
 
 
-def _permission_profile() -> dict[str, object]:
-    durable = f"custos-v4-{_TENANT}-{_RUNNER}"
+def _permission_profile(trading_mode: str = _MODE) -> dict[str, object]:
+    domain = runner_nats_transport_domain(trading_mode)
+    durable = f"custos-v1-{_TENANT}-{_RUNNER}-{trading_mode}"
+    stream = runner_command_stream(trading_mode)
     return {
         "schema_version": 1,
-        "profile": "runner-v1",
+        "profile": "crucible.runner-nats-transport.v1",
         "tenant_id": _TENANT,
         "runner_id": str(_RUNNER),
-        "authorized_modes": ["sandbox", "testnet"],
+        "trading_mode": trading_mode,
+        "transport_domain": domain,
         "publish_allow": [
-            f"crucible.runner_fact.sandbox.{_TENANT}.{_RUNNER}.>",
-            f"crucible.runner_fact.testnet.{_TENANT}.{_RUNNER}.>",
-            f"$JS.ACK.CRUCIBLE_DOMAIN_AUDIT.{durable}.>",
-            f"$JS.API.CONSUMER.INFO.CRUCIBLE_DOMAIN_AUDIT.{durable}",
+            f"crucible.runner.fact.v1.{_TENANT}.{_RUNNER}.{trading_mode}",
+            f"$JS.ACK.{stream}.{durable}.>",
+            f"$JS.API.CONSUMER.INFO.{stream}.{durable}",
         ],
         "subscribe_allow": [
-            f"custos.runner_command_v4_delivery.{_TENANT}.{_RUNNER}",
+            f"custos.runner.command.v1.delivery.{_TENANT}.{_RUNNER}.{trading_mode}",
             "_INBOX.>",
         ],
         "publish_deny": [
@@ -111,22 +127,17 @@ def _permission_profile() -> dict[str, object]:
     }
 
 
-def _durable_config() -> dict[str, object]:
+def _durable_config(trading_mode: str = _MODE) -> dict[str, object]:
+    domain = runner_nats_transport_domain(trading_mode)
     return {
         "schema_version": 1,
-        "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
-        "durable_name": f"custos-v4-{_TENANT}-{_RUNNER}",
-        "delivery_subject": f"custos.runner_command_v4_delivery.{_TENANT}.{_RUNNER}",
-        "filter_subjects": [
-            (
-                f"crucible_rust.domain.{_TENANT}.sandbox.deployment."
-                f"RunnerDeploymentCommandV4.{_RUNNER}.*"
-            ),
-            (
-                f"crucible_rust.domain.{_TENANT}.testnet.deployment."
-                f"RunnerDeploymentCommandV4.{_RUNNER}.*"
-            ),
-        ],
+        "transport_domain": domain,
+        "stream_name": runner_command_stream(trading_mode),
+        "durable_name": f"custos-v1-{_TENANT}-{_RUNNER}-{trading_mode}",
+        "delivery_subject": (
+            f"custos.runner.command.v1.delivery.{_TENANT}.{_RUNNER}.{trading_mode}"
+        ),
+        "filter_subjects": [f"crucible.runner.command.v1.{_TENANT}.{_RUNNER}.{trading_mode}"],
         "deliver_policy": "all",
         "ack_policy": "explicit",
         "replay_policy": "instant",
@@ -147,12 +158,14 @@ def _issued(
     account_pair: object,
     account_public_key: str,
     generation: int = 1,
+    trading_mode: str = _MODE,
     now: datetime | None = None,
 ) -> dict[str, object]:
     issued_at = (now or datetime(2026, 7, 19, 8, 0, tzinfo=UTC)).replace(microsecond=0)
     expires_at = issued_at + timedelta(hours=1)
-    permission = _permission_profile()
-    durable = _durable_config()
+    transport_domain = runner_nats_transport_domain(trading_mode)
+    permission = _permission_profile(trading_mode)
+    durable = _durable_config(trading_mode)
     header = _b64url(
         json.dumps(
             {"typ": "JWT", "alg": "ed25519-nkey"},
@@ -188,27 +201,39 @@ def _issued(
     signature = account_pair.sign(signing_input)  # type: ignore[attr-defined]
     jwt = f"{header}.{claims}.{_b64url(signature)}"
     del user_seed
-    return {
-        "transport_credential_id": str(_TRANSPORT_ID),
-        "transport_credential_version": generation,
-        "transport_generation": generation,
-        "nats_transport_profile": "runner-v1",
-        "nats_user_public_key": user_public_key,
-        "nats_user_jwt": jwt,
-        "nats_user_jwt_sha256": hashlib.sha256(jwt.encode("ascii")).hexdigest(),
-        "issuer_account_public_nkey": account_public_key,
+    authority: dict[str, object] = {
+        "schema_version": 1,
+        "authority_coordinate": "crucible.runner-nats-transport.v1",
+        "authority_id": str(_AUTHORITY_IDS[trading_mode]),
+        "tenant_id": _TENANT,
+        "runner_id": str(_RUNNER),
+        "trading_mode": trading_mode,
+        "transport_domain": transport_domain,
+        "credential_generation": generation,
+        "user_public_key": user_public_key,
+        "user_jwt": jwt,
+        "user_jwt_sha256": hashlib.sha256(jwt.encode("ascii")).hexdigest(),
+        "issuer_public_key": account_public_key,
+        "signing_key_id": "account-signer-test",
+        "claims_sha256": hashlib.sha256(claims.encode("ascii")).hexdigest(),
         "permission_profile": permission,
         "permission_profile_sha256": _digest(permission),
         "durable_config": durable,
         "durable_config_sha256": _digest(durable),
         "issued_at": issued_at.isoformat().replace("+00:00", "Z"),
+        "not_before": issued_at.isoformat().replace("+00:00", "Z"),
         "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
+        "status": "active",
+        "operation_id": str(_OPERATION_ID),
     }
+    authority["authority_digest"] = _digest(authority)
+    return authority
 
 
 def _credential(
     *,
     generation: int = 1,
+    trading_mode: str = _MODE,
     now: datetime | None = None,
 ) -> RunnerNatsTransportCredential:
     user_seed, user_pair, user_public = _keypair(nkeys.PREFIX_BYTE_USER)
@@ -221,12 +246,14 @@ def _credential(
                 account_pair=account_pair,
                 account_public_key=account_public,
                 generation=generation,
+                trading_mode=trading_mode,
                 now=now,
             ),
-            tenant_id=_TENANT,
-            runner_id=_RUNNER,
-            nats_user_seed=user_seed,
-            expected_issuer_account_public_nkey=account_public,
+            user_seed=user_seed,
+            expected_tenant_id=_TENANT,
+            expected_runner_id=_RUNNER,
+            expected_trading_mode=trading_mode,
+            expected_issuer_public_key=account_public,
         )
     finally:
         user_pair.wipe()
@@ -252,10 +279,11 @@ def _rotation_bundle(
                 generation=1,
                 now=current,
             ),
-            tenant_id=_TENANT,
-            runner_id=_RUNNER,
-            nats_user_seed=user_seed_1,
-            expected_issuer_account_public_nkey=account_public,
+            user_seed=user_seed_1,
+            expected_tenant_id=_TENANT,
+            expected_runner_id=_RUNNER,
+            expected_trading_mode=_MODE,
+            expected_issuer_public_key=account_public,
         )
         pending = RunnerNatsTransportCredential.from_issued_response(
             _issued(
@@ -266,10 +294,11 @@ def _rotation_bundle(
                 generation=2,
                 now=current,
             ),
-            tenant_id=_TENANT,
-            runner_id=_RUNNER,
-            nats_user_seed=user_seed_2,
-            expected_issuer_account_public_nkey=account_public,
+            user_seed=user_seed_2,
+            expected_tenant_id=_TENANT,
+            expected_runner_id=_RUNNER,
+            expected_trading_mode=_MODE,
+            expected_issuer_public_key=account_public,
         )
         return RunnerNatsTransportBundle(active=active, pending=pending)
     finally:
@@ -284,10 +313,37 @@ def test_issued_credential_verifies_jwt_acl_durable_and_redacts_secrets() -> Non
 
     rendered = repr(credential)
 
-    assert credential.durable_config["stream_name"] == "CRUCIBLE_DOMAIN_AUDIT"
-    assert credential.durable_config["durable_name"] == f"custos-v4-{_TENANT}-{_RUNNER}"
-    assert credential.nats_user_jwt not in rendered
-    assert base64.b64encode(credential.nats_user_seed).decode("ascii") not in rendered
+    assert credential.durable_config["stream_name"] == "CRUCIBLE_RUNNER_COMMAND_SIM_V1"
+    assert credential.durable_config["durable_name"] == (f"custos-v1-{_TENANT}-{_RUNNER}-{_MODE}")
+    assert credential.user_jwt not in rendered
+    assert base64.b64encode(credential.user_seed).decode("ascii") not in rendered
+
+
+def test_supervisor_transport_set_keeps_exact_mode_authorities_independent(
+    tmp_path: Path,
+) -> None:
+    now = datetime.now(UTC)
+    sandbox = _credential(trading_mode="sandbox", now=now)
+    testnet = _credential(trading_mode="testnet", now=now)
+    live = _credential(trading_mode="live", now=now)
+    transports = RunnerNatsTransportSet(
+        {
+            "sandbox": RunnerNatsTransportBundle(active=sandbox, pending=None),
+            "testnet": RunnerNatsTransportBundle(active=testnet, pending=None),
+            "live": RunnerNatsTransportBundle(active=live, pending=None),
+        }
+    )
+
+    assert transports.active("sandbox").authority_id == sandbox.authority_id
+    assert transports.active("testnet").permission_profile != sandbox.permission_profile
+    assert transports.active("live").transport_domain == "live"
+    assert runner_command_stream("sandbox") == runner_command_stream("testnet")
+    assert runner_command_stream("live") != runner_command_stream("sandbox")
+    assert RunnerNatsTransportVault(tmp_path, "sandbox").path == tmp_path / "sandbox.enc"
+    assert RunnerNatsTransportVault(tmp_path, "live").path == tmp_path / "live.enc"
+
+    with pytest.raises(RunnerNatsTransportError, match="mode binding mismatch"):
+        RunnerNatsTransportSet({"live": RunnerNatsTransportBundle(active=sandbox, pending=None)})
 
 
 def test_permission_or_stream_drift_is_rejected_before_socket_open() -> None:
@@ -310,10 +366,11 @@ def test_permission_or_stream_drift_is_rejected_before_socket_open() -> None:
         with pytest.raises(RunnerNatsTransportError, match="exact CR100"):
             RunnerNatsTransportCredential.from_issued_response(
                 response,
-                tenant_id=_TENANT,
-                runner_id=_RUNNER,
-                nats_user_seed=user_seed,
-                expected_issuer_account_public_nkey=account_public,
+                user_seed=user_seed,
+                expected_tenant_id=_TENANT,
+                expected_runner_id=_RUNNER,
+                expected_trading_mode=_MODE,
+                expected_issuer_public_key=account_public,
             )
     finally:
         user_pair.wipe()
@@ -332,7 +389,7 @@ def test_tls_profile_rejects_plaintext_host_drift_and_issuer_drift(tmp_path: Pat
             "nats://nats.internal:4222",
             ca,
             "nats.internal",
-            credential.issuer_account_public_nkey,
+            credential.issuer_public_key,
         )
     with pytest.raises(RunnerNatsTransportError, match="server name"):
         RunnerNatsTransportConnectionProfile(
@@ -340,7 +397,7 @@ def test_tls_profile_rejects_plaintext_host_drift_and_issuer_drift(tmp_path: Pat
             "tls://nats.internal:4222",
             ca,
             "other.internal",
-            credential.issuer_account_public_nkey,
+            credential.issuer_public_key,
         )
     with pytest.raises(RunnerNatsTransportError, match="issuer"):
         RunnerNatsTransportConnectionProfile(
@@ -369,7 +426,7 @@ async def test_connect_uses_pinned_tls_jwt_and_local_nonce_signature(
         "tls://nats.internal:4222",
         ca,
         "nats.internal",
-        credential.issuer_account_public_nkey,
+        credential.issuer_public_key,
     )
 
     await profile.connect(name="test-runner")
@@ -378,9 +435,9 @@ async def test_connect_uses_pinned_tls_jwt_and_local_nonce_signature(
     assert kwargs["servers"] == ["tls://nats.internal:4222"]
     assert kwargs["tls"] is context
     assert kwargs["tls_hostname"] == "nats.internal"
-    assert bytes(kwargs["user_jwt_cb"]()) == credential.nats_user_jwt.encode("ascii")
+    assert bytes(kwargs["user_jwt_cb"]()) == credential.user_jwt.encode("ascii")
     signature = base64.b64decode(kwargs["signature_cb"]("nonce"), validate=True)
-    pair = nkeys.from_seed(bytearray(credential.nats_user_seed))
+    pair = nkeys.from_seed(bytearray(credential.user_seed))
     try:
         assert pair.verify(b"nonce", signature) is True
     finally:
@@ -406,7 +463,7 @@ async def test_broker_authorization_denial_invalidates_generation(
         "tls://nats.internal:4222",
         ca,
         "nats.internal",
-        credential.issuer_account_public_nkey,
+        credential.issuer_public_key,
     )
     await profile.connect(name="test-runner")
 
@@ -429,10 +486,11 @@ def test_rotation_keeps_old_generation_active_until_pending_promotes() -> None:
                 account_public_key=account_public,
                 generation=1,
             ),
-            tenant_id=_TENANT,
-            runner_id=_RUNNER,
-            nats_user_seed=user_seed_1,
-            expected_issuer_account_public_nkey=account_public,
+            user_seed=user_seed_1,
+            expected_tenant_id=_TENANT,
+            expected_runner_id=_RUNNER,
+            expected_trading_mode=_MODE,
+            expected_issuer_public_key=account_public,
         )
         pending = RunnerNatsTransportCredential.from_issued_response(
             _issued(
@@ -442,10 +500,11 @@ def test_rotation_keeps_old_generation_active_until_pending_promotes() -> None:
                 account_public_key=account_public,
                 generation=2,
             ),
-            tenant_id=_TENANT,
-            runner_id=_RUNNER,
-            nats_user_seed=user_seed_2,
-            expected_issuer_account_public_nkey=account_public,
+            user_seed=user_seed_2,
+            expected_tenant_id=_TENANT,
+            expected_runner_id=_RUNNER,
+            expected_trading_mode=_MODE,
+            expected_issuer_public_key=account_public,
         )
 
         staged = RunnerNatsTransportBundle(active=active, pending=pending)
@@ -464,16 +523,9 @@ def test_rotation_keeps_old_generation_active_until_pending_promotes() -> None:
         del account_seed
 
 
-def test_v1_vault_document_upgrades_to_v2_retirement_state_without_secret_loss() -> None:
+def test_v1_vault_document_round_trips_retirement_state_without_secret_loss() -> None:
     staged = _rotation_bundle()
     assert staged.active is not None
-    legacy = {
-        "schema_version": 1,
-        "active": staged.active.to_document(),
-        "pending": None,
-    }
-
-    upgraded = RunnerNatsTransportBundle.from_document(legacy)
     promoted = staged.promote_pending()
     assert promoted.retiring is not None
     challenge = RunnerNatsRevocationChallenge.from_response(
@@ -484,9 +536,9 @@ def test_v1_vault_document_upgrades_to_v2_retirement_state_without_secret_loss()
     persisted = promoted.with_revocation(_observation(challenge, replacement=promoted.active))
     restored = RunnerNatsTransportBundle.from_document(persisted.to_document())
 
-    assert upgraded.to_document()["schema_version"] == 2
+    assert restored.to_document()["schema_version"] == 1
     assert restored == persisted
-    assert restored.retiring.nats_user_jwt == staged.active.nats_user_jwt
+    assert restored.retiring.user_jwt == staged.active.user_jwt
 
 
 def test_issue_request_exposes_only_public_nkey_and_uses_canonical_signature_path() -> None:
@@ -504,7 +556,7 @@ def test_issue_request_exposes_only_public_nkey_and_uses_canonical_signature_pat
             captured.update(path=path, body=body, kwargs=kwargs)
             return _issued(
                 user_seed=b"not-used-by-response",
-                user_public_key=body["nats_user_public_key"],
+                user_public_key=body["user_public_key"],
                 account_pair=account_pair,
                 account_public_key=account_public,
                 now=datetime.now(UTC),
@@ -518,7 +570,8 @@ def test_issue_request_exposes_only_public_nkey_and_uses_canonical_signature_pat
         client.http = _Http()  # type: ignore[assignment]
 
         credential = client.issue_initial(
-            expected_issuer_account_public_nkey=account_public,
+            trading_mode=_MODE,
+            expected_issuer_public_key=account_public,
             now=datetime.now(UTC),
         )
 
@@ -528,7 +581,7 @@ def test_issue_request_exposes_only_public_nkey_and_uses_canonical_signature_pat
             "/api/v1/runner-nats-transport/enroll"
         )
         assert "seed" not in json.dumps(body).lower()
-        assert credential.nats_user_public_key == body["nats_user_public_key"]  # type: ignore[index]
+        assert credential.user_public_key == body["user_public_key"]  # type: ignore[index]
     finally:
         account_pair.wipe()
         del account_seed
@@ -544,9 +597,11 @@ def _revocation_challenge(
         "profile": "crucible.runner.nats-revocation-challenge.v1",
         "tenant_id": credential.tenant_id,
         "runner_id": str(credential.runner_id),
-        "transport_credential_id": str(credential.transport_credential_id),
-        "generation": credential.transport_generation,
-        "user_public_nkey": credential.nats_user_public_key,
+        "trading_mode": credential.trading_mode,
+        "transport_domain": credential.transport_domain,
+        "authority_id": str(credential.authority_id),
+        "generation": credential.credential_generation,
+        "user_public_key": credential.user_public_key,
         "resolver_account_jwt_sha256": "d" * 64,
         "revoke_before": issued_at.isoformat().replace("+00:00", "Z"),
         "challenge_nonce": "33333333-3333-4333-8333-333333333333",
@@ -563,13 +618,11 @@ def _observation(
 ) -> RunnerNatsRevocationObservation:
     return RunnerNatsRevocationObservation(
         challenge=challenge,
-        replacement_transport_credential_id=(
-            replacement.transport_credential_id
-            if replacement is not None
-            else challenge.transport_credential_id
+        replacement_authority_id=(
+            replacement.authority_id if replacement is not None else challenge.authority_id
         ),
         replacement_generation=(
-            replacement.transport_generation
+            replacement.credential_generation
             if replacement is not None
             else challenge.generation + 1
         ),
@@ -592,14 +645,14 @@ def test_revocation_challenge_and_observation_round_trip_without_secret_material
     rendered = json.dumps(restored.to_document(), sort_keys=True)
 
     assert restored == observation
-    assert credential.nats_user_jwt not in rendered
+    assert credential.user_jwt not in rendered
     assert "seed" not in rendered.lower()
 
 
 def test_revocation_challenge_rejects_cross_generation_substitution() -> None:
     credential = _credential(now=datetime.now(UTC))
     response = _revocation_challenge(credential)
-    response["generation"] = credential.transport_generation + 1
+    response["generation"] = credential.credential_generation + 1
 
     with pytest.raises(RunnerNatsTransportError, match="binding mismatch"):
         RunnerNatsRevocationChallenge.from_response(response, credential)
@@ -624,8 +677,9 @@ def test_authority_client_uses_targeted_superseded_route_and_public_evidence() -
             return {
                 "tenant_id": _TENANT,
                 "runner_id": str(_RUNNER),
-                "transport_credential_id": str(credential.transport_credential_id),
-                "generation": credential.transport_generation,
+                "trading_mode": credential.trading_mode,
+                "authority_id": str(credential.authority_id),
+                "generation": credential.credential_generation,
                 "resolver_account_jwt_sha256": "d" * 64,
                 "completed_at": completed_at.isoformat().replace("+00:00", "Z"),
             }
@@ -653,7 +707,7 @@ def test_authority_client_uses_targeted_superseded_route_and_public_evidence() -
     ]
     assert captured[0][2]["canonical_path"] == ("/api/v1/runner-nats-transport/revoke-superseded")
     serialized = json.dumps([body for _, body, _ in captured], sort_keys=True)
-    assert credential.nats_user_jwt not in serialized
+    assert credential.user_jwt not in serialized
     assert "seed" not in serialized.lower()
 
 
@@ -678,7 +732,7 @@ async def test_old_generation_probe_requires_typed_authorization_denial(
         "tls://nats.internal:4222",
         ca,
         "nats.internal",
-        credential.issuer_account_public_nkey,
+        credential.issuer_public_key,
     )
 
     await assert_old_generation_reconnect_denied(
@@ -696,7 +750,7 @@ async def test_old_generation_probe_requires_typed_authorization_denial(
         "tls://nats.internal:4222",
         ca,
         "nats.internal",
-        credential.issuer_account_public_nkey,
+        credential.issuer_public_key,
     )
     await assert_old_generation_reconnect_denied(
         protocol_profile,
@@ -713,7 +767,7 @@ async def test_old_generation_probe_requires_typed_authorization_denial(
         "tls://nats.internal:4222",
         ca,
         "nats.internal",
-        credential.issuer_account_public_nkey,
+        credential.issuer_public_key,
     )
     with pytest.raises(RunnerNatsTransportError, match="without explicit"):
         await assert_old_generation_reconnect_denied(
@@ -731,7 +785,7 @@ async def test_old_generation_probe_requires_typed_authorization_denial(
         "tls://nats.internal:4222",
         ca,
         "nats.internal",
-        credential.issuer_account_public_nkey,
+        credential.issuer_public_key,
     )
     with pytest.raises(RunnerNatsTransportError, match="without explicit"):
         await assert_old_generation_reconnect_denied(
@@ -785,8 +839,8 @@ async def test_rotation_submission_loss_keeps_retiring_state_and_restart_resubmi
             return {
                 "tenant_id": credential.tenant_id,
                 "runner_id": str(credential.runner_id),
-                "transport_credential_id": str(credential.transport_credential_id),
-                "generation": credential.transport_generation,
+                "authority_id": str(credential.authority_id),
+                "generation": credential.credential_generation,
                 "status": "active",
                 "revision": 2,
             }
@@ -819,7 +873,7 @@ async def test_rotation_submission_loss_keeps_retiring_state_and_restart_resubmi
         nats_url="tls://nats.internal:4222",
         nats_ca=tmp_path / "ca.pem",
         nats_server_name="nats.internal",
-        issuer_account_public_nkey=staged.active.issuer_account_public_nkey,
+        issuer_public_key=staged.active.issuer_public_key,
         revocation_timeout_secs=300.0,
     )
     vault = _Vault()

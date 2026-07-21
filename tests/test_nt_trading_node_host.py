@@ -16,7 +16,8 @@ Failure-mode contract (plan §failure-mode coverage table):
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
+from dataclasses import dataclass, field
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 import structlog
@@ -29,14 +30,22 @@ from nautilus_trader.adapters.sandbox.factory import SandboxLiveExecClientFactor
 from custos.engines.nautilus import host as nautilus_host  # noqa: E402
 from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
 
-_FIXTURE_STRATEGY = Path(__file__).parent / "fixtures" / "minimal_supertrend_strategy.py"
+
+def _deployment_instance_id(label: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"custos-test-instance:{label}"))
 
 
-def _spec(spec_id: str = "spec-1", **overrides) -> dict:
+def _deployment_spec_id(label: str) -> str:
+    return str(uuid5(NAMESPACE_URL, f"custos-test-spec:{label}"))
+
+
+def _spec(label: str = "spec-1", **overrides) -> dict:
     spec = {
-        "spec_id": spec_id,
-        "deployment_instance_id": spec_id,
-        "strategy_path": str(_FIXTURE_STRATEGY),
+        "deployment_spec_id": _deployment_spec_id(label),
+        "deployment_instance_id": _deployment_instance_id(label),
+        "deployment_spec_digest": "d" * 64,
+        "generation": 1,
+        "trading_mode": "sandbox",
         "connector": "binance_perpetual",
         "pairs": ["BTC-USDT"],
         "leverage": 3,
@@ -52,6 +61,12 @@ def _credential() -> dict:
         "api_secret": "test-secret",
         "permission_scope": "trade_no_withdraw",
     }
+
+
+@dataclass(frozen=True, slots=True)
+class _Artifact:
+    activation_id: str = "activation-test"
+    strategy: object = field(default_factory=object)
 
 
 class _FakeTrader:
@@ -129,7 +144,7 @@ async def test_deploy_missing_nt_extra_fails_fast(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", None)
     host = NtTradingNodeHost()
     with pytest.raises(RuntimeError, match="nautilus"):
-        await host.deploy(_spec(), _credential())
+        await host.deploy(_spec(), _credential(), _Artifact())
 
 
 @pytest.mark.asyncio
@@ -143,7 +158,7 @@ async def test_build_failure_records_startup_error(monkeypatch) -> None:
     host = NtTradingNodeHost()
     with structlog.testing.capture_logs() as logs:
         with pytest.raises(RuntimeError, match="nt build boom"):
-            await host.deploy(_spec(), _credential())
+            await host.deploy(_spec(), _credential(), _Artifact())
     assert "nt_startup_failure" in [e.get("event") for e in logs]
     # failed deploy must not leave a registered node
     assert host._active_nodes == {}
@@ -153,20 +168,20 @@ async def test_build_failure_records_startup_error(monkeypatch) -> None:
 async def test_deploy_sandbox_success(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
-    container_id = await host.deploy(_spec("spec-42"), _credential())
+    artifact = _Artifact()
+    deployment_instance_id = _deployment_instance_id("spec-42")
+    container_id = await host.deploy(_spec("spec-42"), _credential(), artifact)
     try:
-        assert container_id == "spec-42"
-        assert "spec-42" in host._active_nodes
+        assert container_id == deployment_instance_id
+        assert deployment_instance_id in host._active_nodes
         node = _FakeTradingNode.instances[-1]
         assert node.built is True
         # sandbox exec + binance data factories registered under the venue name
         assert [n for n, _ in node.exec_factories] == ["BINANCE"]
         assert [n for n, _ in node.data_factories] == ["BINANCE"]
-        # the self-contained fixture strategy was added
-        assert node.trader.strategies
-        assert type(node.trader.strategies[0]).__name__ == "MinimalSupertrendStrategy"
+        assert node.trader.strategies == [artifact.strategy]
     finally:
-        await host.stop("spec-42")
+        await host.stop(deployment_instance_id)
 
 
 @pytest.mark.asyncio
@@ -175,12 +190,13 @@ async def test_deploy_sandbox_uses_sandbox_exec_factory(monkeypatch) -> None:
     # a real Binance one (regression guard on the mode fan-out).
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
-    await host.deploy(_spec("sb-1", trading_mode="sandbox"), _credential())
+    deployment_instance_id = _deployment_instance_id("sb-1")
+    await host.deploy(_spec("sb-1", trading_mode="sandbox"), _credential(), _Artifact())
     try:
         node = _FakeTradingNode.instances[-1]
         assert node.exec_factories[0][1] is SandboxLiveExecClientFactory
     finally:
-        await host.stop("sb-1")
+        await host.stop(deployment_instance_id)
 
 
 @pytest.mark.asyncio
@@ -189,13 +205,14 @@ async def test_deploy_testnet_uses_binance_exec_factory(monkeypatch) -> None:
     # not the sandbox simulator.
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
-    await host.deploy(_spec("tn-1", trading_mode="testnet"), _credential())
+    deployment_instance_id = _deployment_instance_id("tn-1")
+    await host.deploy(_spec("tn-1", trading_mode="testnet"), _credential(), _Artifact())
     try:
         node = _FakeTradingNode.instances[-1]
         assert node.exec_factories[0][1] is BinanceLiveExecClientFactory
         assert node.exec_factories[0][1] is not SandboxLiveExecClientFactory
     finally:
-        await host.stop("tn-1")
+        await host.stop(deployment_instance_id)
 
 
 @pytest.mark.asyncio
@@ -208,14 +225,15 @@ async def test_deploy_live_success_with_owner_evidence(monkeypatch) -> None:
         promotion_id="44444444-4444-4444-8444-444444444444",
         promotion_evidence_digest="a" * 64,
     )
+    deployment_instance_id = spec["deployment_instance_id"]
     with structlog.testing.capture_logs() as logs:
-        await host.deploy(spec, _credential())
+        await host.deploy(spec, _credential(), _Artifact())
     try:
         node = _FakeTradingNode.instances[-1]
         assert node.exec_factories[0][1] is BinanceLiveExecClientFactory
         assert "nt_live_deploy_requested" in [e.get("event") for e in logs]
     finally:
-        await host.stop("live-ok")
+        await host.stop(deployment_instance_id)
 
 
 @pytest.mark.asyncio
@@ -224,7 +242,7 @@ async def test_deploy_live_rejects_missing_owner_evidence(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
     with pytest.raises(RuntimeError, match="live_owner_evidence_missing"):
-        await host.deploy(_spec("live-bad", trading_mode="live"), _credential())
+        await host.deploy(_spec("live-bad", trading_mode="live"), _credential(), _Artifact())
     assert _FakeTradingNode.instances == []
     assert host._active_nodes == {}
 
@@ -235,8 +253,10 @@ async def test_deploy_unknown_trading_mode_rejected(monkeypatch) -> None:
     # default execution path), before any node is constructed.
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
-    with pytest.raises(RuntimeError, match="unsupported trading_mode"):
-        await host.deploy(_spec("weird-1", trading_mode="paper_trading"), _credential())
+    with pytest.raises(ValueError, match="trading mode"):
+        await host.deploy(
+            _spec("weird-1", trading_mode="paper_trading"), _credential(), _Artifact()
+        )
     assert _FakeTradingNode.instances == []
     assert host._active_nodes == {}
 
@@ -247,21 +267,22 @@ async def test_deploy_does_not_retain_credential(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
     cred = _credential()
-    await host.deploy(_spec("spec-7"), cred)
+    deployment_instance_id = _deployment_instance_id("spec-7")
+    await host.deploy(_spec("spec-7"), cred, _Artifact())
     try:
         state_blob = repr(host._active_nodes)
         assert "test-key" not in state_blob
         assert "test-secret" not in state_blob
     finally:
-        await host.stop("spec-7")
+        await host.stop(deployment_instance_id)
 
 
 @pytest.mark.asyncio
 async def test_stop_idempotent() -> None:
-    # Failure-mode contract: stopping an unknown spec_id is a no-op, not an error.
+    # Failure-mode contract: stopping an unknown instance is a no-op, not an error.
     host = NtTradingNodeHost()
     with structlog.testing.capture_logs() as logs:
-        await host.stop("never-deployed")
+        await host.stop(_deployment_instance_id("never-deployed"))
     assert "nt_stop_noop_unknown_instance" in [e.get("event") for e in logs]
 
 
@@ -271,14 +292,15 @@ async def test_stop_timeout_forces_dispose(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
     host._stop_timeout_secs = 0.05
-    await host.deploy(_spec("spec-hang"), _credential())
-    node = host._active_nodes["spec-hang"][0]
+    deployment_instance_id = _deployment_instance_id("spec-hang")
+    await host.deploy(_spec("spec-hang"), _credential(), _Artifact())
+    node = host._active_nodes[deployment_instance_id][0]
     node.stop_hangs = True
     with structlog.testing.capture_logs() as logs:
-        await host.stop("spec-hang")
+        await host.stop(deployment_instance_id)
     assert "nt_stop_timeout" in [e.get("event") for e in logs]
     assert node.disposed is True
-    assert "spec-hang" not in host._active_nodes
+    assert deployment_instance_id not in host._active_nodes
 
 
 @pytest.mark.asyncio
@@ -294,7 +316,7 @@ async def test_reconfigure_runtime_tunable_logs() -> None:
     # relaxed double: the runtime-tunable branch is a live path, not a dead one.
     host = NtTradingNodeHost()
     spec = {
-        "spec_id": "spec-y",
+        "deployment_instance_id": _deployment_instance_id("spec-y"),
         "reconfigure": {"runtime_tunable_only": True, "params": {"leverage": 5}},
     }
     with structlog.testing.capture_logs() as logs:
@@ -316,7 +338,7 @@ async def test_exception_log_redacts_credential_material(monkeypatch) -> None:
     host = NtTradingNodeHost()
     with structlog.testing.capture_logs() as logs:
         with pytest.raises(RuntimeError):
-            await host.deploy(_spec(), _credential())
+            await host.deploy(_spec(), _credential(), _Artifact())
     startup = [e for e in logs if e.get("event") == "nt_startup_failure"]
     assert startup
     assert "REAL_SECRET_KEY" not in str(startup[0])
@@ -337,7 +359,7 @@ async def test_exception_log_passthrough_when_no_credential(monkeypatch) -> None
     host = NtTradingNodeHost()
     with structlog.testing.capture_logs() as logs:
         with pytest.raises(RuntimeError):
-            await host.deploy(_spec(), _credential())
+            await host.deploy(_spec(), _credential(), _Artifact())
     startup = [e for e in logs if e.get("event") == "nt_startup_failure"]
     assert startup
     assert startup[0].get("error") == "instrument BTCUSDT-PERP.BINANCE not found"
@@ -345,19 +367,20 @@ async def test_exception_log_passthrough_when_no_credential(monkeypatch) -> None
 
 
 @pytest.mark.asyncio
-async def test_deploy_duplicate_spec_id_raises(monkeypatch) -> None:
-    # Re-deploying a live spec_id is rejected (must stop first) — never silent replace.
+async def test_deploy_duplicate_instance_id_raises(monkeypatch) -> None:
+    # Re-deploying a live instance is rejected (must stop first), never silently replaced.
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
-    await host.deploy(_spec("dup-1"), _credential())
+    deployment_instance_id = _deployment_instance_id("dup-1")
+    await host.deploy(_spec("dup-1"), _credential(), _Artifact())
     try:
         with pytest.raises(RuntimeError, match="already deployed"):
-            await host.deploy(_spec("dup-1"), _credential())
+            await host.deploy(_spec("dup-1"), _credential(), _Artifact())
         # original node untouched; the duplicate never constructed a second node
         assert len(_FakeTradingNode.instances) == 1
-        assert "dup-1" in host._active_nodes
+        assert deployment_instance_id in host._active_nodes
     finally:
-        await host.stop("dup-1")
+        await host.stop(deployment_instance_id)
 
 
 @pytest.mark.asyncio
@@ -365,26 +388,24 @@ async def test_task_done_callback_cleans_active_entry(monkeypatch) -> None:
     # A self-terminated node run task removes its own registry entry (no stale leak).
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
     host = NtTradingNodeHost()
-    await host.deploy(_spec("self-term"), _credential())
-    node, task = host._active_nodes["self-term"]
+    deployment_instance_id = _deployment_instance_id("self-term")
+    await host.deploy(_spec("self-term"), _credential(), _Artifact())
+    node, task = host._active_nodes[deployment_instance_id]
     node._stop.set()  # end the run loop without going through stop()
     await task
     await asyncio.sleep(0.01)  # let the done-callback run
-    assert "self-term" not in host._active_nodes
+    assert deployment_instance_id not in host._active_nodes
 
 
 @pytest.mark.asyncio
-async def test_strategy_instantiate_failure_no_built_node_leak(monkeypatch) -> None:
-    # A strategy-instantiation failure happens before the node is built, so no
-    # built node is ever constructed or leaked.
+async def test_missing_strategy_activation_identity_builds_no_node(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", _FakeTradingNode)
-
-    def _boom(self, strategy_cls, spec):
-        raise RuntimeError("strategy config boom")
-
-    monkeypatch.setattr(NtTradingNodeHost, "_instantiate_strategy", _boom)
     host = NtTradingNodeHost()
-    with pytest.raises(RuntimeError, match="strategy config boom"):
-        await host.deploy(_spec("leak-check"), _credential())
+    with pytest.raises(RuntimeError, match="activation identity"):
+        await host.deploy(
+            _spec("leak-check"),
+            _credential(),
+            _Artifact(activation_id=""),
+        )
     assert _FakeTradingNode.instances == []
     assert host._active_nodes == {}

@@ -38,8 +38,14 @@ from custos.core.machine_credential_vault import (
     MachineCredentialHttpClient,
 )
 
-RUNNER_NATS_TRANSPORT_PROFILE = "runner-v1"
-RUNNER_COMMAND_STREAM = "CRUCIBLE_DOMAIN_AUDIT"
+RUNNER_NATS_TRANSPORT_SCHEMA_VERSION = 1
+RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE = "crucible.runner-nats-transport.v1"
+RUNNER_COMMAND_STREAM_SIM = "CRUCIBLE_RUNNER_COMMAND_SIM_V1"
+RUNNER_COMMAND_STREAM_LIVE = "CRUCIBLE_RUNNER_COMMAND_LIVE_V1"
+RUNNER_COMMAND_SUBJECT_PREFIX = "crucible.runner.command.v1"
+RUNNER_FACT_SUBJECT_PREFIX = "crucible.runner.fact.v1"
+RUNNER_COMMAND_DELIVERY_SUBJECT_PREFIX = "custos.runner.command.v1.delivery"
+TRADING_MODES = ("sandbox", "testnet", "live")
 _ISSUE_PATH = "/internal/v1/runner-nats-transport/enroll"
 _ROTATE_PATH = "/internal/v1/runner-nats-transport/rotate"
 _ACTIVATE_PATH = "/internal/v1/runner-nats-transport/activate"
@@ -55,6 +61,7 @@ _CANONICAL_REVOCATION_EVIDENCE_PATH = "/api/v1/runner-nats-transport/revocation-
 _REVOCATION_CHALLENGE_PROFILE = "crucible.runner.nats-revocation-challenge.v1"
 _REVOCATION_EVIDENCE_PROFILE = "custos.runner.nats-revocation-evidence.v1"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_SAFE_TOKEN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ACCOUNT_NKEY = re.compile(r"^A[A-Z2-7]{55}$")
 _USER_NKEY = re.compile(r"^U[A-Z2-7]{55}$")
@@ -197,31 +204,45 @@ def _validate_jwt(
         raise RunnerNatsTransportError("NATS User JWT permissions diverge from CR100 profile")
 
 
+def runner_nats_transport_domain(trading_mode: str) -> str:
+    if trading_mode in {"sandbox", "testnet"}:
+        return "sim"
+    if trading_mode == "live":
+        return "live"
+    raise RunnerNatsTransportError("trading_mode is outside the closed V1 enum")
+
+
+def runner_command_stream(trading_mode: str) -> str:
+    return (
+        RUNNER_COMMAND_STREAM_LIVE
+        if runner_nats_transport_domain(trading_mode) == "live"
+        else RUNNER_COMMAND_STREAM_SIM
+    )
+
+
 def _expected_permission_profile(
     tenant_id: str,
     runner_id: UUID,
-    authorized_modes: Sequence[str],
+    trading_mode: str,
 ) -> dict[str, Any]:
     runner = str(runner_id)
-    durable = f"custos-v4-{tenant_id}-{runner}"
-    publish_allow = [
-        f"crucible.runner_fact.{mode}.{tenant_id}.{runner}.>" for mode in authorized_modes
-    ]
-    publish_allow.extend(
-        (
-            f"$JS.ACK.{RUNNER_COMMAND_STREAM}.{durable}.>",
-            f"$JS.API.CONSUMER.INFO.{RUNNER_COMMAND_STREAM}.{durable}",
-        )
-    )
+    domain = runner_nats_transport_domain(trading_mode)
+    stream = runner_command_stream(trading_mode)
+    durable = f"custos-v1-{tenant_id}-{runner}-{trading_mode}"
     return {
-        "schema_version": 1,
-        "profile": RUNNER_NATS_TRANSPORT_PROFILE,
+        "schema_version": RUNNER_NATS_TRANSPORT_SCHEMA_VERSION,
+        "profile": RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE,
         "tenant_id": tenant_id,
         "runner_id": runner,
-        "authorized_modes": list(authorized_modes),
-        "publish_allow": publish_allow,
+        "trading_mode": trading_mode,
+        "transport_domain": domain,
+        "publish_allow": [
+            f"{RUNNER_FACT_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}",
+            f"$JS.ACK.{stream}.{durable}.>",
+            f"$JS.API.CONSUMER.INFO.{stream}.{durable}",
+        ],
         "subscribe_allow": [
-            f"custos.runner_command_v4_delivery.{tenant_id}.{runner}",
+            f"{RUNNER_COMMAND_DELIVERY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}",
             "_INBOX.>",
         ],
         "publish_deny": [
@@ -238,21 +259,19 @@ def _expected_permission_profile(
 def _expected_durable_config(
     tenant_id: str,
     runner_id: UUID,
-    authorized_modes: Sequence[str],
+    trading_mode: str,
 ) -> dict[str, Any]:
     runner = str(runner_id)
+    domain = runner_nats_transport_domain(trading_mode)
     return {
-        "schema_version": 1,
-        "stream_name": RUNNER_COMMAND_STREAM,
-        "durable_name": f"custos-v4-{tenant_id}-{runner}",
-        "delivery_subject": f"custos.runner_command_v4_delivery.{tenant_id}.{runner}",
-        "filter_subjects": [
-            (
-                f"crucible_rust.domain.{tenant_id}.{mode}.deployment."
-                f"RunnerDeploymentCommandV4.{runner}.*"
-            )
-            for mode in authorized_modes
-        ],
+        "schema_version": RUNNER_NATS_TRANSPORT_SCHEMA_VERSION,
+        "transport_domain": domain,
+        "stream_name": runner_command_stream(trading_mode),
+        "durable_name": f"custos-v1-{tenant_id}-{runner}-{trading_mode}",
+        "delivery_subject": (
+            f"{RUNNER_COMMAND_DELIVERY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}"
+        ),
+        "filter_subjects": [f"{RUNNER_COMMAND_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}"],
         "deliver_policy": "all",
         "ack_policy": "explicit",
         "replay_policy": "instant",
@@ -284,7 +303,8 @@ def runner_nats_user_pop_payload(
     machine_credential_version: int,
     correlation_id: UUID,
     idempotency_key: UUID,
-    nats_user_public_key: str,
+    trading_mode: str,
+    user_public_key: str,
     requested_at: datetime,
 ) -> bytes:
     return "\n".join(
@@ -296,8 +316,10 @@ def runner_nats_user_pop_payload(
             f"credential_version={machine_credential_version}",
             f"correlation_id={correlation_id}",
             f"idempotency_key={idempotency_key}",
-            f"nats_transport_profile={RUNNER_NATS_TRANSPORT_PROFILE}",
-            f"nats_user_public_key={nats_user_public_key}",
+            f"authority_coordinate={RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE}",
+            f"trading_mode={trading_mode}",
+            f"transport_domain={runner_nats_transport_domain(trading_mode)}",
+            f"user_public_key={user_public_key}",
             f"requested_at={_timestamp_nanos(requested_at)}",
         )
     ).encode("utf-8")
@@ -305,55 +327,84 @@ def runner_nats_user_pop_payload(
 
 @dataclass(frozen=True, slots=True)
 class RunnerNatsTransportCredential:
+    schema_version: int
+    authority_coordinate: str
+    authority_id: UUID
     tenant_id: str
     runner_id: UUID
-    transport_credential_id: UUID
-    transport_credential_version: int
-    transport_generation: int
-    nats_user_public_key: str
-    nats_user_seed: bytes = field(repr=False)
-    nats_user_jwt: str = field(repr=False)
-    nats_user_jwt_sha256: str
-    issuer_account_public_nkey: str
+    trading_mode: str
+    transport_domain: str
+    credential_generation: int
+    user_public_key: str
+    user_seed: bytes = field(repr=False)
+    user_jwt: str = field(repr=False)
+    user_jwt_sha256: str
+    issuer_public_key: str
+    signing_key_id: str
+    claims_sha256: str
     permission_profile: dict[str, Any]
     permission_profile_sha256: str
     durable_config: dict[str, Any]
     durable_config_sha256: str
     issued_at: datetime
+    not_before: datetime
     expires_at: datetime
+    status: str
+    operation_id: UUID
+    authority_digest: str
     source_path: Path | None = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        if self.schema_version != RUNNER_NATS_TRANSPORT_SCHEMA_VERSION:
+            raise RunnerNatsTransportError("runner NATS transport schema version is unsupported")
+        if self.authority_coordinate != RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE:
+            raise RunnerNatsTransportError("runner NATS transport authority coordinate is invalid")
         if not _SAFE_ID.fullmatch(self.tenant_id):
             raise RunnerNatsTransportError("tenant_id is not a safe authority identifier")
         object.__setattr__(self, "runner_id", _required_uuid(self.runner_id, "runner_id"))
         object.__setattr__(
             self,
-            "transport_credential_id",
-            _required_uuid(self.transport_credential_id, "transport_credential_id"),
+            "authority_id",
+            _required_uuid(self.authority_id, "authority_id"),
         )
-        if (
-            type(self.transport_credential_version) is not int
-            or self.transport_credential_version < 1
-            or type(self.transport_generation) is not int
-            or self.transport_generation < 1
-        ):
-            raise RunnerNatsTransportError("transport version and generation must be positive")
-        if not _USER_NKEY.fullmatch(self.nats_user_public_key):
+        if self.trading_mode not in TRADING_MODES:
+            raise RunnerNatsTransportError("trading_mode is outside the closed V1 enum")
+        if self.transport_domain != runner_nats_transport_domain(self.trading_mode):
+            raise RunnerNatsTransportError("transport_domain does not match trading_mode")
+        if type(self.credential_generation) is not int or self.credential_generation < 1:
+            raise RunnerNatsTransportError("credential_generation must be positive")
+        if not _USER_NKEY.fullmatch(self.user_public_key):
             raise RunnerNatsTransportError("NATS User public key is invalid")
-        if not _ACCOUNT_NKEY.fullmatch(self.issuer_account_public_nkey):
+        if not _ACCOUNT_NKEY.fullmatch(self.issuer_public_key):
             raise RunnerNatsTransportError("NATS issuer Account public key is invalid")
-        if not _LOWER_SHA256.fullmatch(self.nats_user_jwt_sha256):
+        if not _SAFE_TOKEN.fullmatch(self.signing_key_id):
+            raise RunnerNatsTransportError("signing_key_id is invalid")
+        if not _LOWER_SHA256.fullmatch(self.user_jwt_sha256):
             raise RunnerNatsTransportError("NATS User JWT digest is invalid")
         if not _LOWER_SHA256.fullmatch(self.permission_profile_sha256):
             raise RunnerNatsTransportError("permission profile digest is invalid")
         if not _LOWER_SHA256.fullmatch(self.durable_config_sha256):
             raise RunnerNatsTransportError("durable config digest is invalid")
+        if not _LOWER_SHA256.fullmatch(self.claims_sha256):
+            raise RunnerNatsTransportError("claims digest is invalid")
+        if not _LOWER_SHA256.fullmatch(self.authority_digest):
+            raise RunnerNatsTransportError("authority digest is invalid")
         object.__setattr__(self, "issued_at", self.issued_at.astimezone(UTC))
+        object.__setattr__(self, "not_before", self.not_before.astimezone(UTC))
         object.__setattr__(self, "expires_at", self.expires_at.astimezone(UTC))
-        if self.expires_at <= self.issued_at:
+        if not self.issued_at <= self.not_before < self.expires_at:
             raise RunnerNatsTransportError("NATS transport validity window is invalid")
-        seed_buffer = bytearray(self.nats_user_seed)
+        object.__setattr__(self, "operation_id", _required_uuid(self.operation_id, "operation_id"))
+        if self.status not in {
+            "pending_provisioning",
+            "active",
+            "rotating",
+            "revoked",
+            "expired",
+            "failed",
+        }:
+            raise RunnerNatsTransportError("runner NATS transport status is invalid")
+        seed_buffer = bytearray(self.user_seed)
         try:
             pair = nkeys.from_seed(seed_buffer)
             public_key = pair.public_key.decode("ascii")
@@ -364,12 +415,12 @@ class RunnerNatsTransportCredential:
                 pair.wipe()
             for index in range(len(seed_buffer)):
                 seed_buffer[index] = 0
-        if public_key != self.nats_user_public_key:
+        if public_key != self.user_public_key:
             raise RunnerNatsTransportError("NATS User seed does not match public key")
         self._validate_authority()
 
     def _validate_authority(self) -> None:
-        if _sha256(self.nats_user_jwt.encode("ascii")) != self.nats_user_jwt_sha256:
+        if _sha256(self.user_jwt.encode("ascii")) != self.user_jwt_sha256:
             raise RunnerNatsTransportError("NATS User JWT digest mismatch")
         if _sha256(_canonical_json_bytes(self.permission_profile)) != (
             self.permission_profile_sha256
@@ -377,99 +428,89 @@ class RunnerNatsTransportCredential:
             raise RunnerNatsTransportError("permission profile digest mismatch")
         if _sha256(_canonical_json_bytes(self.durable_config)) != self.durable_config_sha256:
             raise RunnerNatsTransportError("durable config digest mismatch")
-        modes = self.permission_profile.get("authorized_modes")
-        if (
-            not isinstance(modes, list)
-            or not modes
-            or len(modes) != len(set(modes))
-            or any(mode not in {"sandbox", "testnet", "live"} for mode in modes)
-        ):
-            raise RunnerNatsTransportError("authorized_modes is invalid")
-        expected_permission = _expected_permission_profile(self.tenant_id, self.runner_id, modes)
+        expected_permission = _expected_permission_profile(
+            self.tenant_id, self.runner_id, self.trading_mode
+        )
         if self.permission_profile != expected_permission:
             raise RunnerNatsTransportError("permission profile is not exact CR100 authority")
-        expected_durable = _expected_durable_config(self.tenant_id, self.runner_id, modes)
+        expected_durable = _expected_durable_config(
+            self.tenant_id, self.runner_id, self.trading_mode
+        )
         if self.durable_config != expected_durable:
             raise RunnerNatsTransportError("durable config is not exact CR100 authority")
         _validate_jwt(
-            self.nats_user_jwt,
-            expected_issuer=self.issuer_account_public_nkey,
-            expected_user=self.nats_user_public_key,
+            self.user_jwt,
+            expected_issuer=self.issuer_public_key,
+            expected_user=self.user_public_key,
             expected_expiry=self.expires_at,
             permission_profile=self.permission_profile,
         )
+        if _sha256(_canonical_json_bytes(self.authority_document(include_digest=False))) != (
+            self.authority_digest
+        ):
+            raise RunnerNatsTransportError("runner NATS authority digest mismatch")
 
     def assert_active(self, *, now: datetime | None = None) -> None:
         if self.source_path is not None and not self.source_path.exists():
             raise RunnerNatsTransportError("NATS transport vault was invalidated locally")
         if self.expires_at <= (now or datetime.now(UTC)).astimezone(UTC):
             raise RunnerNatsTransportError("NATS User JWT is expired")
+        if self.status != "active":
+            raise RunnerNatsTransportError("runner NATS authority is not active")
 
-    def to_document(self) -> dict[str, Any]:
-        return {
+    def authority_document(self, *, include_digest: bool = True) -> dict[str, Any]:
+        document = {
+            "schema_version": self.schema_version,
+            "authority_coordinate": self.authority_coordinate,
+            "authority_id": str(self.authority_id),
             "tenant_id": self.tenant_id,
             "runner_id": str(self.runner_id),
-            "transport_credential_id": str(self.transport_credential_id),
-            "transport_credential_version": self.transport_credential_version,
-            "transport_generation": self.transport_generation,
-            "nats_user_public_key": self.nats_user_public_key,
-            "nats_user_seed_base64": base64.b64encode(self.nats_user_seed).decode("ascii"),
-            "nats_user_jwt": self.nats_user_jwt,
-            "nats_user_jwt_sha256": self.nats_user_jwt_sha256,
-            "issuer_account_public_nkey": self.issuer_account_public_nkey,
+            "trading_mode": self.trading_mode,
+            "transport_domain": self.transport_domain,
+            "credential_generation": self.credential_generation,
+            "user_public_key": self.user_public_key,
+            "user_jwt": self.user_jwt,
+            "user_jwt_sha256": self.user_jwt_sha256,
+            "issuer_public_key": self.issuer_public_key,
+            "signing_key_id": self.signing_key_id,
+            "claims_sha256": self.claims_sha256,
             "permission_profile": self.permission_profile,
             "permission_profile_sha256": self.permission_profile_sha256,
             "durable_config": self.durable_config,
             "durable_config_sha256": self.durable_config_sha256,
             "issued_at": _timestamp_text(self.issued_at),
+            "not_before": _timestamp_text(self.not_before),
             "expires_at": _timestamp_text(self.expires_at),
+            "status": self.status,
+            "operation_id": str(self.operation_id),
+        }
+        if include_digest:
+            document["authority_digest"] = self.authority_digest
+        return document
+
+    def to_document(self) -> dict[str, Any]:
+        return {
+            "authority": self.authority_document(),
+            "user_seed_base64": base64.b64encode(self.user_seed).decode("ascii"),
         }
 
     @classmethod
     def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsTransportCredential:
-        expected_fields = {
-            "tenant_id",
-            "runner_id",
-            "transport_credential_id",
-            "transport_credential_version",
-            "transport_generation",
-            "nats_user_public_key",
-            "nats_user_seed_base64",
-            "nats_user_jwt",
-            "nats_user_jwt_sha256",
-            "issuer_account_public_nkey",
-            "permission_profile",
-            "permission_profile_sha256",
-            "durable_config",
-            "durable_config_sha256",
-            "issued_at",
-            "expires_at",
-        }
+        expected_fields = {"authority", "user_seed_base64"}
         if set(value) != expected_fields:
             raise RunnerNatsTransportError("NATS transport vault credential shape is invalid")
         try:
-            seed = base64.b64decode(value["nats_user_seed_base64"], validate=True)
+            seed = base64.b64decode(value["user_seed_base64"], validate=True)
         except (TypeError, ValueError) as exc:
             raise RunnerNatsTransportError("NATS User seed encoding is invalid") from exc
-        return cls(
-            tenant_id=str(value["tenant_id"]),
-            runner_id=_required_uuid(value["runner_id"], "runner_id"),
-            transport_credential_id=_required_uuid(
-                value["transport_credential_id"], "transport_credential_id"
-            ),
-            transport_credential_version=value["transport_credential_version"],
-            transport_generation=value["transport_generation"],
-            nats_user_public_key=str(value["nats_user_public_key"]),
-            nats_user_seed=seed,
-            nats_user_jwt=str(value["nats_user_jwt"]),
-            nats_user_jwt_sha256=str(value["nats_user_jwt_sha256"]),
-            issuer_account_public_nkey=str(value["issuer_account_public_nkey"]),
-            permission_profile=_required_mapping(value["permission_profile"], "permission_profile"),
-            permission_profile_sha256=str(value["permission_profile_sha256"]),
-            durable_config=_required_mapping(value["durable_config"], "durable_config"),
-            durable_config_sha256=str(value["durable_config_sha256"]),
-            issued_at=_required_timestamp(value["issued_at"], "issued_at"),
-            expires_at=_required_timestamp(value["expires_at"], "expires_at"),
+        authority = _required_mapping(value["authority"], "authority")
+        return cls.from_issued_response(
+            authority,
+            user_seed=seed,
+            expected_tenant_id=str(authority.get("tenant_id", "")),
+            expected_runner_id=_required_uuid(authority.get("runner_id"), "runner_id"),
+            expected_trading_mode=str(authority.get("trading_mode", "")),
+            expected_issuer_public_key=str(authority.get("issuer_public_key", "")),
         )
 
     @classmethod
@@ -477,46 +518,66 @@ class RunnerNatsTransportCredential:
         cls,
         response: Mapping[str, Any],
         *,
-        tenant_id: str,
-        runner_id: UUID,
-        nats_user_seed: bytes,
-        expected_issuer_account_public_nkey: str,
+        user_seed: bytes,
+        expected_tenant_id: str,
+        expected_runner_id: UUID,
+        expected_trading_mode: str,
+        expected_issuer_public_key: str,
     ) -> RunnerNatsTransportCredential:
         expected_fields = {
-            "transport_credential_id",
-            "transport_credential_version",
-            "transport_generation",
-            "nats_transport_profile",
-            "nats_user_public_key",
-            "nats_user_jwt",
-            "nats_user_jwt_sha256",
-            "issuer_account_public_nkey",
+            "schema_version",
+            "authority_coordinate",
+            "authority_id",
+            "tenant_id",
+            "runner_id",
+            "trading_mode",
+            "transport_domain",
+            "credential_generation",
+            "user_public_key",
+            "user_jwt",
+            "user_jwt_sha256",
+            "issuer_public_key",
+            "signing_key_id",
+            "claims_sha256",
             "permission_profile",
             "permission_profile_sha256",
             "durable_config",
             "durable_config_sha256",
             "issued_at",
+            "not_before",
             "expires_at",
+            "status",
+            "operation_id",
+            "authority_digest",
         }
         if set(response) != expected_fields:
             raise RunnerNatsTransportError("CR100 issuance response shape is invalid")
-        if response["nats_transport_profile"] != RUNNER_NATS_TRANSPORT_PROFILE:
+        if response["authority_coordinate"] != RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE:
             raise RunnerNatsTransportError("CR100 transport profile is unsupported")
-        if response["issuer_account_public_nkey"] != expected_issuer_account_public_nkey:
+        if response["issuer_public_key"] != expected_issuer_public_key:
             raise RunnerNatsTransportError("CR100 issuer Account pin mismatch")
+        if response["tenant_id"] != expected_tenant_id:
+            raise RunnerNatsTransportError("CR100 tenant binding mismatch")
+        if response["runner_id"] != str(expected_runner_id):
+            raise RunnerNatsTransportError("CR100 runner binding mismatch")
+        if response["trading_mode"] != expected_trading_mode:
+            raise RunnerNatsTransportError("CR100 trading mode binding mismatch")
         return cls(
-            tenant_id=tenant_id,
-            runner_id=runner_id,
-            transport_credential_id=_required_uuid(
-                response["transport_credential_id"], "transport_credential_id"
-            ),
-            transport_credential_version=response["transport_credential_version"],
-            transport_generation=response["transport_generation"],
-            nats_user_public_key=str(response["nats_user_public_key"]),
-            nats_user_seed=nats_user_seed,
-            nats_user_jwt=str(response["nats_user_jwt"]),
-            nats_user_jwt_sha256=str(response["nats_user_jwt_sha256"]),
-            issuer_account_public_nkey=str(response["issuer_account_public_nkey"]),
+            schema_version=response["schema_version"],
+            authority_coordinate=str(response["authority_coordinate"]),
+            authority_id=_required_uuid(response["authority_id"], "authority_id"),
+            tenant_id=str(response["tenant_id"]),
+            runner_id=_required_uuid(response["runner_id"], "runner_id"),
+            trading_mode=str(response["trading_mode"]),
+            transport_domain=str(response["transport_domain"]),
+            credential_generation=response["credential_generation"],
+            user_public_key=str(response["user_public_key"]),
+            user_seed=user_seed,
+            user_jwt=str(response["user_jwt"]),
+            user_jwt_sha256=str(response["user_jwt_sha256"]),
+            issuer_public_key=str(response["issuer_public_key"]),
+            signing_key_id=str(response["signing_key_id"]),
+            claims_sha256=str(response["claims_sha256"]),
             permission_profile=_required_mapping(
                 response["permission_profile"], "permission_profile"
             ),
@@ -524,7 +585,11 @@ class RunnerNatsTransportCredential:
             durable_config=_required_mapping(response["durable_config"], "durable_config"),
             durable_config_sha256=str(response["durable_config_sha256"]),
             issued_at=_required_timestamp(response["issued_at"], "issued_at"),
+            not_before=_required_timestamp(response["not_before"], "not_before"),
             expires_at=_required_timestamp(response["expires_at"], "expires_at"),
+            status=str(response["status"]),
+            operation_id=_required_uuid(response["operation_id"], "operation_id"),
+            authority_digest=str(response["authority_digest"]),
         )
 
 
@@ -533,9 +598,11 @@ class RunnerNatsRevocationChallenge:
     profile: str
     tenant_id: str
     runner_id: UUID
-    transport_credential_id: UUID
+    trading_mode: str
+    transport_domain: str
+    authority_id: UUID
     generation: int
-    user_public_nkey: str
+    user_public_key: str
     resolver_account_jwt_sha256: str
     revoke_before: datetime
     challenge_nonce: UUID
@@ -549,10 +616,14 @@ class RunnerNatsRevocationChallenge:
         if not _SAFE_ID.fullmatch(self.tenant_id):
             raise RunnerNatsTransportError("revocation challenge tenant_id is invalid")
         object.__setattr__(self, "runner_id", _required_uuid(self.runner_id, "runner_id"))
+        if self.trading_mode not in TRADING_MODES:
+            raise RunnerNatsTransportError("revocation challenge trading_mode is invalid")
+        if self.transport_domain != runner_nats_transport_domain(self.trading_mode):
+            raise RunnerNatsTransportError("revocation challenge transport_domain is invalid")
         object.__setattr__(
             self,
-            "transport_credential_id",
-            _required_uuid(self.transport_credential_id, "transport_credential_id"),
+            "authority_id",
+            _required_uuid(self.authority_id, "authority_id"),
         )
         object.__setattr__(
             self,
@@ -563,7 +634,7 @@ class RunnerNatsRevocationChallenge:
             raise RunnerNatsTransportError("revocation challenge generation is invalid")
         if type(self.expected_binding_revision) is not int or self.expected_binding_revision < 1:
             raise RunnerNatsTransportError("revocation challenge binding revision is invalid")
-        if not _USER_NKEY.fullmatch(self.user_public_nkey):
+        if not _USER_NKEY.fullmatch(self.user_public_key):
             raise RunnerNatsTransportError("revocation challenge User NKey is invalid")
         if not _LOWER_SHA256.fullmatch(self.resolver_account_jwt_sha256):
             raise RunnerNatsTransportError("revocation challenge resolver digest is invalid")
@@ -585,9 +656,11 @@ class RunnerNatsRevocationChallenge:
         expected = (
             self.tenant_id == credential.tenant_id
             and self.runner_id == credential.runner_id
-            and self.transport_credential_id == credential.transport_credential_id
-            and self.generation == credential.transport_generation
-            and self.user_public_nkey == credential.nats_user_public_key
+            and self.trading_mode == credential.trading_mode
+            and self.transport_domain == credential.transport_domain
+            and self.authority_id == credential.authority_id
+            and self.generation == credential.credential_generation
+            and self.user_public_key == credential.user_public_key
         )
         if not expected:
             raise RunnerNatsTransportError("CR100 revocation challenge credential binding mismatch")
@@ -597,9 +670,11 @@ class RunnerNatsRevocationChallenge:
             "profile": self.profile,
             "tenant_id": self.tenant_id,
             "runner_id": str(self.runner_id),
-            "transport_credential_id": str(self.transport_credential_id),
+            "trading_mode": self.trading_mode,
+            "transport_domain": self.transport_domain,
+            "authority_id": str(self.authority_id),
             "generation": self.generation,
-            "user_public_nkey": self.user_public_nkey,
+            "user_public_key": self.user_public_key,
             "resolver_account_jwt_sha256": self.resolver_account_jwt_sha256,
             "revoke_before": _timestamp_text(self.revoke_before),
             "challenge_nonce": str(self.challenge_nonce),
@@ -614,9 +689,11 @@ class RunnerNatsRevocationChallenge:
             "profile",
             "tenant_id",
             "runner_id",
-            "transport_credential_id",
+            "trading_mode",
+            "transport_domain",
+            "authority_id",
             "generation",
-            "user_public_nkey",
+            "user_public_key",
             "resolver_account_jwt_sha256",
             "revoke_before",
             "challenge_nonce",
@@ -630,11 +707,11 @@ class RunnerNatsRevocationChallenge:
             profile=str(value["profile"]),
             tenant_id=str(value["tenant_id"]),
             runner_id=_required_uuid(value["runner_id"], "runner_id"),
-            transport_credential_id=_required_uuid(
-                value["transport_credential_id"], "transport_credential_id"
-            ),
+            trading_mode=str(value["trading_mode"]),
+            transport_domain=str(value["transport_domain"]),
+            authority_id=_required_uuid(value["authority_id"], "authority_id"),
             generation=value["generation"],
-            user_public_nkey=str(value["user_public_nkey"]),
+            user_public_key=str(value["user_public_key"]),
             resolver_account_jwt_sha256=str(value["resolver_account_jwt_sha256"]),
             revoke_before=_required_timestamp(value["revoke_before"], "revoke_before"),
             challenge_nonce=_required_uuid(value["challenge_nonce"], "challenge_nonce"),
@@ -658,7 +735,7 @@ class RunnerNatsRevocationChallenge:
 @dataclass(frozen=True, slots=True)
 class RunnerNatsRevocationObservation:
     challenge: RunnerNatsRevocationChallenge
-    replacement_transport_credential_id: UUID
+    replacement_authority_id: UUID
     replacement_generation: int
     replacement_connected_at: datetime
     challenge_validated_at: datetime
@@ -670,10 +747,10 @@ class RunnerNatsRevocationObservation:
     def __post_init__(self) -> None:
         object.__setattr__(
             self,
-            "replacement_transport_credential_id",
+            "replacement_authority_id",
             _required_uuid(
-                self.replacement_transport_credential_id,
-                "replacement_transport_credential_id",
+                self.replacement_authority_id,
+                "replacement_authority_id",
             ),
         )
         if (
@@ -746,7 +823,7 @@ class RunnerNatsRevocationObservation:
     def to_document(self) -> dict[str, Any]:
         return {
             "challenge": self.challenge.to_document(),
-            "replacement_transport_credential_id": str(self.replacement_transport_credential_id),
+            "replacement_authority_id": str(self.replacement_authority_id),
             "replacement_generation": self.replacement_generation,
             "replacement_connected_at": _timestamp_text(self.replacement_connected_at),
             "challenge_validated_at": _timestamp_text(self.challenge_validated_at),
@@ -770,7 +847,7 @@ class RunnerNatsRevocationObservation:
     def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsRevocationObservation:
         if set(value) != {
             "challenge",
-            "replacement_transport_credential_id",
+            "replacement_authority_id",
             "replacement_generation",
             "replacement_connected_at",
             "challenge_validated_at",
@@ -789,9 +866,9 @@ class RunnerNatsRevocationObservation:
             challenge=RunnerNatsRevocationChallenge.from_document(
                 _required_mapping(value["challenge"], "challenge")
             ),
-            replacement_transport_credential_id=_required_uuid(
-                value["replacement_transport_credential_id"],
-                "replacement_transport_credential_id",
+            replacement_authority_id=_required_uuid(
+                value["replacement_authority_id"],
+                "replacement_authority_id",
             ),
             replacement_generation=value["replacement_generation"],
             replacement_connected_at=_required_timestamp(
@@ -823,8 +900,10 @@ class RunnerNatsTransportBundle:
             if (
                 self.active.tenant_id != self.pending.tenant_id
                 or self.active.runner_id != self.pending.runner_id
-                or self.active.issuer_account_public_nkey != self.pending.issuer_account_public_nkey
-                or self.pending.transport_generation <= self.active.transport_generation
+                or self.active.trading_mode != self.pending.trading_mode
+                or self.active.transport_domain != self.pending.transport_domain
+                or self.active.issuer_public_key != self.pending.issuer_public_key
+                or self.pending.credential_generation <= self.active.credential_generation
             ):
                 raise RunnerNatsTransportError("pending NATS generation is not a valid rotation")
         if self.pending is not None and self.retiring is not None:
@@ -833,18 +912,18 @@ class RunnerNatsTransportBundle:
             if self.active is None or (
                 self.retiring.tenant_id != self.active.tenant_id
                 or self.retiring.runner_id != self.active.runner_id
-                or self.retiring.issuer_account_public_nkey
-                != self.active.issuer_account_public_nkey
-                or self.retiring.transport_generation >= self.active.transport_generation
+                or self.retiring.trading_mode != self.active.trading_mode
+                or self.retiring.transport_domain != self.active.transport_domain
+                or self.retiring.issuer_public_key != self.active.issuer_public_key
+                or self.retiring.credential_generation >= self.active.credential_generation
             ):
                 raise RunnerNatsTransportError(
                     "retiring NATS generation is not superseded by active authority"
                 )
         if self.revocation is not None:
             if self.active is None or (
-                self.revocation.replacement_transport_credential_id
-                != self.active.transport_credential_id
-                or self.revocation.replacement_generation != self.active.transport_generation
+                self.revocation.replacement_authority_id != self.active.authority_id
+                or self.revocation.replacement_generation != self.active.credential_generation
             ):
                 raise RunnerNatsTransportError(
                     "revocation observation replacement binding mismatch"
@@ -856,6 +935,12 @@ class RunnerNatsTransportBundle:
                     )
             else:
                 self.revocation.challenge.assert_credential_binding(self.retiring)
+
+    @property
+    def trading_mode(self) -> str:
+        credential = self.active or self.pending or self.retiring
+        assert credential is not None
+        return credential.trading_mode
 
     def promote_pending(self) -> RunnerNatsTransportBundle:
         if self.pending is None:
@@ -886,7 +971,7 @@ class RunnerNatsTransportBundle:
 
     def to_document(self) -> dict[str, Any]:
         return {
-            "schema_version": 2,
+            "schema_version": 1,
             "active": self.active.to_document() if self.active is not None else None,
             "pending": self.pending.to_document() if self.pending is not None else None,
             "retiring": (self.retiring.to_document() if self.retiring is not None else None),
@@ -896,14 +981,16 @@ class RunnerNatsTransportBundle:
     @classmethod
     def from_document(cls, value: Mapping[str, Any]) -> RunnerNatsTransportBundle:
         version = value.get("schema_version")
-        expected = (
-            {"schema_version", "active", "pending"}
-            if version == 1
-            else {"schema_version", "active", "pending", "retiring", "revocation"}
-        )
+        expected = {
+            "schema_version",
+            "active",
+            "pending",
+            "retiring",
+            "revocation",
+        }
         if set(value) != expected:
             raise RunnerNatsTransportError("NATS transport vault shape is invalid")
-        if version not in {1, 2}:
+        if version != 1:
             raise RunnerNatsTransportError("NATS transport vault version is unsupported")
         active_value = value.get("active")
         pending_value = value.get("pending")
@@ -944,8 +1031,10 @@ class RunnerNatsTransportBundle:
 class RunnerNatsTransportVault:
     """Dedicated sops+age vault with active/pending rotation semantics."""
 
-    def __init__(self, path: Path) -> None:
-        self.path = path.expanduser().resolve()
+    def __init__(self, vault_dir: Path, trading_mode: str) -> None:
+        runner_nats_transport_domain(trading_mode)
+        self.trading_mode = trading_mode
+        self.path = vault_dir.expanduser().resolve() / f"{trading_mode}.enc"
 
     def load(self) -> RunnerNatsTransportBundle:
         if not self.path.exists():
@@ -981,6 +1070,8 @@ class RunnerNatsTransportVault:
         if not isinstance(document, dict):
             raise RunnerNatsTransportError("NATS transport vault root must be an object")
         bundle = RunnerNatsTransportBundle.from_document(document)
+        if bundle.trading_mode != self.trading_mode:
+            raise RunnerNatsTransportError("NATS transport vault mode binding mismatch")
         return RunnerNatsTransportBundle(
             active=(
                 replace(bundle.active, source_path=self.path) if bundle.active is not None else None
@@ -1045,6 +1136,64 @@ class RunnerNatsTransportVault:
             temp_path.unlink(missing_ok=True)
 
 
+@dataclass(frozen=True, slots=True)
+class RunnerNatsTransportSet:
+    """Supervisor-local composition of independent exact-mode authorities."""
+
+    bundles: Mapping[str, RunnerNatsTransportBundle]
+
+    def __post_init__(self) -> None:
+        normalized = dict(self.bundles)
+        if not normalized:
+            raise RunnerNatsTransportError("runner NATS transport set has no enabled modes")
+        if any(mode not in TRADING_MODES for mode in normalized):
+            raise RunnerNatsTransportError("runner NATS transport set contains an unknown mode")
+        for mode, bundle in normalized.items():
+            if bundle.trading_mode != mode:
+                raise RunnerNatsTransportError("runner NATS transport set mode binding mismatch")
+        identities = {
+            (credential.tenant_id, credential.runner_id)
+            for bundle in normalized.values()
+            for credential in (bundle.active or bundle.pending or bundle.retiring,)
+            if credential is not None
+        }
+        if len(identities) != 1:
+            raise RunnerNatsTransportError(
+                "runner NATS transport set must bind one tenant and runner"
+            )
+        authorities = [
+            credential.authority_id
+            for bundle in normalized.values()
+            for credential in (bundle.active or bundle.pending or bundle.retiring,)
+            if credential is not None
+        ]
+        if len(authorities) != len(set(authorities)):
+            raise RunnerNatsTransportError(
+                "runner NATS transport set reuses an authority across modes"
+            )
+        object.__setattr__(self, "bundles", normalized)
+
+    @classmethod
+    def load(cls, vault_dir: Path, enabled_modes: Sequence[str]) -> RunnerNatsTransportSet:
+        modes = tuple(enabled_modes)
+        if not modes or len(modes) != len(set(modes)):
+            raise RunnerNatsTransportError("enabled NATS transport modes are invalid")
+        return cls({mode: RunnerNatsTransportVault(vault_dir, mode).load() for mode in modes})
+
+    def active(self, trading_mode: str) -> RunnerNatsTransportCredential:
+        bundle = self.bundles.get(trading_mode)
+        if bundle is None or bundle.active is None:
+            raise RunnerNatsTransportError(
+                f"NATS transport mode {trading_mode!r} has no active credential"
+            )
+        if bundle.retiring is not None:
+            raise RunnerNatsTransportError(
+                f"NATS transport mode {trading_mode!r} has unresolved retirement"
+            )
+        bundle.active.assert_active()
+        return bundle.active
+
+
 class RunnerNatsTransportAuthorityClient:
     """Machine-authenticated direct Crucible transport lifecycle client."""
 
@@ -1055,13 +1204,15 @@ class RunnerNatsTransportAuthorityClient:
     def issue_initial(
         self,
         *,
-        expected_issuer_account_public_nkey: str,
+        trading_mode: str,
+        expected_issuer_public_key: str,
         now: datetime | None = None,
     ) -> RunnerNatsTransportCredential:
         return self._issue(
             path=_ISSUE_PATH,
             canonical_path=_CANONICAL_ISSUE_PATH,
-            expected_issuer_account_public_nkey=expected_issuer_account_public_nkey,
+            trading_mode=trading_mode,
+            expected_issuer_public_key=expected_issuer_public_key,
             expected_generation=None,
             now=now,
         )
@@ -1080,8 +1231,9 @@ class RunnerNatsTransportAuthorityClient:
         return self._issue(
             path=_ROTATE_PATH,
             canonical_path=_CANONICAL_ROTATE_PATH,
-            expected_issuer_account_public_nkey=active.issuer_account_public_nkey,
-            expected_generation=active.transport_generation,
+            trading_mode=active.trading_mode,
+            expected_issuer_public_key=active.issuer_public_key,
+            expected_generation=active.credential_generation,
             now=now,
         )
 
@@ -1090,7 +1242,8 @@ class RunnerNatsTransportAuthorityClient:
         *,
         path: str,
         canonical_path: str,
-        expected_issuer_account_public_nkey: str,
+        trading_mode: str,
+        expected_issuer_public_key: str,
         expected_generation: int | None,
         now: datetime | None,
     ) -> RunnerNatsTransportCredential:
@@ -1105,7 +1258,8 @@ class RunnerNatsTransportAuthorityClient:
             machine_credential_version=self.machine_credential.credential_version,
             correlation_id=correlation_id,
             idempotency_key=idempotency_key,
-            nats_user_public_key=public_key,
+            trading_mode=trading_mode,
+            user_public_key=public_key,
             requested_at=requested_at,
         )
         seed_buffer = bytearray(seed)
@@ -1123,8 +1277,10 @@ class RunnerNatsTransportAuthorityClient:
             "credential_version": self.machine_credential.credential_version,
             "correlation_id": str(correlation_id),
             "idempotency_key": str(idempotency_key),
-            "nats_transport_profile": RUNNER_NATS_TRANSPORT_PROFILE,
-            "nats_user_public_key": public_key,
+            "authority_coordinate": RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE,
+            "trading_mode": trading_mode,
+            "transport_domain": runner_nats_transport_domain(trading_mode),
+            "user_public_key": public_key,
             "nats_user_proof_signature_base64": proof_signature,
             "requested_at": _timestamp_nanos(requested_at),
         }
@@ -1138,10 +1294,11 @@ class RunnerNatsTransportAuthorityClient:
         )
         return RunnerNatsTransportCredential.from_issued_response(
             response,
-            tenant_id=self.machine_credential.tenant_id,
-            runner_id=self.machine_credential.runner_id,
-            nats_user_seed=seed,
-            expected_issuer_account_public_nkey=expected_issuer_account_public_nkey,
+            user_seed=seed,
+            expected_tenant_id=self.machine_credential.tenant_id,
+            expected_runner_id=self.machine_credential.runner_id,
+            expected_trading_mode=trading_mode,
+            expected_issuer_public_key=expected_issuer_public_key,
         )
 
     def activate(self, credential: RunnerNatsTransportCredential) -> dict[str, Any]:
@@ -1152,8 +1309,9 @@ class RunnerNatsTransportAuthorityClient:
             "credential_id": str(self.machine_credential.credential_id),
             "credential_version": self.machine_credential.credential_version,
             "correlation_id": str(correlation_id),
-            "transport_credential_id": str(credential.transport_credential_id),
-            "transport_generation": credential.transport_generation,
+            "authority_id": str(credential.authority_id),
+            "credential_generation": credential.credential_generation,
+            "trading_mode": credential.trading_mode,
             "expected_revision": None,
             "reason": "custos-local-generation-ready",
         }
@@ -1166,8 +1324,9 @@ class RunnerNatsTransportAuthorityClient:
         expected = {
             "tenant_id": credential.tenant_id,
             "runner_id": str(credential.runner_id),
-            "transport_credential_id": str(credential.transport_credential_id),
-            "generation": credential.transport_generation,
+            "authority_id": str(credential.authority_id),
+            "generation": credential.credential_generation,
+            "trading_mode": credential.trading_mode,
             "status": "active",
         }
         if any(response.get(key) != value for key, value in expected.items()):
@@ -1195,8 +1354,9 @@ class RunnerNatsTransportAuthorityClient:
             "credential_id": str(self.machine_credential.credential_id),
             "credential_version": self.machine_credential.credential_version,
             "correlation_id": str(correlation_id),
-            "transport_credential_id": str(credential.transport_credential_id),
-            "transport_generation": credential.transport_generation,
+            "authority_id": str(credential.authority_id),
+            "credential_generation": credential.credential_generation,
+            "trading_mode": credential.trading_mode,
             "expected_active_revision": expected_active_revision,
             "reason": reason,
         }
@@ -1219,8 +1379,8 @@ class RunnerNatsTransportAuthorityClient:
             "credential_id": str(self.machine_credential.credential_id),
             "credential_version": self.machine_credential.credential_version,
             "correlation_id": str(correlation_id),
-            "transport_credential_id": str(credential.transport_credential_id),
-            "transport_generation": credential.transport_generation,
+            "authority_id": str(credential.authority_id),
+            "credential_generation": credential.credential_generation,
         }
         response = self.http.post(
             _REVOCATION_CHALLENGE_PATH,
@@ -1251,9 +1411,10 @@ class RunnerNatsTransportAuthorityClient:
             "credential_id": str(self.machine_credential.credential_id),
             "credential_version": self.machine_credential.credential_version,
             "correlation_id": str(correlation_id),
-            "transport_credential_id": str(challenge.transport_credential_id),
-            "transport_generation": challenge.generation,
-            "user_public_nkey": challenge.user_public_nkey,
+            "authority_id": str(challenge.authority_id),
+            "credential_generation": challenge.generation,
+            "trading_mode": observation.challenge.trading_mode,
+            "user_public_key": challenge.user_public_key,
             "resolver_account_jwt_sha256": challenge.resolver_account_jwt_sha256,
             "revoke_before": _timestamp_text(challenge.revoke_before),
             "challenge_nonce": str(challenge.challenge_nonce),
@@ -1272,7 +1433,8 @@ class RunnerNatsTransportAuthorityClient:
         expected_fields = {
             "tenant_id",
             "runner_id",
-            "transport_credential_id",
+            "trading_mode",
+            "authority_id",
             "generation",
             "resolver_account_jwt_sha256",
             "completed_at",
@@ -1280,7 +1442,8 @@ class RunnerNatsTransportAuthorityClient:
         expected_values = {
             "tenant_id": challenge.tenant_id,
             "runner_id": str(challenge.runner_id),
-            "transport_credential_id": str(challenge.transport_credential_id),
+            "trading_mode": challenge.trading_mode,
+            "authority_id": str(challenge.authority_id),
             "generation": challenge.generation,
             "resolver_account_jwt_sha256": challenge.resolver_account_jwt_sha256,
         }
@@ -1304,7 +1467,7 @@ class RunnerNatsTransportConnectionProfile:
     nats_url: str
     ca_path: Path
     server_name: str
-    pinned_issuer_account_public_nkey: str
+    pinned_issuer_public_key: str
     _authorization_denied: asyncio.Event = field(
         default_factory=asyncio.Event,
         init=False,
@@ -1333,7 +1496,7 @@ class RunnerNatsTransportConnectionProfile:
         self.ca_path = self.ca_path.expanduser().resolve()
         if not self.ca_path.is_file():
             raise RunnerNatsTransportError("NATS TLS CA file is missing")
-        if self.pinned_issuer_account_public_nkey != (self.credential.issuer_account_public_nkey):
+        if self.pinned_issuer_public_key != (self.credential.issuer_public_key):
             raise RunnerNatsTransportError("NATS issuer Account pin mismatch")
         self.credential.assert_active()
 
@@ -1344,6 +1507,14 @@ class RunnerNatsTransportConnectionProfile:
     @property
     def runner_id(self) -> UUID:
         return self.credential.runner_id
+
+    @property
+    def trading_mode(self) -> str:
+        return self.credential.trading_mode
+
+    @property
+    def transport_domain(self) -> str:
+        return self.credential.transport_domain
 
     @property
     def durable_config(self) -> Mapping[str, Any]:
@@ -1391,11 +1562,11 @@ class RunnerNatsTransportConnectionProfile:
 
         def user_jwt_cb() -> bytearray:
             self.assert_active()
-            return bytearray(self.credential.nats_user_jwt.encode("ascii"))
+            return bytearray(self.credential.user_jwt.encode("ascii"))
 
         def signature_cb(nonce: str) -> bytes:
             self.assert_active()
-            seed = bytearray(self.credential.nats_user_seed)
+            seed = bytearray(self.credential.user_seed)
             pair = nkeys.from_seed(seed)
             try:
                 return base64.b64encode(pair.sign(nonce.encode("utf-8")))

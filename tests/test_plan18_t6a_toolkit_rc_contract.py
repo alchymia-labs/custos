@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -16,10 +16,7 @@ from pydantic import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
-V1_INDEX = ROOT / "docs/authority/strategy-contract-assets-v1.json"
-V2_INDEX = ROOT / "docs/authority/strategy-contract-assets-v2.json"
-V1_INDEX_SHA256 = "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
-V2_INDEX_SHA256 = "6fd49708967d59576b61529075d3423f43d936bdfac1a834ed655de0682bbcbc"
+CONTRACT_INDEX = ROOT / "docs/authority/strategy-contract-assets-v1.json"
 DIGESTS = tuple(f"{value:064x}" for value in range(1, 32))
 
 
@@ -175,7 +172,7 @@ def test_contract_rejects_legacy_modules_mutability_and_non_rc_claims() -> None:
             ToolkitRcReceiptManifestV1.model_validate(claimed)
 
 
-def test_authority_registers_contract_only_without_mutating_indexes_or_receipt() -> None:
+def test_authority_registers_only_the_v1_contract_without_a_stale_ready_receipt() -> None:
     manifest = json.loads((ROOT / "authority-manifest.json").read_text(encoding="utf-8"))
     assert {
         "role": "toolkit_rc_receipt_manifest_schema_v1_contract_foundation",
@@ -183,8 +180,15 @@ def test_authority_registers_contract_only_without_mutating_indexes_or_receipt()
         "contract_only": True,
         "ready_receipt_published": False,
     } in manifest["authority_documents"]
-    assert hashlib.sha256(V1_INDEX.read_bytes()).hexdigest() == V1_INDEX_SHA256
-    assert hashlib.sha256(V2_INDEX.read_bytes()).hexdigest() == V2_INDEX_SHA256
+    assert CONTRACT_INDEX.is_file()
+    assert not any(
+        re.search(
+            r"strategy-contract-assets-v(?:[2-9]|[1-9][0-9]+)\.json$",
+            entry.get("path", ""),
+        )
+        for entry in manifest["authority_documents"]
+        if isinstance(entry, dict)
+    )
     assert not (
         ROOT / "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
     ).exists()

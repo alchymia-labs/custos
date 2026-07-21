@@ -22,7 +22,7 @@ from custos.core.engine_protocol import (
 
 
 class _CompleteHost:
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(self, spec: dict, credential: dict, artifact: object) -> str:
         return "cid"
 
     async def reconfigure(self, spec: dict) -> None:
@@ -93,7 +93,7 @@ class _MissingDeploy:
 
 
 class _MissingSupportsLive:
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(self, spec: dict, credential: dict, artifact: object) -> str:
         return "cid"
 
     async def reconfigure(self, spec: dict) -> None:

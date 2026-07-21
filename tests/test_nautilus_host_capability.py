@@ -1,4 +1,4 @@
-"""Host capability declarations — the contract the G6 gate queries.
+"""Host capability declarations used by execution admission.
 
 NoopHost is a paper/sim stub: it must declare it supports neither live nor any
 venue, so the gate's fail-safe default keeps a stub off live venues. The real

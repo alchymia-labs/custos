@@ -75,19 +75,13 @@ immutable configuration provenance and must not be used as a runtime handle.
 Readiness is fail-closed. `arx-runner health` succeeds only after machine
 authority verification and establishment of the exact runner subscription.
 
-## Deployment validation and lifecycle
+## Deployment lifecycle
 
-Validate a local execution view without network access:
-
-```bash
-arx-runner deployment validate \
-  --spec-file deployment.json \
-  --strategy-dir /opt/custos/strategies/supertrend
-```
-
-The command does not mutate or publish the spec. Initial deployment and every
-desired-state change originate in Crucible. Custos verifies the signed event,
-canonical digest, tenant, runner, and deployment instance before applying it.
+Initial deployment and every desired-state change originate in Crucible.
+Custos has no local DeploymentSpec creation or validation CLI. It verifies the
+signed event, canonical digest, tenant, runner, deployment instance and
+generation, then resolves StrategyRelease material through the authenticated
+owner boundary.
 
 Live execution requires a Crucible-issued `promotion_id` and
 `promotion_evidence_digest`. Custos validates their presence but does not count
@@ -96,7 +90,8 @@ human approvers or implement separation-of-duties policy.
 Applied lifecycle generations are reported as
 `RunnerDeploymentLifecycleFact.v1` through the signed RunnerFact outbox. The
 outbox owns sequence allocation. Failures to durably enqueue a fact prevent the
-command acknowledgement and are retried without repeating the engine action.
+command acknowledgement. Redelivery resumes the same instance and activation
+identity without repeating a committed engine action.
 
 ## Container example
 

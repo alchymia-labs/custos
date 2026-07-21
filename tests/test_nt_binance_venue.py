@@ -46,7 +46,7 @@ def _approved_spec(connector: str = "binance_perpetual") -> dict:
 def test_supported_venues_matches_wired_connectors() -> None:
     # Drift guard: NtTradingNodeHost declares its live-venue capability with an
     # NT-free constant; it must equal the set of connectors this module actually
-    # wires, or the G6 gate would advertise a venue with no exec config behind it.
+    # wires, or execution admission would advertise a venue with no exec config behind it.
     from custos.engines.nautilus.host import _SUPPORTED_VENUES
 
     assert _SUPPORTED_VENUES == frozenset(_BINANCE_CONNECTORS)

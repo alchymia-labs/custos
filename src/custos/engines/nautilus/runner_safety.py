@@ -12,6 +12,8 @@ from nautilus_trader.core.rust.model import PriceType
 from nautilus_trader.live.execution_client import LiveExecutionClient
 from nautilus_trader.live.factories import LiveExecClientFactory
 
+from custos.core.fallback_breaker import FallbackBreaker
+
 _POLICY_REJECTION_REASON = "custos_runner_notional_policy_rejected"
 
 
@@ -154,11 +156,13 @@ class RunnerReservationBoundary:
         store: RunnerReservationStore,
         deployment_instance_id: UUID,
         policy_id: UUID,
+        fallback_breaker: FallbackBreaker,
         semantics: OrderSemantics | None = None,
     ) -> None:
         self._store = store
         self._deployment_instance_id = deployment_instance_id
         self._policy_id = policy_id
+        self._fallback_breaker = fallback_breaker
         self._semantics = semantics
         self._pending_modifications: dict[str, _Modification] = {}
 
@@ -181,6 +185,7 @@ class RunnerReservationBoundary:
         )
 
     def before_modify_order(self, command: Any) -> _Modification:
+        self._require_risk_increasing_allowed()
         semantics = self._require_semantics()
         client_order_id = str(command.client_order_id)
         prior = self._store.load_order_reservation(
@@ -240,9 +245,7 @@ class RunnerReservationBoundary:
         if not client_order_id:
             raise RuntimeError(f"{event_name} has no client_order_id")
         stable_event_id = (
-            data.get("event_id")
-            or data.get("trade_id")
-            or getattr(event, "event_id", None)
+            data.get("event_id") or data.get("trade_id") or getattr(event, "event_id", None)
         )
         if stable_event_id is None:
             raise RuntimeError(f"{event_name} has no stable event identity")
@@ -305,6 +308,7 @@ class RunnerReservationBoundary:
             for order in orders:
                 if semantics.order_is_risk_reducing(order):
                     continue
+                self._require_risk_increasing_allowed()
                 client_order_id = str(order.client_order_id)
                 self._store.reserve_order_notional(
                     event_id=self._event_id("submit", command_id, client_order_id),
@@ -318,6 +322,10 @@ class RunnerReservationBoundary:
             self.rollback_submit(tuple(reservations), command_id=command_id)
             raise
         return tuple(reservations)
+
+    def _require_risk_increasing_allowed(self) -> None:
+        if not self._fallback_breaker.allows_new_orders():
+            raise RuntimeError("runner fallback breaker is frozen")
 
     def _require_semantics(self) -> OrderSemantics:
         if self._semantics is None:
@@ -443,9 +451,7 @@ class GuardedLiveExecutionClient(LiveExecutionClient):
     ) -> None:
         instrument_provider = getattr(inner, "_instrument_provider", None)
         if instrument_provider is None:
-            raise RuntimeError(
-                "Nautilus execution client lacks its pinned instrument provider ABI"
-            )
+            raise RuntimeError("Nautilus execution client lacks its pinned instrument provider ABI")
         super().__init__(
             loop=loop,
             client_id=inner.id,
@@ -544,7 +550,5 @@ def guarded_exec_client_factory(
     # NT 1.230.0 injects Sandbox's portfolio argument by factory class name.
     # Preserve the upstream name without mutating the upstream class itself.
     _GuardedExecClientFactory.__name__ = upstream_factory.__name__
-    _GuardedExecClientFactory.__qualname__ = (
-        f"CustosGuarded{upstream_factory.__name__}"
-    )
+    _GuardedExecClientFactory.__qualname__ = f"CustosGuarded{upstream_factory.__name__}"
     return _GuardedExecClientFactory

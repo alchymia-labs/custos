@@ -6,7 +6,7 @@
   "plan": "Custos Plan 19",
   "task": "T5",
   "engine_adapter_ready": true,
-  "protocol_change": "additive",
+  "protocol_change": "canonical_v1",
   "typed_ready_receipt": true,
   "typed_terminal_event": true,
   "readiness_checks": [
@@ -21,7 +21,7 @@
   "runtime_identity": "deployment_instance_id",
   "single_database": true,
   "single_outbox": "runner_fact_outbox",
-  "runner_state_schema_version": 2,
+  "runner_state_schema_version": 1,
   "restart_state_location": "command_in_progress_lease in the existing RunnerFact SQLite database",
   "restart_no_duplicate_deploy": true,
   "bounded_restart_budget": true,

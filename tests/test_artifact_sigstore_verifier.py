@@ -15,7 +15,7 @@ from custos.artifacts.sigstore_verifier import (
     ProductionSigstoreVerifier,
     _parse_in_toto_subjects,
 )
-from custos.artifacts.verifier import DigestSubject, SigstoreVerificationRequest
+from custos.artifacts.verification_types import DigestSubject, SigstoreVerificationRequest
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "artifact_verifier"
 TRUSTED_ROOT = FIXTURE_ROOT / "sigstore-production-trusted-root.json"

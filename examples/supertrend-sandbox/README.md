@@ -11,10 +11,6 @@ Install the development and NautilusTrader extras on Python 3.12+:
 uv sync --extra dev --extra nautilus
 ```
 
-`spec-example.json` is byte-identical to the gateway sample. It is an offline
-diagnostic fixture; replace its placeholder hashes with values issued by
-Crucible before using the equivalent canonical spec.
-
 ## 1. Enroll the runner machine principal
 
 Generate an age identity, obtain a one-time enrollment token from the
@@ -51,22 +47,18 @@ printf '%s\n' '<sandbox-api-secret>' | uv run arx-runner vault put \
   --permission-scope trade_no_withdraw
 ```
 
-## 3. Validate locally and start
-
-Local validation is diagnostic only:
+## 3. Start the signed-command consumer
 
 ```bash
-uv run arx-runner deployment validate \
-  --spec-file examples/supertrend-sandbox/spec-example.json
-
 uv run arx-runner start \
+  --enabled-mode sandbox \
   --nats-url nats://crucible-nats.internal:4222 \
   --crucible-domain-public-key "$HOME/.arx/crucible-domain-event.pub" \
   --crucible-domain-key-id crucible-domain-v1 \
   --engine nautilus
 ```
 
-Submit the corresponding desired state through Crucible. The runner becomes
-ready only after machine authority verification and subscription to its exact
-Crucible command subject. Lifecycle observations return through the signed
-RunnerFact outbox.
+Create and approve the DeploymentSpec in Crucible. The runner becomes ready only
+after machine authority verification, exact signed-command consumption and
+authenticated StrategyRelease resolution. Lifecycle observations return through
+the signed RunnerFact outbox.

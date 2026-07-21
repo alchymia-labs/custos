@@ -29,7 +29,7 @@ def _authority_response(body: dict[str, object]) -> dict[str, object]:
         "credential_id": _CREDENTIAL_ID,
         "credential_version": 1,
         "credential_valid_until": "2027-07-14T00:00:00Z",
-        "long_term_credential": "rkc2.test-machine-credential",
+        "long_term_credential": "rkc1.test-machine-credential",
         "enrolled_at": "2026-07-14T00:00:00Z",
     }
 
@@ -95,7 +95,7 @@ def test_enroll_persists_public_metadata_and_machine_principal(
     assert len(persisted) == 1
     credential, recipient = persisted[0]
     assert credential.runner_id == UUID(_RUNNER_ID)
-    assert credential.machine_credential.startswith("rkc2.")
+    assert credential.machine_credential.startswith("rkc1.")
     assert recipient == "age1test-recipient"
 
 

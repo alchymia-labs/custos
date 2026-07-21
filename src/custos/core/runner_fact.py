@@ -76,7 +76,7 @@ MAX_BATCH_BYTES: Final = 768 * 1024
 MAX_VENUE_LEDGER_CHUNKS: Final = 4096
 MAX_VENUE_LEDGER_ITEMS_PER_CHUNK: Final = 512
 MAX_VENUE_LEDGER_CHUNK_BYTES: Final = 262_144
-RUNNER_STATE_SCHEMA_VERSION: Final = 4
+RUNNER_STATE_SCHEMA_VERSION: Final = 1
 RUNNER_FACT_KIND_PROJECTORS: Final[Mapping[str, str]] = MappingProxyType(
     {
         "execution_fill": "settlement",
@@ -134,18 +134,6 @@ class RunnerStateMigrationError(RunnerFactError):
 
 class RunnerStateAuthorityError(RunnerFactError):
     """A durable instance is being addressed through a different authority."""
-
-
-class RunnerFactStreamCutoverRequired(RunnerFactError):
-    """Legacy spec-keyed streams must be explicitly frozen and continued."""
-
-
-class RunnerFactStreamCutoverFrozen(RunnerFactError):
-    """New fact intake is frozen while legacy pending batches drain."""
-
-
-class RunnerFactPendingPubAckError(RunnerFactError):
-    """A stream cutover cannot activate while signed batches await PubAck."""
 
 
 class RunnerStateDurabilityError(RunnerFactError):
@@ -364,10 +352,7 @@ class RunnerFactAuthority:
 
     @property
     def subject(self) -> str:
-        return (
-            f"crucible.runner_fact.{self.trading_mode}."
-            f"{self.tenant_id}.{self.runner_id}.{self.deployment_instance_id}"
-        )
+        return f"crucible.runner.fact.v1.{self.tenant_id}.{self.runner_id}.{self.trading_mode}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -962,48 +947,12 @@ class PendingRunnerFactBatch:
 
 
 @dataclass(frozen=True, slots=True)
-class RunnerFactStreamCutover:
-    deployment_instance_id: UUID
-    target_stream_key: str
-    state: str
-    legacy_stream_keys: tuple[str, ...]
-    continuation_sequence: int | None
-
-
-@dataclass(frozen=True, slots=True)
 class CommandOutcomeCommitResult:
     outcome_id: str
     outcome: str
     durable_disposition: InboundCommandDisposition
     lifecycle_batch_id: UUID | None
     committed: bool
-
-
-def _require_cutover_authority(
-    row: sqlite3.Row,
-    authority: RunnerFactAuthority,
-) -> None:
-    if (
-        row["tenant_id"] != authority.tenant_id
-        or row["trading_mode"] != authority.trading_mode
-        or row["runner_id"] != str(authority.runner_id)
-        or row["target_stream_key"] != authority.stream_key
-    ):
-        raise RunnerStateAuthorityError(
-            "deployment instance stream cutover belongs to a different authority"
-        )
-
-
-def _cutover_from_row(row: sqlite3.Row) -> RunnerFactStreamCutover:
-    return RunnerFactStreamCutover(
-        deployment_instance_id=UUID(row["deployment_instance_id"]),
-        target_stream_key=row["target_stream_key"],
-        state=row["state"],
-        legacy_stream_keys=tuple(json.loads(row["legacy_stream_keys"])),
-        continuation_sequence=(
-            int(row["continuation_sequence"]) if row["continuation_sequence"] is not None else None
-        ),
-    )
 
 
 class RunnerFactOutbox:
@@ -1034,9 +983,10 @@ class RunnerFactOutbox:
                 version_row = connection.execute(
                     "SELECT schema_version FROM runner_state_schema WHERE singleton = 1"
                 ).fetchone()
-                if version_row is not None and int(version_row[0]) > RUNNER_STATE_SCHEMA_VERSION:
+                if version_row is not None and int(version_row[0]) != RUNNER_STATE_SCHEMA_VERSION:
                     raise RunnerStateMigrationError(
-                        "runner state database was created by a newer Custos schema"
+                        "runner state database is not the canonical first-production V1; "
+                        "recreate the pre-production database"
                     )
             connection.executescript(
                 """
@@ -1239,59 +1189,8 @@ class RunnerFactOutbox:
                     ON runner_order_reservation_event(
                         policy_id, deployment_instance_id, client_order_id, recorded_at_ns
                     );
-                CREATE TABLE IF NOT EXISTS runner_stream_cutover (
-                    deployment_instance_id TEXT PRIMARY KEY,
-                    tenant_id TEXT NOT NULL,
-                    trading_mode TEXT NOT NULL,
-                    runner_id TEXT NOT NULL,
-                    target_stream_key TEXT NOT NULL,
-                    state TEXT NOT NULL CHECK (state IN ('frozen', 'active')),
-                    legacy_stream_keys TEXT NOT NULL,
-                    continuation_sequence INTEGER,
-                    created_at TEXT NOT NULL,
-                    activated_at TEXT
-                );
                 """
             )
-            lease_columns = {
-                str(row[1])
-                for row in connection.execute("PRAGMA table_info(command_in_progress_lease)")
-            }
-            if "restart_count" not in lease_columns:
-                connection.execute(
-                    "ALTER TABLE command_in_progress_lease "
-                    "ADD COLUMN restart_count INTEGER NOT NULL DEFAULT 0"
-                )
-            if "last_reason_code" not in lease_columns:
-                connection.execute(
-                    "ALTER TABLE command_in_progress_lease ADD COLUMN last_reason_code TEXT"
-                )
-            policy_columns = {
-                str(row[1]) for row in connection.execute("PRAGMA table_info(runner_cap_policy)")
-            }
-            policy_column_migrations = {
-                "generation": "INTEGER",
-                "runner_id": "TEXT",
-                "previous_policy_id": "TEXT",
-                "previous_policy_revision": "INTEGER",
-                "previous_generation": "INTEGER",
-                "previous_policy_digest": "TEXT",
-                "settlement_currency": "TEXT",
-                "max_order_notional": "TEXT",
-                "policy_status": "TEXT",
-                "signature_profile": "TEXT",
-                "exact_subject": "TEXT",
-                "fingerprint": "TEXT",
-                "verified_event_bytes_digest": "TEXT",
-                "exact_event_bytes": "BLOB",
-                "policy_json": "TEXT",
-                "consumed_at_ns": "INTEGER",
-            }
-            for column, sql_type in policy_column_migrations.items():
-                if column not in policy_columns:
-                    connection.execute(
-                        f"ALTER TABLE runner_cap_policy ADD COLUMN {column} {sql_type}"
-                    )
             connection.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS runner_cap_policy_scope_generation
@@ -1309,179 +1208,6 @@ class RunnerFactOutbox:
                 (RUNNER_STATE_SCHEMA_VERSION, _utc_now()),
             )
         os.chmod(self.path, 0o600)
-
-    async def freeze_stream_cutover(
-        self, authority: RunnerFactAuthority
-    ) -> RunnerFactStreamCutover:
-        return await asyncio.to_thread(self._freeze_stream_cutover, authority)
-
-    def _freeze_stream_cutover(self, authority: RunnerFactAuthority) -> RunnerFactStreamCutover:
-        connection = self._connect()
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            existing = connection.execute(
-                "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
-                (str(authority.deployment_instance_id),),
-            ).fetchone()
-            if existing is not None:
-                _require_cutover_authority(existing, authority)
-                receipt = _cutover_from_row(existing)
-                connection.commit()
-                return receipt
-            legacy_stream_keys = self._legacy_stream_keys(connection, authority)
-            now = _utc_now()
-            connection.execute(
-                """
-                INSERT INTO runner_stream_cutover (
-                    deployment_instance_id, tenant_id, trading_mode, runner_id,
-                    target_stream_key, state, legacy_stream_keys, created_at
-                ) VALUES (?, ?, ?, ?, ?, 'frozen', ?, ?)
-                """,
-                (
-                    str(authority.deployment_instance_id),
-                    authority.tenant_id,
-                    authority.trading_mode,
-                    str(authority.runner_id),
-                    authority.stream_key,
-                    json.dumps(legacy_stream_keys, separators=(",", ":")),
-                    now,
-                ),
-            )
-            connection.commit()
-            return RunnerFactStreamCutover(
-                deployment_instance_id=authority.deployment_instance_id,
-                target_stream_key=authority.stream_key,
-                state="frozen",
-                legacy_stream_keys=legacy_stream_keys,
-                continuation_sequence=None,
-            )
-        except Exception:
-            connection.rollback()
-            raise
-        finally:
-            connection.close()
-
-    async def activate_stream_cutover(
-        self, authority: RunnerFactAuthority
-    ) -> RunnerFactStreamCutover:
-        return await asyncio.to_thread(self._activate_stream_cutover, authority)
-
-    def _activate_stream_cutover(self, authority: RunnerFactAuthority) -> RunnerFactStreamCutover:
-        connection = self._connect()
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            row = connection.execute(
-                "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
-                (str(authority.deployment_instance_id),),
-            ).fetchone()
-            if row is None:
-                raise RunnerFactStreamCutoverRequired(
-                    "stream cutover must be frozen before activation"
-                )
-            _require_cutover_authority(row, authority)
-            if row["state"] == "active":
-                receipt = _cutover_from_row(row)
-                connection.commit()
-                return receipt
-            legacy_stream_keys = tuple(json.loads(row["legacy_stream_keys"]))
-            pending_stream_keys = (*legacy_stream_keys, authority.stream_key)
-            if pending_stream_keys:
-                placeholders = ",".join("?" for _ in pending_stream_keys)
-                pending_count = int(
-                    connection.execute(
-                        f"SELECT COUNT(*) FROM runner_fact_outbox "
-                        f"WHERE stream_key IN ({placeholders})",
-                        pending_stream_keys,
-                    ).fetchone()[0]
-                )
-                if pending_count:
-                    raise RunnerFactPendingPubAckError(
-                        f"stream cutover blocked by {pending_count} pending PubAck batch(es)"
-                    )
-            allocated = 0
-            if legacy_stream_keys:
-                placeholders = ",".join("?" for _ in legacy_stream_keys)
-                allocated = int(
-                    connection.execute(
-                        f"SELECT COALESCE(SUM(next_sequence - 1), 0) "
-                        f"FROM runner_fact_stream WHERE stream_key IN ({placeholders})",
-                        legacy_stream_keys,
-                    ).fetchone()[0]
-                )
-            target_row = connection.execute(
-                "SELECT next_sequence FROM runner_fact_stream WHERE stream_key = ?",
-                (authority.stream_key,),
-            ).fetchone()
-            continuation = max(allocated + 1, int(target_row[0]) if target_row else 1)
-            now = _utc_now()
-            connection.execute(
-                """
-                INSERT INTO runner_fact_stream (stream_key, next_sequence, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(stream_key) DO UPDATE SET
-                    next_sequence = MAX(runner_fact_stream.next_sequence, excluded.next_sequence),
-                    updated_at = excluded.updated_at
-                """,
-                (authority.stream_key, continuation, now),
-            )
-            connection.execute(
-                """
-                UPDATE runner_stream_cutover
-                SET state = 'active', continuation_sequence = ?, activated_at = ?
-                WHERE deployment_instance_id = ?
-                """,
-                (continuation, now, str(authority.deployment_instance_id)),
-            )
-            connection.commit()
-            return RunnerFactStreamCutover(
-                deployment_instance_id=authority.deployment_instance_id,
-                target_stream_key=authority.stream_key,
-                state="active",
-                legacy_stream_keys=legacy_stream_keys,
-                continuation_sequence=continuation,
-            )
-        except Exception:
-            connection.rollback()
-            raise
-        finally:
-            connection.close()
-
-    def _legacy_stream_keys(
-        self,
-        connection: sqlite3.Connection,
-        authority: RunnerFactAuthority,
-    ) -> tuple[str, ...]:
-        prefix = f"{authority.stream_key}:"
-        rows = connection.execute(
-            """
-            SELECT stream_key FROM runner_fact_stream
-            WHERE substr(stream_key, 1, ?) = ?
-            ORDER BY stream_key
-            """,
-            (len(prefix), prefix),
-        ).fetchall()
-        return tuple(str(row[0]) for row in rows)
-
-    def _assert_stream_intake_open(
-        self,
-        connection: sqlite3.Connection,
-        authority: RunnerFactAuthority,
-    ) -> None:
-        row = connection.execute(
-            "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
-            (str(authority.deployment_instance_id),),
-        ).fetchone()
-        if row is not None:
-            _require_cutover_authority(row, authority)
-            if row["state"] == "frozen":
-                raise RunnerFactStreamCutoverFrozen(
-                    "RunnerFact intake is frozen until legacy PubAck drain completes"
-                )
-            return
-        if self._legacy_stream_keys(connection, authority):
-            raise RunnerFactStreamCutoverRequired(
-                "legacy spec-keyed streams require explicit freeze/drain/activate cutover"
-            )
 
     async def enqueue(
         self,
@@ -1528,7 +1254,6 @@ class RunnerFactOutbox:
             return None
         if len(facts) > MAX_FACTS_PER_BATCH:
             raise RunnerFactContractError(f"batch exceeds {MAX_FACTS_PER_BATCH} facts")
-        self._assert_stream_intake_open(connection, authority)
         candidates: list[dict[str, Any]] = []
         event_ids: set[str] = set()
         for value in facts:
@@ -1792,7 +1517,6 @@ class RunnerStateStore:
         connection = self._outbox._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
-            self._assert_command_intake_open(connection, command)
             row = connection.execute(
                 "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
                 (str(command.deployment_instance_id),),
@@ -2687,7 +2411,7 @@ class RunnerStateStore:
                     expires_at_ns,
                     policy.status,
                     verified.signature_key_id,
-                    "crucible-domain-event-v2-exact-bytes",
+                    "crucible-domain-event-v1-exact-bytes",
                     verified.exact_subject,
                     verified.fingerprint,
                     verified.verified_event_bytes_sha256,
@@ -3733,6 +3457,73 @@ class RunnerStateStore:
             verification_receipt=receipt,
         )
 
+    async def load_artifact_activation(
+        self,
+        *,
+        command: Any,
+        activation_id: str,
+        artifact_ref_digest: str,
+        artifact_evidence_digest: str,
+    ) -> Mapping[str, Any] | None:
+        return await asyncio.to_thread(
+            self._load_artifact_activation,
+            command,
+            activation_id,
+            artifact_ref_digest,
+            artifact_evidence_digest,
+        )
+
+    def _load_artifact_activation(
+        self,
+        command: Any,
+        activation_id: str,
+        artifact_ref_digest: str,
+        artifact_evidence_digest: str,
+    ) -> Mapping[str, Any] | None:
+        activation = _non_empty(activation_id, "activation_id")
+        _state_digest(artifact_ref_digest, "artifact_ref_digest")
+        _state_digest(artifact_evidence_digest, "artifact_evidence_digest")
+        with self._outbox._connect() as connection:
+            desired = connection.execute(
+                "SELECT * FROM desired_deployments WHERE deployment_instance_id = ?",
+                (str(command.deployment_instance_id),),
+            ).fetchone()
+            if desired is None:
+                raise RunnerStateDurabilityError(
+                    "artifact activation lookup requires a durable desired command"
+                )
+            self._require_desired_authority(desired, command)
+            row = connection.execute(
+                "SELECT * FROM artifact_activation WHERE activation_id = ?",
+                (activation,),
+            ).fetchone()
+            if row is None:
+                return None
+            expected = (
+                str(command.deployment_instance_id),
+                str(command.deployment_spec_id),
+                command.deployment_spec_digest,
+                command.generation,
+                artifact_ref_digest,
+                artifact_evidence_digest,
+            )
+            actual = (
+                row["deployment_instance_id"],
+                row["deployment_spec_id"],
+                row["deployment_spec_digest"],
+                row["generation"],
+                row["artifact_ref_digest"],
+                row["artifact_evidence_digest"],
+            )
+            if actual != expected:
+                raise RunnerStateDurabilityError(
+                    "artifact activation id is bound to different verified evidence"
+                )
+            return {
+                "state": row["state"],
+                "quarantine_reason": row["quarantine_reason"],
+            }
+
     async def stage_artifact_activation(
         self,
         *,
@@ -3960,44 +3751,6 @@ class RunnerStateStore:
                 "deployment instance desired state belongs to a different authority"
             )
 
-    def _assert_command_intake_open(
-        self,
-        connection: sqlite3.Connection,
-        command: Any,
-    ) -> None:
-        target_stream_key = (
-            f"{command.tenant_id}:{command.trading_mode}:{command.runner_id}:"
-            f"{command.deployment_instance_id}"
-        )
-        row = connection.execute(
-            "SELECT * FROM runner_stream_cutover WHERE deployment_instance_id = ?",
-            (str(command.deployment_instance_id),),
-        ).fetchone()
-        if row is not None:
-            if (
-                row["tenant_id"] != command.tenant_id
-                or row["trading_mode"] != command.trading_mode
-                or row["runner_id"] != str(command.runner_id)
-                or row["target_stream_key"] != target_stream_key
-            ):
-                raise RunnerStateAuthorityError(
-                    "command intake stream belongs to a different authority"
-                )
-            if row["state"] == "frozen":
-                raise RunnerFactStreamCutoverFrozen(
-                    "command intake is frozen until legacy PubAck drain completes"
-                )
-            return
-        legacy_prefix = f"{target_stream_key}:"
-        if connection.execute(
-            """
-            SELECT 1 FROM runner_fact_stream
-            WHERE substr(stream_key, 1, ?) = ? LIMIT 1
-            """,
-            (len(legacy_prefix), legacy_prefix),
-        ).fetchone():
-            raise RunnerFactStreamCutoverRequired("command intake requires legacy stream cutover")
-
 
 def command_lifecycle_event_id(
     *,
@@ -4090,40 +3843,61 @@ class RunnerFactJetStreamPublisher:
     def __init__(
         self,
         *,
-        connection_profile: Any,
+        connection_profiles: Mapping[str, Any],
         outbox: RunnerFactOutbox,
         runner_id: UUID,
         authority_guard: Any,
         publish_timeout: float = 5.0,
     ) -> None:
-        self._connection_profile = connection_profile
+        self._connection_profiles = dict(connection_profiles)
+        if not self._connection_profiles or any(
+            mode not in {"sandbox", "testnet", "live"} for mode in self._connection_profiles
+        ):
+            raise RunnerFactError("RunnerFact publisher transport modes are invalid")
         self._outbox = outbox
         self._runner_id = runner_id
         self._authority_guard = authority_guard
         self._publish_timeout = publish_timeout
-        self._nats: Any = None
-        self._jetstream: Any = None
+        self._nats: dict[str, Any] = {}
+        self._jetstreams: dict[str, Any] = {}
 
-    async def connect(self) -> None:
-        self._connection_profile.assert_active()
-        if self._nats is not None and self._nats.is_connected:
-            return
-        self._nats = await self._connection_profile.connect(
-            name=f"custos-runner-fact-{self._runner_id}",
+    async def connect(self, trading_mode: str) -> Any:
+        profile = self._connection_profiles.get(trading_mode)
+        if profile is None:
+            raise RunnerFactError(
+                f"RunnerFact mode {trading_mode!r} has no authenticated transport session"
+            )
+        profile.assert_active()
+        connection = self._nats.get(trading_mode)
+        if connection is not None and connection.is_connected:
+            return self._jetstreams[trading_mode]
+        connection = await profile.connect(
+            name=f"custos-runner-fact-{self._runner_id}-{trading_mode}",
         )
-        self._jetstream = self._nats.jetstream()
+        self._nats[trading_mode] = connection
+        self._jetstreams[trading_mode] = connection.jetstream()
+        return self._jetstreams[trading_mode]
 
     async def drain_once(self) -> int:
         self._authority_guard()
-        await self.connect()
         delivered = 0
         blocked_streams: set[str] = set()
         for batch in await self._outbox.pending():
             if batch.stream_key in blocked_streams:
                 continue
             try:
-                self._connection_profile.assert_publish_subject(batch.subject)
-                ack = await self._jetstream.publish(
+                document = json.loads(batch.payload)
+                trading_mode = document.get("trading_mode") if isinstance(document, dict) else None
+                if trading_mode not in {"sandbox", "testnet", "live"}:
+                    raise RunnerFactError("RunnerFact batch has no valid signed trading_mode")
+                profile = self._connection_profiles.get(trading_mode)
+                if profile is None:
+                    raise RunnerFactError(
+                        f"RunnerFact mode {trading_mode!r} has no authenticated transport session"
+                    )
+                profile.assert_publish_subject(batch.subject)
+                jetstream = await self.connect(trading_mode)
+                ack = await jetstream.publish(
                     batch.subject,
                     batch.payload,
                     headers={"Nats-Msg-Id": str(batch.batch_id)},
@@ -4156,10 +3930,10 @@ class RunnerFactJetStreamPublisher:
                     pass
 
     async def close(self) -> None:
-        if self._nats is not None:
-            await self._nats.drain()
-        self._nats = None
-        self._jetstream = None
+        for connection in self._nats.values():
+            await connection.drain()
+        self._nats.clear()
+        self._jetstreams.clear()
 
 
 class RunnerFactEmitter:

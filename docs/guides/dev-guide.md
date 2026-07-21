@@ -92,7 +92,7 @@ uv run ruff check --fix src/ tests/ scripts/  # 自动修 (34 fix pattern)
   - Key / KEK 未 log / publish / send raw
   - 未新增 cloud SDK 依赖
   - money math 未混入 float
-  - G6 gate 未绕过
+  - engine execution admission 未绕过
 - [ ] 若改 wire contract (envelope / subject), 同步更新:
   - `test_nats_envelope.py` / `test_subject_builder_contract.py`
   - `docs/design/nats_client.md` §schema versioning
@@ -121,7 +121,7 @@ uv run ruff check --fix src/ tests/ scripts/  # 自动修 (34 fix pattern)
 | 场景 | 红线 |
 |------|------|
 | 加 log / publish / send 字段 | 0.1 Key / KEK 不出进程 |
-| 修改 `nautilus_host.py` 或 CEX adapter | 0.2 G6 gate 不绕过 |
+| 修改 `nautilus_host.py` 或 CEX adapter | 0.2 verified artifact + live admission 不绕过 |
 | 修改 `reconcile.py` 中云端断线路径 | 0.3 失联 ≠ 停止 |
 | 修改价格 / 金额 / notional 计算 | 0.4 Decimal + wire str |
 

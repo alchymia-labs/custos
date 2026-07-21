@@ -15,6 +15,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from custos.core.runner_command_intake import (
     COMMAND_FINGERPRINT_DOMAIN,
+    DOMAIN_EVENT_ENCODING,
+    DOMAIN_EVENT_SIGNATURE_PROFILE,
     CommandDeliveryPolicy,
     CommandIdentityDecision,
     CommandIntakeCoordinator,
@@ -32,10 +34,7 @@ from custos.core.runner_command_intake import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-GOLDEN_PATH = (
-    ROOT / "docs/authority/vendor/crucible-plan-89/docs/authority/golden/"
-    "crucible-runner-deployment-command-v1.json"
-)
+GOLDEN_PATH = ROOT / "docs/authority/runner-deployment-command-golden-v1.json"
 VECTOR_PATH = ROOT / "tests/fixtures/plan19/runner_command_fingerprint_v1.json"
 KEY_A = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
 KEY_B = Ed25519PrivateKey.from_private_bytes(bytes(range(33, 65)))
@@ -62,9 +61,9 @@ def _signed_fixture(
     mutate_envelope: Any = None,
 ) -> tuple[bytes, str]:
     fixture = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
-    subject = fixture["subject"]
-    envelope = copy.deepcopy(fixture["signed_envelope"])
-    event = json.loads(_decode(envelope["event_bytes"]))
+    case = fixture["cases"][0]
+    subject = case["subject"]
+    event = copy.deepcopy(case["event_document"])
     if generation is not None:
         event["aggregate_version"] = generation
         event["payload"]["generation"] = generation
@@ -74,16 +73,21 @@ def _signed_fixture(
     subject_bytes = subject.encode()
     framed = b"".join(
         (
-            b"CRUCIBLE-DOMAIN-EVENT-V2\0",
+            b"CRUCIBLE-DOMAIN-EVENT-V1\0",
             len(subject_bytes).to_bytes(4, "big"),
             subject_bytes,
             len(event_bytes).to_bytes(8, "big"),
             event_bytes,
         )
     )
-    envelope["event_bytes"] = _encode(event_bytes)
-    envelope["signature_key_id"] = key_id
-    envelope["signature"] = _encode(private_key.sign(framed))
+    envelope = {
+        "schema_version": 1,
+        "signature_profile": DOMAIN_EVENT_SIGNATURE_PROFILE,
+        "event_encoding": DOMAIN_EVENT_ENCODING,
+        "signature_key_id": key_id,
+        "event_bytes": _encode(event_bytes),
+        "signature": _encode(private_key.sign(framed)),
+    }
     if mutate_envelope is not None:
         mutate_envelope(envelope)
     return _compact(envelope), subject
@@ -92,8 +96,8 @@ def _signed_fixture(
 def _authenticator(
     *,
     keys: dict[str, Ed25519PrivateKey] | None = None,
-    tenant: str = "contract-only-example",
-    runner_id: str = "70000000-0000-4000-8000-000000000007",
+    tenant: str = "acme",
+    runner_id: str = "10000000-0000-4000-8000-000000000001",
     modes: frozenset[str] = frozenset({"sandbox"}),
 ) -> CrucibleRunnerCommandAuthenticator:
     private_keys = keys or {"crucible-command-key-a": KEY_A}
@@ -319,7 +323,7 @@ def test_generation_and_exact_bytes_identity_matrix(
     "authenticator",
     [
         _authenticator(tenant="other-tenant"),
-        _authenticator(runner_id="70000000-0000-4000-8000-000000000099"),
+        _authenticator(runner_id="10000000-0000-4000-8000-000000000099"),
         _authenticator(modes=frozenset({"live"})),
     ],
     ids=["tenant", "runner", "mode"],
@@ -346,11 +350,11 @@ async def test_invalid_signature_commits_typed_rejection_before_term() -> None:
 
 
 @pytest.mark.asyncio
-async def test_acceptance_binding_failure_is_durable_poison_before_term() -> None:
-    def invalidate_acceptance(event: dict[str, Any]) -> None:
-        event["payload"]["artifact_acceptance_receipt"]["tenant_id"] = "other-tenant"
+async def test_deployment_spec_tenant_binding_failure_is_durable_poison_before_term() -> None:
+    def invalidate_deployment_spec_tenant(event: dict[str, Any]) -> None:
+        event["payload"]["deployment_spec"]["tenant_id"] = "other-tenant"
 
-    envelope_bytes, subject = _signed_fixture(mutate_event=invalidate_acceptance)
+    envelope_bytes, subject = _signed_fixture(mutate_event=invalidate_deployment_spec_tenant)
     events: list[str] = []
     result = await _coordinator(_DurabilityPort(events)).process(
         _Delivery(envelope_bytes, subject, events=events)
@@ -363,7 +367,7 @@ async def test_acceptance_binding_failure_is_durable_poison_before_term() -> Non
 @pytest.mark.asyncio
 async def test_unknown_envelope_version_is_durable_poison_before_term() -> None:
     envelope_bytes, subject = _signed_fixture(
-        mutate_envelope=lambda envelope: envelope.__setitem__("schema_version", 3)
+        mutate_envelope=lambda envelope: envelope.__setitem__("schema_version", 2)
     )
     events: list[str] = []
     result = await _coordinator(_DurabilityPort(events)).process(

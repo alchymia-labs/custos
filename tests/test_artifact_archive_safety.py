@@ -10,7 +10,7 @@ import pytest
 from custos.artifacts.archive import quarantine_wheel
 from custos.artifacts.errors import ArtifactVerificationCode, ArtifactVerificationError
 from custos.artifacts.policy import ArchiveLimitsV1
-from tests._artifact_verifier_fixtures import regular_zip_info, write_test_wheel
+from tests._artifact_archive_fixtures import regular_zip_info, write_test_wheel
 
 
 def test_valid_wheel_is_quarantined_without_importing_entry_point(tmp_path) -> None:

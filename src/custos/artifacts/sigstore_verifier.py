@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from custos.artifacts.errors import ArtifactVerificationCode, ArtifactVerificationError
-from custos.artifacts.verifier import (
+from custos.artifacts.verification_types import (
     DigestSubject,
     SigstoreVerificationEvidence,
     SigstoreVerificationRequest,

@@ -1,20 +1,25 @@
 {
   "schema_version": 1,
-  "receipt_id": "CUSTOS-PLAN-18-T5E-CORRECTED-RUNTIME-V1",
-  "receipt_status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
+  "receipt_id": "CUSTOS-PLAN-18-T5E-ARTIFACT-RUNTIME-V1",
+  "receipt_status": "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
   "repository": "tesseract-trading/custos",
   "plan": "Custos Plan 18",
   "task": "T5e",
   "runtime_candidate_prepared": true,
-  "command_source": "Plan 19 T4 durable desired command after Plan 19 T3 signature verification and intake",
+  "engine_abi_requires_activated_artifact": true,
+  "runner_command_runtime_coordinator_present": true,
+  "durable_idempotent_activation_replay": true,
+  "legacy_deployment_reconciler_present": false,
+  "daemon_reconcile_fail_closed": true,
+  "command_source": "Plan 19 T4 durable CrucibleRunnerDeploymentCommandV1 after signature verification and intake",
   "owner_contracts": [
     "Philosophers-Stone StrategyReleaseBomV1 and detached release statement",
-    "Custos StrategyArtifactRefV2 and StrategyExecutionContext",
-    "Crucible ArtifactEvidenceV1, acceptance receipt and signed runner command"
+    "Custos StrategyArtifactRefV1 and StrategyExecutionContext",
+    "Crucible StrategyReleaseArtifactResolverV1 and signed DeploymentSpec command"
   ],
   "runner_local_policy_independent": true,
   "bom_member_source": "StrategyReleaseBomV1.members only",
-  "v1_runtime_rejected": true,
+  "canonical_v1_only": true,
   "historical_asset_index_runtime_fallback": false,
   "development_source_ref": {
     "allowed_modes": [
@@ -28,11 +33,13 @@
   "durable_active_commit_before_import": true,
   "deep_frozen_execution_context": true,
   "python_import_after_verification": true,
-  "external_positive_gates": {
-    "ps_strategy_bundle_receipt_present": false,
-    "crucible_c6_artifact_acceptance_receipt_present": false
+  "required_runtime_dependencies": {
+    "strategy_release_resolver_composed": false,
+    "real_ps_oci_publication_present": false,
+    "crucible_strategy_release_acceptance_present": false
   },
   "capability_ready": false,
+  "engine_code_ready": true,
   "protected_execution_ready": false,
   "engine_ready": false,
   "daemon_ready": false,
@@ -40,19 +47,25 @@
   "runtime_ready": false,
   "production_ready": false,
   "implementation_files": [
-    "src/custos/artifacts/corrected_runtime.py",
-    "src/custos/core/runner_fact.py"
+    "src/custos/artifacts/release_resolver.py",
+    "src/custos/artifacts/runtime.py",
+    "src/custos/core/credential_resolver.py",
+    "src/custos/core/runner_command_runtime.py",
+    "src/custos/core/runner_fact.py",
+    "src/custos/engines/nautilus/runtime_loader.py"
   ],
   "focused_verification": {
-    "result": "7 passed",
+    "result": "not_run_after_canonical_v1_reset",
     "tests": [
-      "tests/test_plan18_t5e_corrected_runtime.py"
+      "tests/test_plan18_t5e_artifact_runtime.py",
+      "tests/test_plan19_t5f_runner_command_runtime.py",
+      "tests/engines/nautilus/test_runtime_entry_point_loader_v1.py"
     ]
   },
   "open_blockers": [
-    "real Philosophers-Stone strategy bundle publication receipt",
-    "real Crucible C6 artifact acceptance receipt",
-    "Custos Plan 19 T5 engine readiness, terminal lifecycle, restart and daemon supervision",
+    "authenticated Crucible StrategyRelease material resolver composition",
+    "real Philosophers-Stone OCI publication and Crucible StrategyRelease acceptance",
+    "daemon composition of the authenticated resolver and command coordinator",
     "Custos Plan 19 T7 live activation gates"
   ]
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read one toolkit OCI manifest by digest and emit a READY V2 candidate."""
+"""Read one toolkit OCI manifest by digest and emit a READY V1 candidate."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import Any, Final, Protocol
 
 from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
-    ToolkitRcAuthorityReadyReceiptV2,
+    ToolkitRcAuthorityReadyReceiptV1,
     ToolkitRcOciDescriptorV1,
     ToolkitRcOciPublicationReceiptV1,
     ToolkitRcReceiptManifestV1,
@@ -45,7 +45,7 @@ STABLE_READY_PATH: Final = Path(
 PREREQUISITE_PATHS: Final = (
     Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),
     Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
-    Path("docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"),
+    Path("docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"),
 )
 SIGNED_SUBJECT_FIELDS: Final = (
     "wheel",
@@ -533,7 +533,7 @@ def promote_toolkit_rc(
         sha256=manifest_digest.removeprefix("sha256:"),
         size_bytes=len(oci_manifest_content),
     )
-    ready = ToolkitRcAuthorityReadyReceiptV2(
+    ready = ToolkitRcAuthorityReadyReceiptV1(
         candidate_version=receipt.candidate_version,
         source_commit=receipt.source_commit,
         source_date_epoch=receipt.source_date_epoch,
@@ -541,7 +541,7 @@ def promote_toolkit_rc(
         toolkit_manifest=manifest,
         toolkit_manifest_sha256=_sha256(manifest_content),
         build_manifest_sha256=_sha256(build_content),
-        predecessor_oci_manifest=predecessor,
+        publication_manifest=predecessor,
         final_blockers=(),
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)

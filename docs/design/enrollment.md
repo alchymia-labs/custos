@@ -20,21 +20,21 @@ manual `runner.toml`, default tenant, or plaintext RunnerFact key fallback.
 1. An operator obtains a one-time enrollment token from the authorized control
    plane.
 2. Custos generates an Ed25519 keypair in memory and a fresh challenge nonce.
-3. Custos signs the canonical `arx.runner.enrollment.pop.v2` proof. The proof
+3. Custos signs the canonical `arx.runner.enrollment.pop.v1` proof. The proof
    binds the token digest, claimed tenant, Runner UUID, nonce, machine key ID,
    and public-key digest.
 4. Custos sends the one-time token, public key, nonce, key ID, and signature to
    ARX `POST /api/v1/enrollments`. The private key is never sent.
 5. Crucible verifies the token authority and proof, consumes the token once,
    persists immutable public evidence, and issues a tenant-bearing opaque
-   `rkc2` credential with `credential_id`, version, and expiry.
+   `rkc1` credential with `credential_id`, version, and expiry.
 6. Custos encrypts the credential and private key together with sops+age. Only
    non-secret binding metadata is written to `runner.toml`.
 
 The canonical proof is newline-delimited UTF-8 in this exact order:
 
 ```text
-arx.runner.enrollment.pop.v2
+arx.runner.enrollment.pop.v1
 tenant_id=<tenant>
 runner_id=<uuid>
 challenge_nonce=<uuid>
@@ -108,7 +108,7 @@ started with the revoked principal.
 Before connecting NATS or constructing the execution host, startup requires:
 
 - the encrypted machine vault and age identity;
-- an unexpired `rkc2` credential;
+- an unexpired `rkc1` credential;
 - exact tenant, Runner, credential ID/version/expiry, and key-ID binding;
 - server verification that the credential remains active;
 - a validated Runner capability receipt bound to the same public key.

@@ -1,7 +1,7 @@
 # Engine protocol
 
 The engine adapter is a local deep module. It hides process and framework
-details from reconciliation while preserving exact deployment identity.
+details from command coordination while preserving exact deployment identity.
 
 ## Identity rule
 
@@ -16,6 +16,7 @@ provenance and must not address a running process.
             self,
             spec: RuntimeSpec,  # contains deployment_instance_id
             credential: LocalCredential,
+            artifact: ActivatedEngineArtifactV1,
         ) -> EngineHandle: ...
 
         async def reconfigure(
@@ -36,6 +37,10 @@ provenance and must not address a running process.
             self,
             authority: EngineLifecycleAuthority,
         ) -> EngineTerminalEvent: ...
+
+`ActivatedEngineArtifactV1` is mandatory. It contains the strategy object built
+from an immutable activation only after exact artifact verification. The engine
+cannot accept a path, registry alias, command-provided class name or code hash.
 
 The concrete Nautilus adapter may use framework-specific trader or node ids,
 but those ids must be deterministically derived from and mapped back to the
@@ -59,15 +64,15 @@ price plus unrealized PnL is not an equity proxy.
 
 A missing or invalid venue, equity or mark produces a typed unreliable snapshot;
 it never substitutes a guessed financial value. Engine status exposes reliability
-and its reason. The reconciler obtains breaker notional and equity from that one
+and its reason. The lifecycle supervisor obtains breaker notional and equity from that one
 status snapshot per tick and freezes/flattens fail closed when it is unreliable.
 RunnerFact risk observations use the same provider and cannot retain a divergent
 Nautilus conversion path.
 
 ## Failure contract
 
-Adapter errors are local execution outcomes. The reconciler decides ACK or NAK
-and emits a signed RunnerFact; the adapter cannot mutate Crucible business
+Adapter errors are local execution outcomes. `RunnerCommandRuntimeCoordinator`
+decides ACK, NAK or TERM and emits a signed RunnerFact; the adapter cannot mutate Crucible business
 state or ask ARX to authorize a recovery action.
 
 The Plan 19 lifecycle supervisor persists its bounded restart counter in the
@@ -76,8 +81,10 @@ durably applied engine before deploying on redelivery, uses exponential backoff,
 and commits ready or retry-exhausted/quarantine through the T4 atomic lifecycle
 transaction. It creates no database, journal or outbox.
 
-Current authority status is `PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY`.
-The adapter contract is implemented, but the v1.team daemon remains disabled
-while the real Plan 18 T5e artifact capability is false. Live readiness is false.
+Current authority status is
+`READY_V1_CODE_PENDING_AUTHENTICATED_STRATEGY_RELEASE_RESOLVER`. The adapter,
+artifact activation and command coordinator contracts are implemented, but the
+v1.team daemon remains fail closed until the authenticated Crucible resolver and
+real protected publication are composed. Live readiness is false.
 Portfolio valuation is independently `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`;
 that scoped receipt does not satisfy the signed runner-policy or runtime gates.

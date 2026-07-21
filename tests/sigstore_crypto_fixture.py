@@ -23,7 +23,7 @@ from sigstore_protobuf_specs.dev.sigstore.trustroot import v1 as trustroot_v1
 from sigstore_protobuf_specs.io import intoto
 
 from custos.artifacts.policy import SigstoreIdentityV1
-from custos.artifacts.verifier import DigestSubject, SigstoreVerificationRequest
+from custos.artifacts.verification_types import DigestSubject, SigstoreVerificationRequest
 
 ISSUER = "https://token.actions.githubusercontent.com"
 WORKFLOW_IDENTITY = (

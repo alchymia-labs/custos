@@ -33,19 +33,18 @@
     "runner exposure checkpoint reference",
     "RunnerFact sequence, signed payload and pending PubAck"
   ],
-  "stream_cutover": {
-    "intake_freeze_required": true,
-    "pending_puback_drain_required": true,
-    "per_instance_sequence_continuation": true,
-    "pending_signed_payload_rewrite_allowed": false,
-    "legacy_stream_delete_allowed": false
+  "stream_initialization": {
+    "first_production_contract": true,
+    "initial_sequence": 1,
+    "generation_resets_sequence": false,
+    "legacy_stream_compatibility": false
   },
   "t3_durability_port_implemented": true,
   "applied_lifecycle_atomic": true,
   "deterministic_command_outcome": true,
   "deterministic_lifecycle_event": true,
   "focused_verification": {
-    "result": "47 passed",
+    "result": "59 passed",
     "tests": [
       "tests/test_plan19_t4_runner_state_store.py",
       "tests/test_plan19_t3_command_intake.py",

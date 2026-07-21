@@ -2,11 +2,10 @@
   "schema_version": 1,
   "algorithm": "sha256-domain-subject-exact-event-bytes-v1",
   "domain_utf8": "CRUCIBLE-RUNNER-COMMAND-FINGERPRINT-V1\u0000",
-  "source_fixture": "docs/authority/vendor/crucible-plan-89/docs/authority/golden/crucible-runner-deployment-command-v1.json",
-  "subject": "crucible_rust.domain.contract-only-example.sandbox.deployment.RunnerDeploymentCommandV1.70000000-0000-4000-8000-000000000007.80000000-0000-4000-8000-000000000008",
-  "verified_exact_event_bytes_sha256": "9ccdc9bd460ee07ff0700a876db7d1ff59a2d67d713276660a3564b723b9c3cc",
-  "verified_exact_event_bytes_size": 18474,
-  "command_fingerprint": "a3441436c29c9d06fdc4a640082f6ef639732f68bf0fc8fce494d2aef64ac074",
-  "crucible_producer_fingerprint": "2b815add8a35bbfce87b2ab3b93be32414addf086474b92f2099c42c60e474ec",
+  "source_fixture": "docs/authority/runner-deployment-command-golden-v1.json",
+  "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentSpecReadyForRunner.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+  "verified_exact_event_bytes_sha256": "bbc4818b5eaf6e9af5517c8de42d450d4769fa606b68c3626e9d25e22d8ff844",
+  "verified_exact_event_bytes_size": 2698,
+  "command_fingerprint": "5a7ad1280610a981e7179a9e4654db107281c1e7aabe1ed1353fba481b541e59",
   "signature_bytes_included": false
 }

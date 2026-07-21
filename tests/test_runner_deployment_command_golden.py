@@ -9,7 +9,10 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from custos.contracts import CrucibleDomainEventVerifier, DeploymentMessage
+from custos.contracts import (
+    CrucibleDomainEventVerifier,
+    CrucibleRunnerDeploymentCommandV1,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "docs/authority/runner-deployment-command-golden-v1.json"
@@ -38,7 +41,7 @@ def _signed(case: dict) -> tuple[bytes, CrucibleDomainEventVerifier]:
     subject_bytes = subject.encode("utf-8")
     framed = b"".join(
         (
-            b"CRUCIBLE-DOMAIN-EVENT-V2\0",
+            b"CRUCIBLE-DOMAIN-EVENT-V1\0",
             len(subject_bytes).to_bytes(4, "big"),
             subject_bytes,
             len(event_bytes).to_bytes(8, "big"),
@@ -46,8 +49,8 @@ def _signed(case: dict) -> tuple[bytes, CrucibleDomainEventVerifier]:
         )
     )
     envelope = {
-        "schema_version": 2,
-        "signature_profile": "crucible-domain-event-v2-exact-bytes",
+        "schema_version": 1,
+        "signature_profile": "crucible-domain-event-v1-exact-bytes",
         "event_encoding": "application/json;base64url",
         "event_bytes": _base64url(event_bytes),
         "signature_key_id": KEY_ID,
@@ -76,17 +79,16 @@ def test_crucible_golden_commands_parse_through_real_signature_verifier(
     assert payload["deployment_spec"]["trading_mode"] == "sandbox"
 
     data, verifier = _signed(case)
-    message = DeploymentMessage.parse(
-        data,
+    verifier.verify(subject=case["subject"], data=data)
+    command = CrucibleRunnerDeploymentCommandV1.from_verified_signed_envelope(
+        signed_envelope_bytes=data,
         subject=case["subject"],
-        expected_tenant_id="acme",
-        expected_runner_id="10000000-0000-4000-8000-000000000001",
-        verifier=verifier,
     )
+    spec = command.to_runtime_spec()
 
-    assert message.spec.generation == generation
-    assert message.spec.lifecycle_state.value == lifecycle_state
-    assert str(message.spec.deployment_instance_id) == ("20000000-0000-4000-8000-000000000002")
+    assert spec.generation == generation
+    assert spec.lifecycle_state.value == lifecycle_state
+    assert str(spec.deployment_instance_id) == ("20000000-0000-4000-8000-000000000002")
 
 
 def test_outer_trading_mode_alias_is_rejected_without_fallback() -> None:
@@ -95,13 +97,11 @@ def test_outer_trading_mode_alias_is_rejected_without_fallback() -> None:
     payload["trading_mode"] = payload.pop("mode")
     data, verifier = _signed(case)
 
-    with pytest.raises(ValueError, match="payload mode differs"):
-        DeploymentMessage.parse(
-            data,
+    verifier.verify(subject=case["subject"], data=data)
+    with pytest.raises(ValueError, match="open or incomplete"):
+        CrucibleRunnerDeploymentCommandV1.from_verified_signed_envelope(
+            signed_envelope_bytes=data,
             subject=case["subject"],
-            expected_tenant_id="acme",
-            expected_runner_id="10000000-0000-4000-8000-000000000001",
-            verifier=verifier,
         )
 
 

@@ -50,7 +50,7 @@ def _run_start(
         start_command.MachineCredentialVault, "load", mock.MagicMock(return_value=credential)
     )
     monkeypatch.setattr("custos.cli._daemon.run_daemon", _fake)
-    return main(["start", *argv]), run_daemon, credential
+    return main(["start", "--enabled-mode", "sandbox", *argv]), run_daemon, credential
 
 
 def test_start_loads_bound_machine_authority(
@@ -192,7 +192,7 @@ def test_engine_noop_selects_noop_host() -> None:
 
 def test_use_nt_host_flag_is_removed() -> None:
     with pytest.raises(SystemExit):
-        main(["start", "--use-nt-host"])
+        main(["start", "--enabled-mode", "sandbox", "--use-nt-host"])
 
 
 def test_start_preserves_ready_file(

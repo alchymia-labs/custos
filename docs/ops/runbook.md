@@ -46,17 +46,10 @@ Common causes:
 - subject tenant/runner/instance does not match the signed payload;
 - canonical DeploymentSpec digest mismatch;
 - stale generation or changed strategy identity for an existing instance;
-- strategy `code_hash` mismatch;
+- StrategyRelease snapshot/artifact/manifest binding mismatch;
+- typed `execution_config` invalid or unsupported by the selected engine;
 - live command missing Crucible promotion evidence;
 - live command routed to a non-live engine host.
-
-Use offline validation only as a local diagnostic:
-
-```bash
-arx-runner deployment validate \
-  --spec-file deployment.json \
-  --strategy-dir /opt/custos/strategies/supertrend
-```
 
 Correct canonical state in Crucible and let it emit a new signed generation.
 Never inject a command directly into NATS.
@@ -82,7 +75,7 @@ du -h ~/.arx/state/runner-fact-outbox.db
 
 For authentication failures, verify exchange key status, IP allowlists, clock
 synchronization, and `trade_no_withdraw` scope. For code-hash failures, deploy
-the reviewed strategy bytes matching the Crucible spec. Never bypass the G6
+the reviewed strategy bytes matching the Crucible spec. Never bypass engine execution admission
 live capability gate.
 
 Fallback breakers, the local notional cap, and the zombie watchdog are keyed by
@@ -106,11 +99,11 @@ canonical deployment lifecycle record.
 
 | Event | Meaning |
 |---|---|
-| `deployment_reconciler_subscribe_failed` | Crucible command subscription unavailable |
+| `runner_command_runtime_intake_failed` | Crucible command subscription unavailable |
 | `deployment_spec_decode_failed` | Signed event or subject failed verification/parsing |
 | `deployment_reconcile_failed` | Local engine apply failed for an instance |
 | `deployment_lifecycle_fact_enqueue_failed` | Applied generation was not durably reported |
-| `g6_gate_live_capability_denied` | Host cannot execute live safely |
+| `engine_admission_live_capability_denied` | Host cannot execute live safely |
 | `nt_stop_noop_unknown_instance` | Idempotent stop for an absent instance |
 
 See [`05-deployment.md`](05-deployment.md) for provisioning and startup.

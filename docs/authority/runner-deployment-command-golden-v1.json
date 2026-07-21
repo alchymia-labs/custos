@@ -7,7 +7,7 @@
       "name": "deployment_spec_ready_for_runner",
       "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentSpecReadyForRunner.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
       "event_document": {
-        "schema_version": 2,
+        "schema_version": 1,
         "event_id": "90000000-0000-4000-8000-000000000009",
         "tenant_id": "acme",
         "event_plane": {
@@ -22,34 +22,34 @@
         "payload": {
           "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
           "deployment_spec": {
-            "code_provenance": {
-              "strategy_path": "/opt/custos/strategies/supertrend/strategy.py"
-            },
             "credential_scope": {
               "scope_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "scope_id": "sandbox-credential"
+              "scope_id": "91000000-0000-4000-8000-000000000011"
             },
             "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
             "engine_binding_id": "80000000-0000-4000-8000-000000000008",
-            "execution_channel": {
-              "channel_type": "runner"
-            },
-            "parameters": {
-              "runner_runtime": {
-                "connector": "binance_perpetual",
-                "leverage": 1,
-                "pairs": [
-                  "BTC-USDT"
-                ],
-                "sandbox": {
-                  "starting_balances": [
-                    "10000 USDT"
-                  ]
-                },
-                "strategy_config": {
-                  "period": 10
-                }
+            "execution_config": {
+              "connector": "binance_perpetual",
+              "engine": "nautilus",
+              "leverage": 1,
+              "log_level": "INFO",
+              "nautilus_config": {},
+              "pairs": [
+                "BTC-USDT"
+              ],
+              "sandbox": {
+                "starting_balances": [
+                  "10000 USDT"
+                ]
+              },
+              "schema_version": 1,
+              "strategy_config": {
+                "period": 10
               }
+            },
+            "execution_channel": {
+              "channel_type": "sandbox_sim_engine",
+              "engine_binding_id": "80000000-0000-4000-8000-000000000008"
             },
             "promotion_evidence_digest": null,
             "promotion_id": null,
@@ -73,7 +73,7 @@
             "trading_mode": "sandbox",
             "venue_source_policy": []
           },
-          "deployment_spec_digest": "57e061b5c6ebf8fa76129838364552c88924e2e66a07ea1c490fdc786b249ede",
+          "deployment_spec_digest": "d8206096757fa872b39ab231bfd966685e30eaceddd9bdb749f6d6ec936d70af",
           "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
           "generation": 1,
           "issued_at": "2026-07-14T00:00:00Z",
@@ -92,7 +92,7 @@
       "name": "deployment_instance_desired_state_changed",
       "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentInstanceDesiredStateChanged.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
       "event_document": {
-        "schema_version": 2,
+        "schema_version": 1,
         "event_id": "90000000-0000-4000-8000-000000000010",
         "tenant_id": "acme",
         "event_plane": {
@@ -107,34 +107,34 @@
         "payload": {
           "deployment_instance_id": "20000000-0000-4000-8000-000000000002",
           "deployment_spec": {
-            "code_provenance": {
-              "strategy_path": "/opt/custos/strategies/supertrend/strategy.py"
-            },
             "credential_scope": {
               "scope_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "scope_id": "sandbox-credential"
+              "scope_id": "91000000-0000-4000-8000-000000000011"
             },
             "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
             "engine_binding_id": "80000000-0000-4000-8000-000000000008",
-            "execution_channel": {
-              "channel_type": "runner"
-            },
-            "parameters": {
-              "runner_runtime": {
-                "connector": "binance_perpetual",
-                "leverage": 1,
-                "pairs": [
-                  "BTC-USDT"
-                ],
-                "sandbox": {
-                  "starting_balances": [
-                    "10000 USDT"
-                  ]
-                },
-                "strategy_config": {
-                  "period": 10
-                }
+            "execution_config": {
+              "connector": "binance_perpetual",
+              "engine": "nautilus",
+              "leverage": 1,
+              "log_level": "INFO",
+              "nautilus_config": {},
+              "pairs": [
+                "BTC-USDT"
+              ],
+              "sandbox": {
+                "starting_balances": [
+                  "10000 USDT"
+                ]
+              },
+              "schema_version": 1,
+              "strategy_config": {
+                "period": 10
               }
+            },
+            "execution_channel": {
+              "channel_type": "sandbox_sim_engine",
+              "engine_binding_id": "80000000-0000-4000-8000-000000000008"
             },
             "promotion_evidence_digest": null,
             "promotion_id": null,
@@ -158,7 +158,7 @@
             "trading_mode": "sandbox",
             "venue_source_policy": []
           },
-          "deployment_spec_digest": "57e061b5c6ebf8fa76129838364552c88924e2e66a07ea1c490fdc786b249ede",
+          "deployment_spec_digest": "d8206096757fa872b39ab231bfd966685e30eaceddd9bdb749f6d6ec936d70af",
           "deployment_spec_id": "30000000-0000-4000-8000-000000000003",
           "generation": 2,
           "issued_at": "2026-07-14T00:01:00Z",

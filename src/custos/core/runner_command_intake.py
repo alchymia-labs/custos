@@ -611,7 +611,7 @@ def _signature_material(signed_envelope_bytes: bytes) -> _SignatureMaterial:
     envelope = json.loads(signed_envelope_bytes, object_pairs_hook=reject_duplicates)
     if not isinstance(envelope, dict) or frozenset(envelope) != _ENVELOPE_FIELDS:
         raise ValueError("signed command envelope field set differs")
-    if type(envelope["schema_version"]) is not int or envelope["schema_version"] != 2:
+    if type(envelope["schema_version"]) is not int or envelope["schema_version"] != 1:
         raise _UnsupportedEnvelopeVersion("signed command envelope schema version is unsupported")
     if envelope["signature_profile"] != DOMAIN_EVENT_SIGNATURE_PROFILE:
         raise _UnsupportedEnvelopeVersion("signed command signature profile is unsupported")

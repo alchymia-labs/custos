@@ -21,9 +21,7 @@ DEFAULT_READY_FILE = Path.home() / ".arx" / "state" / "runner-ready.json"
 DEFAULT_RUNNER_CAPABILITY = Path.home() / ".arx" / "runner-capability.json"
 DEFAULT_RUNNER_FACT_OUTBOX = Path.home() / ".arx" / "state" / "runner-fact-outbox.db"
 DEFAULT_CRUCIBLE_DOMAIN_PUBLIC_KEY = Path.home() / ".arx" / "crucible-domain-event.pub"
-DEFAULT_NATS_TRANSPORT_VAULT = (
-    Path.home() / ".arx" / "vault" / "runner-nats-transport.enc"
-)
+DEFAULT_NATS_TRANSPORT_VAULT_DIR = Path.home() / ".arx" / "vault" / "runner-nats-transport"
 DEFAULT_NATS_CA = Path.home() / ".arx" / "certs" / "crucible-nats-ca.pem"
 
 
@@ -40,20 +38,37 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Optional exact override; must equal runner.toml machine_vault_path.",
     )
-    parser.add_argument("--nats-url", default="tls://localhost:4222")
     parser.add_argument(
-        "--nats-transport-vault",
+        "--nats-transport-vault-dir",
         type=Path,
-        default=DEFAULT_NATS_TRANSPORT_VAULT,
-    )
-    parser.add_argument("--nats-ca", type=Path, default=DEFAULT_NATS_CA)
-    parser.add_argument(
-        "--nats-server-name",
-        default=os.environ.get("CRUCIBLE_NATS_SERVER_NAME", ""),
+        default=DEFAULT_NATS_TRANSPORT_VAULT_DIR,
     )
     parser.add_argument(
-        "--nats-issuer-account-public-nkey",
-        default=os.environ.get("CRUCIBLE_NATS_ISSUER_ACCOUNT_NKEY", ""),
+        "--enabled-mode",
+        action="append",
+        choices=("sandbox", "testnet", "live"),
+        required=True,
+        help="Repeat for every exact mode session hosted by this supervisor.",
+    )
+    parser.add_argument("--nats-sim-url", default=os.environ.get("CRUCIBLE_NATS_SIM_URL", ""))
+    parser.add_argument("--nats-sim-ca", type=Path, default=DEFAULT_NATS_CA)
+    parser.add_argument(
+        "--nats-sim-server-name",
+        default=os.environ.get("CRUCIBLE_NATS_SIM_SERVER_NAME", ""),
+    )
+    parser.add_argument(
+        "--nats-sim-issuer-public-key",
+        default=os.environ.get("CRUCIBLE_NATS_SIM_ISSUER_PUBLIC_KEY", ""),
+    )
+    parser.add_argument("--nats-live-url", default=os.environ.get("CRUCIBLE_NATS_LIVE_URL", ""))
+    parser.add_argument("--nats-live-ca", type=Path, default=DEFAULT_NATS_CA)
+    parser.add_argument(
+        "--nats-live-server-name",
+        default=os.environ.get("CRUCIBLE_NATS_LIVE_SERVER_NAME", ""),
+    )
+    parser.add_argument(
+        "--nats-live-issuer-public-key",
+        default=os.environ.get("CRUCIBLE_NATS_LIVE_ISSUER_PUBLIC_KEY", ""),
     )
     parser.add_argument("--vault-dir", type=Path, default=DEFAULT_VAULT_DIR)
     parser.add_argument("--reconcile", action="store_true")
@@ -99,11 +114,16 @@ def run(args: argparse.Namespace) -> int:
         runner_id=metadata.runner_id,
         runner_toml_path=args.runner_toml_path.expanduser().resolve(),
         machine_vault=bound_vault_path,
-        nats_url=args.nats_url,
-        nats_transport_vault=args.nats_transport_vault,
-        nats_ca=args.nats_ca,
-        nats_server_name=args.nats_server_name,
-        nats_issuer_account_public_nkey=args.nats_issuer_account_public_nkey,
+        enabled_modes=tuple(args.enabled_mode),
+        nats_transport_vault_dir=args.nats_transport_vault_dir,
+        nats_sim_url=args.nats_sim_url,
+        nats_sim_ca=args.nats_sim_ca,
+        nats_sim_server_name=args.nats_sim_server_name,
+        nats_sim_issuer_public_key=args.nats_sim_issuer_public_key,
+        nats_live_url=args.nats_live_url,
+        nats_live_ca=args.nats_live_ca,
+        nats_live_server_name=args.nats_live_server_name,
+        nats_live_issuer_public_key=args.nats_live_issuer_public_key,
         vault_dir=args.vault_dir,
         reconcile=args.reconcile,
         crucible_domain_public_key=args.crucible_domain_public_key,

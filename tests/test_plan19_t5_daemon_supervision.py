@@ -62,9 +62,8 @@ async def test_daemon_shutdown_stops_deployments_flushes_facts_then_closes_trans
         host=Host(),
         fact_outbox=Outbox(),
         fact_publisher=Publisher(),
-        client=Client(),
+        clients={"sandbox": Client()},
     )
 
     assert stop.is_set()
     assert events == ["stop_deployments", "flush_facts", "close_publisher", "close_nats"]
-

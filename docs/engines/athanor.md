@@ -15,8 +15,9 @@ library — integrating it means bridging across a language boundary.
 - Same contract-level relationship to Custos: an `AthanorHost` would still
   need to satisfy `ExecutionEngineProtocol`'s Tier-1 `deploy` / `reconfigure`
   / `stop` / `supports_live` / `supports_venue` methods, whatever runs
-  underneath. The reconciler and G6 gate do not care what language the
-  engine is implemented in — they only see the Protocol.
+  underneath. The command coordinator and execution-admission layer do not
+  care what language the engine is implemented in; they only see the Protocol
+  and a verified activated artifact.
 
 ## Difference from NautilusTrader — Rust IPC / subprocess bridge
 

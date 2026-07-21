@@ -44,8 +44,8 @@ array order, finite Decimal numbers, and no insignificant whitespace.
 ## Artifact boundary
 
 `StrategyManifestV1` is artifact-local compatibility metadata.
-`StrategyArtifactRefV2` (`schema_version: 2`) describes only exact executable and manifest bytes,
-runtime artifacts, SBOM, and contract schema available before signing. It has no
+`StrategyArtifactRefV1` (`schema_version: 1`) describes only exact executable
+and manifest bytes, runtime artifacts, SBOM, and contract schema available before signing. It has no
 bundle coordinate/digest, certificate/transparency proof, trust-policy identity,
 release, deployment, approval, or selection state.
 
@@ -75,12 +75,10 @@ validity, SCT, DSSE PAE/signature, Rekor entry/body/SET, inclusion proof and
 checkpoint. No skip flag, Python or `cosign` subprocess, sidecar, HTTP verifier,
 or structurally plausible bundle fallback is a production verification path.
 
-The published v1/v2 asset bytes and `StrategyArtifactRefV1` remain immutable
-historical evidence. V1's embedded bundle/policy fields are not a production
-compatibility contract and there is no V1 alias or runtime fallback. The additive
-v3 asset collection publishes the incompatible corrected type as
-`StrategyArtifactRefV2`; only a later reviewed T5d/T5e command/verifier handoff may
-enter v1.team runtime.
+This is the first production contract. There is one active V1 parser, dataclass,
+schema, golden set, asset index, and authority entry. Superseded pre-production
+shapes are deleted rather than accepted as aliases or fallbacks. Git history
+and immutable OCI digests retain audit evidence; runtime code does not.
 
 ## Python and inventory
 
@@ -104,15 +102,14 @@ or leave two writable canonical copies. Runtime verifier activation remains T5.
 
 Plan 18 T3 moves the exact reviewed execution-contract source bytes to
 `packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py`.
-The Task 2 receipt keeps its historical source path, commit and digest unchanged;
-the separate Task 3 distribution receipt declares the current canonical path and
-proves byte continuity. `src/custos/contracts/strategy_execution.py` is only a
-temporary implementation-free re-export shim.
+The canonical V1 receipt declares that source path and pins the coordinated
+Custos, Philosophers-Stone, and Crucible handoff bytes. No second source or
+re-export shim is retained.
 
-The Task 2 inventory and v1/v2 contract assets are immutable historical evidence.
-Run `make strategy-contract-assets` to verify those pinned bytes and generate the
-additive v3 ArtifactRefV2 schema, pre-sign golden, producer receipt, and digest
-index without regenerating the historical assets. `make check-toolkit-extraction`
+Run `make strategy-contract-assets` to regenerate the sole canonical V1
+ArtifactRef schema, pre-sign golden, verification receipt assets, contract
+receipt, and digest index. The command rejects predecessor tracks rather than
+preserving them. `make check-toolkit-extraction`
 reconstructs every T4 target from the pinned T3 Git blob, and
 `strategy-toolkit-parity-golden-v1.json` independently freezes pre-move fixed-input
 signal/order-intent and private-vendor indicator behavior.
@@ -126,8 +123,8 @@ Task 4b must reduce that baseline to zero before the distributions or 18b may be
 called strict or production-ready. Private third-party vendor code stays outside
 mypy and remains guarded by exact digests plus fixed-input parity.
 
-The current producer-only record is
-`Custos Plan 18 Task 5c ArtifactRefV2 producer receipt`. It remains
-`PRODUCED_AWAITING_CONSUMER_REVIEWS`, with handoff/runtime/production false. Custos
-must not fabricate PS or Crucible reviews; those owners must review exact v3 bytes
-before T5d/T5e can publish a corrected production handoff.
+The current authority record is
+`custos-plan-18-strategy-contract-v1-receipt.json`. It remains
+`CANONICAL_V1_PENDING_PRODUCER_RECEIPTS`, with handoff/runtime/production false.
+Custos must not fabricate PS or Crucible receipts; those owners must consume and
+pin the same exact V1 bytes before the coordinated production handoff closes.

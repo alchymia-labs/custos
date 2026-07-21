@@ -20,7 +20,7 @@ The fact shape before the outbox allocates `seq` is:
   "event_id": "<deterministic uuidv5>",
   "occurred_at": "<RFC3339 UTC>",
   "level": "INFO",
-  "component": "deployment_reconciler",
+  "component": "runner_command_runtime",
   "message": "Deployment status observed",
   "structured_fields": {},
   "correlation_id": "<uuid>",
@@ -46,7 +46,7 @@ global outbox event-deduplication table.
   `RunnerFactAuthority`, source sequence, event deduplication, SQLite outbox,
   subject, and `CRUCIBLE-RUNNER-FACT-BATCH-V1\0` signing domain as settlement,
   reconciliation, risk, and health facts.
-- A deployment does not enter Vault/G6/host when its runtime-log health binding
+- A deployment does not enter credential resolution/artifact activation/host when its runtime-log health binding
   cannot be resolved exactly from the validated capability receipt.
 - The outbox commits the fact before publish. A JetStream PubAck is required
   before the batch is deleted, which is the producer delivery checkpoint. A
@@ -64,7 +64,7 @@ Before enqueue, `RuntimeLogRedactor` recursively processes message and fields:
 
 - sensitive keys such as API keys/secrets, passwords, tokens, credentials,
   authorization, private keys, age keys, and KEKs are anonymized;
-- registered exact secrets and recognizable Bearer, `rkc2`, age secret key,
+- registered exact secrets and recognizable Bearer, `rkc1`, age secret key,
   private-key PEM, assignment, and high-entropy shapes are replaced;
 - unsupported objects, non-finite floats, excessive nesting/size, and any
   residual recognizable secret material reject the entire fact before SQLite.

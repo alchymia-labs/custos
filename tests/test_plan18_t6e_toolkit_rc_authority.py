@@ -12,7 +12,6 @@ from custos_toolkit.contracts import (
     ImmutableToolkitArtifactBindingV1,
     LockedToolkitDependencyV1,
     ToolkitRcAuthorityReceiptV1,
-    ToolkitRcAuthorityReceiptV2,
     ToolkitRcMemberRole,
     ToolkitRcMemberV1,
     ToolkitRcOciDescriptorV1,
@@ -41,9 +40,7 @@ from scripts.toolkit_rc_promote import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_V1 = ROOT / "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
-SCHEMA = ROOT / "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json"
-READY = ROOT / "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json"
+SCHEMA = ROOT / "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
 SOURCE_COMMIT = "a" * 40
 SOURCE_DATE_EPOCH = 1_704_067_200
 VERSION = "0.1.0rc1"
@@ -103,7 +100,7 @@ def _promotion_case(
     prerequisite_paths = (
         ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
         ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
-        ROOT / "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
+        ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json",
     )
     dependency_document = {
         "schema_version": "alephain.custos.toolkit-rc-dependency-locks.v1",
@@ -145,7 +142,7 @@ def _promotion_case(
             "dependencies" if name == "dependency_lock_evidence" else "prerequisites",
             {
                 "contract_schema": "toolkit_rc_receipt_manifest_v1.schema.json",
-                "contract_asset_index": "strategy-contract-assets-v2.json",
+                "contract_asset_index": "strategy-contract-assets-v1.json",
                 "dependency_lock_evidence": "toolkit-rc-dependency-locks.json",
                 "t4_zero_rewrite_receipt": prerequisite_paths[0].name,
                 "t4b_typing_closure_receipt": prerequisite_paths[1].name,
@@ -442,26 +439,18 @@ def _run_promotion(
     return output
 
 
-def test_v1_stays_historical_and_v2_ready_receipt_is_source_generated() -> None:
-    historical = json.loads(SCHEMA_V1.read_text(encoding="utf-8"))
-    assert historical == ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
+def test_v1_is_the_only_toolkit_authority_schema() -> None:
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
-    assert schema == ToolkitRcAuthorityReceiptV2.model_json_schema(mode="validation")
-
-    ready = ToolkitRcAuthorityReceiptV2.model_validate_json(READY.read_bytes()).root
-    assert ready.status == "READY_TOOLKIT_RC"
-    assert ready.ready is True
-    assert ready.handoff_ready is True
-    assert ready.final_blockers == ()
+    assert schema == ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
 
 
 def test_unknown_or_mutated_pending_state_fails_closed() -> None:
     document = {"status": "PENDING_T6E_EXTERNAL_RELEASE", "ready": False}
     with pytest.raises(ValueError):
-        ToolkitRcAuthorityReceiptV2.model_validate(document)
+        ToolkitRcAuthorityReceiptV1.model_validate(document)
     document["status"] = "READY_BY_TEST"
     with pytest.raises(ValueError):
-        ToolkitRcAuthorityReceiptV2.model_validate(document)
+        ToolkitRcAuthorityReceiptV1.model_validate(document)
 
 
 def test_nonproduction_publication_cannot_enter_promotion() -> None:
@@ -526,7 +515,7 @@ def test_independent_promotion_workflow_is_digest_only_and_read_only() -> None:
     assert "manifest_digest:" in workflow
     assert "source_commit:" in workflow
     assert "python -m scripts.toolkit_rc_promote" in workflow
-    assert "ToolkitRcAuthorityReceiptV2.model_validate_json" in workflow
+    assert "ToolkitRcAuthorityReceiptV1.model_validate_json" in workflow
     assert 'cd "$output_dir"' in workflow
     assert 'sha256sum "$output_name" > "$output_name.sha256"' in workflow
     assert 'sha256sum "$output" > "$output.sha256"' not in workflow
@@ -538,18 +527,15 @@ def test_independent_promotion_workflow_is_digest_only_and_read_only() -> None:
 def test_independent_promotion_emits_only_a_digest_bound_ready_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    stable_ready = READY.read_bytes()
     output = _run_promotion(tmp_path, monkeypatch)
     document = json.loads(output.read_text(encoding="utf-8"))
 
     assert document["status"] == "READY_TOOLKIT_RC"
-    assert document["receipt_schema_version"] == 2
+    assert document["receipt_schema_version"] == 1
     assert (
-        document["predecessor_oci_manifest"]["coordinate"]
+        document["publication_manifest"]["coordinate"]
         == document["publication_receipt"]["oci_coordinate"]
     )
-    assert output != READY
-    assert READY.read_bytes() == stable_ready
 
 
 def test_promotion_rejects_signed_provenance_with_an_omitted_release_subject(

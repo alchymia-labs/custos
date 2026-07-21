@@ -8,7 +8,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
-INDEX_PATH = ROOT / "docs/authority/strategy-contract-assets-v1.json"
+AUTHORITY_MANIFEST_PATH = ROOT / "authority-manifest.json"
 TASK_4_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
 BASE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
@@ -68,13 +68,20 @@ def test_extraction_manifest_has_the_same_one_to_one_mapping() -> None:
     assert actual == expected
 
 
-def test_task_2_asset_index_still_binds_the_immutable_inventory_bytes() -> None:
-    inventory_bytes = INVENTORY_PATH.read_bytes()
-    indexed = {entry["path"]: entry for entry in _load(INDEX_PATH)["assets"]}
-    record = indexed["docs/authority/strategy-toolkit-inventory-v1.json"]
+def test_repository_manifest_registers_the_inventory_as_authority() -> None:
+    manifest = _load(AUTHORITY_MANIFEST_PATH)
+    records = [
+        entry
+        for entry in manifest["authority_documents"]
+        if entry["role"] == "strategy_toolkit_inventory"
+    ]
 
-    assert record["sha256"] == hashlib.sha256(inventory_bytes).hexdigest()
-    assert record["size_bytes"] == len(inventory_bytes)
+    assert records == [
+        {
+            "role": "strategy_toolkit_inventory",
+            "path": "docs/authority/strategy-toolkit-inventory-v1.json",
+        }
+    ]
 
 
 def test_task_4_receipt_is_extraction_only_with_open_blockers() -> None:

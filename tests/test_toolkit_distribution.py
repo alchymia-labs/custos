@@ -17,7 +17,6 @@ NAUTILUS_PROJECT = ROOT / "packages/custos-strategy-toolkit-nautilus/pyproject.t
 BASE_SOURCE = (
     ROOT / "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
 )
-LEGACY_SOURCE = ROOT / "src/custos/contracts/strategy_execution.py"
 
 
 def _toml(path: Path) -> dict[str, object]:
@@ -76,47 +75,21 @@ def test_distribution_metadata_has_disjoint_python_baselines_and_exact_runtime()
     assert all("python_version" not in dependency for dependency in dependencies)
 
 
-def test_contract_implementation_has_one_canonical_source_and_legacy_shim() -> None:
+def test_contract_implementation_has_one_canonical_source() -> None:
     canonical = BASE_SOURCE.read_text(encoding="utf-8")
-    shim = LEGACY_SOURCE.read_text(encoding="utf-8")
 
     assert "class StrategyExecutionContextV1" in canonical
-    assert "class StrategyExecutionContextV1" not in shim
-    assert "from custos_toolkit.contracts.strategy_execution import *" in shim
 
 
-def test_task3_receipt_explicitly_succeeds_task2_canonical_source() -> None:
-    receipt_path = ROOT / "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
+def test_canonical_v1_receipt_pins_the_only_contract_source() -> None:
+    receipt_path = ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    current = receipt["current_canonical_source"]
-    historical = receipt["historical_task_2_source"]
-
-    assert current["path"] == BASE_SOURCE.relative_to(ROOT).as_posix()
-    assert current["sha256"] == historical["sha256"]
-    successor_path = ROOT / "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
-    successor = json.loads(successor_path.read_text(encoding="utf-8"))
     assert (
-        hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest()
-        == successor["producer"]["source_sha256"]
+        hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest() == receipt["producer"]["source_sha256"]
     )
-    assert successor["predecessor"]["task_2_receipt"] == {
-        "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
-        "sha256": "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88",
-    }
-    assert historical["path"] == "src/custos/contracts/strategy_execution.py"
-    assert historical["producer_commit"] == "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0"
-    assert receipt["receipt_status"] == "READY"
-    assert receipt["handoff_ready"] is True
-    assert receipt["implementation"] == {
-        "repository": "tesseract-trading/custos",
-        "commit": "efc01da67b432e9b35beee3498415efc1bc46b98",
-    }
-    assert receipt["verification"]["status"] == "PASS"
-    assert receipt["verification"]["environment"] == {
-        "checkout_head": "efc01da67b432e9b35beee3498415efc1bc46b98",
-        "worktree_clean": True,
-    }
-    assert receipt["scope_ceiling"].startswith("T3 distribution boundary only")
+    assert receipt["status"] == "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS"
+    assert "predecessor" not in receipt
+    assert "historical_task_2_source" not in receipt
 
 
 def test_lightweight_base_import_does_not_load_nautilus_or_mutate_sys_path() -> None:

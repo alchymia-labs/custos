@@ -26,9 +26,9 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
-SIGNATURE_CONTEXT = b"CRUCIBLE-DOMAIN-EVENT-V2\0"
+SIGNATURE_CONTEXT = b"CRUCIBLE-DOMAIN-EVENT-V1\0"
 FINGERPRINT_CONTEXT = b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0"
-SIGNATURE_PROFILE = "crucible-domain-event-v2-exact-bytes"
+SIGNATURE_PROFILE = "crucible-domain-event-v1-exact-bytes"
 SIGNATURE_ENCODING = "application/json;base64url"
 SUBJECT_PREFIX = "crucible_rust.domain"
 
@@ -84,9 +84,7 @@ _PREVIOUS_FIELDS = ("policy_id", "policy_version", "generation", "policy_digest"
 _TENANT_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _CURRENCY_PATTERN = re.compile(r"^[A-Z0-9]{3,12}$")
 _DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_POSITIVE_DECIMAL_PATTERN = re.compile(
-    r"^(?:[1-9][0-9]*)(?:\.[0-9]*[1-9])?$|^0\.[0-9]*[1-9]$"
-)
+_POSITIVE_DECIMAL_PATTERN = re.compile(r"^(?:[1-9][0-9]*)(?:\.[0-9]*[1-9])?$|^0\.[0-9]*[1-9]$")
 _BASE64URL_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 _TRADING_MODES = frozenset({"live", "sandbox", "testnet"})
 
@@ -308,9 +306,7 @@ def _parse_envelope(envelope: dict[str, Any]) -> _EnvelopeMaterial:
     if not isinstance(fingerprint, str) or not _DIGEST_PATTERN.fullmatch(fingerprint):
         raise ValueError("fingerprint must be lowercase SHA-256")
     event_bytes = _decode_base64url(envelope["event_bytes_base64url"], "event bytes")
-    signature_input = _decode_base64url(
-        envelope["signature_input_base64url"], "signature input"
-    )
+    signature_input = _decode_base64url(envelope["signature_input_base64url"], "signature input")
     signature = _decode_base64url(envelope["signature_base64url"], "signature")
     if len(signature) != 64:
         raise ValueError("signature must contain exactly 64 Ed25519 bytes")
@@ -334,8 +330,8 @@ def _parse_exact_event(
     _require_exact_keys(event, _EVENT_FIELDS, "event document", ordered=True)
     if _compact_json_bytes(event) != event_bytes:
         raise ValueError("event document is not exact compact JSON")
-    if event["schema_version"] != 2:
-        raise ValueError("event schema_version must be exactly 2")
+    if event["schema_version"] != 1:
+        raise ValueError("event schema_version must be exactly 1")
     for field in ("event_id", "correlation_id", "actor_assertion_jti"):
         _require_canonical_uuid(event[field], f"event.{field}")
     _require_timestamp(event["occurred_at"], "event.occurred_at")
@@ -367,8 +363,7 @@ def _parse_exact_event(
     policy = RunnerAggregateCapPolicyV1.model_validate(payload)
 
     expected_subject = (
-        f"{SUBJECT_PREFIX}.{policy.tenant_id}.{policy.trading_mode}."
-        "risk.runner_safety_policy.v1"
+        f"{SUBJECT_PREFIX}.{policy.tenant_id}.{policy.trading_mode}.risk.runner_safety_policy.v1"
     )
     if subject != expected_subject:
         raise ValueError("subject differs from policy tenant and trading mode")
@@ -382,9 +377,7 @@ def _parse_exact_event(
         or event["event_type"] != "RunnerAggregateCapPolicyV1"
     ):
         raise ValueError("event target differs from policy scope or generation")
-    fingerprint = hashlib.sha256(
-        _frame(FINGERPRINT_CONTEXT, subject, event_bytes)
-    ).hexdigest()
+    fingerprint = hashlib.sha256(_frame(FINGERPRINT_CONTEXT, subject, event_bytes)).hexdigest()
     if fingerprint != expected_fingerprint:
         raise ValueError("policy event fingerprint differs")
     return policy

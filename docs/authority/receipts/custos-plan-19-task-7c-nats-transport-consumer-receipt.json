@@ -1,37 +1,19 @@
 {
   "receipt_schema_version": 1,
   "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
-  "receipt_status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
-  "consumer_code_commit": "dcd1ca09d01c0c7e9861b06b80fda7d384e5326b",
+  "receipt_status": "PENDING_CRUCIBLE_V1_CREDENTIAL_AUTHORITY",
   "repository": "tesseract-trading/custos",
   "plan": "Custos Plan 19",
-  "task": "T7C authenticated NATS transport code checkpoint",
+  "task": "T7C authenticated NATS transport",
   "producer_authority": {
     "repository": "tesseract-trading/crucible-rust",
-    "vendor_root": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1",
-    "contract_receipt": {
-      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-contract-v1.json",
-      "sha256": "317ef22e0c3e06620e700f49747d4097afb255643058d086dfaaf0f0419ea777"
+    "authority_receipt": null,
+    "authority_ready": false,
+    "command_streams": {
+      "sim": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
+      "live": "CRUCIBLE_RUNNER_COMMAND_LIVE_V1"
     },
-    "http_receipt": {
-      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-http-v1.json",
-      "sha256": "17ece1f5d840a792de12ed1565a61402fbddb3bc6b275614bd260bcfc83ede07"
-    },
-    "provision_receipt": {
-      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-provision-v1.json",
-      "sha256": "ec61b53eaa8c907d2878418739c39c8444b6f5de91864aa485e264e970993341"
-    },
-    "revocation_receipt": {
-      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-transport-revocation-v1.json",
-      "sha256": "c044c91656458ad470afef4fccb7accf048831f527a237dcac2ec2d6f0e37521"
-    },
-    "revocation_evidence_receipt": {
-      "path": "docs/authority/receipts/crucible-plan-100-runner-nats-revocation-evidence-v1.json",
-      "sha256": "fb93ff51b4c8c0b594addd2d9b9634d088f1da8f29e0f434ece932ef00a48f97",
-      "producer_authority_commit": "9538d6237c762347d136b2779f13f5455675e142"
-    },
-    "current_stream": "CRUCIBLE_DOMAIN_AUDIT",
-    "historical_second_stream_rejected": true
+    "command_subject_prefix": "crucible.runner.command.v1"
   },
   "implementation": {
     "transport_authority": "src/custos/core/nats_transport.py",
@@ -39,72 +21,53 @@
     "runner_fact_publisher": "src/custos/core/runner_fact.py",
     "daemon_composition": "src/custos/cli/_daemon.py",
     "lifecycle_cli": "src/custos/cli/subcommands/nats_transport.py",
-    "machine_http_client": "src/custos/core/machine_credential_vault.py",
-    "acceptance": [
-      "tests/test_plan19_t7c_nats_transport.py",
-      "tests/test_crucible_nats_client.py",
-      "tests/test_runner_fact_outbox.py",
-      "tests/integration/test_plan19_t7c_nats_revocation.py"
-    ]
+    "machine_http_client": "src/custos/core/machine_credential_vault.py"
+  },
+  "v1_contract": {
+    "authority_coordinate": "crucible.runner-nats-transport.v1",
+    "mode_to_domain": {
+      "sandbox": "sim",
+      "testnet": "sim",
+      "live": "live"
+    },
+    "durable_name_prefix": "custos-v1-",
+    "delivery_subject_prefix": "custos.runner.command.v1.delivery.",
+    "runner_fact_subject_prefix": "crucible.runner.fact.v1.",
+    "one_authority_per_mode": true,
+    "one_encrypted_vault_per_mode": true,
+    "multi_mode_jwt_allowed": false,
+    "exact_tenant_runner_mode_filters_required": true,
+    "legacy_subject_fallback_allowed": false,
+    "legacy_credential_parser_allowed": false
   },
   "truth": {
     "custos_user_nkey_seed_owner": true,
-    "dedicated_sops_age_transport_vault": true,
+    "per_mode_sops_age_transport_vaults": true,
+    "supervisor_transport_set_implemented": true,
+    "per_mode_connection_and_command_consumer_implemented": true,
+    "runner_fact_mode_router_implemented": true,
+    "command_subject_payload_mode_double_binding_implemented": true,
+    "sim_live_account_issuer_stream_binding_implemented": true,
     "user_seed_sent_over_http_or_nats": false,
-    "user_seed_or_jwt_logged": false,
     "crucible_signer_or_admin_secret_present": false,
-    "machine_authenticated_direct_crucible_enrollment": true,
-    "user_nkey_proof_of_possession": true,
-    "pinned_account_issuer_verified": true,
-    "jwt_signature_and_acl_verified": true,
+    "pinned_account_issuer_required": true,
+    "jwt_signature_and_acl_verification_implemented": true,
     "tls_ca_and_exact_server_name_required": true,
-    "anonymous_nats_runtime_path": false,
-    "plaintext_nats_runtime_path": false,
-    "wildcard_command_subscription": false,
-    "runner_only_legacy_durable": false,
-    "existing_tenant_runner_durable_exact_readback": true,
+    "anonymous_or_plaintext_runtime_path": false,
     "jetstream_mutation_authority_present": false,
-    "runner_fact_uses_same_authenticated_profile": true,
-    "inbound_ack_and_outbound_puback_remain_separate": true,
-    "rotation_stages_pending_generation_before_local_promotion": true,
-    "failed_activation_keeps_old_generation_active": true,
-    "broker_authorization_denial_stops_execution": true,
-    "superseded_revocation_route_consumed": true,
-    "retiring_generation_durable_until_evidence_acceptance": true,
-    "replacement_connectivity_and_challenge_freshness_durable": true,
-    "response_loss_restart_resubmission_ready": true,
-    "network_failure_cannot_count_as_reconnect_denial": true,
-    "local_user_jwt_memory_resolver_gate_passed": true,
     "production_transport_credential_provisioned": false,
     "production_durable_verified": false,
-    "old_generation_reconnect_denial_attested": false,
-    "real_nats_integration_passed": true,
+    "real_nats_integration_passed": false,
     "team_daemon_enabled": false,
-    "live_ready": false,
     "runtime_ready": false,
+    "live_ready": false,
     "production_ready": false
   },
-  "focused_verification": {
-    "result": "27 passed",
-    "suites": [
-      "tests/test_plan19_t7c_nats_transport.py",
-      "tests/test_crucible_nats_client.py",
-      "tests/test_runner_fact_outbox.py",
-      "tests/test_plan19_t5_daemon_supervision.py"
-    ]
-  },
-  "local_real_nats_user_jwt_resolver_verification": {
-    "result": "1 passed",
-    "command": "make verify-nats-revocation",
-    "image": "nats:2.10-alpine",
-    "gate_commit": "51fdc9ae514d1670dde492d8cc2da4dde2d24f62",
-    "scope": "isolated TLS Operator plus Account JWT memory resolver, two User JWT credentials, account revocation reload, forced old disconnect, exact old reconnect rejection, and replacement connectivity through the Custos transport profile",
-    "production_equivalent_runtime_receipt": false
-  },
   "open_blockers": [
-    "production Account signer and System Account resolver credentials are not provisioned",
-    "production tenant runner durable has no exact runtime readback receipt",
-    "production-equivalent User JWT and Account resolver forced-disconnect/reconnect-denial chain has no runtime receipt",
-    "cross repository T8 runtime composition is not complete"
+    "Crucible has not published the canonical V1 credential and durable authority receipt",
+    "production tenant runner mode durables have no exact SIM/LIVE runtime readback receipt",
+    "production-equivalent credential rotation and reconnect-denial evidence is absent",
+    "real NATS SIM/LIVE account isolation has not passed the explicit integration gate",
+    "team execution remains blocked on the authenticated StrategyRelease resolver"
   ]
 }

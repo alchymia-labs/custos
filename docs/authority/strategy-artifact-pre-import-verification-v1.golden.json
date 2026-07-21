@@ -1,0 +1,189 @@
+{
+  "canonical_name": "Custos Plan 18 canonical V1 contract golden",
+  "command_consumer_ready": false,
+  "contract_consumer_ready": false,
+  "fixture_schema_version": 1,
+  "production_ready": false,
+  "receipt": {
+    "artifact_ref": {
+      "artifact_coordinate": "oci://registry.example.invalid/strategies/team-alpha@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "artifact_kind": "wheel",
+      "artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "artifact_size_bytes": 4096,
+      "base_contracts_version": "1.0.0rc1",
+      "build_inputs": [
+        {
+          "name": "build-lock",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+        }
+      ],
+      "contract_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "engine": "nautilus",
+      "engine_toolkit_version": "1.0.0rc1",
+      "engine_version": "1.230.0",
+      "manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "manifest_size_bytes": 1024,
+      "normalized_source_tree_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "python_version": "3.12.4",
+      "required_runtime_artifacts": [
+        {
+          "media_type": "application/json",
+          "name": "runtime-config-v1.json",
+          "role": "runtime_artifact",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "size_bytes": 512
+        }
+      ],
+      "sbom_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "schema_version": 1,
+      "source_commit": "0123456789abcdef0123456789abcdef01234567",
+      "source_repository": "alchymia-labs/philosophers-stone"
+    },
+    "artifact_ref_digest": "23846c198dbd3be46117b3981a185c57cc59834e6f4649651109f287bc57adc2",
+    "crucible_artifact_acceptance": {
+      "artifact_evidence_digest": "8888888888888888888888888888888888888888888888888888888888888888",
+      "decision": "accepted",
+      "receipt_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "schema_version": 1,
+      "strategy_release_id": "strategy-release-018f6e9a-v1"
+    },
+    "crucible_artifact_acceptance_receipt_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "crucible_artifact_evidence": {
+      "artifact_evidence_digest": "8888888888888888888888888888888888888888888888888888888888888888",
+      "artifact_ref_digest": "23846c198dbd3be46117b3981a185c57cc59834e6f4649651109f287bc57adc2",
+      "attestation_ref_digest": "8d46cc9e3a4d3e56f27d73608186c493f46ccc776c2f12e19042012db7069a01",
+      "bundle_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "local_policy_evaluation": {
+        "authority": "crucible-rust",
+        "decision": "accepted",
+        "policy_digest": "9999999999999999999999999999999999999999999999999999999999999999",
+        "policy_id": "strategy-release-acceptance-v1",
+        "policy_version": 1
+      },
+      "manifest_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "release_bom_digest": "7f28efd94d784c64fc6b053f05bf324b6ec9b13d2d3a8a90d37a91e2367eae30",
+      "schema_version": 1,
+      "signed_producer_claims": {
+        "release_bom_sha256": "7f28efd94d784c64fc6b053f05bf324b6ec9b13d2d3a8a90d37a91e2367eae30",
+        "strategy_artifact_coordinate": "oci://registry.example.invalid/strategies/team-alpha@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "strategy_artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "strategy_manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "strategy_release_id": "strategy-release-018f6e9a-v1"
+      },
+      "sigstore_proof": {
+        "bundle_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "certificate_identity": "release@philosophers-stone",
+        "certificate_issuer": "https://token.actions.githubusercontent.com",
+        "certificate_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "checkpoint_verified": true,
+        "rekor_log_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "sct_verified": true,
+        "set_verified": true,
+        "statement_sha256": "96818141c79fb3c794f1a2152ca31f8b5323f3851480a65872eb86fd94154266"
+      },
+      "statement_digest": "96818141c79fb3c794f1a2152ca31f8b5323f3851480a65872eb86fd94154266",
+      "strategy_release_id": "strategy-release-018f6e9a-v1"
+    },
+    "crucible_artifact_evidence_digest": "8888888888888888888888888888888888888888888888888888888888888888",
+    "detached_attestation_ref": {
+      "bundle_media_type": "application/vnd.dev.sigstore.bundle+json;version=0.3",
+      "bundle_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "schema_version": 1,
+      "statement_sha256": "96818141c79fb3c794f1a2152ca31f8b5323f3851480a65872eb86fd94154266"
+    },
+    "detached_attestation_ref_digest": "8d46cc9e3a4d3e56f27d73608186c493f46ccc776c2f12e19042012db7069a01",
+    "release_bom": {
+      "build_lock_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "engine": "nautilus",
+      "engine_version": "1.230.0",
+      "entry_point_group": "custos.strategies",
+      "entry_point_name": "team_alpha",
+      "execution_abi_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "members": [
+        {
+          "media_type": "application/vnd.python.wheel",
+          "name": "team_alpha-1.0.0-py3-none-any.whl",
+          "role": "strategy_wheel",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "size_bytes": 4096
+        },
+        {
+          "media_type": "application/json",
+          "name": "strategy-manifest-v1.json",
+          "role": "strategy_manifest",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "size_bytes": 1024
+        },
+        {
+          "media_type": "application/json",
+          "name": "runtime-config-v1.json",
+          "role": "runtime_artifact",
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "size_bytes": 512
+        }
+      ],
+      "producer_repository": "alchymia-labs/philosophers-stone",
+      "schema_version": 1,
+      "strategy_artifact_coordinate": "oci://registry.example.invalid/strategies/team-alpha@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "strategy_artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "strategy_manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "strategy_release_id": "strategy-release-018f6e9a-v1",
+      "strategy_source_commit": "0123456789abcdef0123456789abcdef01234567",
+      "strategy_source_tree_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "toolkit_sbom_sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    "release_bom_digest": "7f28efd94d784c64fc6b053f05bf324b6ec9b13d2d3a8a90d37a91e2367eae30",
+    "release_statement": {
+      "_type": "https://in-toto.io/Statement/v1",
+      "predicate": {
+        "release_bom_sha256": "7f28efd94d784c64fc6b053f05bf324b6ec9b13d2d3a8a90d37a91e2367eae30",
+        "strategy_artifact_coordinate": "oci://registry.example.invalid/strategies/team-alpha@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "strategy_artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "strategy_manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "strategy_release_id": "strategy-release-018f6e9a-v1"
+      },
+      "predicate_type": "https://the-alephain-guild.dev/strategy-release/v1",
+      "schema_version": 1,
+      "subject": [
+        {
+          "digest": {
+            "sha256": "7f28efd94d784c64fc6b053f05bf324b6ec9b13d2d3a8a90d37a91e2367eae30"
+          },
+          "name": "strategy-release-bom-v1"
+        },
+        {
+          "digest": {
+            "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "name": "strategy-artifact"
+        },
+        {
+          "digest": {
+            "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "name": "strategy-manifest-v1"
+        }
+      ]
+    },
+    "release_statement_digest": "96818141c79fb3c794f1a2152ca31f8b5323f3851480a65872eb86fd94154266",
+    "runner_local_policy_decision": {
+      "artifact_acceptance_receipt_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifact_evidence_digest": "8888888888888888888888888888888888888888888888888888888888888888",
+      "artifact_ref_digest": "23846c198dbd3be46117b3981a185c57cc59834e6f4649651109f287bc57adc2",
+      "authority": "custos-runner-local",
+      "decision": "accepted",
+      "evaluated_at": "2026-07-15T12:00:01Z",
+      "policy_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "policy_id": "custos-runner-artifact-live-v1",
+      "policy_version": 1,
+      "release_bom_digest": "7f28efd94d784c64fc6b053f05bf324b6ec9b13d2d3a8a90d37a91e2367eae30",
+      "schema_version": 1
+    },
+    "schema_version": 1,
+    "verification_profile": "custos-artifact-pre-import-verification-v1",
+    "verified_at": "2026-07-15T12:00:01Z"
+  },
+  "receipt_digest": "430bf5e697468c8c92142f595826002afc4e748c28dbd94ba458a7a3849e1802",
+  "runtime_ready": false,
+  "status": "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS"
+}

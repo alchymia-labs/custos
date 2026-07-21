@@ -42,7 +42,10 @@ class CrucibleNatsClient:
         self.machine_credential.assert_active()
         self.connection_profile.assert_active()
         self._nc = await self.connection_profile.connect(
-            name=f"custos-command-{self.tenant_id}-{self.runner_id}"
+            name=(
+                f"custos-command-{self.tenant_id}-{self.runner_id}-"
+                f"{self.connection_profile.trading_mode}"
+            )
         )
         self._js = self._nc.jetstream()
         self._jsm = self._nc.jetstream_manager()
@@ -71,6 +74,19 @@ class CrucibleNatsClient:
             consumer=durable,
             manual_ack=True,
         )
+
+    def assert_command_binding(self, subject: str, command: Any) -> None:
+        """Bind the broker subject and verified payload to this exact-mode session."""
+
+        expected_subjects = list(self.connection_profile.durable_config["filter_subjects"])
+        if expected_subjects != [subject]:
+            raise RunnerNatsTransportError(
+                "runner command subject is outside the exact CR100 mode authority"
+            )
+        if getattr(command, "trading_mode", None) != self.connection_profile.trading_mode:
+            raise RunnerNatsTransportError(
+                "runner command payload mode differs from the authenticated session"
+            )
 
 
 def _enum_value(value: object) -> object:

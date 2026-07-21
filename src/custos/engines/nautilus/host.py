@@ -1,12 +1,12 @@
 """NT process orchestration + ExecutionEngineAdapter CEX/NT implementation
 (target: design for three, implement one).
 
-Two hosts satisfy NautilusHostProtocol (deployment_reconciler.py):
-- NoopHost: stub for paper / dev / sim — the G6 gate rejects it on live.
+Two hosts satisfy ExecutionEngineProtocol:
+- NoopHost: explicit contract-test stub which never claims live capability.
 - NtTradingNodeHost: real NautilusTrader host. deploy dispatches on
   spec.trading_mode: sandbox (real-time data + locally simulated execution),
   testnet (real Binance exec on the testnet endpoint), and live (real exchange,
-  gated by the G6 host gate + separation-of-duties approval).
+  gated by verified artifact, credential, promotion and local live admission).
 
 NautilusTrader is an optional runtime (`nautilus` extra, Python 3.12+). This
 module import-guards it so the reconciler can import NoopHost on a base install
@@ -16,15 +16,14 @@ without NT; NtTradingNodeHost.deploy fails fast if NT is missing.
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
 from collections.abc import Callable
 from decimal import Decimal
 from inspect import isawaitable
-from pathlib import Path
 from uuid import UUID
 
 from custos.core.engine_protocol import (
+    ActivatedEngineArtifactV1,
     ConnectivityState,
     EngineLifecycleAuthority,
     EngineReadinessChecks,
@@ -49,7 +48,6 @@ from custos.core.runner_fact_producer import (
 from custos.engines.nautilus.portfolio_snapshot import (
     NautilusPortfolioSnapshotProvider,
 )
-from custos.engines.nautilus.strategy_loader import load_strategy_class
 
 try:
     from nautilus_trader.adapters.binance.factories import (
@@ -79,7 +77,7 @@ _log = get_logger("custos.nautilus_host")
 _DEFAULT_STARTING_BALANCES = ["10_000 USDT"]
 _STOP_TIMEOUT_SECS = 30.0
 
-# Venues NtTradingNodeHost can execute. Declared NT-free here so the G6 gate can
+# Venues NtTradingNodeHost can execute. Declared NT-free here so admission can
 # query capability on a base install, and kept in sync with the venue-config
 # module's wired connectors by a drift-guard test (test_nt_binance_venue.py).
 _SUPPORTED_VENUES = frozenset({"binance", "binance_perpetual"})
@@ -109,20 +107,25 @@ class NoopHost:
     """Stub NautilusHost for non-execution path.
 
     It only logs structured events and returns placeholders so reconcile can run in
-    paper / dev / sim mode. Live mode is rejected by the G6 gate
-    (deployment_reconciler._check_g6_gate), because this stub would silently
+    paper / dev / sim mode. Live mode is rejected by execution admission,
+    because this stub would silently
     accept a live spec but never execute. A real NT host (NtTradingNodeHost) replaces
     this stub once the adapter is fully wired.
 
-    The method signatures exactly match NautilusHostProtocol (deployment_reconciler.py)
-    so reconciler can ducktype this dependency and G6 gate can immediately reject
+    The method signatures exactly match ExecutionEngineProtocol so the lifecycle
+    supervisor can use this dependency and admission can immediately reject
     supports_live.
     """
 
     def __init__(self) -> None:
         self._lifecycle_authorities: dict[str, EngineLifecycleAuthority] = {}
 
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(
+        self,
+        spec: dict,
+        credential: dict,
+        artifact: ActivatedEngineArtifactV1,
+    ) -> str:
         deployment_instance_id = str(spec.get("deployment_instance_id") or "")
         self._lifecycle_authorities[deployment_instance_id] = EngineLifecycleAuthority.from_spec(
             spec
@@ -130,6 +133,7 @@ class NoopHost:
         _log.info(
             "nautilus_host_deploy_stub",
             deployment_instance_id=deployment_instance_id,
+            artifact_activation_id=artifact.activation_id,
         )
         return f"container-{deployment_instance_id}"
 
@@ -145,7 +149,7 @@ class NoopHost:
 
     def supports_live(self) -> bool:
         # Fail-safe: a stub that neither routes orders nor holds venue state must
-        # never claim live capability — the G6 gate rejects it on live.
+        # Never claim live capability; execution admission rejects it on live.
         return False
 
     def supports_venue(self, venue: str) -> bool:
@@ -265,9 +269,14 @@ class NtTradingNodeHost:
     def supports_venue(self, venue: str) -> bool:
         return venue.lower() in _SUPPORTED_VENUES
 
-    async def deploy(self, spec: dict, credential: dict) -> str:
+    async def deploy(
+        self,
+        spec: dict,
+        credential: dict,
+        artifact: ActivatedEngineArtifactV1,
+    ) -> str:
         self._ensure_nt_available()
-        spec_id = str(spec["spec_id"])
+        spec_id = str(spec["deployment_spec_id"])
         deployment_instance_id = str(spec["deployment_instance_id"])
         lifecycle_authority = EngineLifecycleAuthority.from_spec(spec)
         if deployment_instance_id in self._active_nodes:
@@ -277,19 +286,9 @@ class NtTradingNodeHost:
                 f"deployment instance {deployment_instance_id!r} already deployed; call stop first"
             )
 
-        # Red line layer 1: verify code_hash before any strategy code is imported.
-        # strategy_registry_name (optional) turns on the second-line check that
-        # the ps toolkit registry binds the operator-supplied name to the class
-        # the loader picked — see load_strategy_class docstring.
-        strategy_path = Path(spec["strategy_path"])
-        strategy_cls = load_strategy_class(
-            strategy_path,
-            spec.get("code_hash"),
-            expected_registry_name=spec.get("strategy_registry_name"),
-        )
-        # Instantiate before building the node so a strategy-config failure never
-        # leaves a built-but-unregistered node leaked.
-        strategy = self._instantiate_strategy(strategy_cls, spec)
+        if not artifact.activation_id.strip():
+            raise RuntimeError("verified artifact activation identity is required")
+        strategy = artifact.strategy
 
         # Imported lazily: venue_binance imports NautilusTrader at module top.
         from custos.engines.nautilus import venue_binance as venue
@@ -379,6 +378,7 @@ class NtTradingNodeHost:
             trading_mode=trading_mode,
             connector=spec.get("connector"),
             permission_scope=credential.get("permission_scope"),
+            artifact_activation_id=artifact.activation_id,
             strategy=type(strategy).__name__,
         )
         return deployment_instance_id
@@ -403,7 +403,7 @@ class NtTradingNodeHost:
         if trading_mode == "live":
             _log.warning(
                 "nt_live_deploy_requested",
-                spec_id=spec.get("spec_id"),
+                spec_id=spec.get("deployment_spec_id"),
                 connector=spec.get("connector"),
                 promotion_id=spec.get("promotion_id"),
             )
@@ -446,7 +446,7 @@ class NtTradingNodeHost:
         strategy_id = spec.get("strategy_id")
         if not strategy_id:
             raise RuntimeError("validated DeploymentSpec lost its canonical strategy_id")
-        spec_id = spec["spec_id"]
+        spec_id = spec["deployment_spec_id"]
         deployment_instance_id = str(spec.get("deployment_instance_id") or "").strip()
         deployment_spec_digest = str(spec.get("deployment_spec_digest") or "").strip()
         if not deployment_instance_id or not deployment_spec_digest:
@@ -787,19 +787,6 @@ class NtTradingNodeHost:
             drawdown_pct=drawdown_pct,
             reliable=True,
         )
-
-    def _instantiate_strategy(self, strategy_cls, spec: dict):
-        """Instantiate the strategy: a module-level create_strategy(config) factory
-        wins (ps-style entry point); otherwise the class with NT's default config.
-
-        The module is resolved via sys.modules (the loader registers it there):
-        inspect.getmodule returns None for dynamically-loaded strategy modules.
-        """
-        module = sys.modules.get(strategy_cls.__module__)
-        factory = getattr(module, "create_strategy", None) if module is not None else None
-        if callable(factory):
-            return factory(spec.get("strategy_config", {}))
-        return strategy_cls()
 
     @staticmethod
     def _trader_id(deployment_instance_id: str) -> str:

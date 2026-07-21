@@ -186,18 +186,18 @@ class _TransportProfile:
         return None
 
     def assert_publish_subject(self, subject: str) -> None:
-        assert subject.startswith("crucible.runner_fact.")
+        assert subject.startswith("crucible.runner.fact.v1.")
 
 
 def _publisher(outbox: RunnerFactOutbox, jetstream: _JetStreamStub) -> RunnerFactJetStreamPublisher:
     publisher = RunnerFactJetStreamPublisher(
-        connection_profile=_TransportProfile(),
+        connection_profiles={"sandbox": _TransportProfile()},
         outbox=outbox,
         runner_id=_RUNNER_ID,
         authority_guard=lambda: None,
     )
-    publisher._nats = _ConnectedNatsStub()  # noqa: SLF001 - no live broker.
-    publisher._jetstream = jetstream  # noqa: SLF001 - characterize the existing PubAck seam.
+    publisher._nats = {"sandbox": _ConnectedNatsStub()}  # noqa: SLF001 - no live broker.
+    publisher._jetstreams = {"sandbox": jetstream}  # noqa: SLF001 - characterize PubAck.
     return publisher
 
 

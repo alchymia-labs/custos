@@ -44,12 +44,12 @@ the header; `payload_digest = sha256(canonical_json(facts))`. The bytes signed
 are exactly `DOMAIN || canonical_json(header)`. Canonical JSON is UTF-8,
 compact, sorts object members by ascending Unicode code point, preserves array
 order, does not ASCII-escape ordinary Unicode, rejects NaN and binary floats,
-and has no trailing newline. The candidate signing-preimage golden fixes the
+and has no trailing newline. The V1 signing-preimage golden fixes the
 exact bytes, digest, synthetic key and signature for cross-language consumers.
 
 ## Closed fact union
 
-The immutable v1 candidate retains the existing 13 wire kind names. Unknown
+The canonical first-production V1 retains the existing 13 wire kind names. Unknown
 kinds are terminal contract violations; they cannot fall back to unsigned logs.
 
 | Projector | Accepted `facts[].kind` |
@@ -99,12 +99,11 @@ repeat the successful engine action.
 Local safety continues while Crucible is unavailable. Custos never downgrades a
 fact to an unsigned compatibility topic.
 
-## Candidate readiness ceiling
+## V1 readiness ceiling
 
-`custos.runner-fact.v1/candidate-2026-07-15.2` is the current producer contract
-candidate and supersedes `.1`, whose receipt remains immutable historical
-evidence with status `NON_CURRENT_SUPERSEDED` in the current authority index.
-Its synthetic Ed25519 key and signature are cross-language golden evidence only;
-they are not runtime identity evidence. Until Crucible Plan 90 Phase A returns a
-receipt over the exact candidate bytes, projector compatibility, runtime RC,
-real round-trip, live, runtime and production readiness remain false.
+`custos.runner-fact.v1` is the sole producer contract authority. Its synthetic
+Ed25519 key and signature are cross-language golden evidence only; they are not
+runtime identity evidence. Pre-production candidate lineage is retained only in
+Git history. Until Crucible returns a receipt over the exact V1 bytes,
+projector compatibility, runtime RC, real round-trip, live, runtime and
+production readiness remain false.

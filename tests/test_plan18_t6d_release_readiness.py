@@ -111,7 +111,7 @@ def _prepare(build_root: Path, output_root: Path):
         contract_schema_path=(
             ROOT / "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
         ),
-        contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v2.json"),
+        contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v1.json"),
         t4_zero_rewrite_receipt_path=(
             ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
         ),
@@ -119,7 +119,7 @@ def _prepare(build_root: Path, output_root: Path):
             ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
         ),
         t5_pre_import_verifier_receipt_path=(
-            ROOT / "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
+            ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
         ),
         output_root=output_root,
     )
@@ -200,10 +200,10 @@ def test_provenance_binds_every_release_input_without_wall_clock_state(
         "custos-strategy-toolkit.cdx.json",
         "custos-strategy-toolkit-nautilus.cdx.json",
         "toolkit_rc_receipt_manifest_v1.schema.json",
-        "strategy-contract-assets-v2.json",
+        "strategy-contract-assets-v1.json",
         "custos-plan-18-task-4-extraction-receipt.json",
         "custos-plan-18-task-4b-typing-closure-receipt.json",
-        "custos-plan-18-task-2-schema-receipt-v2.json",
+        "custos-plan-18-strategy-contract-v1-receipt.json",
         "toolkit-rc-dependency-locks.json",
     }.issubset(subject_names)
     assert all(set(subject["digest"]) == {"sha256"} for subject in statement["subject"])
@@ -300,7 +300,7 @@ def test_unverified_sigstore_bundle_cannot_assemble_publication_inputs(
             contract_schema_path=(
                 ROOT / "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
             ),
-            contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v2.json"),
+            contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v1.json"),
             t4_zero_rewrite_receipt_path=(
                 ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
             ),
@@ -308,7 +308,7 @@ def test_unverified_sigstore_bundle_cannot_assemble_publication_inputs(
                 ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
             ),
             t5_pre_import_verifier_receipt_path=(
-                ROOT / "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json"
+                ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
             ),
             sigstore_bundle_path=bundle,
             output_root=output_root,

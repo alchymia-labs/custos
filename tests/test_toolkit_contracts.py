@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import subprocess
@@ -13,8 +12,6 @@ import pytest
 from custos_toolkit.contracts.strategy_execution import (
     DevelopmentSourceRefV1,
     StrategyArtifactRefV1,
-    StrategyArtifactVerificationReceiptV1,
-    StrategyExecutionCommandBindingV1,
     StrategyExecutionContextV1,
     StrategyManifestV1,
     canonical_json_bytes,
@@ -31,22 +28,11 @@ SOURCE_GENERATED_SCHEMA_MODELS = {
     "strategy_manifest_v1.schema.json": StrategyManifestV1,
     "development_source_ref_v1.schema.json": DevelopmentSourceRefV1,
 }
-IMMUTABLE_HISTORICAL_SCHEMA_SHA256 = {
-    "strategy_artifact_ref_v1.schema.json": (
-        "0f9ed02c57cbef30dc1e8a2597abe3cae796540f539ef56f2962db5a40765c6b"
-    ),
-    "strategy_execution_command_binding_v1.schema.json": (
-        "d813bac90b4382f0e8ed4dcfb7805c170d6d79d9afcc42c9674407d216791507"
-    ),
-    "strategy_artifact_verification_receipt_v1.schema.json": (
-        "7f99d3939ad2a995621c71bee7bbd7d1d735f1f9b7fc090a34cd6800fc858b91"
-    ),
-}
 
 
-def _golden() -> dict[str, object]:
-    path = ROOT / "docs/authority/strategy-artifact-lifecycle-golden-v1.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+def _artifact_ref_golden() -> dict[str, object]:
+    path = ROOT / "docs/authority/strategy-artifact-ref-v1.golden.json"
+    return json.loads(path.read_text(encoding="utf-8"))["artifact_ref"]
 
 
 def test_context_rejects_legacy_deployment_id() -> None:
@@ -91,15 +77,15 @@ def test_effective_config_digest_is_checked() -> None:
 
 def test_canonical_json_normalizes_key_order_unicode_decimal_and_negative_zero() -> None:
     value = {
-        "\u00e9": "\u2603",
+        "é": "☃",
         "z": Decimal("1.2300"),
         "a": Decimal("-0"),
         "n": Decimal("1E+3"),
     }
 
-    assert canonical_json_bytes(value) == '{"a":0,"n":1000,"z":1.23,"\u00e9":"\u2603"}'.encode()
+    assert canonical_json_bytes(value) == '{"a":0,"n":1000,"z":1.23,"é":"☃"}'.encode()
     assert canonical_json_digest(value) == canonical_json_digest(
-        {"a": 0, "n": 1000, "z": Decimal("1.23"), "\u00e9": "\u2603"}
+        {"a": 0, "n": 1000, "z": Decimal("1.23"), "é": "☃"}
     )
 
 
@@ -111,140 +97,10 @@ def test_canonical_json_rejects_non_string_keys_and_non_finite_decimals() -> Non
 
 
 def test_artifact_ref_rejects_business_authority_fields() -> None:
-    value = dict(_golden()["artifact_ref"])
+    value = dict(_artifact_ref_golden())
     value["strategy_release_id"] = "50000000-0000-4000-8000-000000000005"
     with pytest.raises(ValidationError):
         StrategyArtifactRefV1.model_validate(value)
-
-
-@pytest.mark.parametrize(
-    "role",
-    [
-        "strategy_wheel",
-        "strategy_manifest",
-        "runtime_artifact",
-        "attestation_bundle",
-        "sbom",
-        "contract_schema",
-        "source_tree",
-    ],
-)
-def test_release_bom_member_digest_substitution_is_rejected(role: str) -> None:
-    command = copy.deepcopy(_golden()["signed_command"]["strategy_artifact_binding"])
-    member = next(item for item in command["release_bom_members"] if item["role"] == role)
-    member["sha256"] = "0" * 64
-
-    with pytest.raises(ValidationError):
-        StrategyExecutionCommandBindingV1.model_validate(command)
-
-
-def test_contract_models_reject_unknown_fields_recursively() -> None:
-    command = copy.deepcopy(_golden()["signed_command"]["strategy_artifact_binding"])
-    command["unknown_command_field"] = "forbidden"
-    with pytest.raises(ValidationError):
-        StrategyExecutionCommandBindingV1.model_validate(command)
-
-    command = copy.deepcopy(_golden()["signed_command"]["strategy_artifact_binding"])
-    command["release_bom_members"][0]["unknown_member_field"] = "forbidden"
-    with pytest.raises(ValidationError):
-        StrategyExecutionCommandBindingV1.model_validate(command)
-
-    receipt = copy.deepcopy(_golden()["custos_verifier_receipt"])
-    receipt["unknown_receipt_field"] = "forbidden"
-    with pytest.raises(ValidationError):
-        StrategyArtifactVerificationReceiptV1.model_validate(receipt)
-
-
-def test_verification_receipt_rejects_artifact_digest_substitution() -> None:
-    receipt = copy.deepcopy(_golden()["custos_verifier_receipt"])
-    receipt["artifact_ref_digest"] = "0" * 64
-
-    with pytest.raises(ValidationError):
-        StrategyArtifactVerificationReceiptV1.model_validate(receipt)
-
-
-def test_verification_receipt_rejects_trust_policy_mismatch() -> None:
-    receipt = copy.deepcopy(_golden()["custos_verifier_receipt"])
-    receipt["local_trust_policy_digest"] = "0" * 64
-
-    with pytest.raises(ValidationError):
-        StrategyArtifactVerificationReceiptV1.model_validate(receipt)
-
-
-def test_verification_receipt_rejects_unknown_profile() -> None:
-    receipt = copy.deepcopy(_golden()["custos_verifier_receipt"])
-    receipt["verification_profile"] = "untrusted-profile"
-
-    with pytest.raises(ValidationError):
-        StrategyArtifactVerificationReceiptV1.model_validate(receipt)
-
-
-@pytest.mark.parametrize(
-    ("field", "invalid"),
-    [
-        ("deployment_instance_id", "not-an-instance-uuid"),
-        ("deployment_spec_id", "not-a-spec-uuid"),
-        ("deployment_spec_digest", "d" * 63),
-        ("effective_config_digest", "e" * 63),
-        ("release_bom_digest", "f" * 63),
-        ("generation", 0),
-    ],
-)
-def test_command_rejects_invalid_identity_digest_and_generation(
-    field: str, invalid: object
-) -> None:
-    command = copy.deepcopy(_golden()["signed_command"]["strategy_artifact_binding"])
-    command[field] = invalid
-
-    with pytest.raises(ValidationError):
-        StrategyExecutionCommandBindingV1.model_validate(command)
-
-
-def test_golden_cross_links_instance_spec_digests_and_bom() -> None:
-    golden = _golden()
-    command = golden["signed_command"]["strategy_artifact_binding"]
-    receipt = golden["custos_verifier_receipt"]
-    deployment_spec = golden["deployment_spec"]
-    strategy_release = golden["strategy_release"]
-    artifact_ref = golden["artifact_ref"]
-
-    assert receipt["command_binding"] == command
-    assert receipt["verified_members"] == command["release_bom_members"]
-    assert receipt["command_binding"]["deployment_instance_id"] == command["deployment_instance_id"]
-    assert receipt["command_binding"]["generation"] == command["generation"]
-    assert command["deployment_spec_id"] == deployment_spec["deployment_spec_id"]
-    assert command["deployment_spec_digest"] == deployment_spec["deployment_spec_digest"]
-    assert command["effective_config_digest"] == deployment_spec["effective_config_digest"]
-    assert command["strategy_release_id"] == strategy_release["strategy_release_id"]
-    assert command["release_bom_digest"] == strategy_release["release_bom_digest"]
-    assert command["release_bom_members"] == strategy_release["release_bom_members"]
-    assert command["artifact_ref"] == artifact_ref
-
-    members_by_role = {member["role"]: member for member in command["release_bom_members"]}
-    assert members_by_role["strategy_wheel"]["sha256"] == artifact_ref["artifact_sha256"]
-    assert members_by_role["strategy_manifest"]["sha256"] == artifact_ref["manifest_sha256"]
-    assert (
-        members_by_role["attestation_bundle"]["sha256"]
-        == artifact_ref["attestation"]["bundle_sha256"]
-    )
-    assert members_by_role["sbom"]["sha256"] == artifact_ref["sbom_sha256"]
-    assert members_by_role["contract_schema"]["sha256"] == artifact_ref["contract_schema_sha256"]
-    assert (
-        members_by_role["source_tree"]["sha256"]
-        == artifact_ref["attestation"]["normalized_source_tree_sha256"]
-    )
-    assert artifact_ref["required_runtime_artifacts"][0] in command["release_bom_members"]
-
-
-def test_lifecycle_golden_is_lossless() -> None:
-    golden = _golden()
-    command = golden["signed_command"]["strategy_artifact_binding"]
-    receipt = golden["custos_verifier_receipt"]
-    StrategyExecutionCommandBindingV1.model_validate(command)
-    StrategyArtifactVerificationReceiptV1.model_validate(receipt)
-    assert receipt["command_binding"] == command
-    assert receipt["verified_members"] == command["release_bom_members"]
-    assert golden["strategy_release"]["deployment_spec_id"] is None
 
 
 @pytest.mark.parametrize(("filename", "model"), SOURCE_GENERATED_SCHEMA_MODELS.items())
@@ -255,16 +111,21 @@ def test_schema_is_source_generated(filename: str, model: type) -> None:
     )
 
 
-@pytest.mark.parametrize(("filename", "expected"), IMMUTABLE_HISTORICAL_SCHEMA_SHA256.items())
-def test_historical_schema_is_byte_pinned(filename: str, expected: str) -> None:
-    path = ROOT / "docs/gateway-contract/v1" / filename
-    assert hashlib.sha256(path.read_bytes()).hexdigest() == expected
+def test_artifact_ref_golden_matches_current_model_and_pin() -> None:
+    golden_path = ROOT / "docs/authority/strategy-artifact-ref-v1.golden.json"
+    sidecar = golden_path.with_suffix(golden_path.suffix + ".sha256")
+
+    StrategyArtifactRefV1.model_validate(_artifact_ref_golden())
+    assert (
+        sidecar.read_text(encoding="ascii").split()[0]
+        == hashlib.sha256(golden_path.read_bytes()).hexdigest()
+    )
 
 
 def test_lightweight_import_does_not_load_nautilus_or_mutate_path() -> None:
     script = (
         "import sys; before=tuple(sys.path); "
-        "import custos.contracts.strategy_execution; "
+        "import custos_toolkit.contracts.strategy_execution; "
         "assert tuple(sys.path)==before; assert 'nautilus_trader' not in sys.modules"
     )
     subprocess.run([sys.executable, "-c", script], check=True)

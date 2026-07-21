@@ -15,14 +15,15 @@ from custos.contracts.crucible_runner_safety_policy import (
     RunnerAggregateCapPolicyV1,
     VerifiedRunnerSafetyPolicy,
 )
+from custos.contracts.deployment import (
+    DOMAIN_EVENT_ENCODING,
+    DOMAIN_EVENT_SIGNATURE_PROFILE,
+)
 from custos.core.runner_fact import (
     RUNNER_STATE_SCHEMA_VERSION,
     RunnerFactAuthority,
     RunnerFactIdentity,
     RunnerFactOutbox,
-    RunnerFactPendingPubAckError,
-    RunnerFactStreamCutoverFrozen,
-    RunnerFactStreamCutoverRequired,
     RunnerStateAuthorityError,
     RunnerStateMigrationError,
 )
@@ -34,6 +35,8 @@ STRATEGY_ID = UUID("40000000-0000-4000-8000-000000000004")
 CAPABILITY_ID = UUID("50000000-0000-4000-8000-000000000005")
 SHA_A = "a" * 64
 SHA_B = "b" * 64
+ARTIFACT_REF_DIGEST = "c" * 64
+ARTIFACT_EVIDENCE_DIGEST = "d" * 64
 POLICY_ID = UUID("60000000-0000-4000-8000-000000000006")
 
 
@@ -42,7 +45,7 @@ def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
         schema_version=1,
         policy_id=POLICY_ID,
         runner_id=T4_RUNNER_ID,
-        tenant_id="contract-only-example",
+        tenant_id="acme",
         trading_mode="sandbox",
         policy_version=1,
         generation=1,
@@ -60,7 +63,7 @@ def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
     )
     return VerifiedRunnerSafetyPolicy(
         policy=policy,
-        exact_subject="crucible.v1.contract-only-example.sandbox.runner.runner-policy",
+        exact_subject="crucible.v1.acme.sandbox.runner.runner-policy",
         exact_event_bytes=b'{"verified":"test-only"}',
         exact_signed_envelope_bytes=b'{"signature":"test-only"}',
         signature_key_id="crucible-policy-key",
@@ -160,7 +163,6 @@ def test_existing_outbox_database_upgrades_in_place_to_single_state_schema(
         "runner_cap_policy_head",
         "order_reservation",
         "runner_exposure_checkpoint",
-        "runner_stream_cutover",
         "runner_fact_outbox",
     } <= tables
 
@@ -174,7 +176,7 @@ def test_newer_database_schema_is_never_silently_downgraded(tmp_path: Path) -> N
             (RUNNER_STATE_SCHEMA_VERSION + 1,),
         )
 
-    with pytest.raises(RunnerStateMigrationError, match="newer Custos schema"):
+    with pytest.raises(RunnerStateMigrationError, match="canonical first-production V1"):
         RunnerFactOutbox(database)
 
 
@@ -209,113 +211,18 @@ async def test_instance_stream_continues_across_spec_and_generation_changes(
     ]
 
 
-def _seed_legacy_streams(database: Path, authority: RunnerFactAuthority) -> UUID:
-    first = (
-        f"{authority.stream_key}:{authority.deployment_spec_id}:{authority.deployment_spec_digest}"
-    )
-    second = f"{authority.stream_key}:30000000-0000-4000-8000-000000000099:{'c' * 64}"
-    pending_batch_id = uuid4()
-    with sqlite3.connect(database) as connection:
-        connection.executemany(
-            "INSERT INTO runner_fact_stream (stream_key, next_sequence, updated_at) VALUES (?, ?, ?)",
-            [(first, 3, "2026-07-15T00:00:00Z"), (second, 4, "2026-07-15T00:00:00Z")],
-        )
-        connection.execute(
-            """
-            INSERT INTO runner_fact_outbox (
-                batch_id, stream_key, subject, source_seq_start, source_seq_end,
-                payload, created_at
-            ) VALUES (?, ?, ?, 1, 2, ?, ?)
-            """,
-            (
-                str(pending_batch_id),
-                first,
-                "legacy.subject",
-                b"immutable-signed-legacy-payload",
-                "2026-07-15T00:00:00Z",
-            ),
-        )
-    return pending_batch_id
-
-
-@pytest.mark.asyncio
-async def test_cutover_freezes_intake_refuses_pending_puback_and_continues_sequence(
-    tmp_path: Path,
-) -> None:
-    database = tmp_path / "runner-facts.sqlite3"
-    outbox = RunnerFactOutbox(database)
-    authority = _authority()
-    pending_batch_id = _seed_legacy_streams(database, authority)
-
-    frozen = await outbox.freeze_stream_cutover(authority)
-    assert frozen.state == "frozen"
-    assert len(frozen.legacy_stream_keys) == 2
-    with pytest.raises(RunnerFactStreamCutoverFrozen):
-        await outbox.enqueue(authority, _identity(), [_fact("blocked")])
-    before = (await outbox.pending())[0]
-    assert before.payload == b"immutable-signed-legacy-payload"
-    with pytest.raises(RunnerFactPendingPubAckError, match="pending PubAck"):
-        await outbox.activate_stream_cutover(authority)
-    after_refusal = (await outbox.pending())[0]
-    assert after_refusal == before
-
-    await outbox.acknowledge(pending_batch_id)
-    active = await outbox.activate_stream_cutover(authority)
-    assert active.state == "active"
-    assert active.continuation_sequence == 6
-    await outbox.enqueue(authority, _identity(), [_fact("continued")])
-    continued = (await outbox.pending())[0]
-    assert _document(continued.payload)["source_seq_start"] == 6
-
-    with sqlite3.connect(database) as connection:
-        retained_legacy_streams = connection.execute(
-            "SELECT COUNT(*) FROM runner_fact_stream WHERE stream_key IN (?, ?)",
-            active.legacy_stream_keys,
-        ).fetchone()[0]
-    assert retained_legacy_streams == 2
-
-
-@pytest.mark.asyncio
-async def test_legacy_stream_requires_explicit_cutover_before_new_intake(tmp_path: Path) -> None:
-    database = tmp_path / "runner-facts.sqlite3"
-    outbox = RunnerFactOutbox(database)
-    authority = _authority()
-    _seed_legacy_streams(database, authority)
-
-    with pytest.raises(RunnerFactStreamCutoverRequired):
-        await outbox.enqueue(authority, _identity(), [_fact("blocked")])
-
-
-@pytest.mark.asyncio
-async def test_cutover_rejects_cross_tenant_instance_rebinding(tmp_path: Path) -> None:
-    outbox = RunnerFactOutbox(tmp_path / "runner-facts.sqlite3")
-    authority = _authority()
-    await outbox.freeze_stream_cutover(authority)
-
-    with pytest.raises(RunnerStateAuthorityError, match="different authority"):
-        await outbox.freeze_stream_cutover(replace(authority, tenant_id="other-tenant"))
-
-
 T4_GOLDEN_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "docs/authority/vendor/crucible-plan-89/docs/authority/golden/"
-    "crucible-runner-deployment-command-v1.json"
+    Path(__file__).resolve().parents[1] / "docs/authority/runner-deployment-command-golden-v1.json"
 )
 T4_COMMAND_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
 T4_OTHER_COMMAND_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(33, 65)))
-T4_RUNNER_ID = UUID("70000000-0000-4000-8000-000000000007")
+T4_RUNNER_ID = RUNNER_ID
 
 
 def _t4_encode(value: bytes) -> str:
     import base64
 
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode()
-
-
-def _t4_decode(value: str) -> bytes:
-    import base64
-
-    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
 def _t4_compact(value: object) -> bytes:
@@ -333,25 +240,30 @@ def _t4_signed_fixture(
     import json
 
     fixture = json.loads(T4_GOLDEN_PATH.read_text(encoding="utf-8"))
-    subject = fixture["subject"]
-    envelope = copy.deepcopy(fixture["signed_envelope"])
-    event = json.loads(_t4_decode(envelope["event_bytes"]))
+    case = fixture["cases"][0]
+    subject = case["subject"]
+    event = copy.deepcopy(case["event_document"])
     if mutate_event is not None:
         mutate_event(event)
     event_bytes = _t4_compact(event)
     subject_bytes = subject.encode()
     framed = b"".join(
         (
-            b"CRUCIBLE-DOMAIN-EVENT-V2\0",
+            b"CRUCIBLE-DOMAIN-EVENT-V1\0",
             len(subject_bytes).to_bytes(4, "big"),
             subject_bytes,
             len(event_bytes).to_bytes(8, "big"),
             event_bytes,
         )
     )
-    envelope["event_bytes"] = _t4_encode(event_bytes)
-    envelope["signature_key_id"] = "crucible-command-key-a"
-    envelope["signature"] = _t4_encode(private_key.sign(framed))
+    envelope = {
+        "schema_version": 1,
+        "signature_profile": DOMAIN_EVENT_SIGNATURE_PROFILE,
+        "event_encoding": DOMAIN_EVENT_ENCODING,
+        "event_bytes": _t4_encode(event_bytes),
+        "signature_key_id": "crucible-command-key-a",
+        "signature": _t4_encode(private_key.sign(framed)),
+    }
     return _t4_compact(envelope), subject
 
 
@@ -359,7 +271,7 @@ def _t4_authenticator():
     from custos.core.runner_command_intake import CrucibleRunnerCommandAuthenticator
 
     return CrucibleRunnerCommandAuthenticator(
-        expected_tenant_id="contract-only-example",
+        expected_tenant_id="acme",
         expected_runner_id=T4_RUNNER_ID,
         allowed_trading_modes=frozenset({"sandbox"}),
         signature_keys={"crucible-command-key-a": T4_COMMAND_KEY.public_key()},
@@ -395,7 +307,7 @@ def _t4_authority(verified):
 def _t4_store(
     database: Path,
     *,
-    tenant_id: str = "contract-only-example",
+    tenant_id: str = "acme",
     identity=None,
 ):
     from custos.core.runner_fact import RunnerStateStore
@@ -476,8 +388,8 @@ async def test_applied_commit_is_atomic_with_lifecycle_outbox_and_restart_replay
     await store.record_artifact_activation(
         verified=verified,
         activation_id="activation-1",
-        artifact_ref_digest=verified.command.artifact_ref_digest,
-        artifact_evidence_digest=verified.command.artifact_evidence_digest,
+        artifact_ref_digest=ARTIFACT_REF_DIGEST,
+        artifact_evidence_digest=ARTIFACT_EVIDENCE_DIGEST,
     )
     await store.record_verified_runner_safety_policy(_t4_runner_policy())
     result = await store.commit_applied_and_enqueue_lifecycle(

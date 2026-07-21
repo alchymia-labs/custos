@@ -71,7 +71,7 @@ Before enqueue, `RuntimeLogRedactor` recursively processes message and fields:
 
 - sensitive keys such as API keys/secrets, passwords, tokens, credentials,
   authorization, private keys, age keys, and KEKs are anonymized;
-- registered exact secrets and recognizable Bearer, `rkc2`, age secret key,
+- registered exact secrets and recognizable Bearer, `rkc1`, age secret key,
   private-key PEM, assignment, and high-entropy shapes are replaced;
 - unsupported objects, non-finite floats, excessive nesting/size, and any
   residual recognizable secret material reject the entire fact before SQLite.

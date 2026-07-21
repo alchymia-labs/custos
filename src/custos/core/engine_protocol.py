@@ -1,12 +1,12 @@
 """Engine-agnostic execution protocol.
 
 All engine hosts (nautilus / hummingbot / freqtrade / athanor / nt-rust) must
-implement ``ExecutionEngineProtocol``.  The G6 gate and the deployment
-reconciler operate exclusively through this interface so they remain
+implement ``ExecutionEngineProtocol``. The command coordinator and lifecycle
+supervisor operate exclusively through this interface so they remain
 engine-agnostic.
 
 ``supports_live`` / ``supports_venue`` are synchronous capability queries the
-G6 gate calls before any async work; a host declares up-front whether it can
+execution-admission layer calls before any async work; a host declares up-front whether it can
 handle live execution and which venues it wires.
 
 Money contract (red line 0.4): every monetary field on every snapshot
@@ -42,6 +42,22 @@ _MONEY_FIELDS_SHOULD_BE_DECIMAL = frozenset(
         "drawdown_pct",
     }
 )
+
+
+@runtime_checkable
+class ActivatedEngineArtifactV1(Protocol):
+    """Verified, durably activated strategy accepted by an execution engine.
+
+    Deployment commands never carry import paths or code hashes.  The artifact
+    runtime resolves and verifies StrategyRelease bytes, activates them under an
+    immutable local identity, and hands only this narrow capability to a host.
+    """
+
+    @property
+    def activation_id(self) -> str: ...
+
+    @property
+    def strategy(self) -> object: ...
 
 
 def _reject_float_money(instance: Any) -> None:
@@ -144,9 +160,8 @@ class EngineLifecycleAuthority:
     def __post_init__(self) -> None:
         if self.deployment_instance_id.int == 0 or self.deployment_spec_id.int == 0:
             raise ValueError("engine lifecycle identity must not be nil")
-        if (
-            len(self.deployment_spec_digest) != 64
-            or any(value not in "0123456789abcdef" for value in self.deployment_spec_digest)
+        if len(self.deployment_spec_digest) != 64 or any(
+            value not in "0123456789abcdef" for value in self.deployment_spec_digest
         ):
             raise ValueError("engine lifecycle spec digest must be lowercase SHA-256")
         if type(self.generation) is not int or self.generation < 1:
@@ -169,7 +184,7 @@ class EngineLifecycleAuthority:
     def from_spec(cls, spec: dict[str, Any]) -> EngineLifecycleAuthority:
         return cls(
             deployment_instance_id=UUID(str(spec["deployment_instance_id"])),
-            deployment_spec_id=UUID(str(spec.get("deployment_spec_id") or spec["spec_id"])),
+            deployment_spec_id=UUID(str(spec["deployment_spec_id"])),
             deployment_spec_digest=str(spec["deployment_spec_digest"]),
             generation=int(spec["generation"]),
             trading_mode=str(spec["trading_mode"]),
@@ -276,7 +291,7 @@ class ExecutionEngineProtocol(Protocol):
     """Engine contract every host must satisfy.
 
     Tier-1 methods (deploy / reconfigure / stop / capability queries) drive the
-    G6 gate and the deployment reconciler.  Tier-2 methods expose runner-level
+    command coordinator and lifecycle supervisor. Tier-2 methods expose runner-level
     risk and connectivity state so the engine-agnostic guards (notional cap,
     fallback breaker, zombie watchdog) can enforce the disconnect-resilient red
     line without knowing the concrete engine.  Every host implements the full
@@ -285,7 +300,12 @@ class ExecutionEngineProtocol(Protocol):
     """
 
     # -- Tier-1: lifecycle + capability ------------------------------------
-    async def deploy(self, spec: dict, credential: dict) -> str: ...
+    async def deploy(
+        self,
+        spec: dict,
+        credential: dict,
+        artifact: ActivatedEngineArtifactV1,
+    ) -> str: ...
 
     async def reconfigure(self, spec: dict) -> None: ...
 

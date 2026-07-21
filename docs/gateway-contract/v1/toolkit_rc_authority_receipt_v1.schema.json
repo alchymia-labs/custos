@@ -54,137 +54,13 @@
       "title": "LockedToolkitDependencyV1",
       "type": "object"
     },
-    "ToolkitRcAuthorityPendingReceiptV1": {
-      "additionalProperties": false,
-      "properties": {
-        "authority_registered": {
-          "const": false,
-          "title": "Authority Registered",
-          "type": "boolean"
-        },
-        "contract_version": {
-          "const": "alephain.custos.toolkit-rc-authority-receipt.v1",
-          "title": "Contract Version",
-          "type": "string"
-        },
-        "final_blockers": {
-          "items": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "title": "Final Blockers",
-          "type": "array"
-        },
-        "handoff_ready": {
-          "const": false,
-          "title": "Handoff Ready",
-          "type": "boolean"
-        },
-        "production_credentials_used": {
-          "const": true,
-          "title": "Production Credentials Used",
-          "type": "boolean"
-        },
-        "production_ready": {
-          "const": false,
-          "title": "Production Ready",
-          "type": "boolean"
-        },
-        "production_signature_verified": {
-          "const": true,
-          "title": "Production Signature Verified",
-          "type": "boolean"
-        },
-        "publication_receipt": {
-          "$ref": "#/$defs/ToolkitRcPublicationReceiptV1"
-        },
-        "publication_receipt_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
-          "title": "Publication Receipt Sha256",
-          "type": "string"
-        },
-        "publication_receipt_size_bytes": {
-          "exclusiveMinimum": 0,
-          "title": "Publication Receipt Size Bytes",
-          "type": "integer"
-        },
-        "publication_receipt_url": {
-          "minLength": 1,
-          "title": "Publication Receipt Url",
-          "type": "string"
-        },
-        "ready": {
-          "const": false,
-          "title": "Ready",
-          "type": "boolean"
-        },
-        "receipt_schema_version": {
-          "const": 1,
-          "title": "Receipt Schema Version",
-          "type": "integer"
-        },
-        "remote_publication_verified": {
-          "const": true,
-          "title": "Remote Publication Verified",
-          "type": "boolean"
-        },
-        "runtime_ready": {
-          "const": false,
-          "title": "Runtime Ready",
-          "type": "boolean"
-        },
-        "scope_ceiling": {
-          "const": "Custos base and Nautilus toolkit RC only; no strategy artifact, StrategyRelease, engine, or runtime readiness",
-          "title": "Scope Ceiling",
-          "type": "string"
-        },
-        "stable_ready_receipt_path": {
-          "const": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
-          "title": "Stable Ready Receipt Path",
-          "type": "string"
-        },
-        "status": {
-          "const": "PENDING_T6E_AUTHORITY_REGISTRATION",
-          "title": "Status",
-          "type": "string"
-        },
-        "strategy_release_bom_created": {
-          "const": false,
-          "title": "Strategy Release Bom Created",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "receipt_schema_version",
-        "contract_version",
-        "status",
-        "ready",
-        "handoff_ready",
-        "publication_receipt_url",
-        "publication_receipt_sha256",
-        "publication_receipt_size_bytes",
-        "publication_receipt",
-        "stable_ready_receipt_path",
-        "production_credentials_used",
-        "production_signature_verified",
-        "remote_publication_verified",
-        "authority_registered",
-        "runtime_ready",
-        "production_ready",
-        "strategy_release_bom_created",
-        "final_blockers",
-        "scope_ceiling"
-      ],
-      "title": "ToolkitRcAuthorityPendingReceiptV1",
-      "type": "object"
-    },
     "ToolkitRcAuthorityReadyReceiptV1": {
+      "$id": "https://custos.the-alephain-guild/contracts/toolkit-rc-authority-receipt-v1.schema.json",
       "additionalProperties": false,
       "properties": {
         "authority_registered": {
           "const": true,
+          "default": true,
           "title": "Authority Registered",
           "type": "boolean"
         },
@@ -200,11 +76,13 @@
         },
         "contract_version": {
           "const": "alephain.custos.toolkit-rc-authority-receipt.v1",
+          "default": "alephain.custos.toolkit-rc-authority-receipt.v1",
           "title": "Contract Version",
           "type": "string"
         },
         "engine_ready": {
           "const": false,
+          "default": false,
           "title": "Engine Ready",
           "type": "boolean"
         },
@@ -219,72 +97,67 @@
         },
         "handoff_ready": {
           "const": true,
+          "default": true,
           "title": "Handoff Ready",
           "type": "boolean"
         },
         "handoff_scope": {
           "const": "Custos base and Nautilus toolkit RC only",
+          "default": "Custos base and Nautilus toolkit RC only",
           "title": "Handoff Scope",
           "type": "string"
         },
         "loaded": {
           "const": false,
+          "default": false,
           "title": "Loaded",
           "type": "boolean"
         },
-        "predecessor_pending_receipt": {
-          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
-        },
         "production_credentials_used": {
           "const": true,
+          "default": true,
           "title": "Production Credentials Used",
           "type": "boolean"
         },
         "production_ready": {
           "const": false,
+          "default": false,
           "title": "Production Ready",
           "type": "boolean"
         },
         "production_signature_verified": {
           "const": true,
+          "default": true,
           "title": "Production Signature Verified",
           "type": "boolean"
         },
+        "publication_manifest": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
         "publication_receipt": {
-          "$ref": "#/$defs/ToolkitRcPublicationReceiptV1"
-        },
-        "publication_receipt_sha256": {
-          "pattern": "^[0-9a-f]{64}$",
-          "title": "Publication Receipt Sha256",
-          "type": "string"
-        },
-        "publication_receipt_size_bytes": {
-          "exclusiveMinimum": 0,
-          "title": "Publication Receipt Size Bytes",
-          "type": "integer"
-        },
-        "publication_receipt_url": {
-          "minLength": 1,
-          "title": "Publication Receipt Url",
-          "type": "string"
+          "$ref": "#/$defs/ToolkitRcOciPublicationReceiptV1"
         },
         "ready": {
           "const": true,
+          "default": true,
           "title": "Ready",
           "type": "boolean"
         },
         "receipt_schema_version": {
           "const": 1,
+          "default": 1,
           "title": "Receipt Schema Version",
           "type": "integer"
         },
         "remote_publication_verified": {
           "const": true,
+          "default": true,
           "title": "Remote Publication Verified",
           "type": "boolean"
         },
         "runtime_ready": {
           "const": false,
+          "default": false,
           "title": "Runtime Ready",
           "type": "boolean"
         },
@@ -300,16 +173,19 @@
         },
         "source_repository": {
           "const": "https://github.com/alchymia-labs/custos",
+          "default": "https://github.com/alchymia-labs/custos",
           "title": "Source Repository",
           "type": "string"
         },
         "status": {
           "const": "READY_TOOLKIT_RC",
+          "default": "READY_TOOLKIT_RC",
           "title": "Status",
           "type": "string"
         },
         "strategy_release_bom_created": {
           "const": false,
+          "default": false,
           "title": "Strategy Release Bom Created",
           "type": "boolean"
         },
@@ -323,34 +199,15 @@
         }
       },
       "required": [
-        "receipt_schema_version",
-        "contract_version",
-        "status",
-        "ready",
-        "handoff_ready",
         "candidate_version",
-        "source_repository",
         "source_commit",
         "source_date_epoch",
-        "publication_receipt_url",
-        "publication_receipt_sha256",
-        "publication_receipt_size_bytes",
         "publication_receipt",
         "toolkit_manifest",
         "toolkit_manifest_sha256",
         "build_manifest_sha256",
-        "predecessor_pending_receipt",
-        "production_credentials_used",
-        "production_signature_verified",
-        "remote_publication_verified",
-        "authority_registered",
-        "final_blockers",
-        "handoff_scope",
-        "loaded",
-        "engine_ready",
-        "runtime_ready",
-        "production_ready",
-        "strategy_release_bom_created"
+        "publication_manifest",
+        "final_blockers"
       ],
       "title": "ToolkitRcAuthorityReadyReceiptV1",
       "type": "object"
@@ -478,45 +335,72 @@
       "title": "ToolkitRcMemberV1",
       "type": "object"
     },
-    "ToolkitRcPublicationObjectV1": {
+    "ToolkitRcOciDescriptorV1": {
       "additionalProperties": false,
       "properties": {
-        "coordinate": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "media_type": {
           "minLength": 1,
-          "title": "Coordinate",
+          "title": "Media Type",
           "type": "string"
         },
-        "object_id": {
-          "pattern": "^[0-9a-f]{64}$",
-          "title": "Object Id",
-          "type": "string"
-        },
-        "sha256": {
-          "pattern": "^[0-9a-f]{64}$",
-          "title": "Sha256",
+        "role": {
+          "minLength": 1,
+          "title": "Role",
           "type": "string"
         },
         "size_bytes": {
           "exclusiveMinimum": 0,
           "title": "Size Bytes",
           "type": "integer"
+        },
+        "source_coordinate": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Coordinate"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
         }
       },
       "required": [
-        "coordinate",
-        "object_id",
-        "sha256",
-        "size_bytes"
+        "media_type",
+        "digest",
+        "size_bytes",
+        "title",
+        "role"
       ],
-      "title": "ToolkitRcPublicationObjectV1",
+      "title": "ToolkitRcOciDescriptorV1",
       "type": "object"
     },
-    "ToolkitRcPublicationReceiptV1": {
+    "ToolkitRcOciPublicationReceiptV1": {
+      "$id": "https://custos.the-alephain-guild/contracts/toolkit-rc-oci-publication-receipt-v1.schema.json",
       "additionalProperties": false,
-      "description": "Immutable artifact-service receipt, before Custos authority registration.",
+      "description": "Digest-authoritative OCI publication evidence before authority registration.",
       "properties": {
+        "artifact_type": {
+          "const": "application/vnd.alephain.custos.strategy-toolkit.rc.v1",
+          "default": "application/vnd.alephain.custos.strategy-toolkit.rc.v1",
+          "title": "Artifact Type",
+          "type": "string"
+        },
         "authority_registered": {
           "const": false,
+          "default": false,
           "title": "Authority Registered",
           "type": "boolean"
         },
@@ -525,18 +409,61 @@
           "title": "Candidate Version",
           "type": "string"
         },
+        "config": {
+          "$ref": "#/$defs/ToolkitRcOciDescriptorV1"
+        },
+        "contract_version": {
+          "const": "alephain.custos.toolkit-rc-oci-publication-receipt.v1",
+          "default": "alephain.custos.toolkit-rc-oci-publication-receipt.v1",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "descriptor_readback_verified": {
+          "const": true,
+          "default": true,
+          "title": "Descriptor Readback Verified",
+          "type": "boolean"
+        },
         "handoff_ready": {
           "const": false,
+          "default": false,
           "title": "Handoff Ready",
           "type": "boolean"
         },
-        "objects": {
+        "layers": {
           "items": {
-            "$ref": "#/$defs/ToolkitRcPublicationObjectV1"
+            "$ref": "#/$defs/ToolkitRcOciDescriptorV1"
           },
           "minItems": 1,
-          "title": "Objects",
+          "title": "Layers",
           "type": "array"
+        },
+        "manifest_commit_verified": {
+          "const": true,
+          "default": true,
+          "title": "Manifest Commit Verified",
+          "type": "boolean"
+        },
+        "manifest_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Manifest Digest",
+          "type": "string"
+        },
+        "manifest_media_type": {
+          "const": "application/vnd.oci.image.manifest.v1+json",
+          "default": "application/vnd.oci.image.manifest.v1+json",
+          "title": "Manifest Media Type",
+          "type": "string"
+        },
+        "manifest_size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Manifest Size Bytes",
+          "type": "integer"
+        },
+        "oci_coordinate": {
+          "minLength": 1,
+          "title": "Oci Coordinate",
+          "type": "string"
         },
         "oidc_issuer": {
           "anyOf": [
@@ -558,30 +485,22 @@
           "title": "Production Signature Verified",
           "type": "boolean"
         },
-        "puback_verified": {
-          "const": true,
-          "title": "Puback Verified",
-          "type": "boolean"
-        },
         "publication_atomic": {
           "const": true,
+          "default": true,
           "title": "Publication Atomic",
-          "type": "boolean"
-        },
-        "publication_id": {
-          "minLength": 1,
-          "title": "Publication Id",
-          "type": "string"
-        },
-        "readback_verified": {
-          "const": true,
-          "title": "Readback Verified",
           "type": "boolean"
         },
         "ready": {
           "const": false,
+          "default": false,
           "title": "Ready",
           "type": "boolean"
+        },
+        "registry": {
+          "minLength": 1,
+          "title": "Registry",
+          "type": "string"
         },
         "release_environment": {
           "anyOf": [
@@ -595,10 +514,16 @@
           ],
           "title": "Release Environment"
         },
-        "schema_version": {
-          "const": "alephain.custos.toolkit-rc-publication-receipt.v1",
-          "title": "Schema Version",
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
           "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
         },
         "source_commit": {
           "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
@@ -612,21 +537,28 @@
         },
         "source_repository": {
           "const": "https://github.com/alchymia-labs/custos",
+          "default": "https://github.com/alchymia-labs/custos",
           "title": "Source Repository",
           "type": "string"
         },
         "status": {
           "enum": [
-            "PENDING_T6C_PUBLICATION_VERIFIED",
+            "PENDING_T6D_RELEASE_RUNNER",
             "PENDING_T6E_AUTHORITY_REGISTRATION"
           ],
           "title": "Status",
           "type": "string"
         },
-        "transaction_id": {
-          "minLength": 1,
-          "title": "Transaction Id",
+        "tag": {
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+rc[1-9][0-9]*$",
+          "title": "Tag",
           "type": "string"
+        },
+        "tag_readback_verified": {
+          "const": true,
+          "default": true,
+          "title": "Tag Readback Verified",
+          "type": "boolean"
         },
         "workflow_identity": {
           "anyOf": [
@@ -680,29 +612,26 @@
         }
       },
       "required": [
-        "schema_version",
         "status",
-        "ready",
-        "handoff_ready",
         "candidate_version",
-        "source_repository",
         "source_commit",
         "source_date_epoch",
-        "publication_id",
-        "transaction_id",
-        "publication_atomic",
-        "puback_verified",
-        "readback_verified",
+        "registry",
+        "repository",
+        "tag",
+        "oci_coordinate",
+        "manifest_digest",
+        "manifest_size_bytes",
+        "config",
+        "layers",
         "production_credentials_used",
         "production_signature_verified",
         "workflow_ref",
         "workflow_identity",
         "oidc_issuer",
-        "release_environment",
-        "objects",
-        "authority_registered"
+        "release_environment"
       ],
-      "title": "ToolkitRcPublicationReceiptV1",
+      "title": "ToolkitRcOciPublicationReceiptV1",
       "type": "object"
     },
     "ToolkitRcReceiptManifestV1": {
@@ -757,20 +686,6 @@
       "type": "object"
     }
   },
-  "discriminator": {
-    "mapping": {
-      "PENDING_T6E_AUTHORITY_REGISTRATION": "#/$defs/ToolkitRcAuthorityPendingReceiptV1",
-      "READY_TOOLKIT_RC": "#/$defs/ToolkitRcAuthorityReadyReceiptV1"
-    },
-    "propertyName": "status"
-  },
-  "oneOf": [
-    {
-      "$ref": "#/$defs/ToolkitRcAuthorityPendingReceiptV1"
-    },
-    {
-      "$ref": "#/$defs/ToolkitRcAuthorityReadyReceiptV1"
-    }
-  ],
+  "$ref": "#/$defs/ToolkitRcAuthorityReadyReceiptV1",
   "title": "ToolkitRcAuthorityReceiptV1"
 }

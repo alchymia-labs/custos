@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
 
-from custos.cli._daemon import (
-    _build_reconciler,
-    _build_runner_safety_boundary_factory,
-    _command_authority_unavailable,
+from custos.artifacts.release_resolver import (
+    StrategyReleaseResolutionUnavailable,
+    UnavailableStrategyReleaseArtifactResolverV1,
 )
-from custos.core.runner_fact import RunnerStateAuthorityError
+from custos.cli._daemon import _build_runner_safety_boundary_factory
+from custos.core.fallback_breaker import FallbackBreakerConfig
 
 POLICY_ID = UUID("22222222-2222-4222-8222-222222222222")
 DEPLOYMENT_INSTANCE_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -27,6 +28,10 @@ class _Resolver:
         return SimpleNamespace(
             policy_id=self.policy_id,
             owner_policy=self.owner_policy,
+            breaker=FallbackBreakerConfig(
+                max_notional=Decimal("100"),
+                max_drawdown_pct=Decimal("10"),
+            ),
         )
 
 
@@ -50,6 +55,7 @@ async def test_boundary_factory_uses_durable_owner_policy_identity() -> None:
     assert boundary._store is store
     assert boundary._deployment_instance_id == DEPLOYMENT_INSTANCE_ID
     assert boundary._policy_id == POLICY_ID
+    assert boundary._fallback_breaker.config.max_notional == Decimal("100")
 
 
 @pytest.mark.asyncio
@@ -68,24 +74,9 @@ async def test_boundary_factory_fails_closed_without_owner_policy() -> None:
         )
 
 
-def test_reconciler_receives_the_same_durable_policy_resolver() -> None:
-    resolver = _Resolver()
-    args = SimpleNamespace(tenant_id="tenant-a", runner_id=str(UUID(int=3)))
+@pytest.mark.asyncio
+async def test_uncomposed_strategy_release_authority_fails_closed() -> None:
+    resolver = UnavailableStrategyReleaseArtifactResolverV1()
 
-    reconciler = _build_reconciler(
-        args,
-        client=object(),
-        host=object(),
-        vault=object(),
-        runtime_log_emitter=object(),
-        lifecycle_fact_emitter=object(),
-        deployment_verifier=object(),
-        safety_policy_resolver=resolver,
-    )
-
-    assert reconciler.safety_policy_resolver is resolver
-
-
-def test_uncomposed_cr89_command_authority_fails_closed() -> None:
-    with pytest.raises(RunnerStateAuthorityError, match="not composed"):
-        _command_authority_unavailable(object())
+    with pytest.raises(StrategyReleaseResolutionUnavailable, match="not composed"):
+        await resolver.resolve(object())

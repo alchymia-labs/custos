@@ -1,23 +1,20 @@
-"""Pre-import strategy artifact verification kernel.
-
-This package deliberately has no runtime composition or engine activation. The
-public cross-repository verification receipt remains owned by the coordinated
-contract plan; this first slice returns only an internal typed result.
-"""
+"""Canonical V1 strategy artifact verification capabilities."""
 
 from custos.artifacts.errors import ArtifactVerificationCode, ArtifactVerificationError
-from custos.artifacts.verifier import (
-    ArtifactVerifierKernel,
-    PreImportVerificationRequest,
-    PreImportVerificationResult,
+from custos.artifacts.verification_types import (
+    DigestSubject,
+    RunnerLocalArtifactVerificationConfig,
+    SigstoreVerificationEvidence,
+    SigstoreVerificationRequest,
     SigstoreVerifierCapability,
 )
 
 __all__ = [
     "ArtifactVerificationCode",
     "ArtifactVerificationError",
-    "ArtifactVerifierKernel",
-    "PreImportVerificationRequest",
-    "PreImportVerificationResult",
+    "DigestSubject",
+    "RunnerLocalArtifactVerificationConfig",
+    "SigstoreVerificationEvidence",
+    "SigstoreVerificationRequest",
     "SigstoreVerifierCapability",
 ]

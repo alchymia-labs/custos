@@ -31,74 +31,8 @@
       "path": "docs/authority/strategy-toolkit-inventory-v1.json"
     },
     {
-      "role": "strategy_contract_asset_index_v1_legacy_non_production",
-      "path": "docs/authority/strategy-contract-assets-v1.json",
-      "legacy_non_production": true,
-      "runtime_fallback_allowed": false
-    },
-    {
-      "role": "strategy_contract_asset_index_v2_legacy_non_production",
-      "path": "docs/authority/strategy-contract-assets-v2.json",
-      "legacy_non_production": true,
-      "runtime_fallback_allowed": false
-    },
-    {
-      "role": "strategy_artifact_lifecycle_golden",
-      "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json"
-    },
-    {
-      "role": "strategy_artifact_pre_import_lifecycle_golden_v2_candidate",
-      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json"
-    },
-    {
-      "role": "strategy_artifact_pre_import_lifecycle_golden_v2_sidecar",
-      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-golden-v2.json.sha256"
-    },
-    {
-      "role": "strategy_artifact_pre_import_lifecycle_negative_v2_candidate",
-      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json"
-    },
-    {
-      "role": "strategy_artifact_pre_import_lifecycle_negative_v2_sidecar",
-      "path": "docs/authority/strategy-artifact-pre-import-lifecycle-negative-v2.json.sha256"
-    },
-    {
-      "role": "plan_18_task_2_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json"
-    },
-    {
-      "role": "plan_18_t5_pre_import_verifier_ready",
-      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt-v2.json",
-      "receipt_status": "READY_PRE_IMPORT_VERIFIER",
-      "handoff_ready": true,
-      "loaded": false,
-      "engine_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "crucible_plan_88_custos_task_2_v2_requirements_review",
-      "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-v2-requirements-review.json",
-      "source_commit": "3f41f32d15c05f209e5462d460b8ae08433376d2",
-      "sha256": "2102b363b5c4751a2b2e20302ff010446764d783e56c2e1e2b2c1a6b580fc8ad"
-    },
-    {
-      "role": "ps_plan_54_custos_task_2_v2_requirements_review",
-      "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-v2-requirements-review.json",
-      "source_commit": "267e23bd500f1b465bee81b0b9b7c2f8c054c2aa",
-      "sha256": "8ac5597094ad0916e9aa4c254735132a87afbe96592772edd5dce4e709699822"
-    },
-    {
-      "role": "plan_18_task_3_distribution_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json"
-    },
-    {
-      "role": "plan_18_task_2_crucible_requirements_review",
-      "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json"
-    },
-    {
-      "role": "plan_18_task_2_ps_requirements_review",
-      "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json"
+      "role": "strategy_contract_asset_index_v1",
+      "path": "docs/authority/strategy-contract-assets-v1.json"
     },
     {
       "role": "strategy_execution_context_schema",
@@ -109,22 +43,8 @@
       "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json"
     },
     {
-      "role": "strategy_artifact_ref_v1_schema_legacy_non_production",
-      "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json",
-      "legacy_non_production": true,
-      "runtime_fallback_allowed": false
-    },
-    {
-      "role": "strategy_execution_command_binding_schema",
-      "path": "docs/gateway-contract/v1/strategy_execution_command_binding_v1.schema.json"
-    },
-    {
-      "role": "strategy_artifact_verification_receipt_schema",
-      "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json"
-    },
-    {
-      "role": "strategy_artifact_pre_import_verification_receipt_schema_v2_candidate",
-      "path": "docs/gateway-contract/v2/strategy_artifact_pre_import_verification_receipt_v1.schema.json"
+      "role": "strategy_artifact_ref_v1_schema",
+      "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"
     },
     {
       "role": "toolkit_rc_receipt_manifest_schema_v1_contract_foundation",
@@ -151,21 +71,10 @@
       "ready_receipt_published": false
     },
     {
-      "role": "toolkit_rc_authority_receipt_schema_v1_historical_non_production",
+      "role": "toolkit_rc_authority_receipt_schema_v1",
       "path": "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
-      "legacy_non_production": true,
-      "runtime_fallback_allowed": false,
-      "receipt_status": "NON_PRODUCTION_SUPERSEDED",
-      "ready_receipt_published": false
-    },
-    {
-      "role": "toolkit_rc_authority_receipt_schema_v2",
-      "path": "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
       "contract_only": true,
-      "stable_ready_path": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
-      "receipt_present": true,
-      "receipt_status": "READY_TOOLKIT_RC",
-      "ready_receipt_published": true
+      "ready_receipt_published": false
     },
     {
       "role": "toolkit_rc_oci_distribution_client",
@@ -188,12 +97,6 @@
     {
       "role": "local_runner_fact",
       "path": "docs/design/runner_fact.md"
-    },
-    {
-      "role": "runner_fact_candidate_asset_index",
-      "path": "docs/authority/runner-fact-contract-candidate-assets-v1.json",
-      "contract_only": true,
-      "ready_receipt_published": true
     },
     {
       "role": "runner_fact_batch_schema_v1",
@@ -222,30 +125,10 @@
       "contract_only": true
     },
     {
-      "role": "runner_fact_sequence_continuation_fixture_v1",
-      "path": "docs/authority/runner-fact-sequence-continuation-v1.json",
-      "contract_only": true
-    },
-    {
       "role": "runner_fact_signing_preimage_golden_v1",
       "path": "docs/authority/runner-fact-signing-preimage-golden-v1.json",
       "contract_only": true,
       "runtime_evidence": false
-    },
-    {
-      "role": "plan_19_task_8a_runner_fact_candidate_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v2.json",
-      "receipt_status": "READY_CONTRACT_PRODUCER_CANDIDATE_ONLY",
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "plan_19_task_8a_runner_fact_candidate_receipt_v1_historical",
-      "path": "docs/authority/receipts/custos-plan-19-task-8a-runner-fact-contract-candidate-v1.json",
-      "receipt_status": "NON_CURRENT_SUPERSEDED",
-      "superseded_by": "custos.runner-fact.v1/candidate-2026-07-15.2",
-      "runtime_ready": false,
-      "production_ready": false
     },
     {
       "role": "local_nats_contract",
@@ -272,257 +155,77 @@
       "path": "docs/authority/strategy-toolkit-typing-closure-v1.json"
     },
     {
-      "role": "plan_18_task_4b_typing_closure_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
-      "receipt_status": "READY_TYPING_CLOSURE",
-      "handoff_ready": true,
-      "handoff_scope": "Custos Plan 18 Task 4b typing closure only",
-      "t4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
-      "typed_implementation_commit": "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b",
-      "verified_at": "2026-07-14T19:48:14Z",
-      "open_blockers": [
-        "Custos Plan 18 Task 5 public pre-import artifact verifier and attestation contract",
-        "Custos Plan 18 Task 6 immutable release candidate"
-      ]
+      "role": "local_runner_safety_policy_consumer",
+      "path": "docs/design/runner_safety_policy.md"
     },
     {
-      "role": "plan_18_task_4_extraction_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
-      "implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
-      "receipt_status": "VERIFIED_EXTRACTION_ONLY",
-      "handoff_ready": false,
-      "verified_at": "2026-07-14T18:28:17Z",
-      "open_blockers": [
-        "Custos Plan 18 Task 4b",
-        "Custos Plan 18 Task 5"
-      ]
+      "path": "docs/authority/strategy-artifact-ref-v1.golden.json",
+      "role": "strategy_artifact_ref_golden_v1"
     },
     {
-      "role": "plan_19_task_1_characterization_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-1-characterization-receipt.json",
-      "receipt_status": "READY_CHARACTERIZATION",
-      "implementation_commit": "c567f1dc7ee974acda31f042a48e3fb2833241ed",
-      "verification_head": "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
-      "handoff_ready": false,
-      "handoff_scope": "existing RunnerFact durability and EngineProtocol characterization only",
-      "open_blockers": [
-        "Custos Plan 19 T2 producer-contract consumption",
-        "Custos Plan 19 19b durable runtime state",
-        "Custos Plan 19 runtime RC and cross-repository acceptance"
-      ]
+      "path": "docs/gateway-contract/v1/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "role": "strategy_artifact_pre_import_verification_schema_v1"
     },
     {
-      "role": "strategy_contract_asset_index_v3_current_pre_sign",
-      "path": "docs/authority/strategy-contract-assets-v3.json",
-      "candidate_status": "PRE_SIGN_ABI_ONLY",
-      "handoff_ready": false,
-      "production_ready": false
+      "path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
+      "role": "strategy_artifact_pre_import_verification_golden_v1"
     },
     {
-      "role": "strategy_artifact_ref_v2_schema_current_pre_sign",
-      "path": "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
-      "schema_version": 2,
-      "handoff_ready": false,
-      "production_ready": false
+      "path": "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json",
+      "role": "strategy_artifact_pre_import_verification_negative_v1"
     },
     {
-      "role": "strategy_artifact_ref_v2_pre_sign_golden",
-      "path": "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json",
-      "handoff_ready": false
+      "path": "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json",
+      "role": "strategy_contract_receipt_v1"
     },
     {
-      "role": "strategy_artifact_ref_v2_pre_sign_golden_sidecar",
-      "path": "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json.sha256"
+      "role": "runner_policy_receipt_v1",
+      "path": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
     },
     {
-      "role": "plan_18_task_5c_artifact_ref_v2_producer_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json",
-      "receipt_status": "PRODUCED_AWAITING_CONSUMER_REVIEWS",
-      "handoff_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
+      "role": "runner_fact_asset_index_v1",
+      "path": "docs/authority/runner-fact-contract-assets-v1.json"
     },
     {
-      "role": "strategy_contract_asset_index_v4_current_contract_consumer",
-      "path": "docs/authority/strategy-contract-assets-v4.json",
-      "status": "READY_CONTRACT_CONSUMER_ONLY",
-      "contract_consumer_ready": true,
-      "runtime_ready": false,
-      "production_ready": false
+      "role": "runner_fact_receipt_v1",
+      "path": "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json"
     },
     {
-      "role": "strategy_artifact_pre_import_verification_receipt_v2_schema",
-      "path": "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json",
-      "contract_consumer_ready": true,
-      "runtime_ready": false
-    },
-    {
-      "role": "strategy_artifact_pre_import_verification_receipt_v2_golden",
-      "path": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json"
-    },
-    {
-      "role": "strategy_artifact_pre_import_verification_receipt_v2_golden_sidecar",
-      "path": "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json.sha256"
-    },
-    {
-      "role": "strategy_artifact_pre_import_verification_receipt_v2_negative",
-      "path": "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json"
-    },
-    {
-      "role": "strategy_artifact_pre_import_verification_receipt_v2_negative_sidecar",
-      "path": "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json.sha256"
-    },
-    {
-      "role": "plan_18_task_5d_a_evidence_consumer_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json",
-      "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
-      "contract_consumer_ready": true,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "crucible_runner_command_consumer_asset_index",
+      "role": "crucible_runner_command_consumer_asset_index_v1",
       "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
-      "status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
-      "command_contract_consumer_ready": true,
+      "status": "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+      "consumer_code_ready": true,
+      "command_contract_consumer_ready": false,
       "runtime_ready": false,
       "production_ready": false
     },
     {
-      "role": "plan_18_task_5d_b_command_consumer_receipt",
+      "role": "runner_command_consumer_receipt_v1",
       "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
-      "receipt_status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
-      "plan_18_task_5d_b_stop": true,
-      "plan_19_task_2_stop": true,
+      "receipt_status": "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+      "consumer_code_ready": true,
+      "command_contract_consumer_ready": false,
       "runtime_ready": false,
       "production_ready": false
     },
     {
-      "role": "plan_18_task_5e_corrected_runtime_receipt",
+      "role": "strategy_artifact_runtime_receipt_v1",
       "path": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
-      "receipt_status": "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
-      "runtime_candidate_prepared": true,
-      "capability_ready": false,
+      "receipt_status": "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
       "runtime_ready": false,
       "production_ready": false
     },
     {
       "role": "plan_19_task_4_durable_state_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
-      "receipt_status": "READY_DURABLE_STATE_STORE_ONLY",
-      "single_database": true,
-      "runtime_ready": false,
-      "production_ready": false
+      "path": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
     },
     {
       "role": "plan_19_task_5_engine_lifecycle_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
-      "receipt_status": "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
-      "engine_adapter_ready": true,
-      "team_daemon_enabled": false,
-      "live_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
+      "path": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json"
     },
     {
       "role": "plan_19_task_6_portfolio_semantics_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
-      "receipt_status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
-      "portfolio_semantics_ready": true,
-      "runner_safety_policy_ready": false,
-      "team_daemon_enabled": false,
-      "live_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "crucible_runner_safety_policy_consumer_asset_index",
-      "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
-      "status": "READY_CONTRACT_CONSUMER_ONLY",
-      "policy_contract_consumer_ready": true,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "plan_19_task_7a_runner_policy_consumer_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
-      "receipt_status": "READY_CONTRACT_CONSUMER_ONLY",
-      "policy_contract_consumer_ready": true,
-      "runner_policy_capability_ready": false,
-      "live_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "plan_19_task_7b_runner_policy_daemon_composition_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-daemon-composition-v4-receipt.json",
-      "receipt_status": "READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY",
-      "durable_policy_state_ready": true,
-      "reservation_lifecycle_ready": true,
-      "engine_boundary_enforcement_ready": true,
-      "native_execution_client_interception_ready": true,
-      "strategy_direct_submit_bypass_proven": true,
-      "daemon_runner_state_store_wired": true,
-      "daemon_policy_resolver_wired": true,
-      "daemon_boundary_factory_wired": true,
-      "runtime_policy_consumed": false,
-      "runner_policy_capability_ready": false,
-      "live_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "local_runner_safety_policy_consumer",
-      "path": "docs/design/runner_safety_policy.md"
-    },
-    {
-      "role": "crucible_plan_100_runner_nats_transport_vendor_index",
-      "path": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1/docs/authority/crucible-runner-nats-transport-authority-assets-v1.json"
-    },
-    {
-      "role": "crucible_plan_100_runner_nats_revocation_evidence_vendor_index",
-      "path": "docs/authority/vendor/crucible-plan-100-runner-nats-transport-v1/docs/authority/crucible-runner-nats-revocation-evidence-assets-v1.json"
-    },
-    {
-      "role": "plan_19_task_7c_nats_transport_consumer_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json",
-      "receipt_status": "READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY",
-      "authenticated_transport_consumer_ready": true,
-      "consumer_code_commit": "dcd1ca09d01c0c7e9861b06b80fda7d384e5326b",
-      "superseded_revocation_consumer_ready": true,
-      "retiring_generation_fail_closed": true,
-      "local_user_jwt_memory_resolver_gate_passed": true,
-      "local_user_jwt_memory_resolver_gate_commit": "51fdc9ae514d1670dde492d8cc2da4dde2d24f62",
-      "real_nats_integration_passed": true,
-      "old_generation_reconnect_denial_attested": false,
-      "live_ready": false,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "crucible_plan_90_runner_fact_phase_a_receipt",
-      "path": "docs/authority/vendor/crucible-plan-90/docs/authority/receipts/crucible-plan-90-runner-fact-phase-a-compatibility-v1.json",
-      "status": "READY_PHASE_A_PROJECTOR_COMPATIBILITY_ONLY"
-    },
-    {
-      "role": "plan_19_task_8b_runner_fact_phase_a_consumer_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-8b-runner-fact-phase-a-consumer-receipt.json",
-      "receipt_status": "READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY",
-      "t8b_stop": true,
-      "runtime_ready": false,
-      "production_ready": false
-    },
-    {
-      "role": "plan_18_task_6_toolkit_rc_ready_receipt",
-      "path": "docs/authority/receipts/custos-plan-18-task-6-toolkit-rc-receipt.json",
-      "sha256": "62bd0ce6040543d71b605fd535006b09fd62d85bf40a991e5f3d3076205e315e",
-      "receipt_status": "READY_TOOLKIT_RC",
-      "ready_receipt_published": true,
-      "source_commit": "bdbdb01c29897574a6891091a83367d1337a84ed",
-      "oci_manifest_digest": "sha256:ba17a10f61bb35cbbfb87319ac62501dad30eef4ab07854722fd11baf04907ba",
-      "publication_workflow_run_id": 29744930596,
-      "promotion_workflow_run_id": 29745590539,
-      "promotion_artifact_digest": "sha256:7612c345f8266273b53f166e8ca7623e96351a0645498b92fe86f64e2b60e3ee"
+      "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
     }
   ],
   "external_optional_documents": [
@@ -568,120 +271,124 @@
   },
   "doc_drift": {
     "paths": [
-      "CLAUDE.md",
-      "docs/gateway-contract/v1/README.md",
-      "docs/gateway-contract/v1/deployment_spec.schema.json",
-      "src/custos/contracts/deployment.py",
-      "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
-      "src/custos/contracts/strategy_execution.py",
-      "src/custos/core/nats_client.py",
-      "src/custos/core/deployment_reconciler.py",
-      "src/custos/core/runner_deployment_lifecycle_fact.py",
-      "src/custos/cli/subcommands/__init__.py",
-      "tests/test_authority_runtime_alignment.py",
-      "tests/test_deployment_contract.py",
-      "tests/test_deployment_reconciler.py",
-      "tests/test_runner_deployment_command_golden.py",
-      "tests/test_toolkit_contracts.py",
-      "tests/test_toolkit_inventory.py",
-      "scripts/generate_strategy_contract_assets.py",
-      "scripts/check-authority-docs.py",
-      "Makefile",
-      "docs/design/strategy-toolkit.md",
-      "docs/design/nautilus_host.md",
-      "docs/authority/strategy-toolkit-provenance.md",
-      "docs/authority/strategy-toolkit-extraction-v1.json",
-      "docs/authority/strategy-toolkit-parity-golden-v1.json",
-      "docs/authority/strategy-toolkit-typing-baseline-v1.json",
-      "docs/authority/strategy-toolkit-typing-closure-v1.json",
-      "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
-      "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
-      "packages/custos-strategy-toolkit/pyproject.toml",
-      "packages/custos-strategy-toolkit-nautilus/pyproject.toml",
-      "scripts/check-toolkit-extraction.py",
-      "scripts/check-toolkit-typing-baseline.py",
-      "scripts/check-toolkit-typing-closure.py",
-      "tests/test_toolkit_zero_rewrite.py",
-      "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py",
-      "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
-      "docs/gateway-contract/v2/toolkit_rc_authority_receipt_v2.schema.json",
-      "scripts/toolkit_rc_release_readiness.py",
-      "scripts/toolkit_rc_oci.py",
-      "scripts/toolkit_rc_publish.py",
-      "scripts/toolkit_rc_promote.py",
+      ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md",
+      ".claude/rules/authority-docs.md",
       ".github/workflows/promote-toolkit-rc.yml",
       ".github/workflows/release-toolkit-rc.yml",
-      "tests/test_plan18_t6c_toolkit_rc_publication.py",
-      "tests/test_plan18_t6d_release_readiness.py",
-      "tests/test_plan18_t6e_toolkit_rc_authority.py",
-      "docs/authority/strategy-contract-assets-v3.json",
-      "docs/gateway-contract/v3/strategy_artifact_ref_v2.schema.json",
-      "docs/authority/strategy-artifact-ref-pre-sign-golden-v3.json",
-      "docs/authority/receipts/custos-plan-18-task-5c-artifact-ref-v2-producer-receipt.json",
-      "tests/test_plan18_t5c_pre_sign_artifact_ref.py",
-      "docs/authority/strategy-contract-assets-v4.json",
-      "docs/gateway-contract/v4/strategy_artifact_pre_import_verification_receipt_v2.schema.json",
-      "docs/authority/strategy-artifact-pre-import-verification-golden-v4.json",
-      "docs/authority/strategy-artifact-pre-import-verification-negative-v4.json",
-      "docs/authority/receipts/custos-plan-18-task-5d-a-evidence-consumer-receipt.json",
-      "tests/test_plan18_t5d_a_evidence_consumer.py",
-      "src/custos/contracts/crucible_runner_command.py",
+      "CLAUDE.md",
+      "Makefile",
       "docs/authority/crucible-runner-command-consumer-assets-v1.json",
+      "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json",
       "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
-      "tests/test_plan18_t5d_b_runner_command_consumer.py",
-      "src/custos/core/runner_fact.py",
-      "src/custos/artifacts/corrected_runtime.py",
-      "src/custos/core/engine_lifecycle.py",
-      "src/custos/core/engine_protocol.py",
-      "src/custos/cli/_daemon.py",
-      "src/custos/engines/nautilus/host.py",
-      "src/custos/engines/nautilus/portfolio_snapshot.py",
-      "src/custos/core/fallback_breaker.py",
-      "src/custos/core/runner_command_intake.py",
-      "src/custos/contracts/crucible_runner_safety_policy.py",
-      "src/custos/core/runner_safety_policy.py",
-      "src/custos/core/local_cap.py",
-      "src/custos/contracts/__init__.py",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+      "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json",
+      "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
       "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-code-receipt.json",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-reservation-v2-receipt.json",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-reservation-v2-receipt.json.sha256",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-native-interception-v3-receipt.json",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-native-interception-v3-receipt.json.sha256",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-daemon-composition-v4-receipt.json",
-      "docs/authority/receipts/custos-plan-19-task-7b-runner-policy-daemon-composition-v4-receipt.json.sha256",
-      "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
-      "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
-      "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json",
-      "docs/authority/vendor/crucible-plan-99/docs/authority/schemas/crucible-runner-safety-policy-v1.schema.json.sha256",
-      "docs/authority/vendor/crucible-plan-99/docs/authority/golden/crucible-runner-safety-policy-v1.json",
-      "docs/authority/vendor/crucible-plan-99/docs/authority/golden/crucible-runner-safety-policy-v1.json.sha256",
-      "docs/authority/vendor/crucible-plan-99/docs/authority/receipts/crucible-plan-99-runner-policy-producer-v3.json",
-      "docs/design/runner_safety_policy.md",
+      "docs/authority/runner-fact-contract-assets-v1.json",
+      "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
+      "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json",
+      "docs/authority/strategy-artifact-ref-v1.golden.json",
+      "docs/authority/strategy-contract-assets-v1.json",
+      "docs/authority/strategy-toolkit-extraction-v1.json",
+      "docs/authority/strategy-toolkit-parity-golden-v1.json",
+      "docs/authority/strategy-toolkit-provenance.md",
+      "docs/authority/strategy-toolkit-typing-baseline-v1.json",
+      "docs/authority/strategy-toolkit-typing-closure-v1.json",
       "docs/design/engine_protocol.md",
+      "docs/design/nautilus_host.md",
       "docs/design/reconcile.md",
-      "tests/test_plan18_t5e_corrected_runtime.py",
-      "tests/test_plan19_t5_engine_lifecycle.py",
-      "tests/test_plan19_t5_daemon_supervision.py",
-      "tests/test_plan19_t6_portfolio_snapshot.py",
-      "tests/test_plan19_t7b_order_reservation.py",
-      "tests/test_plan19_t7a_runner_policy_contract_consumer.py",
-      "tests/test_plan19_t7b_runner_policy_runtime_code.py",
+      "docs/design/runner_safety_policy.md",
+      "docs/design/strategy-toolkit.md",
+      "docs-site/docs/08-toolkit/overview.md",
+      "docs-site/i18n/zh-Hans/docusaurus-plugin-content-docs/current/08-toolkit/overview.md",
+      "docs/gateway-contract/v1/README.md",
+      "docs/gateway-contract/v1/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json",
+      "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json",
+      "packages/custos-strategy-toolkit-nautilus/pyproject.toml",
+      "packages/custos-strategy-toolkit/pyproject.toml",
+      "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+      "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/toolkit_rc.py",
+      "scripts/check-authority-docs.py",
+      "scripts/check-toolkit-extraction.py",
+      "scripts/check-toolkit-typing-baseline.py",
+      "scripts/check-toolkit-typing-closure.py",
+      "scripts/generate_strategy_contract_assets.py",
+      "scripts/generate_runner_fact_contract.py",
+      "scripts/toolkit_rc_oci.py",
+      "scripts/toolkit_rc_promote.py",
+      "scripts/toolkit_rc_publish.py",
+      "scripts/toolkit_rc_release_readiness.py",
+      "src/custos/artifacts/runtime.py",
+      "src/custos/artifacts/release_resolver.py",
+      "src/custos/artifacts/verification_types.py",
+      "src/custos/cli/_daemon.py",
+      "src/custos/cli/subcommands/__init__.py",
+      "src/custos/contracts/__init__.py",
+      "src/custos/contracts/crucible_runner_command.py",
+      "src/custos/contracts/crucible_runner_safety_policy.py",
+      "src/custos/contracts/deployment.py",
+      "src/custos/core/credential_resolver.py",
+      "src/custos/core/engine_lifecycle.py",
+      "src/custos/core/engine_protocol.py",
+      "src/custos/core/fallback_breaker.py",
+      "src/custos/core/local_cap.py",
+      "src/custos/core/nats_client.py",
+      "src/custos/core/runner_command_intake.py",
+      "src/custos/core/runner_command_runtime.py",
+      "src/custos/core/runner_deployment_lifecycle_fact.py",
+      "src/custos/core/runner_fact.py",
+      "src/custos/core/runner_safety_policy.py",
+      "src/custos/engines/nautilus/host.py",
+      "src/custos/engines/nautilus/runtime_loader.py",
+      "src/custos/engines/nautilus/portfolio_snapshot.py",
       "tests/engines/nautilus/test_state_snapshot_nautilus_impl.py",
+      "tests/engines/nautilus/test_runtime_entry_point_loader_v1.py",
+      "tests/fixtures/plan19/runner_command_fingerprint_v1.json",
+      "tests/test_authority_runtime_alignment.py",
+      "tests/test_plan18_t5a_pre_import_contract.py",
+      "tests/test_plan18_t5c_pre_sign_artifact_ref.py",
+      "tests/test_plan18_t5d_a_evidence_consumer.py",
+      "tests/test_plan18_t5e_artifact_runtime.py",
+      "tests/test_plan18_t6c_toolkit_rc_publication.py",
+      "tests/test_plan18_t6d_release_readiness.py",
+      "tests/test_plan18_t6e_toolkit_rc_authority.py",
       "tests/test_plan19_t4_runner_state_store.py",
-      ".forge/plans/2026-07/19-crucible-command-runner-fact-runtime-convergence.md"
+      "tests/test_plan19_t5_daemon_supervision.py",
+      "tests/test_plan19_t5_engine_lifecycle.py",
+      "tests/test_plan19_t5f_runner_command_runtime.py",
+      "tests/test_plan19_t6_portfolio_snapshot.py",
+      "tests/test_plan19_t7a_runner_policy_contract_consumer.py",
+      "tests/test_plan19_t7b_order_reservation.py",
+      "tests/test_plan19_t7b_runner_policy_runtime_code.py",
+      "tests/test_plan19_t8a_runner_fact_contract_v1.py",
+      "tests/test_runner_deployment_command_golden.py",
+      "tests/test_toolkit_contracts.py",
+      "tests/test_toolkit_inventory.py",
+      "tests/test_toolkit_zero_rewrite.py"
     ],
     "forbidden_regex": [
-      "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",
+      "ArxNatsTelemetryAdapter",
       "Custos\\s*(<->|->|↔).*ARX",
       "DeploymentMessage\\.create",
+      "NtRiskEngineBridge",
+      "StrategyArtifactRefV[2-9]",
+      "ToolkitRc[A-Za-z0-9_]*V[2-9]",
+      "arx\\.[^\\s\\\"]*\\.deployment_(spec|status)",
+      "corrected_runtime",
+      "RunnerFactStreamCutover",
+      "runner_stream_cutover",
+      "legacy spec-keyed",
+      "producer-v[2-9]",
+      "candidate-[^\\s]*\\.[2-9]",
+      "NON_CURRENT_SUPERSEDED",
       "publish_deployment_status",
+      "rkc[2-9]",
       "standalone_nats",
-      "ArxNatsTelemetryAdapter",
-      "NtRiskEngineBridge"
+      "from\\s+custos\\.core\\.deployment_reconciler\\s+import",
+      "from\\s+custos\\.engines\\.nautilus\\.strategy_loader\\s+import"
     ]
   },
   "required_claims": [
@@ -728,97 +435,37 @@
       ]
     },
     {
-      "path": "docs/authority/receipts/custos-plan-18-task-2-schema-receipt.json",
+      "path": "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json",
       "must_contain": [
-        "Custos Plan 18 Task 2 schema receipt",
-        "\"execution_abi_owner\": \"custos\"",
-        "\"artifact_schema_owner\": \"custos\"",
-        "\"contract_schema_version\": 1"
+        "Custos strategy contract V1 receipt",
+        "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS",
+        "\"runner_local_policy_decision_required\": true"
       ]
     },
     {
-      "path": "docs/authority/receipts/vendor/crucible-plan-88-custos-task-2-requirements-review.json",
+      "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
       "must_contain": [
-        "ACCEPTED_REQUIREMENTS_REVIEW",
-        "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
-        "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
-      ]
-    },
-    {
-      "path": "docs/authority/receipts/vendor/ps-plan-54-custos-task-2-requirements-review.json",
-      "must_contain": [
-        "ACCEPTED_REQUIREMENTS_REVIEW",
-        "b36e9edf3ce9d2080e0d77b22ae99a65e32aaaf0",
-        "d87d6fc2df020e92748058c5577863b83dd6f3b2a0c0f59adbf9b9b7822dae07"
-      ]
-    },
-    {
-      "path": "docs/authority/receipts/custos-plan-18-task-3-distribution-receipt.json",
-      "must_contain": [
-        "Custos Plan 18 Task 3 distribution and canonical-source receipt",
-        "\"receipt_status\": \"READY\"",
-        "efc01da67b432e9b35beee3498415efc1bc46b98",
-        "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
-        "custos-strategy-toolkit-nautilus",
-        "nautilus-trader==1.230.0"
-      ]
-    },
-    {
-      "path": "docs/authority/receipts/custos-plan-19-task-1-characterization-receipt.json",
-      "must_contain": [
-        "READY_CHARACTERIZATION",
-        "c567f1dc7ee974acda31f042a48e3fb2833241ed",
-        "f3adde2870a53a4bb52cc2a260d2c7c1c852eee2",
-        "\"runtime_activation_ready\": false",
-        "\"t2_ready\": false"
+        "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+        "\"deployment_spec_only\": true",
+        "\"strategy_release_material_in_command\": false",
+        "\"production_ready\": false"
       ]
     },
     {
       "path": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "must_contain": [
-        "PREPARED_BLOCKED_EXTERNAL_RUNTIME_RECEIPTS",
-        "Plan 19 T4 durable desired command after Plan 19 T3 signature verification and intake",
-        "StrategyReleaseBomV1.members only",
-        "\"python_import_after_verification\": true",
-        "\"capability_ready\": false",
-        "\"production_ready\": false"
-      ]
-    },
-    {
-      "path": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json",
-      "must_contain": [
-        "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
-        "command_in_progress_lease in the existing RunnerFact SQLite database",
-        "\"restart_no_duplicate_deploy\": true",
-        "\"team_daemon_enabled\": false",
-        "\"live_ready\": false",
-        "\"production_ready\": false"
-      ]
-    },
-    {
-      "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
-      "must_contain": [
-        "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
-        "NautilusPortfolioSnapshotProvider",
-        "Nautilus portfolio.equity(venue)",
-        "Nautilus position.unrealized_pnl(trusted_mark_price)",
-        "\"runner_safety_policy_ready\": false",
-        "\"live_ready\": false",
-        "\"production_ready\": false"
-      ]
-    },
-    {
-      "path": "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json",
-      "must_contain": [
-        "READY_CONTRACT_CONSUMER_ONLY",
-        "0f8c9afbeccf2435785354ad734c16f18aa339ab",
-        "36082e6591b67686df928afda88621629eb6075e",
-        "\"producer_main_landed\": false",
-        "\"migration_0117_executed\": false",
-        "\"runtime_policy_consumed\": false",
-        "\"live_ready\": false",
+        "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
+        "StrategyReleaseArtifactResolverV1",
+        "\"runtime_ready\": false",
         "\"production_ready\": false"
       ]
     }
-  ]
+  ],
+  "contract_evolution_policy": {
+    "current_production_version": 1,
+    "feature_changes": "IN_PLACE_V1",
+    "runtime_compatibility_layers_allowed": false,
+    "v2_requires_external_production_consumer": true,
+    "v2_requires_explicit_migration_window": true
+  }
 }

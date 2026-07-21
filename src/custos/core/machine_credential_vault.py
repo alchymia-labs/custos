@@ -38,11 +38,11 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _HTTP_TIMEOUT_SECS = 30
 _MAX_RESPONSE_BYTES = 1_048_576
-_ENROLLMENT_DOMAIN = "arx.runner.enrollment.pop.v2"
-_ROTATION_DOMAIN = "arx.runner.credential.rotation.pop.v2"
-_REVOCATION_DOMAIN = "arx.runner.credential.revocation.pop.v2"
-_REQUEST_DOMAIN = "arx.runner.machine.request.v2"
-_NATS_DOMAIN = "arx.runner.machine.nats.v2"
+_ENROLLMENT_DOMAIN = "arx.runner.enrollment.pop.v1"
+_ROTATION_DOMAIN = "arx.runner.credential.rotation.pop.v1"
+_REVOCATION_DOMAIN = "arx.runner.credential.revocation.pop.v1"
+_REQUEST_DOMAIN = "arx.runner.machine.request.v1"
+_NATS_DOMAIN = "arx.runner.machine.nats.v1"
 
 
 class MachineCredentialError(RuntimeError):
@@ -206,8 +206,8 @@ class MachineCredential:
             "credential_valid_until",
             _timestamp(self.credential_valid_until, "credential_valid_until"),
         )
-        if not self.machine_credential.startswith("rkc2."):
-            raise MachineCredentialError("machine credential is not an rkc2 credential")
+        if not self.machine_credential.startswith("rkc1."):
+            raise MachineCredentialError("machine credential is not an rkc1 credential")
         if len(self.private_key_bytes) != 32:
             raise MachineCredentialError("Ed25519 private key must contain 32 bytes")
         if self.machine_key_id != _key_id(self.public_key_bytes):
@@ -338,7 +338,7 @@ class MachineCredential:
             )
         ).encode("utf-8")
         return {
-            "schema_version": 2,
+            "schema_version": 1,
             "tenant_id": self.tenant_id,
             "runner_id": str(self.runner_id),
             "credential_id": str(self.credential_id),
@@ -355,7 +355,7 @@ class MachineCredential:
 
     def to_document(self) -> dict[str, Any]:
         return {
-            "schema_version": 2,
+            "schema_version": 1,
             "state": "active",
             "tenant_id": self.tenant_id,
             "runner_id": str(self.runner_id),
@@ -383,8 +383,8 @@ class MachineCredential:
         }
         if set(document) != expected:
             raise MachineCredentialError("machine vault has an unexpected document shape")
-        if document.get("schema_version") != 2 or document.get("state") != "active":
-            raise MachineCredentialError("machine vault is not an active v2 credential")
+        if document.get("schema_version") != 1 or document.get("state") != "active":
+            raise MachineCredentialError("machine vault is not an active v1 credential")
         try:
             private_key_bytes = base64.b64decode(document["private_key_base64"], validate=True)
         except (TypeError, ValueError) as exc:

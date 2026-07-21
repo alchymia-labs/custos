@@ -23,7 +23,7 @@ runner 本地解密成交易所 API key，交给 `nautilus_host` 下单——**K
 - **`MachineCredentialVault`（生产身份根）** —
   `src/custos/core/machine_credential_vault.py`：单一
   `~/.arx/vault/runner-machine.enc` 同时加密 Ed25519 私钥与 tenant-bearing opaque
-  `rkc2` credential。`runner.toml` 只保存 credential ID/version/expiry/key ID 与 vault
+  `rkc1` credential。`runner.toml` 只保存 credential ID/version/expiry/key ID 与 vault
   引用，不含 plaintext。enroll/rotate 是唯一写路径；startup/onboard/RunnerFact 是读路径。
 
 - **`PerKeyVault`（生产 runtime reader）** — `src/custos/core/per_key_vault.py`：

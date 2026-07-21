@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          output="$RUNNER_TEMP/custos-toolkit-rc-ready-candidate-v2.json"
+          output="$RUNNER_TEMP/custos-toolkit-rc-ready-candidate-v1.json"
           uv run --frozen --extra lts python -m scripts.toolkit_rc_promote \
             --registry "$CUSTOS_TOOLKIT_OCI_REGISTRY" \
             --repository "$CUSTOS_TOOLKIT_OCI_REPOSITORY" \
@@ -77,7 +77,7 @@ jobs:
             sha256sum "$output_name" > "$output_name.sha256"
           )
           uv run --frozen --extra lts python -c \
-            'from pathlib import Path; from custos_toolkit.contracts import ToolkitRcAuthorityReceiptV2; ToolkitRcAuthorityReceiptV2.model_validate_json(Path("'"$output"'").read_bytes())'
+            'from pathlib import Path; from custos_toolkit.contracts import ToolkitRcAuthorityReceiptV1; ToolkitRcAuthorityReceiptV1.model_validate_json(Path("'"$output"'").read_bytes())'
 
       - name: Upload the independently verified authority candidate
         id: upload
@@ -85,8 +85,8 @@ jobs:
         with:
           name: toolkit-rc-authority-${{ inputs.candidate_version }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/custos-toolkit-rc-ready-candidate-v2.json
-            ${{ runner.temp }}/custos-toolkit-rc-ready-candidate-v2.json.sha256
+            ${{ runner.temp }}/custos-toolkit-rc-ready-candidate-v1.json
+            ${{ runner.temp }}/custos-toolkit-rc-ready-candidate-v1.json.sha256
           if-no-files-found: error
           retention-days: 7
           overwrite: false

@@ -1,17 +1,18 @@
-import json
 from pathlib import Path
-
-from custos.contracts import DeploymentSpec
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "docs/gateway-contract/v1"
 
 
-def test_deployment_schema_is_generated_from_current_model() -> None:
-    checked_in = json.loads((CONTRACT / "deployment_spec.schema.json").read_text())
-    assert checked_in == DeploymentSpec.model_json_schema()
+def test_custos_does_not_publish_crucible_deployment_spec_assets() -> None:
+    assert not (CONTRACT / "deployment_spec.schema.json").exists()
+    assert not (CONTRACT / "samples/deployment_spec_sandbox.json").exists()
 
 
-def test_sandbox_sample_matches_current_local_execution_view() -> None:
-    sample = json.loads((CONTRACT / "samples/deployment_spec_sandbox.json").read_text())
-    assert DeploymentSpec.model_validate(sample).deployment_instance_id
+def test_gateway_readme_teaches_the_single_owner_boundary() -> None:
+    text = " ".join((CONTRACT / "README.md").read_text(encoding="utf-8").split())
+
+    assert "does not publish a DeploymentSpec schema" in text
+    assert "Crucible owns the canonical DeploymentSpec" in text
+    assert "authenticated Crucible `StrategyRelease` authority" in text
+    assert "arx-runner deployment" not in text

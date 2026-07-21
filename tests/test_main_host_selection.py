@@ -1,8 +1,8 @@
 """Runner runtime host selection.
 
-The reconciler binds a single host from the clean-break ``--engine`` enum.
+The lifecycle supervisor binds a single host from the clean-break ``--engine`` enum.
 ``nautilus`` selects the real ``NtTradingNodeHost`` and ``noop`` selects the
-explicit contract-test stub. The G6 gate still guards every live deploy.
+explicit contract-test stub. Execution admission still guards every live deploy.
 
 Post-Plan-11: ``_build_host`` lives in ``custos.cli._daemon`` (the flat
 ``custos.cli.main`` module was retired). Tests build the ``Namespace``
@@ -12,6 +12,7 @@ directly rather than routing through a legacy parser.
 from __future__ import annotations
 
 import argparse
+from types import SimpleNamespace
 
 import pytest
 
@@ -42,4 +43,8 @@ async def test_build_host_nt_without_runtime_fails_fast(monkeypatch) -> None:
     monkeypatch.setattr(nautilus_host, "TradingNode", None)
     host = _build_host(_host_args())
     with pytest.raises(RuntimeError, match="nautilus"):
-        await host.deploy({"spec_id": "x"}, {})
+        await host.deploy(
+            {"deployment_instance_id": "x", "deployment_spec_id": "spec-x"},
+            {},
+            SimpleNamespace(activation_id="activation-x", strategy=object()),
+        )

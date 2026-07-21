@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "contract": "custos.runner_fact.batch-signing-preimage.v1",
-  "candidate_coordinate": "custos.runner-fact.v1/candidate-2026-07-15.2",
+  "authority_coordinate": "custos.runner-fact.v1",
   "signing_domain_base64": "Q1JVQ0lCTEUtUlVOTkVSLUZBQ1QtQkFUQ0gtVjEA",
   "signing_header_fields": [
     "schema_version",

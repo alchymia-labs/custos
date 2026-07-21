@@ -2,48 +2,82 @@
   "asset_index_schema_version": 1,
   "assets": [
     {
-      "path": "docs/authority/strategy-artifact-lifecycle-golden-v1.json",
-      "sha256": "dc60fa0b50aac5e88362cfadd48f1094c5bae2a7542b746af87fbff3ad543136",
-      "size_bytes": 19248
+      "path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
+      "sha256": "fb78d43cc1a763945c86bb9c733dccde8c8d1bdaf9cd075f23b00bc3ab289d46",
+      "size_bytes": 9886
     },
     {
-      "path": "docs/authority/strategy-toolkit-inventory-v1.json",
-      "sha256": "98dba9e60e906c4943c3b768465b66ddb38c42e2bde0bae6ffbadfc7fe6eef68",
-      "size_bytes": 112545
+      "path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json.sha256",
+      "sha256": "e5b7049fd2819978a3d57fe0babdfa4ca597d581613e33a5a52982e0fad8c73e",
+      "size_bytes": 123
     },
     {
-      "path": "docs/gateway-contract/v1/development_source_ref_v1.schema.json",
-      "sha256": "ef05e08599927488e0da67d7620328dac230ea794d5106bbc6bf152a0381e54f",
-      "size_bytes": 964
+      "path": "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json",
+      "sha256": "5a4954b838ec02f6dfa774d752fb6b65d6b4ade75f6e625d50315d717990a35d",
+      "size_bytes": 2307
+    },
+    {
+      "path": "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json.sha256",
+      "sha256": "eaad4070d2c43b4987305939814945b319cd4250ea452be9e357deaccba310b4",
+      "size_bytes": 125
+    },
+    {
+      "path": "docs/authority/strategy-artifact-ref-v1.golden.json",
+      "sha256": "6486cec742a7921a3c5d9d1e799ce2faa067754af9028d2759709252f1d6a5c0",
+      "size_bytes": 1979
+    },
+    {
+      "path": "docs/authority/strategy-artifact-ref-v1.golden.json.sha256",
+      "sha256": "b93f0a2eea24f4903aea2fb63711347d9ae84f23a53292a5f74c8776022c50fb",
+      "size_bytes": 103
+    },
+    {
+      "path": "docs/gateway-contract/v1/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "sha256": "a59b24671851a35fd973b76685ac17bbbcb2c0c685b824f4c8287fff72beaa9e",
+      "size_bytes": 10838
     },
     {
       "path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json",
-      "sha256": "0f9ed02c57cbef30dc1e8a2597abe3cae796540f539ef56f2962db5a40765c6b",
-      "size_bytes": 6423
-    },
-    {
-      "path": "docs/gateway-contract/v1/strategy_artifact_verification_receipt_v1.schema.json",
-      "sha256": "7f99d3939ad2a995621c71bee7bbd7d1d735f1f9b7fc090a34cd6800fc858b91",
-      "size_bytes": 10815
-    },
-    {
-      "path": "docs/gateway-contract/v1/strategy_execution_command_binding_v1.schema.json",
-      "sha256": "d813bac90b4382f0e8ed4dcfb7805c170d6d79d9afcc42c9674407d216791507",
-      "size_bytes": 8592
-    },
-    {
-      "path": "docs/gateway-contract/v1/strategy_execution_context_v1.schema.json",
-      "sha256": "c48980aa2321cb19697ec71c9154a69a642953e45849527a6c9972fbf4a1bda5",
-      "size_bytes": 1500
-    },
-    {
-      "path": "docs/gateway-contract/v1/strategy_manifest_v1.schema.json",
-      "sha256": "70b14149acd718db84ec815da331a2b12b14ea5760fa0d1ac1cd7d23806a5c21",
-      "size_bytes": 3382
+      "sha256": "0f82d8cd9ce1fe7fb4cf6c70a98bbd6683bb517c7eb968c54a9cfa89567bbff5",
+      "size_bytes": 4950
     }
   ],
-  "canonical_name": "Custos Plan 18 Task 2 schema assets",
-  "producer_source": "src/custos/contracts/strategy_execution.py",
-  "producer_source_sha256": "71990c6a4613cb738f6a81be0cc393d79f86eeee8b36166974e4581a3ef934c3",
-  "strategy_release_bom_ownership": "not owned by Custos; only member requirements are consumed"
+  "canonical_name": "Custos Plan 18 canonical first-production V1 contracts",
+  "command_consumer_ready": false,
+  "consumer_receipts": {
+    "crucible_rust": {
+      "consumes": "StrategyArtifactPreImportVerificationReceiptV1",
+      "receipt": null,
+      "repository": "tesseract-trading/crucible-rust",
+      "status": "PENDING_CANONICAL_V1_CONSUMER_RECEIPT"
+    },
+    "philosophers_stone": {
+      "consumes": "StrategyArtifactRefV1",
+      "receipt": null,
+      "repository": "alchymia-labs/philosophers-stone",
+      "status": "PENDING_CANONICAL_V1_CONSUMER_RECEIPT"
+    }
+  },
+  "contract_consumer_ready": false,
+  "current_contracts": {
+    "pre_import_verification_receipt": {
+      "golden_path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
+      "negative_path": "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json",
+      "schema_path": "docs/gateway-contract/v1/strategy_artifact_pre_import_verification_receipt_v1.schema.json",
+      "type": "StrategyArtifactPreImportVerificationReceiptV1"
+    },
+    "strategy_artifact_ref": {
+      "golden_path": "docs/authority/strategy-artifact-ref-v1.golden.json",
+      "schema_path": "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json",
+      "type": "StrategyArtifactRefV1"
+    }
+  },
+  "producer": {
+    "repository": "tesseract-trading/custos",
+    "source_path": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+    "source_sha256": "c20520769326012ac4f077ac7fbea2bf107a55367a76d571930aefa35979b235"
+  },
+  "production_ready": false,
+  "runtime_ready": false,
+  "status": "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS"
 }

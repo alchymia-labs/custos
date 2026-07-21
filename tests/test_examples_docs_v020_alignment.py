@@ -7,8 +7,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from custos.contracts import DeploymentSpec
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES_DIR = REPO_ROOT / "examples"
 SANDBOX_DIR = EXAMPLES_DIR / "supertrend-sandbox"
@@ -113,10 +111,13 @@ def test_testnet_compose_uses_inbound_only_runtime_shape() -> None:
     assert runner["command"][0] == "start"
     engine_index = runner["command"].index("--engine")
     assert runner["command"][engine_index : engine_index + 2] == ["--engine", "nautilus"]
+    mode_index = runner["command"].index("--enabled-mode")
+    assert runner["command"][mode_index : mode_index + 2] == ["--enabled-mode", "testnet"]
     assert "--crucible-domain-public-key" in runner["command"]
     assert "--crucible-domain-key-id" in runner["command"]
     assert runner["healthcheck"]["test"] == ["CMD", "arx-runner", "health"]
     assert "./runtime/.arx:/home/custos/.arx" in runner["volumes"]
+    assert all("strateg" not in volume for volume in runner["volumes"])
     assert "deployment publish" not in raw
     assert "nats bootstrap" not in raw
 
@@ -174,31 +175,29 @@ def test_testnet_vault_fixture_is_one_per_key_payload() -> None:
     assert fixture["binance-testnet"]["permission_scope"] == "trade_no_withdraw"
 
 
-def test_examples_sandbox_spec_matches_gateway_sample() -> None:
-    assert (SANDBOX_DIR / "spec-example.json").read_bytes() == (
+def test_examples_do_not_duplicate_crucible_owned_deployment_specs() -> None:
+    assert not (SANDBOX_DIR / "spec-example.json").exists()
+    assert not (TESTNET_DIR / "spec-example.json").exists()
+    assert not (
+        REPO_ROOT / "docs" / "gateway-contract" / "v1" / "deployment_spec.schema.json"
+    ).exists()
+    assert not (
         REPO_ROOT / "docs" / "gateway-contract" / "v1" / "samples" / "deployment_spec_sandbox.json"
-    ).read_bytes()
+    ).exists()
 
 
-@pytest.mark.parametrize(
-    "path",
-    (SANDBOX_DIR / "spec-example.json", TESTNET_DIR / "spec-example.json"),
-)
-def test_example_specs_are_complete_runtime_contracts(path: Path) -> None:
-    spec = DeploymentSpec.model_validate_json(path.read_text(encoding="utf-8"))
-
-    assert spec.strategy_config
-    assert spec.strategy_registry_name == "supertrend"
-
-
-def test_gateway_docs_teach_public_deployment_seam() -> None:
-    text = (REPO_ROOT / "docs" / "gateway-contract" / "v1" / "README.md").read_text(
-        encoding="utf-8"
+def test_gateway_docs_teach_crucible_owned_deployment_seam() -> None:
+    text = " ".join(
+        (REPO_ROOT / "docs" / "gateway-contract" / "v1" / "README.md")
+        .read_text(encoding="utf-8")
+        .split()
     )
 
-    assert "DeploymentMessage" in text
-    assert "Crucible" in text
-    assert "not a Custos CLI operation" in text
+    assert "does not publish a DeploymentSpec schema" in text
+    assert "Crucible owns the canonical DeploymentSpec" in text
+    assert "DeploymentSpecReadyForRunner" in text
+    assert "authenticated Crucible `StrategyRelease` authority" in text
+    assert "arx-runner deployment" not in text
 
 
 @pytest.mark.parametrize("path", (SANDBOX_DIR / "README.md", TESTNET_DIR / "README.md"))

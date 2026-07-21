@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -20,6 +21,7 @@ from nautilus_trader.live.factories import LiveExecClientFactory  # noqa: E402
 from nautilus_trader.live.node import TradingNode  # noqa: E402
 from nautilus_trader.model.identifiers import TraderId  # noqa: E402
 
+from custos.core.fallback_breaker import FallbackBreaker, FallbackBreakerConfig  # noqa: E402
 from custos.engines.nautilus.host import NtTradingNodeHost  # noqa: E402
 from custos.engines.nautilus.runner_safety import (  # noqa: E402
     GuardedLiveExecutionClient,
@@ -109,6 +111,12 @@ def test_real_sandbox_builder_registers_the_guarded_client_without_network() -> 
         store=_Store(),
         deployment_instance_id=UUID("11111111-1111-4111-8111-111111111111"),
         policy_id=UUID("22222222-2222-4222-8222-222222222222"),
+        fallback_breaker=FallbackBreaker(
+            FallbackBreakerConfig(
+                max_notional=Decimal("1000"),
+                max_drawdown_pct=Decimal("10"),
+            )
+        ),
     )
     factory = guarded_exec_client_factory(SandboxLiveExecClientFactory, boundary)
     loop = asyncio.new_event_loop()

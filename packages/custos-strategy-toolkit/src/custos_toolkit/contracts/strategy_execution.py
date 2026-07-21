@@ -24,7 +24,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    StrictBool,
     StrictInt,
     StringConstraints,
     field_validator,
@@ -121,29 +120,6 @@ class ArtifactMemberV1(_StrictFrozenModel):
         return _validate_relative_artifact_name(value)
 
 
-class AttestationEvidenceV1(_StrictFrozenModel):
-    bundle_sha256: Sha256Hex
-    source_repository: NonEmptyString
-    source_commit: SourceCommit
-    normalized_source_tree_sha256: Sha256Hex
-    issuer: NonEmptyString
-    workflow_identity: NonEmptyString
-    trust_policy_id: NonEmptyString
-    trust_policy_version: StrictInt = Field(ge=1)
-    trust_policy_digest: Sha256Hex
-    python_version: Annotated[str, StringConstraints(pattern=r"^3\.12\.[0-9]+$")]
-    engine: Literal["nautilus"]
-    engine_version: Literal["1.230.0"]
-    base_contracts_version: NonEmptyString
-    engine_toolkit_version: NonEmptyString
-    build_inputs: tuple[DigestBindingV1, ...] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def validate_unique_build_inputs(self) -> Self:
-        _require_unique_names(self.build_inputs, label="attestation build input")
-        return self
-
-
 class StrategyManifestV1(_StrictFrozenModel):
     """Artifact-local compatibility metadata, never release authority."""
 
@@ -192,53 +168,18 @@ class StrategyManifestV1(_StrictFrozenModel):
 
 
 class StrategyArtifactRefV1(_StrictFrozenModel):
-    """Historical v1 wire shape; never accepted by the corrected production path."""
+    """Sole first-production pre-sign execution identity."""
 
     model_config = ConfigDict(
         extra="forbid",
         frozen=True,
         title="StrategyArtifactRefV1",
         json_schema_extra={
-            "$id": "https://custos.the-alephain-guild/contracts/strategy-artifact-ref-v1.schema.json"
+            "$id": "https://custos.the-alephain-guild/contracts/v1/strategy-artifact-ref-v1.schema.json"
         },
     )
 
     schema_version: Literal[1] = 1
-    artifact_kind: Literal["wheel"]
-    artifact_coordinate: NonEmptyString
-    artifact_sha256: Sha256Hex
-    artifact_size_bytes: StrictInt = Field(gt=0)
-    manifest_sha256: Sha256Hex
-    manifest_size_bytes: StrictInt = Field(gt=0)
-    required_runtime_artifacts: tuple[ArtifactMemberV1, ...] = ()
-    attestation: AttestationEvidenceV1
-    sbom_sha256: Sha256Hex
-    contract_schema_sha256: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_runtime_artifacts(self) -> Self:
-        if any(
-            member.role is not ArtifactMemberRole.RUNTIME_ARTIFACT
-            for member in self.required_runtime_artifacts
-        ):
-            raise ValueError("required_runtime_artifacts may contain only runtime_artifact members")
-        _require_unique_members(self.required_runtime_artifacts)
-        return self
-
-
-class StrategyArtifactRefV2(_StrictFrozenModel):
-    """Pre-sign immutable execution identity for the corrected production ABI."""
-
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        title="StrategyArtifactRefV2",
-        json_schema_extra={
-            "$id": "https://custos.the-alephain-guild/contracts/v3/strategy-artifact-ref-v2.schema.json"
-        },
-    )
-
-    schema_version: Literal[2] = 2
     artifact_kind: Literal["wheel"]
     artifact_coordinate: NonEmptyString
     artifact_sha256: Sha256Hex
@@ -281,7 +222,7 @@ class RunnerLocalArtifactPolicyDecisionV1(_StrictFrozenModel):
         title="RunnerLocalArtifactPolicyDecisionV1",
         json_schema_extra={
             "$id": (
-                "https://custos.the-alephain-guild/contracts/v4/"
+                "https://custos.the-alephain-guild/contracts/v1/"
                 "runner-local-artifact-policy-decision-v1.schema.json"
             )
         },
@@ -300,29 +241,29 @@ class RunnerLocalArtifactPolicyDecisionV1(_StrictFrozenModel):
     artifact_acceptance_receipt_digest: Sha256Hex
 
 
-class StrategyArtifactPreImportVerificationReceiptV2(_StrictFrozenModel):
+class StrategyArtifactPreImportVerificationReceiptV1(_StrictFrozenModel):
     """Contract-consumer proof over producer-owned evidence objects."""
 
     model_config = ConfigDict(
         extra="forbid",
         frozen=True,
-        title="StrategyArtifactPreImportVerificationReceiptV2",
+        title="StrategyArtifactPreImportVerificationReceiptV1",
         json_schema_extra={
             "$id": (
-                "https://custos.the-alephain-guild/contracts/v4/"
-                "strategy-artifact-pre-import-verification-receipt-v2.schema.json"
+                "https://custos.the-alephain-guild/contracts/v1/"
+                "strategy-artifact-pre-import-verification-receipt-v1.schema.json"
             )
         },
     )
 
-    schema_version: Literal[2] = 2
-    verification_profile: Literal["custos-artifact-pre-import-verification-v2"]
+    schema_version: Literal[1] = 1
+    verification_profile: Literal["custos-artifact-pre-import-verification-v1"]
     verified_at: datetime
     release_bom: dict[str, object]
     release_bom_digest: Sha256Hex
     release_statement: dict[str, object]
     release_statement_digest: Sha256Hex
-    artifact_ref: StrategyArtifactRefV2
+    artifact_ref: StrategyArtifactRefV1
     artifact_ref_digest: Sha256Hex
     detached_attestation_ref: dict[str, object]
     detached_attestation_ref_digest: Sha256Hex
@@ -339,7 +280,7 @@ class StrategyArtifactPreImportVerificationReceiptV2(_StrictFrozenModel):
         if self.release_statement_digest != canonical_json_digest(self.release_statement):
             raise ValueError("release_statement_digest differs from the producer statement")
         if self.artifact_ref_digest != canonical_model_digest(self.artifact_ref):
-            raise ValueError("artifact_ref_digest differs from StrategyArtifactRefV2")
+            raise ValueError("artifact_ref_digest differs from StrategyArtifactRefV1")
         if self.detached_attestation_ref_digest != canonical_json_digest(
             self.detached_attestation_ref
         ):
@@ -358,7 +299,7 @@ class StrategyArtifactPreImportVerificationReceiptV2(_StrictFrozenModel):
         }
         for name, expected in bom_bindings.items():
             if self.release_bom.get(name) != expected:
-                raise ValueError(f"producer BOM {name} differs from ArtifactRefV2")
+                raise ValueError(f"producer BOM {name} differs from ArtifactRefV1")
 
         statement_subjects = self.release_statement.get("subject")
         if not isinstance(statement_subjects, (list, tuple)):
@@ -376,7 +317,7 @@ class StrategyArtifactPreImportVerificationReceiptV2(_StrictFrozenModel):
             "strategy-manifest-v1": self.artifact_ref.manifest_sha256,
         }
         if subject_digests != expected_subjects:
-            raise ValueError("producer statement subjects differ from BOM and ArtifactRefV2")
+            raise ValueError("producer statement subjects differ from BOM and ArtifactRefV1")
 
         if self.detached_attestation_ref.get("statement_sha256") != self.release_statement_digest:
             raise ValueError("detached attestation reference differs from producer statement")
@@ -388,8 +329,8 @@ class StrategyArtifactPreImportVerificationReceiptV2(_StrictFrozenModel):
             "attestation_ref_digest": self.detached_attestation_ref_digest,
             "bundle_sha256": self.detached_attestation_ref.get("bundle_sha256"),
         }
-        for name, expected in evidence_bindings.items():
-            if self.crucible_artifact_evidence.get(name) != expected:
+        for name, expected_evidence in evidence_bindings.items():
+            if self.crucible_artifact_evidence.get(name) != expected_evidence:
                 raise ValueError(f"Crucible artifact evidence {name} differs")
         if (
             self.crucible_artifact_evidence.get("artifact_evidence_digest")
@@ -444,214 +385,6 @@ class DevelopmentSourceRefV1(_StrictFrozenModel):
     source_sha256: Sha256Hex
     trading_mode: Literal["sandbox"]
     promotable: Literal[False] = False
-
-
-class StrategyExecutionCommandBindingV1(_StrictFrozenModel):
-    """Artifact fields that a signed Crucible command must bind exactly."""
-
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        title="StrategyExecutionCommandBindingV1",
-        json_schema_extra={
-            "$id": "https://custos.the-alephain-guild/contracts/strategy-execution-command-binding-v1.schema.json"
-        },
-    )
-
-    schema_version: Literal[1] = 1
-    deployment_instance_id: UUID
-    deployment_spec_id: UUID
-    deployment_spec_digest: Sha256Hex
-    generation: StrictInt = Field(ge=1)
-    strategy_release_id: UUID
-    release_bom_digest: Sha256Hex
-    release_bom_members: tuple[ArtifactMemberV1, ...] = Field(min_length=1)
-    artifact_ref: StrategyArtifactRefV1
-    effective_config_digest: Sha256Hex
-
-    @model_validator(mode="after")
-    def validate_release_member_projection(self) -> Self:
-        _validate_release_members(self.release_bom_members, self.artifact_ref)
-        return self
-
-
-class SigstoreVerificationEvidenceV1(_StrictFrozenModel):
-    """Public cryptographic evidence emitted before artifact import."""
-
-    verifier_capability_id: NonEmptyString
-    bundle_sha256: Sha256Hex
-    trusted_root_sha256: Sha256Hex
-    issuer: NonEmptyString
-    workflow_identity: NonEmptyString
-    source_repository: NonEmptyString
-    verified_subjects: tuple[DigestBindingV1, ...] = Field(min_length=1)
-    transparency_log_verified: StrictBool
-
-    @model_validator(mode="after")
-    def validate_unique_subjects(self) -> Self:
-        _require_unique_names(self.verified_subjects, label="Sigstore verified subject")
-        return self
-
-
-class ArchiveVerificationEvidenceV1(_StrictFrozenModel):
-    """Fail-closed wheel inspection evidence without a local quarantine path."""
-
-    archive_format: Literal["wheel"]
-    member_count: StrictInt = Field(ge=1)
-    total_uncompressed_bytes: StrictInt = Field(ge=1)
-    entry_point_metadata_verified: Literal[True]
-    entry_point_ast_verified: Literal[True]
-
-
-class StrategyArtifactPreImportVerificationReceiptV1(_StrictFrozenModel):
-    """Public proof of exact command-bound verification before Python import."""
-
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        title="StrategyArtifactPreImportVerificationReceiptV1",
-        json_schema_extra={
-            "$id": "https://custos.the-alephain-guild/contracts/strategy-artifact-pre-import-verification-receipt-v1.schema.json"
-        },
-    )
-
-    schema_version: Literal[1] = 1
-    verification_profile: Literal["custos-artifact-pre-import-verification-v1"]
-    verified_at: datetime
-    command_binding: StrategyExecutionCommandBindingV1
-    command_binding_digest: Sha256Hex
-    artifact_ref_digest: Sha256Hex
-    release_bom_digest: Sha256Hex
-    verified_members: tuple[ArtifactMemberV1, ...] = Field(min_length=1)
-    local_trust_policy_id: NonEmptyString
-    local_trust_policy_version: StrictInt = Field(ge=1)
-    local_trust_policy_digest: Sha256Hex
-    trusted_root_digest: Sha256Hex
-    sigstore: SigstoreVerificationEvidenceV1
-    archive: ArchiveVerificationEvidenceV1
-    verified_entry_point: NonEmptyString
-
-    @field_validator("verified_entry_point")
-    @classmethod
-    def validate_verified_entry_point(cls, value: str) -> str:
-        module, separator, attribute = value.partition(":")
-        valid_module = re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", module)
-        if not separator or not attribute or not valid_module:
-            raise ValueError("verified_entry_point must be a module path and attribute")
-        return value
-
-    @model_validator(mode="after")
-    def validate_pre_import_evidence(self) -> Self:
-        command = self.command_binding
-        if self.command_binding_digest != canonical_model_digest(command):
-            raise ValueError("command_binding_digest does not match command_binding")
-        if self.artifact_ref_digest != canonical_model_digest(command.artifact_ref):
-            raise ValueError("artifact_ref_digest does not match command artifact_ref")
-        if self.release_bom_digest != command.release_bom_digest:
-            raise ValueError("release_bom_digest does not match command binding")
-        if self.verified_members != command.release_bom_members:
-            raise ValueError("verified_members must losslessly echo the command BOM")
-
-        attestation = command.artifact_ref.attestation
-        expected_policy = (
-            attestation.trust_policy_id,
-            attestation.trust_policy_version,
-            attestation.trust_policy_digest,
-        )
-        local_policy = (
-            self.local_trust_policy_id,
-            self.local_trust_policy_version,
-            self.local_trust_policy_digest,
-        )
-        if local_policy != expected_policy:
-            raise ValueError("local policy does not match command attestation")
-        if self.trusted_root_digest != self.sigstore.trusted_root_sha256:
-            raise ValueError("trusted root digest does not match Sigstore evidence")
-        if self.sigstore.bundle_sha256 != attestation.bundle_sha256:
-            raise ValueError("Sigstore bundle digest does not match command attestation")
-        expected_identity = (
-            attestation.issuer,
-            attestation.workflow_identity,
-            attestation.source_repository,
-        )
-        actual_identity = (
-            self.sigstore.issuer,
-            self.sigstore.workflow_identity,
-            self.sigstore.source_repository,
-        )
-        if actual_identity != expected_identity:
-            raise ValueError("Sigstore identity does not match command attestation")
-
-        wheel = [
-            member
-            for member in command.release_bom_members
-            if member.role is ArtifactMemberRole.STRATEGY_WHEEL
-        ]
-        manifest = [
-            member
-            for member in command.release_bom_members
-            if member.role is ArtifactMemberRole.STRATEGY_MANIFEST
-        ]
-        if len(wheel) != 1 or len(manifest) != 1:
-            raise ValueError("command BOM must contain one strategy wheel and manifest")
-        expected_subjects = {
-            ("strategy_release_bom", command.release_bom_digest),
-            (wheel[0].name, wheel[0].sha256),
-            (manifest[0].name, manifest[0].sha256),
-        }
-        actual_subjects = {
-            (subject.name, subject.sha256) for subject in self.sigstore.verified_subjects
-        }
-        if actual_subjects != expected_subjects:
-            raise ValueError("Sigstore subjects do not match command-bound BOM evidence")
-        return self
-
-
-class StrategyArtifactVerificationReceiptV1(_StrictFrozenModel):
-    """Custos proof that exact command-bound bytes passed local verification."""
-
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        title="StrategyArtifactVerificationReceiptV1",
-        json_schema_extra={
-            "$id": "https://custos.the-alephain-guild/contracts/strategy-artifact-verification-receipt-v1.schema.json"
-        },
-    )
-
-    schema_version: Literal[1] = 1
-    verification_profile: Literal["custos-artifact-verification-v1"]
-    verified_at: datetime
-    command_binding: StrategyExecutionCommandBindingV1
-    artifact_ref_digest: Sha256Hex
-    verified_members: tuple[ArtifactMemberV1, ...] = Field(min_length=1)
-    local_trust_policy_id: NonEmptyString
-    local_trust_policy_version: StrictInt = Field(ge=1)
-    local_trust_policy_digest: Sha256Hex
-    loaded_entry_point: NonEmptyString
-
-    @model_validator(mode="after")
-    def validate_lossless_evidence(self) -> Self:
-        if self.verified_members != self.command_binding.release_bom_members:
-            raise ValueError(
-                "verified_members must losslessly echo the command release member table"
-            )
-        if self.artifact_ref_digest != canonical_model_digest(self.command_binding.artifact_ref):
-            raise ValueError("artifact_ref_digest does not match the command artifact_ref")
-        attestation = self.command_binding.artifact_ref.attestation
-        expected_policy = (
-            attestation.trust_policy_id,
-            attestation.trust_policy_version,
-            attestation.trust_policy_digest,
-        )
-        local_policy = (
-            self.local_trust_policy_id,
-            self.local_trust_policy_version,
-            self.local_trust_policy_digest,
-        )
-        if local_policy != expected_policy:
-            raise ValueError("receipt trust policy does not match verified attestation evidence")
-        return self
 
 
 def parse_and_freeze_json_object(raw: str | bytes) -> FrozenJsonObject:
@@ -741,48 +474,6 @@ def _require_unique_members(members: tuple[ArtifactMemberV1, ...]) -> None:
         raise ValueError("duplicate artifact member role/name")
 
 
-def _validate_release_members(
-    members: tuple[ArtifactMemberV1, ...], artifact_ref: StrategyArtifactRefV1
-) -> None:
-    _require_unique_members(members)
-    by_role: dict[ArtifactMemberRole, list[ArtifactMemberV1]] = {}
-    for member in members:
-        by_role.setdefault(member.role, []).append(member)
-    required_singletons = {
-        ArtifactMemberRole.BASE_CONTRACTS_WHEEL,
-        ArtifactMemberRole.NAUTILUS_WHEEL,
-        ArtifactMemberRole.STRATEGY_WHEEL,
-        ArtifactMemberRole.STRATEGY_MANIFEST,
-        ArtifactMemberRole.ATTESTATION_BUNDLE,
-        ArtifactMemberRole.SBOM,
-        ArtifactMemberRole.CONTRACT_SCHEMA,
-        ArtifactMemberRole.SOURCE_TREE,
-    }
-    invalid = sorted(role.value for role in required_singletons if len(by_role.get(role, ())) != 1)
-    if invalid:
-        raise ValueError(f"release member projection requires exactly one of each role: {invalid}")
-
-    expected_digests = {
-        ArtifactMemberRole.STRATEGY_WHEEL: artifact_ref.artifact_sha256,
-        ArtifactMemberRole.STRATEGY_MANIFEST: artifact_ref.manifest_sha256,
-        ArtifactMemberRole.ATTESTATION_BUNDLE: artifact_ref.attestation.bundle_sha256,
-        ArtifactMemberRole.SBOM: artifact_ref.sbom_sha256,
-        ArtifactMemberRole.CONTRACT_SCHEMA: artifact_ref.contract_schema_sha256,
-        ArtifactMemberRole.SOURCE_TREE: artifact_ref.attestation.normalized_source_tree_sha256,
-    }
-    for role, expected_digest in expected_digests.items():
-        if by_role[role][0].sha256 != expected_digest:
-            raise ValueError(f"{role.value} digest differs from ArtifactRef")
-
-    member_keys = {(member.role, member.name, member.sha256) for member in members}
-    for runtime_artifact in artifact_ref.required_runtime_artifacts:
-        key = (runtime_artifact.role, runtime_artifact.name, runtime_artifact.sha256)
-        if key not in member_keys:
-            raise ValueError(
-                "ArtifactRef runtime artifact is absent from release member projection"
-            )
-
-
 def _object_without_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
     value: dict[str, object] = {}
     for key, item in pairs:
@@ -834,8 +525,6 @@ def _encode_canonical_json(value: object) -> str:
 __all__ = [
     "ArtifactMemberRole",
     "ArtifactMemberV1",
-    "ArchiveVerificationEvidenceV1",
-    "AttestationEvidenceV1",
     "DevelopmentSourceRefV1",
     "DigestBindingV1",
     "FrozenJsonObject",
@@ -846,15 +535,10 @@ __all__ = [
     "STRATEGY_CONTRACT_SCHEMA_VERSION",
     "STRATEGY_EXECUTION_ABI_V1",
     "StrategyArtifactRefV1",
-    "StrategyArtifactRefV2",
     "StrategyArtifactPreImportVerificationReceiptV1",
-    "StrategyArtifactPreImportVerificationReceiptV2",
-    "StrategyArtifactVerificationReceiptV1",
-    "StrategyExecutionCommandBindingV1",
     "StrategyExecutionContextV1",
     "StrategyManifestV1",
     "StrategyRuntimeAdapterV1",
-    "SigstoreVerificationEvidenceV1",
     "canonical_json_bytes",
     "canonical_json_digest",
     "canonical_model_digest",

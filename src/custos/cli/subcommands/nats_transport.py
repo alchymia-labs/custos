@@ -29,7 +29,7 @@ from custos.core.nats_transport import (
 )
 from custos.core.runner_toml import RunnerToml
 
-DEFAULT_TRANSPORT_VAULT = Path.home() / ".arx" / "vault" / "runner-nats-transport.enc"
+DEFAULT_TRANSPORT_VAULT_DIR = Path.home() / ".arx" / "vault" / "runner-nats-transport"
 DEFAULT_NATS_CA = Path.home() / ".arx" / "certs" / "crucible-nats-ca.pem"
 
 
@@ -78,7 +78,7 @@ def _add_nats_connection_arguments(parser: argparse.ArgumentParser) -> None:
         help="Bounded wait for forced disconnect and explicit old-JWT denial.",
     )
     parser.add_argument(
-        "--issuer-account-public-nkey",
+        "--issuer-public-key",
         default=os.environ.get("CRUCIBLE_NATS_ISSUER_ACCOUNT_NKEY", ""),
         help="Pinned CR100 NATS Account public NKey.",
     )
@@ -93,9 +93,15 @@ def _add_identity_arguments(parser: argparse.ArgumentParser) -> None:
         help="Optional exact override; must equal runner.toml machine_vault_path.",
     )
     parser.add_argument(
-        "--transport-vault",
+        "--transport-vault-dir",
         type=Path,
-        default=DEFAULT_TRANSPORT_VAULT,
+        default=DEFAULT_TRANSPORT_VAULT_DIR,
+    )
+    parser.add_argument(
+        "--trading-mode",
+        choices=("sandbox", "testnet", "live"),
+        required=True,
+        help="Exact mode authority to enroll, rotate, activate or verify.",
     )
 
 
@@ -112,7 +118,7 @@ def run(args: argparse.Namespace) -> int:
             )
         machine_credential = MachineCredentialVault(machine_vault_path).load()
         machine_credential.assert_binding(metadata)
-        vault = RunnerNatsTransportVault(args.transport_vault)
+        vault = RunnerNatsTransportVault(args.transport_vault_dir, args.trading_mode)
         if args.transport_action == "verify":
             bundle = vault.load()
             if bundle.active is None:
@@ -128,13 +134,14 @@ def run(args: argparse.Namespace) -> int:
                 nats_url=args.nats_url,
                 ca_path=args.nats_ca,
                 server_name=args.nats_server_name,
-                pinned_issuer_account_public_nkey=_required_issuer(args.issuer_account_public_nkey),
+                pinned_issuer_public_key=_required_issuer(args.issuer_public_key),
             )
             print(
                 "NATS transport verified: "
                 f"tenant_id={bundle.active.tenant_id} "
                 f"runner_id={bundle.active.runner_id} "
-                f"generation={bundle.active.transport_generation}"
+                f"trading_mode={bundle.active.trading_mode} "
+                f"generation={bundle.active.credential_generation}"
             )
             return 0
 
@@ -147,9 +154,8 @@ def run(args: argparse.Namespace) -> int:
             if vault.path.exists():
                 raise RunnerNatsTransportError("NATS transport vault already exists; use rotate")
             pending = authority.issue_initial(
-                expected_issuer_account_public_nkey=_required_issuer(
-                    args.issuer_account_public_nkey
-                )
+                trading_mode=args.trading_mode,
+                expected_issuer_public_key=_required_issuer(args.issuer_public_key),
             )
             bundle = RunnerNatsTransportBundle(active=None, pending=pending)
         elif args.transport_action == "rotate":
@@ -164,10 +170,7 @@ def run(args: argparse.Namespace) -> int:
                 raise RunnerNatsTransportError(
                     "retiring generation must complete before another rotation"
                 )
-            if (
-                args.issuer_account_public_nkey
-                and args.issuer_account_public_nkey != bundle.active.issuer_account_public_nkey
-            ):
+            if args.issuer_public_key and args.issuer_public_key != bundle.active.issuer_public_key:
                 raise RunnerNatsTransportError("rotation issuer pin differs from active authority")
             pending = authority.issue_rotation(bundle.active)
             bundle = RunnerNatsTransportBundle(active=bundle.active, pending=pending)
@@ -195,7 +198,8 @@ def run(args: argparse.Namespace) -> int:
             "NATS transport active: "
             f"tenant_id={promoted.active.tenant_id} "
             f"runner_id={promoted.active.runner_id} "
-            f"generation={promoted.active.transport_generation}"
+            f"trading_mode={promoted.active.trading_mode} "
+            f"generation={promoted.active.credential_generation}"
         )
         return 0
     except (MachineCredentialError, RunnerNatsTransportError, OSError, ValueError) as exc:
@@ -212,7 +216,7 @@ def _connection_profile(
         nats_url=args.nats_url,
         ca_path=args.nats_ca,
         server_name=args.nats_server_name,
-        pinned_issuer_account_public_nkey=_required_issuer(args.issuer_account_public_nkey),
+        pinned_issuer_public_key=_required_issuer(args.issuer_public_key),
     )
 
 
@@ -340,8 +344,8 @@ async def _activate_and_complete_retirement(
             bundle = bundle.with_revocation(
                 RunnerNatsRevocationObservation(
                     challenge=challenge,
-                    replacement_transport_credential_id=(bundle.active.transport_credential_id),
-                    replacement_generation=bundle.active.transport_generation,
+                    replacement_authority_id=(bundle.active.authority_id),
+                    replacement_generation=bundle.active.credential_generation,
                     replacement_connected_at=replacement_connected_at,
                     challenge_validated_at=datetime.now(UTC),
                 )

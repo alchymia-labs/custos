@@ -26,8 +26,8 @@
 | enrollment | `test_enrollment.py` | 一次性 token / paper_only 默认 |
 | credential_vault | `test_credential_vault.py` + `test_credential_vault_sops.py` | 加密/解密 / sops CLI 集成 |
 | nats_client | `test_nats_client_telemetry.py` + `test_nats_envelope.py` + `test_nats_wal_resilience.py` | telemetry uplink / envelope schema / WAL 断线暂存 |
-| reconcile | `test_reconcile.py` + `test_deployment_reconciler.py` | ReconcileLoop level-triggered / spec 匹配 |
-| nautilus_host | `test_g6_gate.py` + `test_heartbeat.py` + `test_nt_risk_engine.py` | G6 gate 逻辑 / 心跳 / 本地 breaker |
+| command runtime | `test_plan19_t5f_runner_command_runtime.py` + `test_plan19_t4_runner_state_store.py` | signed command、durable replay、ACK/NAK/TERM |
+| nautilus_host | `test_nt_trading_node_host.py` + `test_nautilus_host_capability.py` + `test_nt_risk_engine.py` | verified artifact ABI / host admission / 本地 breaker |
 | telemetry_actor | `test_telemetry_actor.py` + `test_telemetry_actor_failure_modes.py` + `test_telemetry_money_contract.py` | 白名单 / 脱敏 / silent drop / Decimal wire (红线 0.4) |
 | 跨模块 | `test_subject_builder_contract.py` + `test_log.py` + `test_smoke.py` | subject naming 契约 / structlog / 端到端 |
 
@@ -57,14 +57,9 @@ async def test_reconcile_loop_iterates(reconcile_env):
 `@pytest.mark.parametrize` 优于循环 assert (报告清晰):
 
 ```python
-@pytest.mark.parametrize("trading_mode,expected_gate", [
-    ("paper", "allow"),
-    ("sandbox", "allow"),
-    ("testnet", "allow"),
-    ("live", "deny"),  # NoopHost 拒 live (G6 gate 红线 0.2)
-])
-def test_g6_gate(noop_host, trading_mode, expected_gate):
-    assert noop_host.gate_check(trading_mode) == expected_gate
+@pytest.mark.parametrize("trading_mode", ["sandbox", "testnet", "live"])
+def test_noop_host_never_claims_live_capability(noop_host, trading_mode):
+    assert noop_host.supports_live() is False
 ```
 
 ## 失败模式测试 (lesson #17 契约)
@@ -74,9 +69,9 @@ def test_g6_gate(noop_host, trading_mode, expected_gate):
 
 - **NATS down**: WAL 暂存 → 重连 → drain (see `test_nats_wal_resilience.py`)
 - **vault_locked**: age key 不匹配 / 权限错 / sops decrypt 失败
-- **G6 gate deny**: NoopHost 拒 live / LIVE_MODE=false
+- **engine admission deny**: artifact/credential/host/live evidence 任一缺失即拒绝
 - **queue overflow**: telemetry 事件积压超阈值 → drop policy (see `test_telemetry_actor_failure_modes.py`)
-- **wire schema drift**: v1 消费者遇 v2 envelope (双 schema 兼容)
+- **wire schema drift**: V1 消费者遇未知 version 直接拒绝，不 dual-read
 - **async task silent drop**: `create_task` 异常 → callback 检查 (lesson #21 零静默)
 - **Decimal 精度丢失**: `float(price)` 混入 → contract test 拒 (red 线 0.4)
 

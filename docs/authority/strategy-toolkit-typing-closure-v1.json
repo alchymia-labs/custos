@@ -2068,7 +2068,7 @@
   ],
   "t4_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
   "t4_receipt_path": "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
-  "t4_receipt_sha256": "37a62fe6399acee9048874429b1cb2699ca5ab3ddd4fecbccf488f900498bab8",
+  "t4_receipt_sha256": "92c744ea540dc1b69a803d24e2f9f08ad336a16a80a51911ba59fd72c05bcbac",
   "target_error_counts": {
     "nautilus_adapter": 0,
     "platform_neutral": 0

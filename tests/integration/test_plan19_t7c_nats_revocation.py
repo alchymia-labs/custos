@@ -28,6 +28,8 @@ _IMAGE = os.environ.get("CUSTOS_NATS_TEST_IMAGE", "nats:2.10-alpine")
 _ENABLED = os.environ.get("CUSTOS_RUN_REAL_NATS_REVOCATION") == "1"
 _TENANT = "tenant-t7c"
 _RUNNER = UUID("77777777-7777-4777-8777-777777777777")
+_MODE = "sandbox"
+_DOMAIN = "sim"
 
 
 def _require_local_gate() -> None:
@@ -108,21 +110,22 @@ def _encode_nats_jwt(
 
 def _permission_profile() -> dict[str, Any]:
     runner = str(_RUNNER)
-    durable = f"custos-v4-{_TENANT}-{runner}"
+    durable = f"custos-v1-{_TENANT}-{runner}-{_MODE}"
+    stream = "CRUCIBLE_RUNNER_COMMAND_SIM_V1"
     return {
         "schema_version": 1,
-        "profile": "runner-v1",
+        "profile": "crucible.runner-nats-transport.v1",
         "tenant_id": _TENANT,
         "runner_id": runner,
-        "authorized_modes": ["sandbox", "testnet"],
+        "trading_mode": _MODE,
+        "transport_domain": _DOMAIN,
         "publish_allow": [
-            f"crucible.runner_fact.sandbox.{_TENANT}.{runner}.>",
-            f"crucible.runner_fact.testnet.{_TENANT}.{runner}.>",
-            f"$JS.ACK.CRUCIBLE_DOMAIN_AUDIT.{durable}.>",
-            f"$JS.API.CONSUMER.INFO.CRUCIBLE_DOMAIN_AUDIT.{durable}",
+            f"crucible.runner.fact.v1.{_TENANT}.{runner}.{_MODE}",
+            f"$JS.ACK.{stream}.{durable}.>",
+            f"$JS.API.CONSUMER.INFO.{stream}.{durable}",
         ],
         "subscribe_allow": [
-            f"custos.runner_command_v4_delivery.{_TENANT}.{runner}",
+            f"custos.runner.command.v1.delivery.{_TENANT}.{runner}.{_MODE}",
             "_INBOX.>",
         ],
         "publish_deny": [
@@ -140,16 +143,11 @@ def _durable_config() -> dict[str, Any]:
     runner = str(_RUNNER)
     return {
         "schema_version": 1,
-        "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
-        "durable_name": f"custos-v4-{_TENANT}-{runner}",
-        "delivery_subject": f"custos.runner_command_v4_delivery.{_TENANT}.{runner}",
-        "filter_subjects": [
-            (
-                f"crucible_rust.domain.{_TENANT}.{mode}.deployment."
-                f"RunnerDeploymentCommandV4.{runner}.*"
-            )
-            for mode in ("sandbox", "testnet")
-        ],
+        "transport_domain": _DOMAIN,
+        "stream_name": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
+        "durable_name": f"custos-v1-{_TENANT}-{runner}-{_MODE}",
+        "delivery_subject": (f"custos.runner.command.v1.delivery.{_TENANT}.{runner}.{_MODE}"),
+        "filter_subjects": [f"crucible.runner.command.v1.{_TENANT}.{runner}.{_MODE}"],
         "deliver_policy": "all",
         "ack_policy": "explicit",
         "replay_policy": "instant",
@@ -196,28 +194,39 @@ def _transport_credential(
             "version": 2,
         },
     )
-    response = {
-        "transport_credential_id": str(uuid4()),
-        "transport_credential_version": generation,
-        "transport_generation": generation,
-        "nats_transport_profile": "runner-v1",
-        "nats_user_public_key": user_public,
-        "nats_user_jwt": user_jwt,
-        "nats_user_jwt_sha256": hashlib.sha256(user_jwt.encode()).hexdigest(),
-        "issuer_account_public_nkey": account_public,
+    response: dict[str, Any] = {
+        "schema_version": 1,
+        "authority_coordinate": "crucible.runner-nats-transport.v1",
+        "authority_id": str(uuid4()),
+        "tenant_id": _TENANT,
+        "runner_id": str(_RUNNER),
+        "trading_mode": _MODE,
+        "transport_domain": _DOMAIN,
+        "credential_generation": generation,
+        "user_public_key": user_public,
+        "user_jwt": user_jwt,
+        "user_jwt_sha256": hashlib.sha256(user_jwt.encode()).hexdigest(),
+        "issuer_public_key": account_public,
+        "signing_key_id": "account-signer-integration",
+        "claims_sha256": hashlib.sha256(user_jwt.split(".")[1].encode()).hexdigest(),
         "permission_profile": permission,
         "permission_profile_sha256": _sha256_document(permission),
         "durable_config": durable,
         "durable_config_sha256": _sha256_document(durable),
         "issued_at": issued_at.isoformat().replace("+00:00", "Z"),
+        "not_before": issued_at.isoformat().replace("+00:00", "Z"),
         "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
+        "status": "active",
+        "operation_id": str(uuid4()),
     }
+    response["authority_digest"] = _sha256_document(response)
     return RunnerNatsTransportCredential.from_issued_response(
         response,
-        tenant_id=_TENANT,
-        runner_id=_RUNNER,
-        nats_user_seed=user_seed,
-        expected_issuer_account_public_nkey=account_public,
+        user_seed=user_seed,
+        expected_tenant_id=_TENANT,
+        expected_runner_id=_RUNNER,
+        expected_trading_mode=_MODE,
+        expected_issuer_public_key=account_public,
     )
 
 
@@ -327,14 +336,14 @@ async def _exercise_revocation(
         nats_url,
         certificate,
         "localhost",
-        old_credential.issuer_account_public_nkey,
+        old_credential.issuer_public_key,
     )
     replacement_profile = RunnerNatsTransportConnectionProfile(
         replacement_credential,
         nats_url,
         certificate,
         "localhost",
-        replacement_credential.issuer_account_public_nkey,
+        replacement_credential.issuer_public_key,
     )
     old = await old_profile.connect(
         name="custos-t7c-old",
@@ -356,7 +365,7 @@ async def _exercise_revocation(
             nats_url,
             certificate,
             "localhost",
-            old_credential.issuer_account_public_nkey,
+            old_credential.issuer_public_key,
         )
         await assert_old_generation_reconnect_denied(
             reconnect_profile,
@@ -364,7 +373,7 @@ async def _exercise_revocation(
             timeout_seconds=3,
         )
 
-        subject = f"crucible.runner_fact.sandbox.{_TENANT}.{_RUNNER}.resolver-replacement"
+        subject = f"crucible.runner.fact.v1.{_TENANT}.{_RUNNER}.{_MODE}"
         replacement_profile.assert_publish_subject(subject)
         await replacement.publish(subject, b"replacement-active")
         await replacement.flush(timeout=2)

@@ -8,8 +8,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from custos.artifacts.corrected_runtime import CorrectedRuntimeCapability
+from custos.artifacts.runtime import ArtifactRuntimeCapabilityV1
 from custos.core.engine_protocol import (
+    ActivatedEngineArtifactV1,
     EngineLifecycleAuthority,
     EngineReadyReceipt,
     EngineTerminalEvent,
@@ -36,6 +37,7 @@ class EngineLifecycleConfig:
     restart_budget: int = 3
     restart_backoff_initial_secs: float = 1.0
     restart_backoff_max_secs: float = 30.0
+    live_execution_enabled: bool = False
 
     def __post_init__(self) -> None:
         if self.readiness_timeout_secs <= 0:
@@ -61,14 +63,18 @@ class EngineLifecycleStateStore(Protocol):
 
 
 class EngineLifecycleSupervisor:
-    """Apply one verified command without bypassing T4 atomic lifecycle durability."""
+    """Apply one verified command without bypassing T4 atomic lifecycle durability.
+
+    The live engine lifecycle remains fail closed until every external capability
+    receipt is present and the team daemon composition gate opens.
+    """
 
     def __init__(
         self,
         *,
         engine: ExecutionEngineProtocol,
         state_store: EngineLifecycleStateStore,
-        artifact_capability: CorrectedRuntimeCapability,
+        artifact_capability: ArtifactRuntimeCapabilityV1,
         config: EngineLifecycleConfig | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock_ns: Callable[[], int] = time.time_ns,
@@ -87,10 +93,11 @@ class EngineLifecycleSupervisor:
         verified: Any,
         runtime_spec: dict[str, Any],
         credential: dict[str, Any],
-        artifact_activation_id: str,
+        artifact: ActivatedEngineArtifactV1,
         local_policy_id: str | None = None,
     ) -> EngineReadyReceipt:
-        authority = self._require_authorized_runtime(verified, runtime_spec)
+        authority = self._require_authorized_runtime(verified, runtime_spec, credential)
+        artifact_activation_id = artifact.activation_id
         state = await self._store.load_engine_lifecycle_state(verified)
         if state.desired_status == "quarantined":
             raise EngineLifecycleQuarantined(
@@ -117,6 +124,7 @@ class EngineLifecycleSupervisor:
             authority=authority,
             runtime_spec=runtime_spec,
             credential=credential,
+            artifact=artifact,
             artifact_activation_id=artifact_activation_id,
             local_policy_id=local_policy_id,
             restart_count=restart_count,
@@ -129,10 +137,11 @@ class EngineLifecycleSupervisor:
         verified: Any,
         runtime_spec: dict[str, Any],
         credential: dict[str, Any],
-        artifact_activation_id: str,
+        artifact: ActivatedEngineArtifactV1,
         local_policy_id: str | None = None,
     ) -> EngineReadyReceipt | None:
-        authority = self._require_authorized_runtime(verified, runtime_spec)
+        authority = self._require_authorized_runtime(verified, runtime_spec, credential)
+        artifact_activation_id = artifact.activation_id
         event = await self._engine.wait_terminal(authority)
         self._require_terminal_identity(event, authority)
         await self._engine.stop(str(authority.deployment_instance_id))
@@ -169,6 +178,7 @@ class EngineLifecycleSupervisor:
             authority=authority,
             runtime_spec=runtime_spec,
             credential=credential,
+            artifact=artifact,
             artifact_activation_id=artifact_activation_id,
             local_policy_id=local_policy_id,
             restart_count=restart_count,
@@ -182,6 +192,7 @@ class EngineLifecycleSupervisor:
         authority: EngineLifecycleAuthority,
         runtime_spec: dict[str, Any],
         credential: dict[str, Any],
+        artifact: ActivatedEngineArtifactV1,
         artifact_activation_id: str,
         local_policy_id: str | None,
         restart_count: int,
@@ -194,14 +205,16 @@ class EngineLifecycleSupervisor:
             )
             handle: str | None = None
             try:
-                handle = await self._engine.deploy(runtime_spec, credential)
+                handle = await self._engine.deploy(runtime_spec, credential, artifact)
                 receipt = await self._await_ready(authority)
                 self._require_ready_identity(receipt, authority)
             except Exception as exc:  # noqa: BLE001 - typed terminal mapping below
                 if handle is not None:
                     await self._engine.stop(str(authority.deployment_instance_id))
                 reason_code = (
-                    "engine_ready_timeout" if isinstance(exc, TimeoutError) else "engine_start_failed"
+                    "engine_ready_timeout"
+                    if isinstance(exc, TimeoutError)
+                    else "engine_start_failed"
                 )
                 if restart_count >= self._config.restart_budget:
                     await self._quarantine(
@@ -274,7 +287,10 @@ class EngineLifecycleSupervisor:
         )
 
     def _require_authorized_runtime(
-        self, verified: Any, runtime_spec: dict[str, Any]
+        self,
+        verified: Any,
+        runtime_spec: dict[str, Any],
+        credential: dict[str, Any],
     ) -> EngineLifecycleAuthority:
         if not self._artifact_capability.ready:
             raise EngineLifecycleBlocked("artifact runtime capability is not READY")
@@ -282,8 +298,28 @@ class EngineLifecycleSupervisor:
         mode = str(runtime_spec.get("trading_mode") or "")
         if mode != authority.trading_mode:
             raise EngineLifecycleBlocked("runtime spec mode differs from signed command")
+        connector = str(runtime_spec.get("connector") or "")
+        if not connector or not self._engine.supports_venue(connector):
+            raise EngineLifecycleBlocked("execution engine does not support the signed venue")
+        if mode in {"testnet", "live"} and credential.get("permission_scope") != (
+            "trade_no_withdraw"
+        ):
+            raise EngineLifecycleBlocked(
+                "real-venue credential must be scoped to trade_no_withdraw"
+            )
         if mode == "live":
-            raise EngineLifecycleBlocked("live engine lifecycle remains fail closed")
+            if not self._engine.supports_live():
+                raise EngineLifecycleBlocked("execution engine does not support live mode")
+            if not self._config.live_execution_enabled:
+                raise EngineLifecycleBlocked(
+                    "live execution is disabled until the immutable runtime receipt is accepted"
+                )
+            if not runtime_spec.get("promotion_id") or not runtime_spec.get(
+                "promotion_evidence_digest"
+            ):
+                raise EngineLifecycleBlocked(
+                    "live execution lacks signed Crucible promotion evidence"
+                )
         return authority
 
     @staticmethod
@@ -316,7 +352,9 @@ class EngineLifecycleSupervisor:
             or event.deployment_spec_id != authority.deployment_spec_id
             or event.generation != authority.generation
         ):
-            raise EngineLifecycleError("engine terminal event differs from signed command authority")
+            raise EngineLifecycleError(
+                "engine terminal event differs from signed command authority"
+            )
 
     def _lease_deadline_ns(self) -> int:
         seconds = self._config.readiness_timeout_secs + self._config.restart_backoff_max_secs

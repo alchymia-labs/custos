@@ -18,8 +18,6 @@ import logging
 import signal
 from uuid import UUID
 
-from custos.contracts import CrucibleDomainEventVerifier
-from custos.core.deployment_reconciler import DeploymentReconciler
 from custos.core.machine_credential_vault import (
     MachineCredentialError,
     MachineCredentialHttpClient,
@@ -31,28 +29,20 @@ from custos.core.nats_client import CrucibleNatsClient
 from custos.core.nats_transport import (
     RunnerNatsTransportConnectionProfile,
     RunnerNatsTransportError,
-    RunnerNatsTransportVault,
+    RunnerNatsTransportSet,
+    runner_nats_transport_domain,
 )
 from custos.core.per_key_vault import PerKeyVault
 from custos.core.readiness import ReadinessFile
-from custos.core.runner_deployment_lifecycle_fact import RunnerDeploymentLifecycleFactEmitter
 from custos.core.runner_fact import (
     RunnerCapabilityReceipt,
     RunnerFactEmitter,
     RunnerFactIdentity,
     RunnerFactJetStreamPublisher,
     RunnerFactOutbox,
-    RunnerStateAuthorityError,
-    RunnerStateStore,
 )
-from custos.core.runner_fact_producer import RunnerFactProductionLoop
-from custos.core.runner_safety_policy import (
-    DurableRunnerSafetyPolicyResolver,
-    RunnerSafetyPolicyResolver,
-)
+from custos.core.runner_safety_policy import RunnerSafetyPolicyResolver
 from custos.core.runner_toml import RunnerToml
-from custos.core.runtime_log_fact import RunnerRuntimeLogEmitter, RuntimeLogRedactor
-from custos.core.zombie_watchdog import ZombieWatchdog
 
 log = logging.getLogger("custos")
 
@@ -105,22 +95,26 @@ async def _watch_machine_authority(
 
 async def _watch_nats_transport_authority(
     stop: asyncio.Event,
-    profile: RunnerNatsTransportConnectionProfile,
+    profiles: dict[str, RunnerNatsTransportConnectionProfile],
     *,
     check_secs: float = 1.0,
 ) -> None:
     """Stop execution on local expiry or broker authorization denial."""
 
     while not stop.is_set():
-        try:
-            profile.assert_active()
-        except RunnerNatsTransportError as exc:
-            log.error(
-                "nats_transport_authority_invalidated",
-                extra={"error_type": type(exc).__name__},
-            )
-            stop.set()
-            return
+        for trading_mode, profile in profiles.items():
+            try:
+                profile.assert_active()
+            except RunnerNatsTransportError as exc:
+                log.error(
+                    "nats_transport_authority_invalidated",
+                    extra={
+                        "trading_mode": trading_mode,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                stop.set()
+                return
         try:
             await asyncio.wait_for(stop.wait(), timeout=check_secs)
         except TimeoutError:
@@ -153,7 +147,7 @@ def _build_host(
     """Pick the execution engine host from the clean-break ``--engine`` enum.
 
     ``nautilus`` selects the real ``NtTradingNodeHost`` and ``noop`` selects
-    the explicit contract-test stub. The G6 gate still guards every live
+    the explicit contract-test stub. Execution admission still guards every live
     deploy regardless of engine choice.
     """
     engine = getattr(args, "engine", "nautilus")
@@ -179,45 +173,6 @@ def _build_host(
     raise SystemExit(f"unhandled engine {engine!r}")
 
 
-def _build_reconciler(
-    args: argparse.Namespace,
-    client: CrucibleNatsClient,
-    host: object,
-    vault: PerKeyVault,
-    runtime_log_emitter: RunnerRuntimeLogEmitter,
-    lifecycle_fact_emitter: RunnerDeploymentLifecycleFactEmitter,
-    deployment_verifier: CrucibleDomainEventVerifier,
-    safety_policy_resolver: RunnerSafetyPolicyResolver | None = None,
-    readiness: ReadinessFile | None = None,
-) -> DeploymentReconciler:
-    """Compose durable policy guards without claiming CR99 runtime readiness.
-
-    The resolver has no live capability until a real CR99 publication receipt
-    exists, so live reconciliation remains fail closed.
-    """
-    zombie_watchdog = ZombieWatchdog()
-    return DeploymentReconciler(
-        nats_client=client,
-        tenant_id=args.tenant_id,
-        runner_id=args.runner_id,
-        execution_engine=host,  # type: ignore[arg-type]
-        credential_vault=vault,
-        runtime_log_emitter=runtime_log_emitter,
-        lifecycle_fact_emitter=lifecycle_fact_emitter,
-        deployment_verifier=deployment_verifier,
-        safety_policy_resolver=safety_policy_resolver,
-        zombie_watchdog=zombie_watchdog,
-        readiness=readiness,
-    )
-
-
-def _command_authority_unavailable(_verified_command):
-    raise RunnerStateAuthorityError(
-        "CR89 command authority resolver is not composed; "
-        "strategy_release_id must not be substituted for strategy_id"
-    )
-
-
 def _build_runner_safety_boundary_factory(
     *,
     state_store,
@@ -227,12 +182,14 @@ def _build_runner_safety_boundary_factory(
         limits = await safety_policy_resolver.resolve(str(spec["trading_mode"]))
         if not limits.owner_policy or limits.policy_id is None:
             raise RuntimeError("runner safety execution requires a durable verified owner policy")
+        from custos.core.fallback_breaker import FallbackBreaker
         from custos.engines.nautilus.runner_safety import RunnerReservationBoundary
 
         return RunnerReservationBoundary(
             store=state_store,
             deployment_instance_id=UUID(str(spec["deployment_instance_id"])),
             policy_id=limits.policy_id,
+            fallback_breaker=FallbackBreaker(limits.breaker),
         )
 
     return build
@@ -274,7 +231,7 @@ async def _shutdown_in_order(
     host: object | None,
     fact_outbox: object,
     fact_publisher: object,
-    client: object,
+    clients: dict[str, object],
 ) -> None:
     """Stop intake/tasks, stop deployments, flush facts, then close transports."""
 
@@ -305,7 +262,33 @@ async def _shutdown_in_order(
         try:
             await fact_publisher.close()  # type: ignore[attr-defined]
         finally:
-            await client.close()  # type: ignore[attr-defined]
+            await asyncio.gather(
+                *(client.close() for client in clients.values()),  # type: ignore[attr-defined]
+                return_exceptions=True,
+            )
+
+
+def _transport_profile_for_mode(
+    args: argparse.Namespace,
+    credential: object,
+) -> RunnerNatsTransportConnectionProfile:
+    trading_mode = credential.trading_mode  # type: ignore[attr-defined]
+    domain = runner_nats_transport_domain(trading_mode)
+    prefix = "nats_live" if domain == "live" else "nats_sim"
+    nats_url = str(getattr(args, f"{prefix}_url", "")).strip()
+    server_name = str(getattr(args, f"{prefix}_server_name", "")).strip()
+    issuer_public_key = str(getattr(args, f"{prefix}_issuer_public_key", "")).strip()
+    if not nats_url or not server_name or not issuer_public_key:
+        raise RunnerNatsTransportError(
+            f"{domain.upper()} NATS endpoint, server name and issuer pin are required"
+        )
+    return RunnerNatsTransportConnectionProfile(
+        credential=credential,  # type: ignore[arg-type]
+        nats_url=nats_url,
+        ca_path=getattr(args, f"{prefix}_ca"),
+        server_name=server_name,
+        pinned_issuer_public_key=issuer_public_key,
+    )
 
 
 async def run_daemon(args: argparse.Namespace) -> int:
@@ -320,23 +303,14 @@ async def run_daemon(args: argparse.Namespace) -> int:
     machine_credential = MachineCredentialVault(args.machine_vault).load()
     machine_credential.assert_binding(metadata)
     MachineCredentialHttpClient(metadata.backend_url, machine_credential).verify_active()
-    transport_bundle = RunnerNatsTransportVault(args.nats_transport_vault).load()
-    if transport_bundle.active is None:
-        raise RunnerNatsTransportError(
-            "NATS transport has no active generation; run nats-transport activate"
-        )
-    if transport_bundle.retiring is not None:
-        raise RunnerNatsTransportError(
-            "NATS transport has unresolved retiring-generation evidence; "
-            "run nats-transport activate to resume fail-closed retirement"
-        )
-    transport_profile = RunnerNatsTransportConnectionProfile(
-        credential=transport_bundle.active,
-        nats_url=args.nats_url,
-        ca_path=args.nats_ca,
-        server_name=args.nats_server_name,
-        pinned_issuer_account_public_nkey=args.nats_issuer_account_public_nkey,
+    transport_set = RunnerNatsTransportSet.load(
+        args.nats_transport_vault_dir,
+        args.enabled_modes,
     )
+    transport_profiles = {
+        mode: _transport_profile_for_mode(args, transport_set.active(mode))
+        for mode in args.enabled_modes
+    }
     identity = RunnerFactIdentity.from_private_bytes(
         machine_credential.private_key_bytes,
         machine_credential.machine_key_id,
@@ -355,34 +329,21 @@ async def run_daemon(args: argparse.Namespace) -> int:
             "Runner capability bindings are not validated; restart after projection completes"
         )
     fact_outbox = RunnerFactOutbox(args.runner_fact_outbox)
-    fact_emitter = RunnerFactEmitter(
-        fact_outbox,
-        identity,
-        machine_credential.assert_active,
-    )
-    runtime_log_emitter = RunnerRuntimeLogEmitter(
-        emitter=fact_emitter,
-        capability=capability,
-        redactor=RuntimeLogRedactor(
-            known_secrets=(
-                machine_credential.machine_credential,
-                transport_bundle.active.nats_user_jwt,
-            )
-        ),
-    )
-    lifecycle_fact_emitter = RunnerDeploymentLifecycleFactEmitter(fact_emitter, capability)
     fact_publisher = RunnerFactJetStreamPublisher(
-        connection_profile=transport_profile,
+        connection_profiles=transport_profiles,
         outbox=fact_outbox,
         runner_id=runner_id,
         authority_guard=machine_credential.assert_active,
     )
-    client = CrucibleNatsClient(
-        connection_profile=transport_profile,
-        tenant_id=args.tenant_id,
-        runner_id=args.runner_id,
-        machine_credential=machine_credential,
-    )
+    clients = {
+        mode: CrucibleNatsClient(
+            connection_profile=profile,
+            tenant_id=args.tenant_id,
+            runner_id=args.runner_id,
+            machine_credential=machine_credential,
+        )
+        for mode, profile in transport_profiles.items()
+    }
     readiness = ReadinessFile(
         args.ready_file,
         tenant_id=args.tenant_id,
@@ -393,7 +354,7 @@ async def run_daemon(args: argparse.Namespace) -> int:
         machine_key_id=machine_credential.machine_key_id,
     )
     readiness.clear()
-    await client.connect()
+    await asyncio.gather(*(client.connect() for client in clients.values()))
     log.info(
         "runner_started",
         extra={"tenant_id": args.tenant_id, "runner_id": args.runner_id},
@@ -419,7 +380,7 @@ async def run_daemon(args: argparse.Namespace) -> int:
         )
         tasks.append(
             asyncio.create_task(
-                _watch_nats_transport_authority(stop, transport_profile),
+                _watch_nats_transport_authority(stop, transport_profiles),
                 name="runner-nats-transport-authority-watch",
             )
         )
@@ -429,72 +390,11 @@ async def run_daemon(args: argparse.Namespace) -> int:
                 name="crucible-runner-fact-publisher",
             )
         )
-        # Deployment reconciler consumes only Crucible-signed, runner-scoped commands.
         if args.reconcile:
-            deployment_verifier = CrucibleDomainEventVerifier.from_file(
-                args.crucible_domain_public_key,
-                key_id=args.crucible_domain_key_id,
+            raise SystemExit(
+                "first-production V1 reconcile is blocked until the authenticated "
+                "Crucible StrategyRelease resolver receipt is composed"
             )
-            vault = _build_vault(args)
-            state_store = RunnerStateStore(
-                outbox=fact_outbox,
-                identity=identity,
-                tenant_id=args.tenant_id,
-                runner_id=runner_id,
-                authority_resolver=_command_authority_unavailable,
-            )
-            safety_policy_resolver = DurableRunnerSafetyPolicyResolver(state_store)
-            runner_safety_boundary_factory = _build_runner_safety_boundary_factory(
-                state_store=state_store,
-                safety_policy_resolver=safety_policy_resolver,
-            )
-            # ``--engine noop`` declares supports_live()=False so the G6 gate
-            # refuses it on live; the default nautilus engine selects the real
-            # NtTradingNodeHost. The host wires only signed RunnerFact bridges
-            # to each deployment's MessageBus inside deploy().
-            host = _build_host(
-                args,
-                fact_emitter=fact_emitter,
-                capability_receipt=capability,
-                runner_safety_boundary_factory=runner_safety_boundary_factory,
-            )
-            reconciler = _build_reconciler(
-                args,
-                client,
-                host,
-                vault,
-                runtime_log_emitter,
-                lifecycle_fact_emitter,
-                deployment_verifier,
-                safety_policy_resolver,
-                readiness,
-            )
-            tasks.append(
-                asyncio.create_task(
-                    reconciler.reconcile_loop(stop),
-                    name="crucible-deployment-reconciler",
-                )
-            )
-            if args.engine == "nautilus":
-                producer = RunnerFactProductionLoop(
-                    host=host,  # type: ignore[arg-type]
-                    emitter=fact_emitter,
-                    snapshot_interval_secs=args.runner_fact_snapshot_interval_secs,
-                    period_secs=args.runner_fact_period_secs,
-                    period_retry_secs=args.runner_fact_period_retry_secs,
-                )
-                tasks.extend(
-                    (
-                        asyncio.create_task(
-                            producer.run_observability(stop),
-                            name="crucible-runner-fact-observability",
-                        ),
-                        asyncio.create_task(
-                            producer.run_periods(stop),
-                            name="crucible-runner-fact-periods",
-                        ),
-                    )
-                )
         else:
             readiness.mark_ready(
                 strategy_id=None,
@@ -511,7 +411,7 @@ async def run_daemon(args: argparse.Namespace) -> int:
             host=host,
             fact_outbox=fact_outbox,
             fact_publisher=fact_publisher,
-            client=client,
+            clients=clients,
         )
         log.info("runner_stopped")
     return 0

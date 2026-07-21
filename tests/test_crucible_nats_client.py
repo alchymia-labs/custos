@@ -32,21 +32,14 @@ class _TransportProfile:
     tenant_id: str = "acme"
     runner_id: UUID = _RUNNER_ID
     active: bool = True
+    trading_mode: str = "sandbox"
     durable_config: dict[str, object] = field(
         default_factory=lambda: {
-            "stream_name": "CRUCIBLE_DOMAIN_AUDIT",
-            "durable_name": f"custos-v4-acme-{_RUNNER_ID}",
-            "delivery_subject": f"custos.runner_command_v4_delivery.acme.{_RUNNER_ID}",
-            "filter_subjects": [
-                (
-                    "crucible_rust.domain.acme.sandbox.deployment."
-                    f"RunnerDeploymentCommandV4.{_RUNNER_ID}.*"
-                ),
-                (
-                    "crucible_rust.domain.acme.testnet.deployment."
-                    f"RunnerDeploymentCommandV4.{_RUNNER_ID}.*"
-                ),
-            ],
+            "transport_domain": "sim",
+            "stream_name": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
+            "durable_name": f"custos-v1-acme-{_RUNNER_ID}-sandbox",
+            "delivery_subject": (f"custos.runner.command.v1.delivery.acme.{_RUNNER_ID}.sandbox"),
+            "filter_subjects": [f"crucible.runner.command.v1.acme.{_RUNNER_ID}.sandbox"],
         }
     )
 
@@ -109,13 +102,13 @@ async def test_subscribe_binds_existing_exact_tenant_runner_durable() -> None:
 
     assert result is subscription
     client._jsm.consumer_info.assert_awaited_once_with(  # noqa: SLF001
-        "CRUCIBLE_DOMAIN_AUDIT",
-        f"custos-v4-acme-{_RUNNER_ID}",
+        "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
+        f"custos-v1-acme-{_RUNNER_ID}-sandbox",
     )
     client._js.subscribe_bind.assert_awaited_once_with(  # noqa: SLF001
-        stream="CRUCIBLE_DOMAIN_AUDIT",
+        stream="CRUCIBLE_RUNNER_COMMAND_SIM_V1",
         config=config,
-        consumer=f"custos-v4-acme-{_RUNNER_ID}",
+        consumer=f"custos-v1-acme-{_RUNNER_ID}-sandbox",
         manual_ack=True,
     )
 
@@ -124,8 +117,8 @@ async def test_subscribe_binds_existing_exact_tenant_runner_durable() -> None:
 async def test_existing_consumer_drift_fails_before_subscription() -> None:
     client = _client()
     config = ConsumerConfig(
-        durable_name=f"custos-v4-acme-{_RUNNER_ID}",
-        deliver_subject="custos.runner_command_v4_delivery.other.runner",
+        durable_name=f"custos-v1-acme-{_RUNNER_ID}-sandbox",
+        deliver_subject="custos.runner.command.v1.delivery.other.runner.sandbox",
         filter_subjects=[],
         deliver_policy=DeliverPolicy.ALL,
         ack_policy=AckPolicy.EXPLICIT,
@@ -147,3 +140,18 @@ async def test_existing_consumer_drift_fails_before_subscription() -> None:
 async def test_subscribe_before_connect_fails_closed() -> None:
     with pytest.raises(RuntimeError, match="before connect"):
         await _client().subscribe_deployment_spec()
+
+
+def test_command_subject_and_verified_payload_must_match_exact_mode_session() -> None:
+    client = _client()
+    subject = str(client.connection_profile.durable_config["filter_subjects"][0])
+
+    client.assert_command_binding(subject, SimpleNamespace(trading_mode="sandbox"))
+
+    with pytest.raises(RunnerNatsTransportError, match="subject is outside"):
+        client.assert_command_binding(
+            subject.removesuffix("sandbox") + "live",
+            SimpleNamespace(trading_mode="sandbox"),
+        )
+    with pytest.raises(RunnerNatsTransportError, match="payload mode differs"):
+        client.assert_command_binding(subject, SimpleNamespace(trading_mode="live"))

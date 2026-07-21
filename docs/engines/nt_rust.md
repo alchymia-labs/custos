@@ -19,7 +19,7 @@ through its Python API).
   `docs/engines/nautilus.md` — this is not a different trading engine, it
   is a different **binding** to the same one, so most of the design
   knowledge in [`docs/design/nautilus_host.md`](../design/nautilus_host.md)
-  (G6 gate mapping, trading-mode dispatch) carries over conceptually.
+  (verified-artifact admission and trading-mode dispatch) carries over conceptually.
 - Same `ExecutionEngineProtocol` contract requirement as every other engine.
 
 ## Difference from the existing `nautilus` engine — Rust IPC / subprocess bridge

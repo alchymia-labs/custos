@@ -59,26 +59,25 @@
 | 上报 | AlertEvent / telemetry payload 强制脱敏 (`api_key_sha8` / `credential_hint`) |
 | 审计 | Vault 解密路径带 `AuditLog` (`last_accessed_at` 更新触发) |
 
-## 4. G6 host gate (红线 0.2)
+## 4. Engine execution admission (红线 0.2)
 
-Live venue 部署前必须过 `NtTradingNodeHost` 的 G6 gate:
+任何 venue 部署都必须通过唯一 V1 execution admission：
 
 - `NoopHost` 只允许 `sandbox` / `testnet`
-- 真 `NtTradingNodeHost` 才可申请 `live` capability
-- `LIVE_MODE=true` env 独立开关, 与 spec 中 `trading_mode=live` 双守
-- G6 gate deny → 上报 `FailureEvent(reason_code=g6_gate_denied)`
-
-Plan 00c 是 G6 gate 逐级放行的正式落地 plan.
+- `NtTradingNodeHost` 只接收已验证并激活的 immutable artifact
+- `live` 还要求 host capability、`trade_no_withdraw` credential、signed promotion
+  evidence 与本地 `live_execution_enabled` 同时成立
+- 任一条件缺失都生成 typed terminal outcome；不得降级到路径加载或旧 payload
 
 ## 5. 失联 ≠ 停止 (红线 0.3)
 
 Level-triggered reconcile 的核心不变量:
 
-- **reconcile loop 失去云端**: 按上次缓存的 `DeploymentSpec` 继续跑 NT
+- **command intake 失去云端**: 已应用实例按 durable applied state 继续跑 NT
 - **本地 safety breaker 独立守护**: 每策略 / 每账户 drawdown breaker + 结构性
   `max_notional_per_runner` cap 在本地判断, 不依赖云端
-- **云端 outage 生存期**: 数天 (Spec 有 TTL, 但 Key + NT 本地)
-- **重新连上后**: `observed_generation` 单调对齐, 无跳跃
+- **云端 outage 生存期**: 受已验证 policy 有效期和本地 restart budget 约束
+- **重新连上后**: exact command redelivery 按 generation/fingerprint 单调重放
 
 ## 6. Money math Decimal + wire str (红线 0.4)
 
