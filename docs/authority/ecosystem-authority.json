@@ -84,12 +84,12 @@
     "extraction_manifest": "docs/authority/strategy-toolkit-extraction-v1.json",
     "parity_golden": "docs/authority/strategy-toolkit-parity-golden-v1.json",
     "typing_baseline": "docs/authority/strategy-toolkit-typing-baseline-v1.json",
-    "toolkit_typing_closure_scope": "Custos Plan 18 Task 4b",
+    "toolkit_typing_closure_scope": "extracted-source typing closure",
     "typing_closure_manifest": "docs/authority/strategy-toolkit-typing-closure-v1.json",
     "typing_closure_receipt": "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
     "typing_closure_receipt_status": "READY_TYPING_CLOSURE",
     "typing_closure_handoff_ready": true,
-    "typing_closure_handoff_scope": "Custos Plan 18 Task 4b typing closure only",
+    "typing_closure_handoff_scope": "extracted-source typing closure only",
     "toolkit_typing_implementation_commit": "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b",
     "toolkit_typing_verified_at": "2026-07-14T19:48:14Z",
     "whole_distribution_typing_status": "READY_TYPING_CLOSURE",
@@ -97,8 +97,8 @@
     "toolkit_extraction_implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
     "toolkit_extraction_verified_at": "2026-07-14T18:28:17Z",
     "toolkit_extraction_open_blockers": [
-      "Custos Plan 18 Task 4b",
-      "Custos Plan 18 Task 5"
+      "current V1 protected toolkit publication and independent readback",
+      "authenticated StrategyRelease resolver and real artifact acceptance"
     ],
     "artifact_ref_type": "StrategyArtifactRefV1",
     "artifact_ref_schema_version": 1,
@@ -151,7 +151,7 @@
   "runner_safety_policy_consumer": {
     "owner": "crucible-rust",
     "consumer": "custos",
-    "status": "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT",
+    "status": "READY_CODE_ONLY_PENDING_RUNNER_POLICY_RUNTIME_RECEIPT",
     "receipt": "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json",
     "contract_receipt": "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json",
     "policy_contract_consumer_ready": false,
@@ -216,7 +216,7 @@
     "owner": "custos",
     "status": "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
     "receipt": "docs/authority/receipts/custos-strategy-artifact-runtime-v1-receipt.json",
-    "command_source": "Plan 19 T4 durable CrucibleRunnerDeploymentCommandV1 after signature verification and intake",
+    "command_source": "durable CrucibleRunnerDeploymentCommandV1 after signature verification and intake",
     "runner_local_policy_independent": true,
     "bom_member_source": "StrategyReleaseBomV1.members only",
     "quarantine_before_import": true,
