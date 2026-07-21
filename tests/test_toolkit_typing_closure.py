@@ -7,14 +7,14 @@ from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTRACTION = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
-T4_RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+EXTRACTION_RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
 BASELINE = ROOT / "docs/authority/strategy-toolkit-typing-baseline-v1.json"
 CLOSURE = ROOT / "docs/authority/strategy-toolkit-typing-closure-v1.json"
 CLOSURE_RECEIPT = (
     ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
 )
-T4_COMMIT = "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
-T4B_COMMIT = "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b"
+EXTRACTION_COMMIT = "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
+TYPING_CLOSURE_COMMIT = "5a19a816d4f6d90e7d3fbde80d39f562decd8c4b"
 
 
 def _load(path: Path) -> dict[str, object]:
@@ -25,7 +25,7 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_t4b_manifest_extends_immutable_t4_evidence() -> None:
+def test_typing_manifest_extends_immutable_extraction_evidence() -> None:
     extraction = _load(EXTRACTION)
     closure = _load(CLOSURE)
     extraction_files = cast(list[dict[str, object]], extraction["files"])
@@ -35,11 +35,11 @@ def test_t4b_manifest_extends_immutable_t4_evidence() -> None:
         for record in extraction_files
     }
 
-    assert closure["t4_implementation_commit"] == T4_COMMIT
-    assert closure["typed_implementation_commit"] == T4B_COMMIT
+    assert closure["t4_implementation_commit"] == EXTRACTION_COMMIT
+    assert closure["typed_implementation_commit"] == TYPING_CLOSURE_COMMIT
     assert closure["verification_mode"] == "exact_commit_snapshot"
     assert closure["extraction_manifest_sha256"] == _sha256(EXTRACTION)
-    assert closure["t4_receipt_sha256"] == _sha256(T4_RECEIPT)
+    assert closure["t4_receipt_sha256"] == _sha256(EXTRACTION_RECEIPT)
     assert closure["typing_baseline_sha256"] == _sha256(BASELINE)
     assert len(closure_files) == len(historical_by_target) == 241
     assert {
@@ -48,7 +48,7 @@ def test_t4b_manifest_extends_immutable_t4_evidence() -> None:
     } == historical_by_target
 
 
-def test_t4b_candidate_is_strict_zero_without_vendor_rewrite() -> None:
+def test_typing_candidate_is_strict_zero_without_vendor_rewrite() -> None:
     closure = _load(CLOSURE)
     closure_files = cast(list[dict[str, object]], closure["files"])
     target_counts = cast(dict[str, object], closure["target_error_counts"])
@@ -62,7 +62,7 @@ def test_t4b_candidate_is_strict_zero_without_vendor_rewrite() -> None:
     )
 
 
-def test_t4b_receipt_is_ready_only_for_typing_closure_handoff() -> None:
+def test_receipt_is_ready_only_for_typing_closure_handoff() -> None:
     closure = _load(CLOSURE)
     receipt = _load(CLOSURE_RECEIPT)
 
@@ -70,8 +70,8 @@ def test_t4b_receipt_is_ready_only_for_typing_closure_handoff() -> None:
     assert receipt["handoff_ready"] is True
     assert receipt["handoff_scope"] == "Custos Plan 18 Task 4b typing closure only"
     assert receipt["production_ready"] is False
-    assert receipt["typed_implementation_commit"] == T4B_COMMIT
-    assert receipt["verification_checkout"] == {"clean": True, "head": T4B_COMMIT}
+    assert receipt["typed_implementation_commit"] == TYPING_CLOSURE_COMMIT
+    assert receipt["verification_checkout"] == {"clean": True, "head": TYPING_CLOSURE_COMMIT}
     assert receipt["open_blockers"] == [
         "Custos Plan 18 Task 5 public pre-import artifact verifier and attestation contract",
         "Custos Plan 18 Task 6 immutable release candidate",

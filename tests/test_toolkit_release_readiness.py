@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from custos_toolkit.contracts import ToolkitRcT6dPendingReceiptV1
+from custos_toolkit.contracts import ToolkitRcPendingReceiptV1
 
 from scripts.toolkit_rc_release_readiness import (
     ReleaseReadinessError,
@@ -20,7 +20,7 @@ from scripts.toolkit_rc_release_readiness import (
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DATE_EPOCH = 1_704_067_200
 SOURCE_COMMIT = "a" * 40
-SCHEMA_PATH = ROOT / "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
+SCHEMA_PATH = ROOT / "docs/gateway-contract/v1/toolkit_rc_pending_receipt_v1.schema.json"
 READY_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-toolkit-rc-authority-v1.json"
 
 
@@ -58,7 +58,7 @@ def build_candidate(
     }
     for distribution, policy in policies.items():
         filename = str(policy["filename"])
-        content = f"UNSIGNED T6D WHEEL FIXTURE {distribution}\n".encode()
+        content = f"UNSIGNED TOOLKIT WHEEL FIXTURE {distribution}\n".encode()
         digest = hashlib.sha256(content).hexdigest()
         for build_name in ("build-1", "build-2"):
             path = build_root / build_name / "dist" / distribution / filename
@@ -112,13 +112,13 @@ def _prepare(build_root: Path, output_root: Path):
             ROOT / "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
         ),
         contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v1.json"),
-        t4_zero_rewrite_receipt_path=(
+        toolkit_extraction_receipt_path=(
             ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
         ),
-        t4b_typing_closure_receipt_path=(
+        toolkit_typing_closure_receipt_path=(
             ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
         ),
-        t5_pre_import_verifier_receipt_path=(
+        pre_import_verifier_receipt_path=(
             ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
         ),
         output_root=output_root,
@@ -215,12 +215,12 @@ def test_pending_contract_is_source_generated_and_has_one_operational_blocker(
 ) -> None:
     readiness = _prepare(build_candidate.manifest_input_path.parent, tmp_path / "readiness")
     document = json.loads(readiness.pending_receipt_path.read_text(encoding="utf-8"))
-    receipt = ToolkitRcT6dPendingReceiptV1.model_validate(document)
+    receipt = ToolkitRcPendingReceiptV1.model_validate(document)
 
     assert json.loads(SCHEMA_PATH.read_text(encoding="utf-8")) == (
-        ToolkitRcT6dPendingReceiptV1.model_json_schema(mode="validation")
+        ToolkitRcPendingReceiptV1.model_json_schema(mode="validation")
     )
-    assert receipt.status == "PENDING_T6D_RELEASE_RUNNER"
+    assert receipt.status == "PENDING_PROTECTED_RELEASE"
     assert receipt.ready is False
     assert receipt.formal_sboms_complete is True
     assert receipt.dependency_locks_complete is True
@@ -239,8 +239,8 @@ def test_pending_contract_is_source_generated_and_has_one_operational_blocker(
 
     authority = json.loads((ROOT / "authority-manifest.json").read_text(encoding="utf-8"))
     assert {
-        "role": "toolkit_rc_t6d_pending_receipt_schema_v1_contract_only",
-        "path": ("docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"),
+        "role": "toolkit_rc_pending_receipt_schema_v1_contract_only",
+        "path": ("docs/gateway-contract/v1/toolkit_rc_pending_receipt_v1.schema.json"),
         "contract_only": True,
         "ready_receipt_published": True,
     } in authority["authority_documents"]
@@ -303,13 +303,13 @@ def test_unverified_sigstore_bundle_cannot_assemble_publication_inputs(
                 ROOT / "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
             ),
             contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v1.json"),
-            t4_zero_rewrite_receipt_path=(
+            toolkit_extraction_receipt_path=(
                 ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
             ),
-            t4b_typing_closure_receipt_path=(
+            toolkit_typing_closure_receipt_path=(
                 ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
             ),
-            t5_pre_import_verifier_receipt_path=(
+            pre_import_verifier_receipt_path=(
                 ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
             ),
             sigstore_bundle_path=bundle,

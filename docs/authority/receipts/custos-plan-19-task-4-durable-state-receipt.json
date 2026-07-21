@@ -39,7 +39,7 @@
     "generation_resets_sequence": false,
     "legacy_stream_compatibility": false
   },
-  "t3_durability_port_implemented": true,
+  "durability_port_implemented": true,
   "applied_lifecycle_atomic": true,
   "deterministic_command_outcome": true,
   "deterministic_lifecycle_event": true,

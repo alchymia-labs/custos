@@ -48,9 +48,9 @@ BINDING_FIELDS: Final = (
     "dependency_lock_evidence",
     "slsa_provenance",
     "sigstore_attestation",
-    "t4_zero_rewrite_receipt",
-    "t4b_typing_closure_receipt",
-    "t5_pre_import_verifier_receipt",
+    "toolkit_extraction_receipt",
+    "toolkit_typing_closure_receipt",
+    "pre_import_verifier_receipt",
 )
 BUILD_DISTRIBUTIONS: Final = frozenset(
     {"custos-strategy-toolkit", "custos-strategy-toolkit-nautilus"}
@@ -585,9 +585,9 @@ def publish_toolkit_rc_candidate(
 
     receipt = ToolkitRcOciPublicationReceiptV1(
         status=(
-            "PENDING_T6E_AUTHORITY_REGISTRATION"
+            "PENDING_AUTHORITY_REGISTRATION"
             if production_authorization is not None
-            else "PENDING_T6D_RELEASE_RUNNER"
+            else "PENDING_PROTECTED_RELEASE"
         ),
         candidate_version=manifest.candidate_version,
         source_commit=str(build_document["source_commit"]),

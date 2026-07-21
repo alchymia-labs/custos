@@ -14,8 +14,8 @@
   },
   "asset_index": {
     "path": "docs/authority/crucible-runner-machine-request-consumer-assets-v1.json",
-    "sha256": "f77da9784c12b9218a935679b2e00919393fb5b3e36991de20ccdfc871400127",
-    "size_bytes": 2499
+    "sha256": "c95b34dbcb15fb8f0cd9088d4fba375a473805a367e51b0f2261e007c1a073bd",
+    "size_bytes": 2503
   },
   "contract": {
     "request_domain": "crucible.runner.machine.request.v1",

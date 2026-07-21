@@ -257,6 +257,9 @@
           ],
           "title": "Nautilus Version"
         },
+        "pre_import_verifier_receipt": {
+          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
+        },
         "python_requires": {
           "minLength": 1,
           "title": "Python Requires",
@@ -284,13 +287,10 @@
           "title": "Source Repository",
           "type": "string"
         },
-        "t4_zero_rewrite_receipt": {
+        "toolkit_extraction_receipt": {
           "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
         },
-        "t4b_typing_closure_receipt": {
-          "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
-        },
-        "t5_pre_import_verifier_receipt": {
+        "toolkit_typing_closure_receipt": {
           "$ref": "#/$defs/ImmutableToolkitArtifactBindingV1"
         },
         "top_level_modules": {
@@ -328,9 +328,9 @@
         "sigstore_attestation",
         "source_repository",
         "source_commit",
-        "t4_zero_rewrite_receipt",
-        "t4b_typing_closure_receipt",
-        "t5_pre_import_verifier_receipt"
+        "toolkit_extraction_receipt",
+        "toolkit_typing_closure_receipt",
+        "pre_import_verifier_receipt"
       ],
       "title": "ToolkitRcMemberV1",
       "type": "object"
@@ -543,8 +543,8 @@
         },
         "status": {
           "enum": [
-            "PENDING_T6D_RELEASE_RUNNER",
-            "PENDING_T6E_AUTHORITY_REGISTRATION"
+            "PENDING_PROTECTED_RELEASE",
+            "PENDING_AUTHORITY_REGISTRATION"
           ],
           "title": "Status",
           "type": "string"

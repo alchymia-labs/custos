@@ -1,7 +1,7 @@
 {
   "receipt_schema_version": 1,
   "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
-  "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME",
+  "receipt_status": "READY_CONTRACT_ONLY_PENDING_TRANSPORT_RUNTIME",
   "repository": "tesseract-trading/custos",
   "plan": "Custos Plan 19",
   "task": "T7C authenticated NATS transport",

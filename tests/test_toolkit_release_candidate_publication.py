@@ -38,9 +38,9 @@ OBJECT_FIELDS = (
     "dependency_lock_evidence",
     "slsa_provenance",
     "sigstore_attestation",
-    "t4_zero_rewrite_receipt",
-    "t4b_typing_closure_receipt",
-    "t5_pre_import_verifier_receipt",
+    "toolkit_extraction_receipt",
+    "toolkit_typing_closure_receipt",
+    "pre_import_verifier_receipt",
 )
 
 
@@ -279,7 +279,7 @@ def test_oci_manifest_is_the_only_atomic_authority_and_tag_cannot_drift(
     evidence = _publish(rc1, registry, pending_rc1)
     receipt = ToolkitRcOciPublicationReceiptV1.model_validate_json(pending_rc1.read_bytes())
     assert evidence.candidate_version == "0.1.0rc1"
-    assert receipt.status == "PENDING_T6D_RELEASE_RUNNER"
+    assert receipt.status == "PENDING_PROTECTED_RELEASE"
     assert receipt.ready is False
     assert receipt.publication_atomic is True
     assert receipt.manifest_commit_verified is True

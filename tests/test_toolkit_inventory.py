@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
 AUTHORITY_MANIFEST_PATH = ROOT / "authority-manifest.json"
-TASK_4_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+EXTRACTION_RECEIPT_PATH = (
+    ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+)
 BASE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
 
@@ -85,7 +87,7 @@ def test_repository_manifest_registers_the_inventory_as_authority() -> None:
 
 
 def test_task_4_receipt_is_extraction_only_with_open_blockers() -> None:
-    receipt = _load(TASK_4_RECEIPT_PATH)
+    receipt = _load(EXTRACTION_RECEIPT_PATH)
     extraction = _load(EXTRACTION_PATH)
 
     assert receipt["receipt_status"] == "VERIFIED_EXTRACTION_ONLY"

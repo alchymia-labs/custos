@@ -23,8 +23,8 @@ from custos_toolkit.contracts import (
     ToolkitRcCycloneDxSbomV1,
     ToolkitRcMemberRole,
     ToolkitRcMemberV1,
+    ToolkitRcPendingReceiptV1,
     ToolkitRcReceiptManifestV1,
-    ToolkitRcT6dPendingReceiptV1,
 )
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier
@@ -49,7 +49,7 @@ RC_VERSION_RE: Final = re.compile(r"^0\.1\.0rc[1-9][0-9]*$")
 
 
 class ReleaseReadinessError(RuntimeError):
-    """T6d deterministic readiness evidence could not be produced safely."""
+    """Deterministic protected-release readiness evidence could not be produced safely."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -377,18 +377,20 @@ def prepare_toolkit_rc_release_readiness(
     lock_path: Path,
     contract_schema_path: Path,
     contract_asset_index_path: Path,
-    t4_zero_rewrite_receipt_path: Path,
-    t4b_typing_closure_receipt_path: Path,
-    t5_pre_import_verifier_receipt_path: Path,
+    toolkit_extraction_receipt_path: Path,
+    toolkit_typing_closure_receipt_path: Path,
+    pre_import_verifier_receipt_path: Path,
     output_root: Path,
 ) -> ReleaseReadinessArtifacts:
-    """Generate deterministic unsigned T6d evidence without contacting a service."""
+    """Generate deterministic unsigned protected-release evidence without contacting a service."""
 
     repository_root = repository_root.resolve()
     build_root = build_root.resolve()
     output_root = output_root.resolve()
     if output_root.exists():
-        raise ReleaseReadinessError("T6d readiness output is immutable and must not exist")
+        raise ReleaseReadinessError(
+            "protected-release readiness output is immutable and must not exist"
+        )
     manifest_content, build_document, wheels = _load_wheels(build_root)
     candidate_version = str(build_document["candidate_version"])
     source_commit = build_document.get("source_commit")
@@ -433,9 +435,9 @@ def prepare_toolkit_rc_release_readiness(
     support_paths = (
         contract_schema_path,
         contract_asset_index_path,
-        t4_zero_rewrite_receipt_path,
-        t4b_typing_closure_receipt_path,
-        t5_pre_import_verifier_receipt_path,
+        toolkit_extraction_receipt_path,
+        toolkit_typing_closure_receipt_path,
+        pre_import_verifier_receipt_path,
     )
     support_bytes: dict[Path, bytes] = {}
     for path in support_paths:
@@ -498,7 +500,7 @@ def prepare_toolkit_rc_release_readiness(
     }
     provenance_bytes = _json_bytes(provenance_document)
 
-    pending_receipt = ToolkitRcT6dPendingReceiptV1(
+    pending_receipt = ToolkitRcPendingReceiptV1(
         candidate_version=candidate_version,
         source_commit=source_commit,
         source_date_epoch=source_date_epoch,
@@ -548,7 +550,7 @@ def prepare_toolkit_rc_release_readiness(
         sbom_paths[distribution] = path
     provenance_path = output_root / "toolkit-rc.intoto.json"
     provenance_path.write_bytes(provenance_bytes)
-    pending_receipt_path = output_root / "toolkit-rc-t6d-pending.json"
+    pending_receipt_path = output_root / "toolkit-rc-pending.json"
     pending_receipt_path.write_bytes(pending_bytes)
     return ReleaseReadinessArtifacts(
         candidate_version=candidate_version,
@@ -610,7 +612,7 @@ def _validate_sigstore_bundle(path: Path, provenance_path: Path) -> bytes:
         raise ReleaseReadinessError(f"Sigstore verification command is unavailable: {exc}") from exc
     if verification.returncode != 0:
         raise ReleaseReadinessError(
-            "Sigstore verification failed for the exact T6d workflow identity: "
+            "Sigstore verification failed for the exact protected-release workflow identity: "
             f"{verification.stderr.strip()}"
         )
     return content
@@ -622,9 +624,9 @@ def assemble_toolkit_rc_publication_inputs(
     readiness_root: Path,
     contract_schema_path: Path,
     contract_asset_index_path: Path,
-    t4_zero_rewrite_receipt_path: Path,
-    t4b_typing_closure_receipt_path: Path,
-    t5_pre_import_verifier_receipt_path: Path,
+    toolkit_extraction_receipt_path: Path,
+    toolkit_typing_closure_receipt_path: Path,
+    pre_import_verifier_receipt_path: Path,
     sigstore_bundle_path: Path,
     output_root: Path,
 ) -> PublicationAssemblyArtifacts:
@@ -638,18 +640,18 @@ def assemble_toolkit_rc_publication_inputs(
     _, build_document, wheels = _load_wheels(build_root)
     candidate_version = str(build_document["candidate_version"])
     source_commit = str(build_document["source_commit"])
-    pending_path = readiness_root / "toolkit-rc-t6d-pending.json"
-    _, pending_document = _read_json(pending_path, "T6d pending receipt")
+    pending_path = readiness_root / "toolkit-rc-pending.json"
+    _, pending_document = _read_json(pending_path, "pending receipt")
     try:
-        pending = ToolkitRcT6dPendingReceiptV1.model_validate(pending_document)
+        pending = ToolkitRcPendingReceiptV1.model_validate(pending_document)
     except ValueError as exc:
-        raise ReleaseReadinessError(f"T6d pending receipt contract differs: {exc}") from exc
+        raise ReleaseReadinessError(f"pending receipt contract differs: {exc}") from exc
     if (
         pending.candidate_version != candidate_version
         or pending.source_commit != source_commit
         or pending.ready is not False
     ):
-        raise ReleaseReadinessError("T6d pending receipt does not bind the build")
+        raise ReleaseReadinessError("pending receipt does not bind the build")
 
     dependency_lock_path = readiness_root / "toolkit-rc-dependency-locks.json"
     dependency_lock_content, dependency_document = _read_json(
@@ -660,7 +662,7 @@ def assemble_toolkit_rc_publication_inputs(
         or dependency_document.get("candidate_version") != candidate_version
         or dependency_document.get("source_commit") != source_commit
     ):
-        raise ReleaseReadinessError("dependency lock evidence differs from T6d pending")
+        raise ReleaseReadinessError("dependency lock evidence differs from the pending receipt")
     distributions = dependency_document.get("distributions")
     if not isinstance(distributions, dict) or set(distributions) != set(DISTRIBUTION_ROLES):
         raise ReleaseReadinessError("dependency lock distribution matrix differs")
@@ -672,7 +674,7 @@ def assemble_toolkit_rc_publication_inputs(
         or provenance_document.get("_type") != "https://in-toto.io/Statement/v1"
         or provenance_document.get("predicateType") != "https://slsa.dev/provenance/v1"
     ):
-        raise ReleaseReadinessError("SLSA provenance differs from T6d pending")
+        raise ReleaseReadinessError("SLSA provenance differs from the pending receipt")
     _validate_sigstore_bundle(sigstore_bundle_path, provenance_path)
 
     source_paths: dict[str, Path] = {}
@@ -698,11 +700,11 @@ def assemble_toolkit_rc_publication_inputs(
         "dependency_lock_evidence": bind("dependencies", dependency_lock_path),
         "slsa_provenance": bind("provenance", provenance_path),
         "sigstore_attestation": bind("attestations", sigstore_bundle_path),
-        "t4_zero_rewrite_receipt": bind("prerequisites", t4_zero_rewrite_receipt_path),
-        "t4b_typing_closure_receipt": bind("prerequisites", t4b_typing_closure_receipt_path),
-        "t5_pre_import_verifier_receipt": bind(
-            "prerequisites", t5_pre_import_verifier_receipt_path
+        "toolkit_extraction_receipt": bind("prerequisites", toolkit_extraction_receipt_path),
+        "toolkit_typing_closure_receipt": bind(
+            "prerequisites", toolkit_typing_closure_receipt_path
         ),
+        "pre_import_verifier_receipt": bind("prerequisites", pre_import_verifier_receipt_path),
     }
     members: list[ToolkitRcMemberV1] = []
     for distribution in sorted(wheels):
@@ -715,7 +717,7 @@ def assemble_toolkit_rc_publication_inputs(
         if pending_sbom is None or _sha256(sbom_path.read_bytes()) != (
             pending_sbom.artifact.sha256
         ):
-            raise ReleaseReadinessError(f"{distribution} SBOM differs from T6d pending")
+            raise ReleaseReadinessError(f"{distribution} SBOM differs from the pending receipt")
         raw_dependencies = distributions[distribution]
         if not isinstance(raw_dependencies, list):
             raise ReleaseReadinessError(f"{distribution} dependency locks are invalid")
@@ -834,14 +836,14 @@ def main(argv: list[str] | None = None) -> int:
             contract_asset_index_path=_repository_path(
                 repository_root, arguments.contract_asset_index
             ),
-            t4_zero_rewrite_receipt_path=_repository_path(
-                repository_root, arguments.t4_zero_rewrite_receipt
+            toolkit_extraction_receipt_path=_repository_path(
+                repository_root, arguments.toolkit_extraction_receipt
             ),
-            t4b_typing_closure_receipt_path=_repository_path(
-                repository_root, arguments.t4b_typing_closure_receipt
+            toolkit_typing_closure_receipt_path=_repository_path(
+                repository_root, arguments.toolkit_typing_closure_receipt
             ),
-            t5_pre_import_verifier_receipt_path=_repository_path(
-                repository_root, arguments.t5_pre_import_verifier_receipt
+            pre_import_verifier_receipt_path=_repository_path(
+                repository_root, arguments.pre_import_verifier_receipt
             ),
             sigstore_bundle_path=arguments.sigstore_bundle,
             output_root=arguments.output_root,
@@ -852,7 +854,7 @@ def main(argv: list[str] | None = None) -> int:
                     "candidate_version": assembly.candidate_version,
                     "manifest_path": str(assembly.manifest_path),
                     "object_sources_path": str(assembly.object_sources_path),
-                    "status": "PENDING_T6D_REMOTE_PUBLICATION",
+                    "status": "PENDING_REMOTE_PUBLICATION",
                 },
                 sort_keys=True,
             )
@@ -864,14 +866,14 @@ def main(argv: list[str] | None = None) -> int:
         lock_path=_repository_path(repository_root, arguments.lock_path),
         contract_schema_path=_repository_path(repository_root, arguments.contract_schema),
         contract_asset_index_path=_repository_path(repository_root, arguments.contract_asset_index),
-        t4_zero_rewrite_receipt_path=_repository_path(
-            repository_root, arguments.t4_zero_rewrite_receipt
+        toolkit_extraction_receipt_path=_repository_path(
+            repository_root, arguments.toolkit_extraction_receipt
         ),
-        t4b_typing_closure_receipt_path=_repository_path(
-            repository_root, arguments.t4b_typing_closure_receipt
+        toolkit_typing_closure_receipt_path=_repository_path(
+            repository_root, arguments.toolkit_typing_closure_receipt
         ),
-        t5_pre_import_verifier_receipt_path=_repository_path(
-            repository_root, arguments.t5_pre_import_verifier_receipt
+        pre_import_verifier_receipt_path=_repository_path(
+            repository_root, arguments.pre_import_verifier_receipt
         ),
         output_root=arguments.output_root,
     )
@@ -881,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:
                 "candidate_version": evidence.candidate_version,
                 "pending_receipt_path": str(evidence.pending_receipt_path),
                 "provenance_path": str(evidence.provenance_path),
-                "status": "PENDING_T6D_RELEASE_RUNNER",
+                "status": "PENDING_PROTECTED_RELEASE",
             },
             sort_keys=True,
         )

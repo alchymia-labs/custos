@@ -133,9 +133,9 @@ def _promotion_case(
         "contract_schema": b"contract schema\n",
         "contract_asset_index": b"contract index\n",
         "dependency_lock_evidence": _json_bytes(dependency_document),
-        "t4_zero_rewrite_receipt": prerequisite_paths[0].read_bytes(),
-        "t4b_typing_closure_receipt": prerequisite_paths[1].read_bytes(),
-        "t5_pre_import_verifier_receipt": prerequisite_paths[2].read_bytes(),
+        "toolkit_extraction_receipt": prerequisite_paths[0].read_bytes(),
+        "toolkit_typing_closure_receipt": prerequisite_paths[1].read_bytes(),
+        "pre_import_verifier_receipt": prerequisite_paths[2].read_bytes(),
     }
     shared_bindings = {
         name: _binding(
@@ -144,9 +144,9 @@ def _promotion_case(
                 "contract_schema": "toolkit_rc_receipt_manifest_v1.schema.json",
                 "contract_asset_index": "strategy-contract-assets-v1.json",
                 "dependency_lock_evidence": "toolkit-rc-dependency-locks.json",
-                "t4_zero_rewrite_receipt": prerequisite_paths[0].name,
-                "t4b_typing_closure_receipt": prerequisite_paths[1].name,
-                "t5_pre_import_verifier_receipt": prerequisite_paths[2].name,
+                "toolkit_extraction_receipt": prerequisite_paths[0].name,
+                "toolkit_typing_closure_receipt": prerequisite_paths[1].name,
+                "pre_import_verifier_receipt": prerequisite_paths[2].name,
             }[name],
             content,
         )
@@ -445,7 +445,7 @@ def test_v1_is_the_only_toolkit_authority_schema() -> None:
 
 
 def test_unknown_or_mutated_pending_state_fails_closed() -> None:
-    document = {"status": "PENDING_T6E_EXTERNAL_RELEASE", "ready": False}
+    document = {"status": "PENDING_EXTERNAL_RELEASE", "ready": False}
     with pytest.raises(ValueError):
         ToolkitRcAuthorityReceiptV1.model_validate(document)
     document["status"] = "READY_BY_TEST"
@@ -473,7 +473,7 @@ def test_nonproduction_publication_cannot_enter_promotion() -> None:
         ),
     )
     publication = ToolkitRcOciPublicationReceiptV1(
-        status="PENDING_T6D_RELEASE_RUNNER",
+        status="PENDING_PROTECTED_RELEASE",
         candidate_version="0.1.0rc1",
         source_commit="a" * 40,
         source_date_epoch=1_704_067_200,

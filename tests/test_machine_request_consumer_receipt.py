@@ -5,13 +5,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSET_INDEX = (
-    ROOT / "docs/authority/crucible-runner-machine-request-consumer-assets-v1.json"
-)
-RECEIPT = (
-    ROOT
-    / "docs/authority/receipts/custos-plan-19-runner-machine-request-v1-receipt.json"
-)
+ASSET_INDEX = ROOT / "docs/authority/crucible-runner-machine-request-consumer-assets-v1.json"
+RECEIPT = ROOT / "docs/authority/receipts/custos-plan-19-runner-machine-request-v1-receipt.json"
 
 
 def _load(path: Path) -> dict[str, object]:
@@ -29,7 +24,7 @@ def test_machine_request_consumer_assets_are_exactly_pinned() -> None:
         "repository": "tesseract-trading/crucible-rust",
         "plan": 100,
         "commit": "d9df47501f7a871c5b0691b8daf6d83fc3cd82c0",
-        "status": "T8_COMPLETE_T9_T10_PARTIAL",
+        "status": "CONTRACT_READY_RUNTIME_PENDING",
     }
     assert index["consumer"] == {
         "repository": "tesseract-trading/custos",
@@ -45,11 +40,7 @@ def test_machine_request_consumer_assets_are_exactly_pinned() -> None:
 
     producer_assets = {asset["path"]: asset for asset in index["producer_assets"]}
     for relative_path, asset in producer_assets.items():
-        vendored = (
-            ROOT
-            / "docs/authority/vendor"
-            / f"crucible-{Path(relative_path).name}"
-        )
+        vendored = ROOT / "docs/authority/vendor" / f"crucible-{Path(relative_path).name}"
         assert vendored.stat().st_size == asset["size_bytes"]
         assert _sha256(vendored) == asset["sha256"]
 

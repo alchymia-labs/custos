@@ -39,9 +39,7 @@ WORKFLOW_REF: Final = (
     "alchymia-labs/custos/.github/workflows/release-toolkit-rc.yml@refs/heads/main"
 )
 OIDC_ISSUER: Final = "https://token.actions.githubusercontent.com"
-STABLE_READY_PATH: Final = Path(
-    "docs/authority/receipts/custos-toolkit-rc-authority-v1.json"
-)
+STABLE_READY_PATH: Final = Path("docs/authority/receipts/custos-toolkit-rc-authority-v1.json")
 PREREQUISITE_PATHS: Final = (
     Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),
     Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
@@ -53,9 +51,9 @@ SIGNED_SUBJECT_FIELDS: Final = (
     "contract_schema",
     "contract_asset_index",
     "dependency_lock_evidence",
-    "t4_zero_rewrite_receipt",
-    "t4b_typing_closure_receipt",
-    "t5_pre_import_verifier_receipt",
+    "toolkit_extraction_receipt",
+    "toolkit_typing_closure_receipt",
+    "pre_import_verifier_receipt",
 )
 SHARED_EVIDENCE_FIELDS: Final = (
     "contract_schema",
@@ -63,9 +61,9 @@ SHARED_EVIDENCE_FIELDS: Final = (
     "dependency_lock_evidence",
     "slsa_provenance",
     "sigstore_attestation",
-    "t4_zero_rewrite_receipt",
-    "t4b_typing_closure_receipt",
-    "t5_pre_import_verifier_receipt",
+    "toolkit_extraction_receipt",
+    "toolkit_typing_closure_receipt",
+    "pre_import_verifier_receipt",
 )
 BUILD_TYPE: Final = "https://custos.the-alephain-guild/build-types/toolkit-rc/v1"
 SOURCE_REPOSITORY: Final = "https://github.com/alchymia-labs/custos"
@@ -94,7 +92,7 @@ def require_production_publication_receipt(
     receipt: ToolkitRcOciPublicationReceiptV1,
 ) -> None:
     if (
-        receipt.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
+        receipt.status != "PENDING_AUTHORITY_REGISTRATION"
         or receipt.ready
         or receipt.handoff_ready
         or not receipt.production_credentials_used
@@ -360,7 +358,7 @@ def _read_oci_publication(
     ):
         raise ToolkitRcPromotionError("OCI release source identity differs")
     receipt = ToolkitRcOciPublicationReceiptV1(
-        status="PENDING_T6E_AUTHORITY_REGISTRATION",
+        status="PENDING_AUTHORITY_REGISTRATION",
         candidate_version=expected_candidate_version,
         source_commit=source_commit,
         source_date_epoch=source_date_epoch,
@@ -460,9 +458,9 @@ def promote_toolkit_rc(
             member.dependency_lock_evidence,
             member.slsa_provenance,
             member.sigstore_attestation,
-            member.t4_zero_rewrite_receipt,
-            member.t4b_typing_closure_receipt,
-            member.t5_pre_import_verifier_receipt,
+            member.toolkit_extraction_receipt,
+            member.toolkit_typing_closure_receipt,
+            member.pre_import_verifier_receipt,
         ):
             content = objects.get(binding.coordinate)
             if (
@@ -483,9 +481,9 @@ def promote_toolkit_rc(
     for path, binding in zip(
         PREREQUISITE_PATHS,
         (
-            first.t4_zero_rewrite_receipt,
-            first.t4b_typing_closure_receipt,
-            first.t5_pre_import_verifier_receipt,
+            first.toolkit_extraction_receipt,
+            first.toolkit_typing_closure_receipt,
+            first.pre_import_verifier_receipt,
         ),
         strict=True,
     ):

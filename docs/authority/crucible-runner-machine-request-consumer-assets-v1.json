@@ -6,7 +6,7 @@
     "repository": "tesseract-trading/crucible-rust",
     "plan": 100,
     "commit": "d9df47501f7a871c5b0691b8daf6d83fc3cd82c0",
-    "status": "T8_COMPLETE_T9_T10_PARTIAL"
+    "status": "CONTRACT_READY_RUNTIME_PENDING"
   },
   "consumer": {
     "repository": "tesseract-trading/custos",

@@ -53,19 +53,19 @@
       "ready_receipt_published": true
     },
     {
-      "role": "toolkit_rc_t6d_pending_receipt_schema_v1_contract_only",
-      "path": "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json",
+      "role": "toolkit_rc_pending_receipt_schema_v1_contract_only",
+      "path": "docs/gateway-contract/v1/toolkit_rc_pending_receipt_v1.schema.json",
       "contract_only": true,
       "ready_receipt_published": true
     },
     {
-      "role": "toolkit_rc_t6d_release_readiness_runner",
+      "role": "toolkit_rc_release_readiness_runner",
       "path": "scripts/toolkit_rc_release_readiness.py",
       "contract_only": false,
       "ready_receipt_published": true
     },
     {
-      "role": "toolkit_rc_t6d_production_release_workflow",
+      "role": "toolkit_rc_production_release_workflow",
       "path": ".github/workflows/release-toolkit-rc.yml",
       "contract_only": false,
       "ready_receipt_published": true
@@ -83,13 +83,13 @@
       "ready_receipt_published": true
     },
     {
-      "role": "toolkit_rc_t6e_promotion_runner",
+      "role": "toolkit_rc_promotion_runner",
       "path": "scripts/toolkit_rc_promote.py",
       "contract_only": false,
       "ready_receipt_published": true
     },
     {
-      "role": "toolkit_rc_t6e_independent_promotion_workflow",
+      "role": "toolkit_rc_independent_promotion_workflow",
       "path": ".github/workflows/promote-toolkit-rc.yml",
       "contract_only": false,
       "ready_receipt_published": true
@@ -225,7 +225,7 @@
     {
       "role": "crucible_runner_command_consumer_asset_index_v1",
       "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
-      "status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
+      "status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
       "consumer_code_ready": true,
       "command_contract_consumer_ready": true,
       "runtime_ready": false,
@@ -234,7 +234,7 @@
     {
       "role": "runner_command_consumer_receipt_v1",
       "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
-      "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
+      "receipt_status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
       "consumer_code_ready": true,
       "command_contract_consumer_ready": true,
       "runtime_ready": false,
@@ -248,15 +248,15 @@
       "production_ready": false
     },
     {
-      "role": "plan_19_task_4_durable_state_receipt",
+      "role": "runner_fact_durable_state_receipt",
       "path": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
     },
     {
-      "role": "plan_19_task_5_engine_lifecycle_receipt",
+      "role": "engine_lifecycle_receipt",
       "path": "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json"
     },
     {
-      "role": "plan_19_task_6_portfolio_semantics_receipt",
+      "role": "portfolio_semantics_receipt",
       "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
     },
     {
@@ -499,7 +499,7 @@
     {
       "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
       "must_contain": [
-        "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
+        "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
         "\"deployment_spec_only\": true",
         "\"strategy_release_material_in_command\": false",
         "\"production_ready\": false"

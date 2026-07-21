@@ -40,12 +40,12 @@ ARTIFACT_EVIDENCE_DIGEST = "d" * 64
 POLICY_ID = UUID("60000000-0000-4000-8000-000000000006")
 
 
-def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
+def _runner_policy() -> VerifiedRunnerSafetyPolicy:
     policy = RunnerAggregateCapPolicyV1(
         schema_version=1,
         authority_coordinate="crucible.runner-aggregate-cap-policy.v1",
         policy_id=POLICY_ID,
-        runner_id=T4_RUNNER_ID,
+        runner_id=RUNNER_ID,
         tenant_id="acme",
         trading_mode="sandbox",
         revision=1,
@@ -63,7 +63,7 @@ def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
     )
     return VerifiedRunnerSafetyPolicy(
         policy=policy,
-        exact_subject=f"crucible.runner.policy.v1.acme.{T4_RUNNER_ID}.sandbox",
+        exact_subject=f"crucible.runner.policy.v1.acme.{RUNNER_ID}.sandbox",
         exact_event_bytes=b'{"verified":"test-only"}',
         exact_signed_envelope_bytes=b'{"signature":"test-only"}',
         signature_key_id="crucible-policy-key",
@@ -211,41 +211,41 @@ async def test_instance_stream_continues_across_spec_and_generation_changes(
     ]
 
 
-T4_GOLDEN_PATH = (
+COMMAND_GOLDEN_PATH = (
     Path(__file__).resolve().parents[1] / "docs/authority/runner-deployment-command-golden-v1.json"
 )
-T4_COMMAND_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
-T4_OTHER_COMMAND_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(33, 65)))
-T4_RUNNER_ID = RUNNER_ID
+COMMAND_SIGNING_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
+OTHER_COMMAND_SIGNING_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(33, 65)))
+RUNNER_ID = RUNNER_ID
 
 
-def _t4_encode(value: bytes) -> str:
+def _encode_base64url(value: bytes) -> str:
     import base64
 
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode()
 
 
-def _t4_compact(value: object) -> bytes:
+def _compact_json(value: object) -> bytes:
     import json
 
     return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode()
 
 
-def _t4_signed_fixture(
+def _signed_command_fixture(
     *,
-    private_key: Ed25519PrivateKey = T4_COMMAND_KEY,
+    private_key: Ed25519PrivateKey = COMMAND_SIGNING_KEY,
     mutate_event=None,
 ) -> tuple[bytes, str]:
     import copy
     import json
 
-    fixture = json.loads(T4_GOLDEN_PATH.read_text(encoding="utf-8"))
+    fixture = json.loads(COMMAND_GOLDEN_PATH.read_text(encoding="utf-8"))
     case = fixture["cases"][0]
     subject = case["subject"]
     event = copy.deepcopy(case["event_document"])
     if mutate_event is not None:
         mutate_event(event)
-    event_bytes = _t4_compact(event)
+    event_bytes = _compact_json(event)
     subject_bytes = subject.encode()
     framed = b"".join(
         (
@@ -260,34 +260,34 @@ def _t4_signed_fixture(
         "schema_version": 1,
         "signature_profile": DOMAIN_EVENT_SIGNATURE_PROFILE,
         "event_encoding": DOMAIN_EVENT_ENCODING,
-        "event_bytes": _t4_encode(event_bytes),
+        "event_bytes": _encode_base64url(event_bytes),
         "signature_key_id": "crucible-command-key-a",
-        "signature": _t4_encode(private_key.sign(framed)),
+        "signature": _encode_base64url(private_key.sign(framed)),
     }
-    return _t4_compact(envelope), subject
+    return _compact_json(envelope), subject
 
 
-def _t4_authenticator():
+def _command_authenticator():
     from custos.core.runner_command_intake import CrucibleRunnerCommandAuthenticator
 
     return CrucibleRunnerCommandAuthenticator(
         expected_tenant_id="acme",
-        expected_runner_id=T4_RUNNER_ID,
+        expected_runner_id=RUNNER_ID,
         allowed_trading_modes=frozenset({"sandbox"}),
-        signature_keys={"crucible-command-key-a": T4_COMMAND_KEY.public_key()},
+        signature_keys={"crucible-command-key-a": COMMAND_SIGNING_KEY.public_key()},
     )
 
 
-def _t4_verified(*, mutate_event=None):
-    raw, subject = _t4_signed_fixture(mutate_event=mutate_event)
-    verified = _t4_authenticator().verify(
+def _verified_command(*, mutate_event=None):
+    raw, subject = _signed_command_fixture(mutate_event=mutate_event)
+    verified = _command_authenticator().verify(
         subject=subject,
         signed_envelope_bytes=raw,
     )
     return raw, subject, verified
 
 
-def _t4_authority(verified):
+def _runner_authority(verified):
     command = verified.command
     return RunnerFactAuthority(
         tenant_id=command.tenant_id,
@@ -304,7 +304,7 @@ def _t4_authority(verified):
     )
 
 
-def _t4_store(
+def _runner_fact_store(
     database: Path,
     *,
     tenant_id: str = "acme",
@@ -321,8 +321,8 @@ def _t4_store(
         outbox=outbox,
         identity=signing_identity,
         tenant_id=tenant_id,
-        runner_id=T4_RUNNER_ID,
-        authority_resolver=_t4_authority,
+        runner_id=RUNNER_ID,
+        authority_resolver=_runner_authority,
     )
     return outbox, store
 
@@ -332,8 +332,8 @@ async def test_desired_command_persists_exact_bytes_and_replays_idempotently(
     tmp_path: Path,
 ) -> None:
     database = tmp_path / "runner-state.sqlite3"
-    _, store = _t4_store(database)
-    _, _, verified = _t4_verified()
+    _, store = _runner_fact_store(database)
+    _, _, verified = _verified_command()
 
     first = await store.record_desired_command(
         command=verified.command,
@@ -373,8 +373,8 @@ async def test_applied_commit_is_atomic_with_lifecycle_outbox_and_restart_replay
     import time
 
     database = tmp_path / "runner-state.sqlite3"
-    _, store = _t4_store(database)
-    _, _, verified = _t4_verified()
+    _, store = _runner_fact_store(database)
+    _, _, verified = _verified_command()
     await store.record_desired_command(
         command=verified.command,
         command_fingerprint=verified.command_fingerprint,
@@ -391,7 +391,7 @@ async def test_applied_commit_is_atomic_with_lifecycle_outbox_and_restart_replay
         artifact_ref_digest=ARTIFACT_REF_DIGEST,
         artifact_evidence_digest=ARTIFACT_EVIDENCE_DIGEST,
     )
-    await store.record_verified_runner_safety_policy(_t4_runner_policy())
+    await store.record_verified_runner_safety_policy(_runner_policy())
     result = await store.commit_applied_and_enqueue_lifecycle(
         delivery_id="delivery-applied",
         verified=verified,
@@ -414,7 +414,7 @@ async def test_applied_commit_is_atomic_with_lifecycle_outbox_and_restart_replay
         assert connection.execute("SELECT count(*) FROM artifact_activation").fetchone()[0] == 1
         assert connection.execute("SELECT count(*) FROM runner_cap_policy").fetchone()[0] == 1
 
-    _, restarted_store = _t4_store(database)
+    _, restarted_store = _runner_fact_store(database)
     replay = await restarted_store.record_desired_command(
         command=verified.command,
         command_fingerprint=verified.command_fingerprint,
@@ -449,8 +449,8 @@ async def test_signing_failure_rolls_back_applied_state_and_lifecycle_outbox(
 
     database = tmp_path / "runner-state.sqlite3"
     identity = FailingIdentity(Ed25519PrivateKey.generate(), "failing-key")
-    _, store = _t4_store(database, identity=identity)
-    _, _, verified = _t4_verified()
+    _, store = _runner_fact_store(database, identity=identity)
+    _, _, verified = _verified_command()
     await store.record_desired_command(
         command=verified.command,
         command_fingerprint=verified.command_fingerprint,
@@ -484,9 +484,9 @@ async def test_same_generation_different_exact_bytes_is_terminal_and_quarantined
     tmp_path: Path,
 ) -> None:
     database = tmp_path / "runner-state.sqlite3"
-    _, store = _t4_store(database)
-    _, _, first = _t4_verified()
-    _, _, conflicting = _t4_verified(
+    _, store = _runner_fact_store(database)
+    _, _, first = _verified_command()
+    _, _, conflicting = _verified_command(
         mutate_event=lambda event: event.__setitem__("occurred_at", "2026-07-15T12:00:01Z")
     )
     await store.record_desired_command(
@@ -524,7 +524,7 @@ async def test_same_generation_different_exact_bytes_is_terminal_and_quarantined
         assert connection.execute("SELECT count(*) FROM runner_fact_outbox").fetchone()[0] == 1
 
 
-class _T4Delivery:
+class _RunnerFactDelivery:
     def __init__(self, *, data: bytes, subject: str, database: Path) -> None:
         self.data = data
         self.subject = subject
@@ -555,11 +555,11 @@ async def test_untrusted_rejection_is_durable_before_terminal_disposition(
     from custos.core.runner_command_intake import CommandDeliveryPolicy, CommandIntakeCoordinator
 
     database = tmp_path / "runner-state.sqlite3"
-    _, store = _t4_store(database)
-    raw, subject = _t4_signed_fixture(private_key=T4_OTHER_COMMAND_KEY)
-    delivery = _T4Delivery(data=raw, subject=subject, database=database)
+    _, store = _runner_fact_store(database)
+    raw, subject = _signed_command_fixture(private_key=OTHER_COMMAND_SIGNING_KEY)
+    delivery = _RunnerFactDelivery(data=raw, subject=subject, database=database)
     coordinator = CommandIntakeCoordinator(
-        authenticator=_t4_authenticator(),
+        authenticator=_command_authenticator(),
         durability=store,
         policy=CommandDeliveryPolicy(),
     )
@@ -573,14 +573,14 @@ async def test_untrusted_rejection_is_durable_before_terminal_disposition(
 @pytest.mark.asyncio
 async def test_local_reservation_exposure_and_cross_tenant_guards(tmp_path: Path) -> None:
     database = tmp_path / "runner-state.sqlite3"
-    _, store = _t4_store(database)
-    _, _, verified = _t4_verified()
+    _, store = _runner_fact_store(database)
+    _, _, verified = _verified_command()
     await store.record_desired_command(
         command=verified.command,
         command_fingerprint=verified.command_fingerprint,
         verification_receipt=verified.verification_receipt,
     )
-    await store.record_verified_runner_safety_policy(_t4_runner_policy())
+    await store.record_verified_runner_safety_policy(_runner_policy())
     await store.reserve_order_notional(
         event_id="reserve-order-1",
         deployment_instance_id=verified.command.deployment_instance_id,
@@ -606,7 +606,7 @@ async def test_local_reservation_exposure_and_cross_tenant_guards(tmp_path: Path
             connection.execute("SELECT count(*) FROM runner_exposure_checkpoint").fetchone()[0] == 1
         )
 
-    _, wrong_tenant_store = _t4_store(
+    _, wrong_tenant_store = _runner_fact_store(
         tmp_path / "other-tenant.sqlite3",
         tenant_id="other-tenant",
     )
@@ -625,8 +625,8 @@ async def test_engine_restart_budget_survives_reopen_and_applied_commit(
     import time
 
     database = tmp_path / "runner-state.sqlite3"
-    _, store = _t4_store(database)
-    _, _, verified = _t4_verified()
+    _, store = _runner_fact_store(database)
+    _, _, verified = _verified_command()
     await store.record_desired_command(
         command=verified.command,
         command_fingerprint=verified.command_fingerprint,
@@ -657,7 +657,7 @@ async def test_engine_restart_budget_survives_reopen_and_applied_commit(
         == 2
     )
 
-    _, reopened = _t4_store(database)
+    _, reopened = _runner_fact_store(database)
     before = await reopened.load_engine_lifecycle_state(verified)
     assert before.restart_count == 2
     assert before.applied_generation is None

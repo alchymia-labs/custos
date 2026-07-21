@@ -49,6 +49,6 @@
     "Custos Plan 18 T5d-B",
     "Custos Plan 19 T2"
   ],
-  "status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
+  "status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
   "strategy_release_authority_resolution": "authenticated Crucible StrategyRelease resolver"
 }

@@ -83,9 +83,9 @@ class ToolkitRcMemberV1(_StrictFrozenModel):
     sigstore_attestation: ImmutableToolkitArtifactBindingV1
     source_repository: NonEmptyString
     source_commit: SourceCommit
-    t4_zero_rewrite_receipt: ImmutableToolkitArtifactBindingV1
-    t4b_typing_closure_receipt: ImmutableToolkitArtifactBindingV1
-    t5_pre_import_verifier_receipt: ImmutableToolkitArtifactBindingV1
+    toolkit_extraction_receipt: ImmutableToolkitArtifactBindingV1
+    toolkit_typing_closure_receipt: ImmutableToolkitArtifactBindingV1
+    pre_import_verifier_receipt: ImmutableToolkitArtifactBindingV1
 
     @field_validator("top_level_modules")
     @classmethod
@@ -160,26 +160,26 @@ class ToolkitRcCycloneDxSbomV1(_StrictFrozenModel):
     artifact: ImmutableToolkitArtifactBindingV1
 
 
-class ToolkitRcT6dPendingReceiptV1(_StrictFrozenModel):
+class ToolkitRcPendingReceiptV1(_StrictFrozenModel):
     """Contract-only readiness evidence before the protected release runner executes."""
 
     model_config = ConfigDict(
         extra="forbid",
         frozen=True,
-        title="ToolkitRcT6dPendingReceiptV1",
+        title="ToolkitRcPendingReceiptV1",
         json_schema_extra={
             "$id": (
                 "https://custos.the-alephain-guild/contracts/"
-                "toolkit-rc-t6d-pending-receipt-v1.schema.json"
+                "toolkit-rc-pending-receipt-v1.schema.json"
             )
         },
     )
 
     schema_version: Literal[1] = 1
-    contract_version: Literal["alephain.custos.toolkit-rc-t6d-pending-receipt.v1"] = (
-        "alephain.custos.toolkit-rc-t6d-pending-receipt.v1"
+    contract_version: Literal["alephain.custos.toolkit-rc-pending-receipt.v1"] = (
+        "alephain.custos.toolkit-rc-pending-receipt.v1"
     )
-    status: Literal["PENDING_T6D_RELEASE_RUNNER"] = "PENDING_T6D_RELEASE_RUNNER"
+    status: Literal["PENDING_PROTECTED_RELEASE"] = "PENDING_PROTECTED_RELEASE"
     ready: Literal[False] = False
     candidate_version: RcVersion
     source_repository: Literal["https://github.com/alchymia-labs/custos"] = (
@@ -220,13 +220,13 @@ class ToolkitRcT6dPendingReceiptV1(_StrictFrozenModel):
     @model_validator(mode="after")
     def validate_sbom_matrix(self) -> Self:
         if {sbom.role for sbom in self.cyclonedx_sboms} != set(ToolkitRcMemberRole):
-            raise ValueError("T6d pending receipt requires one SBOM per toolkit member")
+            raise ValueError("pending receipt requires one SBOM per toolkit member")
         expected = {
             ToolkitRcMemberRole.BASE_CONTRACTS_WHEEL: "custos-strategy-toolkit",
             ToolkitRcMemberRole.NAUTILUS_WHEEL: "custos-strategy-toolkit-nautilus",
         }
         if any(sbom.distribution_name != expected[sbom.role] for sbom in self.cyclonedx_sboms):
-            raise ValueError("T6d pending SBOM distribution matrix differs")
+            raise ValueError("the pending receipt SBOM distribution matrix differs")
         return self
 
 
@@ -259,8 +259,8 @@ class ToolkitRcOciPublicationReceiptV1(_StrictFrozenModel):
         "alephain.custos.toolkit-rc-oci-publication-receipt.v1"
     )
     status: Literal[
-        "PENDING_T6D_RELEASE_RUNNER",
-        "PENDING_T6E_AUTHORITY_REGISTRATION",
+        "PENDING_PROTECTED_RELEASE",
+        "PENDING_AUTHORITY_REGISTRATION",
     ]
     ready: Literal[False] = False
     handoff_ready: Literal[False] = False
@@ -340,13 +340,13 @@ class ToolkitRcOciPublicationReceiptV1(_StrictFrozenModel):
         )
         if self.production_credentials_used:
             if (
-                self.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
+                self.status != "PENDING_AUTHORITY_REGISTRATION"
                 or not self.production_signature_verified
                 or any(value is None for value in identities)
             ):
                 raise ValueError("production OCI publication lacks workflow evidence")
         elif (
-            self.status != "PENDING_T6D_RELEASE_RUNNER"
+            self.status != "PENDING_PROTECTED_RELEASE"
             or self.production_signature_verified
             or any(value is not None for value in identities)
         ):
@@ -404,7 +404,7 @@ class ToolkitRcAuthorityReadyReceiptV1(_StrictFrozenModel):
         publication = self.publication_receipt
         manifest_digest = publication.manifest_digest.removeprefix("sha256:")
         if (
-            publication.status != "PENDING_T6E_AUTHORITY_REGISTRATION"
+            publication.status != "PENDING_AUTHORITY_REGISTRATION"
             or not publication.production_credentials_used
             or not publication.production_signature_verified
             or publication.candidate_version != self.candidate_version
@@ -438,9 +438,9 @@ class ToolkitRcAuthorityReadyReceiptV1(_StrictFrozenModel):
                 member.dependency_lock_evidence,
                 member.slsa_provenance,
                 member.sigstore_attestation,
-                member.t4_zero_rewrite_receipt,
-                member.t4b_typing_closure_receipt,
-                member.t5_pre_import_verifier_receipt,
+                member.toolkit_extraction_receipt,
+                member.toolkit_typing_closure_receipt,
+                member.pre_import_verifier_receipt,
             )
         }
         if not required_coordinates.issubset(published_coordinates):
@@ -459,7 +459,7 @@ __all__ = [
     "ToolkitRcMemberV1",
     "ToolkitRcReceiptManifestV1",
     "ToolkitRcCycloneDxSbomV1",
-    "ToolkitRcT6dPendingReceiptV1",
+    "ToolkitRcPendingReceiptV1",
     "ToolkitRcOciDescriptorV1",
     "ToolkitRcOciPublicationReceiptV1",
     "ToolkitRcAuthorityReadyReceiptV1",

@@ -582,8 +582,15 @@ Execution checkpoint (2026-07-21):
 - Independent read-only promotion run `29846846571` emitted the exact
   `READY_TOOLKIT_RC` receipt with workflow-artifact digest
   `sha256:d2756e8c8f9e069e5f4f83a064707338da6054a915b55fff240041c249aa0858`.
-- Toolkit handoff is READY; engine/runtime/production readiness remains false until
-  the PS artifact and Crucible StrategyRelease receipts complete Tasks 7-9.
+- The `0.1.0rc2` receipt remains immutable historical evidence for its exact bytes.
+  Current source now uses business-named `ToolkitRcPendingReceiptV1`,
+  `toolkit_extraction_receipt`, `toolkit_typing_closure_receipt` and
+  `pre_import_verifier_receipt` fields. Those technically correct V1 names change
+  the wheel and schema bytes, so the current-byte toolkit handoff is reopened until
+  a replacement RC is built, protected-published and independently read back.
+- Engine/runtime/production readiness remains false until the replacement toolkit
+  handoff plus the PS artifact and Crucible StrategyRelease receipts complete Tasks
+  7-9. The `rc2` tag and receipt must not be overwritten or repointed.
 
 ### Task 7: Collect v1.team artifact-chain receipts
 
@@ -660,7 +667,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | Work | State | Current boundary |
 |---|---|---|
 | Canonical V1 models and source | local gates pass | sole V1 source, generated assets and focused verification are current |
-| Immutable toolkit RC | READY handoff | `0.1.0rc2` exact OCI bytes and independently promoted authority receipt are pinned; runtime remains false |
+| Immutable toolkit RC | replacement required | `0.1.0rc2` remains immutable historical evidence; current business-named V1 bytes require a new RC, protected publication and independent readback before handoff is READY again |
 | Old contract/runtime generations | removed | old runtime module and command-owned evidence path are absent |
 | PS V1 handoff | pending final pins | PS source uses the sole V1 OCI topology |
 | Crucible V1 handoff | blocked by active Plan 88 work | must consume final Custos/PS V1 bytes |
@@ -679,6 +686,10 @@ git commit -m "docs(custos): mark plan 18 as completed"
   Crucible Custos-contract consumer receipt only; PS schema/BOM/attestation pins
   remain between PS and Crucible and cannot invalidate the Custos contract handoff.
 - No compatibility parser or predecessor asset remains an accepted input.
+- Plan/task-derived identifiers were removed from current files, classes, fields,
+  functions and status values. Published `rc2` receipt bytes and their historical
+  schema coordinate remain immutable evidence only; they are not accepted as the
+  current runtime contract and are never parsed through a compatibility path.
 
 ## Quantitative Summary
 

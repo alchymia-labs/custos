@@ -13,9 +13,11 @@ from pathlib import Path
 from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
-T4_IMPLEMENTATION_COMMIT = "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
+EXTRACTION_IMPLEMENTATION_COMMIT = "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
-T4_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+EXTRACTION_RECEIPT_PATH = (
+    ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+)
 BASELINE_PATH = ROOT / "docs/authority/strategy-toolkit-typing-baseline-v1.json"
 CLOSURE_PATH = ROOT / "docs/authority/strategy-toolkit-typing-closure-v1.json"
 CLOSURE_RECEIPT_PATH = (
@@ -96,19 +98,19 @@ def _run_mypy(config: str, source: str) -> str | None:
 def check() -> list[str]:
     errors: list[str] = []
     extraction = _json_object(EXTRACTION_PATH)
-    t4_receipt = _json_object(T4_RECEIPT_PATH)
+    extraction_receipt = _json_object(EXTRACTION_RECEIPT_PATH)
     baseline = _json_object(BASELINE_PATH)
     closure = _json_object(CLOSURE_PATH)
     receipt = _json_object(CLOSURE_RECEIPT_PATH)
 
-    t4_implementation = cast(dict[str, object], t4_receipt["implementation"])
-    if t4_implementation.get("implementation_commit") != T4_IMPLEMENTATION_COMMIT:
+    extraction_implementation = cast(dict[str, object], extraction_receipt["implementation"])
+    if extraction_implementation.get("implementation_commit") != EXTRACTION_IMPLEMENTATION_COMMIT:
         errors.append("historical T4 receipt implementation commit drifted")
-    if closure.get("t4_implementation_commit") != T4_IMPLEMENTATION_COMMIT:
+    if closure.get("extraction_implementation_commit") != EXTRACTION_IMPLEMENTATION_COMMIT:
         errors.append("T4b manifest does not bind the canonical T4 implementation commit")
     if closure.get("extraction_manifest_sha256") != _sha256(EXTRACTION_PATH.read_bytes()):
         errors.append("T4b extraction-manifest digest mismatch")
-    if closure.get("t4_receipt_sha256") != _sha256(T4_RECEIPT_PATH.read_bytes()):
+    if closure.get("extraction_receipt_sha256") != _sha256(EXTRACTION_RECEIPT_PATH.read_bytes()):
         errors.append("T4b historical-receipt digest mismatch")
     if closure.get("typing_baseline_sha256") != _sha256(BASELINE_PATH.read_bytes()):
         errors.append("T4b typing-baseline digest mismatch")
@@ -159,18 +161,18 @@ def check() -> list[str]:
         closure_record = closure_by_target[target_name]
         target = _target_path(extraction_record)
         repo_path = str(target.relative_to(ROOT))
-        t4_content = _git_blob(T4_IMPLEMENTATION_COMMIT, repo_path)
-        t4_digest = _sha256(t4_content)
+        extraction_content = _git_blob(EXTRACTION_IMPLEMENTATION_COMMIT, repo_path)
+        extraction_digest = _sha256(extraction_content)
         historical_digest = cast(str, extraction_record["target_sha256"])
-        if t4_digest != historical_digest:
+        if extraction_digest != historical_digest:
             errors.append(f"T4 commit/extraction digest mismatch: {target_name}")
-        if closure_record.get("t4_target_sha256") != t4_digest:
+        if closure_record.get("t4_target_sha256") != extraction_digest:
             errors.append(f"T4b source digest mismatch: {target_name}")
         typed_content = _candidate_content(target, typed_commit)
         typed_digest = _sha256(typed_content)
         if closure_record.get("typed_target_sha256") != typed_digest:
             errors.append(f"T4b target digest mismatch: {target_name}")
-        changed = typed_digest != t4_digest
+        changed = typed_digest != extraction_digest
         if closure_record.get("changed") is not changed:
             errors.append(f"T4b changed flag mismatch: {target_name}")
         if cast(str, extraction_record["category"]) == "private_vendor" and changed:
@@ -197,7 +199,7 @@ def check() -> list[str]:
                 "git",
                 "diff",
                 "--name-only",
-                T4_IMPLEMENTATION_COMMIT,
+                EXTRACTION_IMPLEMENTATION_COMMIT,
                 "--",
                 "packages/custos-strategy-toolkit",
                 "packages/custos-strategy-toolkit-nautilus",

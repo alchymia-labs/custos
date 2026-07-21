@@ -27,31 +27,39 @@ CANONICAL_PRE_IMPORT_GOLDEN_PATH = (
 CANONICAL_PRE_IMPORT_NEGATIVE_PATH = (
     "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json"
 )
-TASK_5D_B_COMMAND_INDEX_PATH = "docs/authority/crucible-runner-command-consumer-assets-v1.json"
-TASK_5D_B_COMMAND_CONSUMER_RECEIPT_PATH = (
+RUNNER_COMMAND_CONSUMER_INDEX_PATH = (
+    "docs/authority/crucible-runner-command-consumer-assets-v1.json"
+)
+RUNNER_COMMAND_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
 )
-PLAN_19_T4_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
-TASK_5E_RUNTIME_RECEIPT_PATH = (
+RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
+)
+ARTIFACT_RUNTIME_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json"
 )
-TASK_5E_RUNTIME_SOURCE = "src/custos/artifacts/runtime.py"
-PLAN_19_T5_RECEIPT_PATH = (
+ARTIFACT_RUNTIME_SOURCE = "src/custos/artifacts/runtime.py"
+ENGINE_LIFECYCLE_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json"
 )
-PLAN_19_T5_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
-PLAN_19_T6_RECEIPT_PATH = (
+ENGINE_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
+PORTFOLIO_SEMANTICS_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
 )
-PLAN_19_T7A_INDEX_PATH = "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
-PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
-PLAN_19_T7B_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
-PLAN_19_T7C_RECEIPT_PATH = (
+RUNNER_POLICY_CONSUMER_INDEX_PATH = (
+    "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
+)
+RUNNER_POLICY_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
+RUNNER_POLICY_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
+RUNNER_NATS_TRANSPORT_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json"
 )
-PLAN_19_T8A_INDEX_PATH = "docs/authority/runner-fact-contract-assets-v1.json"
-PLAN_19_T8A_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json"
-TASK_5D_B_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
+RUNNER_FACT_CONTRACT_INDEX_PATH = "docs/authority/runner-fact-contract-assets-v1.json"
+RUNNER_FACT_CONTRACT_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json"
+)
+RUNNER_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 RUNNER_COMMAND_GOLDEN_PATH = "docs/authority/runner-deployment-command-golden-v1.json"
 REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
@@ -481,21 +489,21 @@ def verify_strategy_contract_authority(errors: list[str]) -> None:
         errors.append("vendored Crucible contract receipt must remain fail closed")
 
 
-def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
-    index_path = resolve(TASK_5D_B_COMMAND_INDEX_PATH)
-    receipt_path = resolve(TASK_5D_B_COMMAND_CONSUMER_RECEIPT_PATH)
-    source_path = resolve(TASK_5D_B_COMMAND_CONSUMER_SOURCE)
+def verify_runner_command_consumer(errors: list[str]) -> None:
+    index_path = resolve(RUNNER_COMMAND_CONSUMER_INDEX_PATH)
+    receipt_path = resolve(RUNNER_COMMAND_CONSUMER_RECEIPT_PATH)
+    source_path = resolve(RUNNER_COMMAND_CONSUMER_SOURCE)
     fixture_path = resolve(RUNNER_COMMAND_GOLDEN_PATH)
     if not all(path.is_file() for path in (index_path, receipt_path, source_path, fixture_path)):
         errors.append("Plan 18 T5d-B V1 command consumer inventory is incomplete")
         return
 
     index = load_json(index_path)
-    expected_code_status = "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT"
+    expected_code_status = "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT"
     if index.get("status") != expected_code_status:
         errors.append("Plan 18 T5d-B code status differs")
     model = index.get("consumer_model")
-    if not isinstance(model, dict) or model.get("path") != TASK_5D_B_COMMAND_CONSUMER_SOURCE:
+    if not isinstance(model, dict) or model.get("path") != RUNNER_COMMAND_CONSUMER_SOURCE:
         errors.append("Plan 18 T5d-B consumer model differs")
     else:
         if model.get("sha256") != hashlib.sha256(source_path.read_bytes()).hexdigest():
@@ -567,7 +575,7 @@ def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
         errors.append("Plan 18 T5d-B retains a superseded command parser")
 
 
-def verify_plan_18_canonical_source(
+def verify_strategy_contract_canonical_source(
     errors: list[str],
     *,
     root: Path = ROOT,
@@ -603,8 +611,8 @@ def verify_plan_18_canonical_source(
 def verify_toolkit_rc_release_authority(manifest: dict[str, object], errors: list[str]) -> None:
     expected_entries = (
         {
-            "role": "toolkit_rc_t6d_pending_receipt_schema_v1_contract_only",
-            "path": ("docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"),
+            "role": "toolkit_rc_pending_receipt_schema_v1_contract_only",
+            "path": ("docs/gateway-contract/v1/toolkit_rc_pending_receipt_v1.schema.json"),
             "contract_only": True,
             "ready_receipt_published": True,
         },
@@ -621,25 +629,25 @@ def verify_toolkit_rc_release_authority(manifest: dict[str, object], errors: lis
             "ready_receipt_published": True,
         },
         {
-            "role": "toolkit_rc_t6e_promotion_runner",
+            "role": "toolkit_rc_promotion_runner",
             "path": "scripts/toolkit_rc_promote.py",
             "contract_only": False,
             "ready_receipt_published": True,
         },
         {
-            "role": "toolkit_rc_t6e_independent_promotion_workflow",
+            "role": "toolkit_rc_independent_promotion_workflow",
             "path": ".github/workflows/promote-toolkit-rc.yml",
             "contract_only": False,
             "ready_receipt_published": True,
         },
         {
-            "role": "toolkit_rc_t6d_release_readiness_runner",
+            "role": "toolkit_rc_release_readiness_runner",
             "path": "scripts/toolkit_rc_release_readiness.py",
             "contract_only": False,
             "ready_receipt_published": True,
         },
         {
-            "role": "toolkit_rc_t6d_production_release_workflow",
+            "role": "toolkit_rc_production_release_workflow",
             "path": ".github/workflows/release-toolkit-rc.yml",
             "contract_only": False,
             "ready_receipt_published": True,
@@ -663,7 +671,7 @@ def verify_toolkit_rc_release_authority(manifest: dict[str, object], errors: lis
             errors.append(f"authority manifest lacks Toolkit RC authority entry {entry['role']}")
 
     pending_schema_path = resolve(
-        "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
+        "docs/gateway-contract/v1/toolkit_rc_pending_receipt_v1.schema.json"
     )
     if not pending_schema_path.is_file():
         errors.append(f"missing canonical Toolkit RC pending schema: {pending_schema_path}")
@@ -788,8 +796,8 @@ def _verify_toolkit_rc_receipt(errors: list[str]) -> None:
             errors.append(f"{relative} retains a superseded Toolkit RC authority contract")
 
 
-def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[str]) -> None:
-    receipt_path = resolve(PLAN_19_T4_RECEIPT_PATH)
+def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]) -> None:
+    receipt_path = resolve(RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH)
     if not receipt_path.is_file():
         errors.append("missing Plan 19 T4 durable-state receipt")
         return
@@ -799,7 +807,7 @@ def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[s
         "single_database": True,
         "single_outbox": "runner_fact_outbox",
         "runtime_identity": "deployment_instance_id",
-        "t3_durability_port_implemented": True,
+        "durability_port_implemented": True,
         "applied_lifecycle_atomic": True,
         "engine_apply_wired": False,
         "daemon_wired": False,
@@ -834,9 +842,12 @@ def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[s
     registrations = [
         entry
         for entry in manifest.get("authority_documents", [])
-        if entry.get("role") == "plan_19_task_4_durable_state_receipt"
+        if entry.get("role") == "runner_fact_durable_state_receipt"
     ]
-    if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T4_RECEIPT_PATH:
+    if (
+        len(registrations) != 1
+        or registrations[0].get("path") != RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH
+    ):
         errors.append("Plan 19 T4 receipt manifest registration differs")
 
     snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
@@ -849,7 +860,7 @@ def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[s
                 errors.append(f"runner_state_store {key} differs")
         if state.get("status") != "READY_DURABLE_STATE_STORE_ONLY":
             errors.append("runner_state_store status differs")
-        if state.get("receipt") != PLAN_19_T4_RECEIPT_PATH:
+        if state.get("receipt") != RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH:
             errors.append("runner_state_store receipt path differs")
         if state.get("stream_key_fields") != receipt.get("stream_key_fields"):
             errors.append("runner_state_store stream identity differs")
@@ -879,11 +890,11 @@ def verify_plan_19_task_4_durable_state(manifest: dict[str, Any], errors: list[s
         errors.append("Plan 19 T4 must retain exactly one RunnerFact outbox table")
 
 
-def verify_plan_18_task_5e_runtime(manifest: dict[str, Any], errors: list[str]) -> None:
+def verify_artifact_runtime(manifest: dict[str, Any], errors: list[str]) -> None:
     """Keep the sole V1 artifact runtime and its unresolved wiring truthful."""
 
-    receipt_path = resolve(TASK_5E_RUNTIME_RECEIPT_PATH)
-    source_path = resolve(TASK_5E_RUNTIME_SOURCE)
+    receipt_path = resolve(ARTIFACT_RUNTIME_RECEIPT_PATH)
+    source_path = resolve(ARTIFACT_RUNTIME_SOURCE)
     if not receipt_path.is_file() or not source_path.is_file():
         errors.append("missing Plan 18 T5e V1 artifact runtime authority assets")
         return
@@ -919,11 +930,11 @@ def verify_plan_18_task_5e_runtime(manifest: dict[str, Any], errors: list[str]) 
         errors.append("strategy artifact runtime compatibility fallback must be disabled")
 
 
-def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None:
+def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None:
     """Validate additive lifecycle readiness without promoting blocked runtime."""
 
-    receipt_path = resolve(PLAN_19_T5_RECEIPT_PATH)
-    lifecycle_path = resolve(PLAN_19_T5_LIFECYCLE_SOURCE)
+    receipt_path = resolve(ENGINE_LIFECYCLE_RECEIPT_PATH)
+    lifecycle_path = resolve(ENGINE_LIFECYCLE_SOURCE)
     if not receipt_path.is_file() or not lifecycle_path.is_file():
         errors.append("missing Plan 19 T5 engine lifecycle authority assets")
         return
@@ -972,9 +983,9 @@ def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: lis
     registrations = [
         entry
         for entry in manifest.get("authority_documents", [])
-        if entry.get("role") == "plan_19_task_5_engine_lifecycle_receipt"
+        if entry.get("role") == "engine_lifecycle_receipt"
     ]
-    if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T5_RECEIPT_PATH:
+    if len(registrations) != 1 or registrations[0].get("path") != ENGINE_LIFECYCLE_RECEIPT_PATH:
         errors.append("Plan 19 T5 receipt manifest registration differs")
 
     snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
@@ -984,7 +995,7 @@ def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: lis
     else:
         if state.get("status") != expected["receipt_status"]:
             errors.append("engine_lifecycle status differs")
-        if state.get("receipt") != PLAN_19_T5_RECEIPT_PATH:
+        if state.get("receipt") != ENGINE_LIFECYCLE_RECEIPT_PATH:
             errors.append("engine_lifecycle receipt path differs")
         for key in (
             "engine_adapter_ready",
@@ -1065,8 +1076,8 @@ def verify_plan_19_task_5_engine_lifecycle(manifest: dict[str, Any], errors: lis
         errors.append("Plan 19 T5 must retain exactly one RunnerFact outbox table")
 
 
-def verify_plan_19_task_6_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> None:
-    receipt_path = resolve(PLAN_19_T6_RECEIPT_PATH)
+def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> None:
+    receipt_path = resolve(PORTFOLIO_SEMANTICS_RECEIPT_PATH)
     if not receipt_path.is_file():
         errors.append("missing Plan 19 T6 portfolio semantics receipt")
         return
@@ -1103,9 +1114,9 @@ def verify_plan_19_task_6_portfolio_semantics(manifest: dict[str, Any], errors: 
     registrations = [
         entry
         for entry in manifest.get("authority_documents", [])
-        if entry.get("role") == "plan_19_task_6_portfolio_semantics_receipt"
+        if entry.get("role") == "portfolio_semantics_receipt"
     ]
-    if len(registrations) != 1 or registrations[0].get("path") != PLAN_19_T6_RECEIPT_PATH:
+    if len(registrations) != 1 or registrations[0].get("path") != PORTFOLIO_SEMANTICS_RECEIPT_PATH:
         errors.append("Plan 19 T6 receipt manifest registration differs")
 
     snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
@@ -1115,7 +1126,7 @@ def verify_plan_19_task_6_portfolio_semantics(manifest: dict[str, Any], errors: 
     else:
         if state.get("status") != expected["receipt_status"]:
             errors.append("portfolio_semantics status differs")
-        if state.get("receipt") != PLAN_19_T6_RECEIPT_PATH:
+        if state.get("receipt") != PORTFOLIO_SEMANTICS_RECEIPT_PATH:
             errors.append("portfolio_semantics receipt path differs")
         for key in expected:
             if key == "receipt_status":
@@ -1199,12 +1210,10 @@ def verify_plan_19_task_6_portfolio_semantics(manifest: dict[str, Any], errors: 
             errors.append(f"Plan 19 T6 must not promote {section_name}")
 
 
-def verify_plan_19_task_7a_runner_policy_consumer(
-    manifest: dict[str, Any], errors: list[str]
-) -> None:
-    index_path = resolve(PLAN_19_T7A_INDEX_PATH)
-    receipt_path = resolve(PLAN_19_T7B_RECEIPT_PATH)
-    consumer_path = resolve(PLAN_19_T7A_CONSUMER_SOURCE)
+def verify_runner_policy_consumer(manifest: dict[str, Any], errors: list[str]) -> None:
+    index_path = resolve(RUNNER_POLICY_CONSUMER_INDEX_PATH)
+    receipt_path = resolve(RUNNER_POLICY_RECEIPT_PATH)
+    consumer_path = resolve(RUNNER_POLICY_CONSUMER_SOURCE)
     if not all(path.is_file() for path in (index_path, receipt_path, consumer_path)):
         errors.append("Plan 19 T7A runner policy V1 consumer inventory is incomplete")
         return
@@ -1233,7 +1242,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
             elif local.stat().st_size != size:
                 errors.append(f"runner policy producer asset size differs: {path}")
     model = index.get("consumer_model")
-    if not isinstance(model, dict) or model.get("path") != PLAN_19_T7A_CONSUMER_SOURCE:
+    if not isinstance(model, dict) or model.get("path") != RUNNER_POLICY_CONSUMER_SOURCE:
         errors.append("runner policy consumer model differs")
     else:
         if model.get("sha256") != hashlib.sha256(consumer_path.read_bytes()).hexdigest():
@@ -1266,7 +1275,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
     bound_index = receipt.get("contract_asset_index")
     if (
         not isinstance(bound_index, dict)
-        or bound_index.get("path") != PLAN_19_T7A_INDEX_PATH
+        or bound_index.get("path") != RUNNER_POLICY_CONSUMER_INDEX_PATH
         or bound_index.get("sha256") != hashlib.sha256(index_path.read_bytes()).hexdigest()
         or bound_index.get("size_bytes") != index_path.stat().st_size
     ):
@@ -1279,7 +1288,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         errors.append("superseded Crucible runner policy vendor pins must be deleted")
 
 
-def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: list[str]) -> None:
+def verify_runner_policy_runtime(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = ROOT / "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
     if not receipt_path.is_file():
         errors.append(f"missing canonical runner policy V1 receipt: {receipt_path}")
@@ -1300,8 +1309,8 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         errors.append("runner policy V1 cannot claim runtime or production readiness")
 
 
-def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list[str]) -> None:
-    receipt_path = resolve(PLAN_19_T7C_RECEIPT_PATH)
+def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) -> None:
+    receipt_path = resolve(RUNNER_NATS_TRANSPORT_CONSUMER_RECEIPT_PATH)
     source_paths = {
         "transport": resolve("src/custos/core/nats_transport.py"),
         "consumer": resolve("src/custos/core/nats_client.py"),
@@ -1314,7 +1323,7 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         return
 
     receipt = load_json(receipt_path)
-    if receipt.get("receipt_status") != "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME":
+    if receipt.get("receipt_status") != "READY_CONTRACT_ONLY_PENDING_TRANSPORT_RUNTIME":
         errors.append("Plan 19 T7C contract-only status differs")
     producer = receipt.get("producer_authority")
     if not isinstance(producer, dict) or producer.get("authority_ready") is not False:
@@ -1430,13 +1439,13 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
     snapshot = ecosystem.get("runner_nats_transport_consumer")
     if not isinstance(snapshot, dict):
         errors.append("Plan 19 T7C ecosystem snapshot is missing")
-    elif snapshot.get("status") != "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME":
+    elif snapshot.get("status") != "READY_CONTRACT_ONLY_PENDING_TRANSPORT_RUNTIME":
         errors.append("Plan 19 T7C ecosystem status differs")
 
 
-def verify_plan_19_task_8a_runner_fact_v1(manifest: dict[str, Any], errors: list[str]) -> None:
-    index_path = resolve(PLAN_19_T8A_INDEX_PATH)
-    receipt_path = resolve(PLAN_19_T8A_RECEIPT_PATH)
+def verify_runner_fact_contract(manifest: dict[str, Any], errors: list[str]) -> None:
+    index_path = resolve(RUNNER_FACT_CONTRACT_INDEX_PATH)
+    receipt_path = resolve(RUNNER_FACT_CONTRACT_RECEIPT_PATH)
     if not index_path.is_file() or not receipt_path.is_file():
         errors.append("canonical RunnerFact V1 index or receipt is missing")
         return
@@ -1468,12 +1477,12 @@ def verify_plan_19_task_8a_runner_fact_v1(manifest: dict[str, Any], errors: list
     index_payload = index_path.read_bytes()
     if receipt.get("receipt_schema_version") != 1:
         errors.append("RunnerFact V1 producer receipt schema differs")
-    if receipt.get("status") != "READY_FOR_CRUCIBLE_PHASE_A":
+    if receipt.get("status") != "READY_FOR_CRUCIBLE_CONSUMER_VALIDATION":
         errors.append("RunnerFact V1 producer receipt status differs")
     if receipt.get("producer_commit") != "8c4454f35c5189063bad1516d77e260f034d3da7":
         errors.append("RunnerFact V1 producer receipt does not pin the immutable asset commit")
     expected_index_binding = {
-        "path": PLAN_19_T8A_INDEX_PATH,
+        "path": RUNNER_FACT_CONTRACT_INDEX_PATH,
         "sha256": hashlib.sha256(index_payload).hexdigest(),
         "size_bytes": len(index_payload),
     }
@@ -1493,7 +1502,7 @@ def verify_plan_19_task_8a_runner_fact_v1(manifest: dict[str, Any], errors: list
             errors.append(f"RunnerFact V1 producer receipt {field} must remain false")
 
 
-def verify_plan_19_task_8b_phase_a_consumer(manifest: dict[str, Any], errors: list[str]) -> None:
+def verify_runner_fact_consumer_handoff(manifest: dict[str, Any], errors: list[str]) -> None:
     old_receipt = (
         ROOT
         / "docs/authority/receipts/custos-plan-19-task-8b-runner-fact-phase-a-consumer-receipt.json"
@@ -1567,17 +1576,17 @@ def main() -> int:
                         )
     verify_strategy_contract_assets(errors)
     verify_strategy_contract_authority(errors)
-    verify_plan_18_task_5d_b_command_consumer(errors)
-    verify_plan_18_task_5e_runtime(manifest, errors)
-    verify_plan_19_task_4_durable_state(manifest, errors)
-    verify_plan_19_task_5_engine_lifecycle(manifest, errors)
-    verify_plan_19_task_6_portfolio_semantics(manifest, errors)
-    verify_plan_19_task_7a_runner_policy_consumer(manifest, errors)
-    verify_plan_19_task_7b_runner_policy_code(manifest, errors)
-    verify_plan_19_task_7c_nats_transport(manifest, errors)
-    verify_plan_19_task_8a_runner_fact_v1(manifest, errors)
-    verify_plan_19_task_8b_phase_a_consumer(manifest, errors)
-    verify_plan_18_canonical_source(errors)
+    verify_runner_command_consumer(errors)
+    verify_artifact_runtime(manifest, errors)
+    verify_runner_fact_durable_state(manifest, errors)
+    verify_engine_lifecycle(manifest, errors)
+    verify_portfolio_semantics(manifest, errors)
+    verify_runner_policy_consumer(manifest, errors)
+    verify_runner_policy_runtime(manifest, errors)
+    verify_runner_nats_transport(manifest, errors)
+    verify_runner_fact_contract(manifest, errors)
+    verify_runner_fact_consumer_handoff(manifest, errors)
+    verify_strategy_contract_canonical_source(errors)
     for entry in manifest.get("external_optional_documents", []):
         path = resolve(entry["path"])
         if not path.is_file():

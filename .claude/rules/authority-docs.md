@@ -102,7 +102,7 @@ The synthetic signing key is golden evidence only. There is no predecessor
 candidate or sequence-cutover fixture. Crucible Phase-A compatibility, runtime
 RC, real runtime round trip, engine/daemon, live/runtime and production remain
 false until the independent receipts named by Plan 19 arrive. The producer
-receipt is `READY_FOR_CRUCIBLE_PHASE_A` and pins immutable asset commit
+receipt is `READY_FOR_CRUCIBLE_CONSUMER_VALIDATION` and pins immutable asset commit
 `8c4454f35c5189063bad1516d77e260f034d3da7`; this is candidate availability,
 not a Crucible compatibility or runtime-readiness claim.
 

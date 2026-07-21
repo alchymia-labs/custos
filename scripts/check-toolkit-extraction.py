@@ -16,7 +16,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
-TASK_4_RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+EXTRACTION_RECEIPT_PATH = (
+    ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+)
 BASE_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
 
@@ -123,7 +125,7 @@ def check() -> list[str]:
     errors: list[str] = []
     inventory = json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
     extraction = json.loads(EXTRACTION_PATH.read_text(encoding="utf-8"))
-    receipt = json.loads(TASK_4_RECEIPT_PATH.read_text(encoding="utf-8"))
+    receipt = json.loads(EXTRACTION_RECEIPT_PATH.read_text(encoding="utf-8"))
     entries = inventory["files"]
     records = extraction["files"]
     source_commit = extraction["source_commit"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate deterministic Plan 18 contract schemas, inventory, and golden data."""
+"""Generate deterministic strategy execution schemas, inventories, and goldens."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from custos_toolkit.contracts.strategy_execution import (
 )
 from custos_toolkit.contracts.toolkit_rc import (
     ToolkitRcAuthorityReceiptV1,
+    ToolkitRcPendingReceiptV1,
     ToolkitRcReceiptManifestV1,
-    ToolkitRcT6dPendingReceiptV1,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,20 +40,24 @@ PRE_IMPORT_NEGATIVE_PATH = (
     "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json"
 )
 CONTRACT_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
-CR_PLAN89_COMMAND_INDEX_PATH = "docs/authority/crucible-runner-command-consumer-assets-v1.json"
-CR_PLAN89_COMMAND_CONSUMER_RECEIPT_PATH = (
+RUNNER_COMMAND_CONSUMER_INDEX_PATH = (
+    "docs/authority/crucible-runner-command-consumer-assets-v1.json"
+)
+RUNNER_COMMAND_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
 )
-CR_PLAN89_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
-CR_PLAN89_COMMAND_CONSUMER_TEST = "tests/test_runner_deployment_command_golden.py"
-CR_PLAN89_COMMAND_GOLDEN = "docs/authority/runner-deployment-command-golden-v1.json"
-CR_PLAN89_COMMAND_GOLDEN_SIDECAR = "docs/authority/runner-deployment-command-golden-v1.json.sha256"
-CR_PLAN89_CONTRACT_COMMIT = "750dd10f204198c90e5a1a827a36f2f1907bae04"
-CR_PLAN89_COMMAND_SUBJECT = "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
+RUNNER_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
+RUNNER_COMMAND_CONSUMER_TEST = "tests/test_runner_deployment_command_golden.py"
+RUNNER_COMMAND_GOLDEN_PATH = "docs/authority/runner-deployment-command-golden-v1.json"
+RUNNER_COMMAND_GOLDEN_SIDECAR_PATH = (
+    "docs/authority/runner-deployment-command-golden-v1.json.sha256"
+)
+RUNNER_COMMAND_PRODUCER_COMMIT = "750dd10f204198c90e5a1a827a36f2f1907bae04"
+RUNNER_COMMAND_SUBJECT_TEMPLATE = "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
 
 TOOLKIT_RC_SCHEMA_PATH = "docs/gateway-contract/v1/toolkit_rc_receipt_manifest_v1.schema.json"
-TOOLKIT_RC_T6D_PENDING_SCHEMA_PATH = (
-    "docs/gateway-contract/v1/toolkit_rc_t6d_pending_receipt_v1.schema.json"
+TOOLKIT_RC_PENDING_SCHEMA_PATH = (
+    "docs/gateway-contract/v1/toolkit_rc_pending_receipt_v1.schema.json"
 )
 TOOLKIT_RC_AUTHORITY_SCHEMA_PATH = (
     "docs/gateway-contract/v1/toolkit_rc_authority_receipt_v1.schema.json"
@@ -508,13 +512,13 @@ def build_v1_contract_assets() -> dict[str, bytes]:
     return generated
 
 
-def build_cr89_command_consumer_assets() -> dict[str, bytes]:
+def build_runner_command_consumer_assets() -> dict[str, bytes]:
     consumer_assets = []
     for relative in (
-        CR_PLAN89_COMMAND_CONSUMER_SOURCE,
-        CR_PLAN89_COMMAND_CONSUMER_TEST,
-        CR_PLAN89_COMMAND_GOLDEN,
-        CR_PLAN89_COMMAND_GOLDEN_SIDECAR,
+        RUNNER_COMMAND_CONSUMER_SOURCE,
+        RUNNER_COMMAND_CONSUMER_TEST,
+        RUNNER_COMMAND_GOLDEN_PATH,
+        RUNNER_COMMAND_GOLDEN_SIDECAR_PATH,
     ):
         data = (ROOT / relative).read_bytes()
         consumer_assets.append({"path": relative, "sha256": sha256(data), "size_bytes": len(data)})
@@ -522,18 +526,18 @@ def build_cr89_command_consumer_assets() -> dict[str, bytes]:
         {
             "asset_index_schema_version": 1,
             "canonical_name": "Custos canonical V1 Crucible DeploymentSpec consumer assets",
-            "status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
+            "status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
             "slice_equivalence": ["Custos Plan 18 T5d-B", "Custos Plan 19 T2"],
             "producer_authority": {
                 "repository": "tesseract-trading/crucible-rust",
                 "contract": "CrucibleRunnerDeploymentCommandV1",
-                "producer_commit": CR_PLAN89_CONTRACT_COMMIT,
-                "subject_template": CR_PLAN89_COMMAND_SUBJECT,
+                "producer_commit": RUNNER_COMMAND_PRODUCER_COMMIT,
+                "subject_template": RUNNER_COMMAND_SUBJECT_TEMPLATE,
                 "receipt": None,
                 "status": "CONTRACT_V1_PINNED_RUNTIME_RECEIPT_PENDING",
             },
             "consumer_model": {
-                "path": CR_PLAN89_COMMAND_CONSUMER_SOURCE,
+                "path": RUNNER_COMMAND_CONSUMER_SOURCE,
                 "public_export": "CrucibleRunnerDeploymentCommandV1",
                 "sha256": consumer_assets[0]["sha256"],
                 "size_bytes": consumer_assets[0]["size_bytes"],
@@ -556,22 +560,22 @@ def build_cr89_command_consumer_assets() -> dict[str, bytes]:
         {
             "receipt_schema_version": 1,
             "canonical_name": "Custos canonical V1 DeploymentSpec consumer receipt",
-            "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
+            "receipt_status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
             "contract_asset_index": {
-                "path": CR_PLAN89_COMMAND_INDEX_PATH,
+                "path": RUNNER_COMMAND_CONSUMER_INDEX_PATH,
                 "sha256": sha256(index),
                 "size_bytes": len(index),
             },
             "crucible_producer": {
                 "repository": "tesseract-trading/crucible-rust",
                 "contract": "CrucibleRunnerDeploymentCommandV1",
-                "producer_commit": CR_PLAN89_CONTRACT_COMMIT,
-                "subject_template": CR_PLAN89_COMMAND_SUBJECT,
+                "producer_commit": RUNNER_COMMAND_PRODUCER_COMMIT,
+                "subject_template": RUNNER_COMMAND_SUBJECT_TEMPLATE,
                 "receipt": None,
                 "status": "CONTRACT_V1_PINNED_RUNTIME_RECEIPT_PENDING",
             },
             "consumer_model": {
-                "path": CR_PLAN89_COMMAND_CONSUMER_SOURCE,
+                "path": RUNNER_COMMAND_CONSUMER_SOURCE,
                 "public_export": "CrucibleRunnerDeploymentCommandV1",
                 "sha256": consumer_assets[0]["sha256"],
                 "size_bytes": consumer_assets[0]["size_bytes"],
@@ -591,15 +595,15 @@ def build_cr89_command_consumer_assets() -> dict[str, bytes]:
             "runtime_ready": False,
             "production_ready": False,
             "open_blockers": [
-                "Crucible CR89 signed outbox and runtime producer receipt",
+                "Crucible signed command outbox and runtime producer receipt",
                 "authenticated StrategyRelease authority resolver wiring",
                 "Custos Plan 19 durable state and engine lifecycle completion",
             ],
         }
     )
     return {
-        CR_PLAN89_COMMAND_INDEX_PATH: index,
-        CR_PLAN89_COMMAND_CONSUMER_RECEIPT_PATH: receipt,
+        RUNNER_COMMAND_CONSUMER_INDEX_PATH: index,
+        RUNNER_COMMAND_CONSUMER_RECEIPT_PATH: receipt,
     }
 
 
@@ -608,8 +612,8 @@ def build_toolkit_rc_foundation_assets() -> dict[str, bytes]:
         TOOLKIT_RC_SCHEMA_PATH: json_bytes(
             ToolkitRcReceiptManifestV1.model_json_schema(mode="validation")
         ),
-        TOOLKIT_RC_T6D_PENDING_SCHEMA_PATH: json_bytes(
-            ToolkitRcT6dPendingReceiptV1.model_json_schema(mode="validation")
+        TOOLKIT_RC_PENDING_SCHEMA_PATH: json_bytes(
+            ToolkitRcPendingReceiptV1.model_json_schema(mode="validation")
         ),
         TOOLKIT_RC_AUTHORITY_SCHEMA_PATH: json_bytes(
             ToolkitRcAuthorityReceiptV1.model_json_schema(mode="validation")
@@ -622,7 +626,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     assets = build_v1_contract_assets()
-    assets.update(build_cr89_command_consumer_assets())
+    assets.update(build_runner_command_consumer_assets())
     assets.update(build_toolkit_rc_foundation_assets())
     drift: list[str] = []
     for relative, expected in assets.items():

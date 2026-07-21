@@ -953,7 +953,7 @@ def build_assets() -> dict[Path, bytes]:
         {
             "receipt_schema_version": 1,
             "canonical_name": "Custos RunnerFact V1 producer receipt",
-            "status": "READY_FOR_CRUCIBLE_PHASE_A",
+            "status": "READY_FOR_CRUCIBLE_CONSUMER_VALIDATION",
             "authority_coordinate": AUTHORITY_COORDINATE,
             "producer_commit": PRODUCER_ASSET_COMMIT,
             "asset_index": {

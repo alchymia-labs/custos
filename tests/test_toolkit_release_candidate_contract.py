@@ -55,9 +55,9 @@ def _member(role: ToolkitRcMemberRole, **overrides: object) -> ToolkitRcMemberV1
         "sigstore_attestation": _artifact(f"{role.value}.sigstore.json", DIGESTS[6]),
         "source_repository": "https://github.com/alchymia-labs/custos",
         "source_commit": "a" * 40,
-        "t4_zero_rewrite_receipt": _artifact(f"{role.value}.t4-zero.json", DIGESTS[7]),
-        "t4b_typing_closure_receipt": _artifact(f"{role.value}.t4b-typing.json", DIGESTS[8]),
-        "t5_pre_import_verifier_receipt": _artifact(f"{role.value}.t5.json", DIGESTS[9]),
+        "toolkit_extraction_receipt": _artifact(f"{role.value}.t4-zero.json", DIGESTS[7]),
+        "toolkit_typing_closure_receipt": _artifact(f"{role.value}.t4b-typing.json", DIGESTS[8]),
+        "pre_import_verifier_receipt": _artifact(f"{role.value}.t5.json", DIGESTS[9]),
     }
     values.update(overrides)
     return ToolkitRcMemberV1.model_validate(values)
@@ -132,9 +132,9 @@ def test_member_evidence_is_complete_digest_pinned_and_registry_locked() -> None
         "slsa_provenance",
         "sigstore_attestation",
         "source_commit",
-        "t4_zero_rewrite_receipt",
-        "t4b_typing_closure_receipt",
-        "t5_pre_import_verifier_receipt",
+        "toolkit_extraction_receipt",
+        "toolkit_typing_closure_receipt",
+        "pre_import_verifier_receipt",
     ):
         incomplete = dict(complete)
         incomplete.pop(field)
