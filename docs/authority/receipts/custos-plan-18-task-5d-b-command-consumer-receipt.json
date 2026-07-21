@@ -1,17 +1,17 @@
 {
   "canonical_name": "Custos canonical V1 DeploymentSpec consumer receipt",
-  "command_contract_consumer_ready": false,
+  "command_contract_consumer_ready": true,
   "consumer_code_ready": true,
   "consumer_model": {
     "path": "src/custos/contracts/crucible_runner_command.py",
     "public_export": "CrucibleRunnerDeploymentCommandV1",
-    "sha256": "68fd938372fc8dae4702027d2793ece52143a3c8269265f7c91c730504de2382",
-    "size_bytes": 12652
+    "sha256": "b156413d6158a8efcc6ab932162ccecfd603c8ab50ab069e8755dda33722eee5",
+    "size_bytes": 12654
   },
   "contract_asset_index": {
     "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
-    "sha256": "e7bd8224a58b472c2f4553258c602a846a602969293d12a733c99deed3abf36a",
-    "size_bytes": 1943
+    "sha256": "711f1b201be077e32d094b94e7a29c54b700af73520fee5bb7b0e106abe466bc",
+    "size_bytes": 2085
   },
   "contract_guards": {
     "command_selected_root_policy_issuer_workflow": false,
@@ -25,17 +25,19 @@
   },
   "crucible_producer": {
     "contract": "CrucibleRunnerDeploymentCommandV1",
+    "producer_commit": "750dd10f204198c90e5a1a827a36f2f1907bae04",
     "receipt": null,
     "repository": "tesseract-trading/crucible-rust",
-    "status": "PENDING_CANONICAL_V1_PRODUCER_RECEIPT"
+    "status": "CONTRACT_V1_PINNED_RUNTIME_RECEIPT_PENDING",
+    "subject_template": "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
   },
   "open_blockers": [
-    "Crucible canonical V1 producer receipt",
+    "Crucible CR89 signed outbox and runtime producer receipt",
     "authenticated StrategyRelease authority resolver wiring",
     "Custos Plan 19 durable state and engine lifecycle completion"
   ],
   "production_ready": false,
   "receipt_schema_version": 1,
-  "receipt_status": "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+  "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
   "runtime_ready": false
 }

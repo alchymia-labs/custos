@@ -5,11 +5,11 @@
   "plan": "2026-07/19-crucible-command-runner-fact-runtime-convergence",
   "task": "7B",
   "generated_at": "2026-07-21",
-  "code_commit": "3cdf09031fbfd61f997a039b189a4c4a9ee96f03",
+  "code_commit": "b3d0ae134742ee220a91e8e721e6f375403dd5bc",
   "contract_asset_index": {
     "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
-    "sha256": "4bd3670a33860e2175a8f2553e06b0e96944d6612034acecea9e13887e8e668c",
-    "size_bytes": 1952
+    "sha256": "85f9546a39f754d67517d1d15e5aed23578c5d33c00c9a3774c30500b3eaca6a",
+    "size_bytes": 2115
   },
   "producer_authority": {
     "repository": "tesseract-trading/crucible-rust",
@@ -60,9 +60,9 @@
     "live runtime and production promotion"
   ],
   "sources": {
-    "src/custos/contracts/crucible_runner_safety_policy.py": "0c86e8a4edc9e38568dff84424ced5f18c5fc5af69cb40a7e80c672cb6d3f308",
+    "src/custos/contracts/crucible_runner_safety_policy.py": "d9a2e2ad2e57e6865e8f53a7f9cb59af96aef8593ee72f85732aacd752c3dfc4",
     "src/custos/core/runner_fact.py": "05c87dad27446dd71113f8d5e356e9ffb3536bdbd7a1ce09e6176562e22c46d7",
-    "tests/test_plan19_t7b_runner_policy_runtime_code.py": "e3c0cdda860edc32773e1eb5ee2853694407a4da85b55f71b4ff0cc15f4183a4",
+    "tests/test_plan19_t7b_runner_policy_runtime_code.py": "a7ae56d63cd21126152e1ee86d45f17a8f9677a1a939ea75245edec7b118b668",
     "tests/test_plan19_t4_runner_state_store.py": "97fc38940f856c9501e9a5a86cb2a8de6a80659231b6ffc97a52036dd2027cfa",
     "tests/test_plan19_t7b_order_reservation.py": "23d96c9ffdc580fe02f6947b4aee379bb169f02e8c4432a6a6ebf83700bf3548"
   },

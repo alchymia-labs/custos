@@ -221,18 +221,18 @@
     {
       "role": "crucible_runner_command_consumer_asset_index_v1",
       "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
-      "status": "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+      "status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
       "consumer_code_ready": true,
-      "command_contract_consumer_ready": false,
+      "command_contract_consumer_ready": true,
       "runtime_ready": false,
       "production_ready": false
     },
     {
       "role": "runner_command_consumer_receipt_v1",
       "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
-      "receipt_status": "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+      "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
       "consumer_code_ready": true,
-      "command_contract_consumer_ready": false,
+      "command_contract_consumer_ready": true,
       "runtime_ready": false,
       "production_ready": false
     },
@@ -480,7 +480,7 @@
     {
       "path": "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
       "must_contain": [
-        "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT",
+        "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT",
         "\"deployment_spec_only\": true",
         "\"strategy_release_material_in_command\": false",
         "\"production_ready\": false"

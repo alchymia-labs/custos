@@ -475,7 +475,7 @@ def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
         return
 
     index = load_json(index_path)
-    expected_code_status = "READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT"
+    expected_code_status = "READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT"
     if index.get("status") != expected_code_status:
         errors.append("Plan 18 T5d-B code status differs")
     model = index.get("consumer_model")
@@ -509,12 +509,19 @@ def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
         errors.append("Plan 18 T5d-B producer authority is missing")
     elif producer.get("receipt") is not None:
         errors.append("Plan 18 T5d-B cannot pin an unpublished producer receipt")
-    elif producer.get("contract") != "CrucibleRunnerDeploymentCommandV1" or (
-        producer.get("status") != "PENDING_CANONICAL_V1_PRODUCER_RECEIPT"
+    elif (
+        producer.get("contract") != "CrucibleRunnerDeploymentCommandV1"
+        or producer.get("status") != "CONTRACT_V1_PINNED_RUNTIME_RECEIPT_PENDING"
+        or producer.get("producer_commit")
+        != "750dd10f204198c90e5a1a827a36f2f1907bae04"
+        or producer.get("subject_template")
+        != "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
     ):
         errors.append("Plan 18 T5d-B V1 producer contract differs")
     if index.get("command_contains_deployment_spec_only") is not True:
         errors.append("Plan 18 T5d-B command must contain DeploymentSpec only")
+    if index.get("command_contract_consumer_ready") is not True:
+        errors.append("Plan 18 T5d-B exact command contract must be ready")
 
     receipt = load_json(receipt_path)
     if receipt.get("receipt_status") != expected_code_status:

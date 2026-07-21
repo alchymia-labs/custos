@@ -14,7 +14,7 @@ def test_runner_policy_has_one_pending_v1_authority() -> None:
     assert receipt["receipt_version"] == 1
     assert receipt["runner_state_schema_version"] == 1
     assert receipt["receipt_status"] == "READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT"
-    assert receipt["code_commit"] == "3cdf09031fbfd61f997a039b189a4c4a9ee96f03"
+    assert receipt["code_commit"] == "b3d0ae134742ee220a91e8e721e6f375403dd5bc"
     assert receipt["producer_authority"]["producer_commit"] == (
         "9ba70ce60648a3b3df6a669a112143b601c13b62"
     )

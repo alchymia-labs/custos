@@ -2,7 +2,7 @@
 
 > **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A/T7B exact CR99 V1 contract, durable policy + reservation lifecycle and native interception READY-CONTRACT-ONLY; T7C corrected per-mode SIM/LIVE consumer CODE-ONLY; T8a exact-subject candidate READY and T8b Phase-A REOPENED; real policy/control runtime attestation and T9-T10 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-21 through exact CR99 V1 consumer convergence
+> **Revised**: 2026-07-21 through exact CR89/CR99/CR100 runner-control contract convergence
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -730,15 +730,17 @@ schema/golden compatibility receipt owner；Task 2 不生成、不要求也不�
 7. 本 Task 与 Plan 18 T5d-B 是同一 implementation slice、consumer model 和
    receipt；禁止各自实现一套 DTO 或验收链。
 
-> **Execution status (2026-07-20)**: Task 2 consumer code uses the sole
+> **Execution status (2026-07-21)**: Task 2 consumer code uses the sole
 > `CrucibleRunnerDeploymentCommandV1` DeploymentSpec event and is
-> `READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT`. Custos retains
+> `READY_CONTRACT_ONLY_PENDING_CR89_RUNTIME_RECEIPT`. Custos pins Crucible
+> commit `750dd10`, the exact command golden and the CR100
+> `crucible.runner.command.v1.<tenant>.<runner>.<mode>` subject. Custos retains
 > exact signed event bytes and computes its command fingerprint; StrategyRelease
 > material is resolved from authenticated Crucible authority and is never embedded
 > in the command. The canonical payload now has one typed `execution_config` and
 > rejects `parameters`, `code_provenance`, `strategy_path` and `code_hash`.
-> Contract/runtime readiness remains fail closed until the current producer receipt
-> and authenticated resolver wiring exist.
+> Runtime readiness remains fail closed until CR89 signed outbox publication and
+> authenticated resolver receipts exist.
 
 Custos 提交：
 
@@ -917,6 +919,8 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 > `policy_id` per revision with an exact prior reference; the former parallel
 > `policy_version`/`generation` axis is deleted. Signed event/outbox publication,
 > real daemon policy consumption and runtime/live promotion remain false.
+> Command and policy both consume the sole six-field signed-domain-event V1
+> envelope; the temporary policy-only nine-field envelope was deleted.
 
 #### 7C Authenticated NATS transport V1
 
@@ -1089,6 +1093,8 @@ git commit -m "docs(custos): mark plan 19 as completed"
   current shapes as V1.
 - Replaced the runner-policy `policy_version + generation` double fence with the
   sole CR99 `revision` axis and immutable per-revision policy identity.
+- Replaced generic audit subjects and the temporary policy-only envelope with
+  CR100 exact command/policy subjects over one signed-domain-event V1 envelope.
 - Removed planning receipt digests from artifact runtime readiness.
 
 ## v1.team Scope
