@@ -58,7 +58,7 @@ jobs:
           uv sync --frozen --extra lts
           uv run --frozen --extra lts sigstore --version
 
-      - name: Read by digest and emit a V2 READY candidate
+      - name: Read by digest and emit a V1 READY candidate
         shell: bash
         run: |
           set -euo pipefail
