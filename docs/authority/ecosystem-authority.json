@@ -114,8 +114,7 @@
     "task_5d_b_runtime_ready": false,
     "task_5c_open_blockers": [
       "PS canonical V1 producer receipt",
-      "Crucible canonical V1 consumer receipt",
-      "coordinated exact-byte relock"
+      "coordinated exact-byte relock after the remaining PS consumer receipt"
     ],
     "canonical_v1_consumer_receipts_ready": false,
     "compatibility_fallback_allowed": false

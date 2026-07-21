@@ -19,6 +19,11 @@ GOLDEN = ROOT / "docs/authority/strategy-artifact-pre-import-verification-v1.gol
 NEGATIVE = ROOT / "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json"
 INDEX = ROOT / "docs/authority/strategy-contract-assets-v1.json"
 RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+CRUCIBLE_RECEIPT = (
+    ROOT
+    / "docs/authority/receipts/vendor/"
+    "crucible-plan-88-v1-contract-consumer-receipt.json"
+)
 
 
 def _validate(document: dict[str, object]) -> None:
@@ -55,7 +60,17 @@ def test_schema_golden_and_index_are_the_same_v1_contract() -> None:
     assert receipt_contract["schema_path"] == str(SCHEMA.relative_to(ROOT))
     assert artifact_ref_contract["type"] == "StrategyArtifactRefV1"
     assert index["consumer_receipts"]["philosophers_stone"]["receipt"] is None
-    assert index["consumer_receipts"]["crucible_rust"]["receipt"] is None
+    crucible_pin = index["consumer_receipts"]["crucible_rust"]["receipt"]
+    assert crucible_pin["commit"] == "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5"
+    assert crucible_pin["sha256"] == __import__("hashlib").sha256(
+        CRUCIBLE_RECEIPT.read_bytes()
+    ).hexdigest()
+    crucible_receipt = json.loads(CRUCIBLE_RECEIPT.read_text(encoding="utf-8"))
+    assert crucible_receipt["producers"]["custos"]["commit"] == (
+        "8c4454f35c5189063bad1516d77e260f034d3da7"
+    )
+    assert crucible_receipt["runtime_ready"] is False
+    assert crucible_receipt["production_ready"] is False
 
 
 def test_all_published_negative_cases_fail_closed() -> None:
@@ -78,3 +93,7 @@ def test_contract_receipt_stays_pending_until_both_consumers_pin_v1() -> None:
     assert receipt["command_consumer_ready"] is False
     assert receipt["runtime_ready"] is False
     assert receipt["production_ready"] is False
+    assert receipt["consumers"]["philosophers_stone"]["receipt"] is None
+    assert receipt["consumers"]["crucible_rust"]["receipt"]["commit"] == (
+        "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5"
+    )

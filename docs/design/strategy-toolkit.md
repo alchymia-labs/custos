@@ -116,5 +116,7 @@ mypy and remains guarded by exact digests plus fixed-input parity.
 The current authority record is
 `custos-plan-18-strategy-contract-v1-receipt.json`. It remains
 `CANONICAL_V1_PENDING_CONSUMER_RECEIPTS`, with handoff/runtime/production false.
-Custos must not fabricate PS or Crucible consumer receipts; those owners must
-consume and pin the same exact V1 bytes before the coordinated handoff closes.
+Crucible's owner-produced Plan 88 contract receipt is pinned by exact commit and
+vendored-byte hash. The PS consumer receipt remains absent; Custos must not fabricate
+it, and the coordinated handoff stays closed until PS consumes the same exact V1
+bytes and the final relock is complete.

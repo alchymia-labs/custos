@@ -408,6 +408,33 @@ def build_v1_contract_assets() -> dict[str, bytes]:
         PRE_IMPORT_NEGATIVE_PATH: negative,
         f"{PRE_IMPORT_NEGATIVE_PATH}.sha256": _sidecar(PRE_IMPORT_NEGATIVE_PATH, negative),
     }
+    crucible_receipt_vendor_path = (
+        "docs/authority/receipts/vendor/"
+        "crucible-plan-88-v1-contract-consumer-receipt.json"
+    )
+    crucible_receipt_bytes = (ROOT / crucible_receipt_vendor_path).read_bytes()
+    crucible_receipt_document = json.loads(crucible_receipt_bytes)
+    if (
+        crucible_receipt_document.get("status")
+        != "EXACT_V1_CONTRACTS_PINNED_PENDING_RUNTIME_ACCEPTANCE"
+        or crucible_receipt_document.get("runtime_ready") is not False
+        or crucible_receipt_document.get("production_ready") is not False
+        or crucible_receipt_document.get("producers", {})
+        .get("custos", {})
+        .get("commit")
+        != "8c4454f35c5189063bad1516d77e260f034d3da7"
+    ):
+        raise ValueError("Crucible Plan 88 consumer receipt does not pin canonical Custos V1")
+    crucible_receipt_pin = {
+        "repository": "tesseract-trading/crucible-rust",
+        "commit": "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5",
+        "path": (
+            "docs/authority/receipts/"
+            "crucible-plan-88-v1-contract-consumer-receipt.json"
+        ),
+        "vendored_path": crucible_receipt_vendor_path,
+        "sha256": sha256(crucible_receipt_bytes),
+    }
     index_entries = [
         {"path": path, "sha256": sha256(data), "size_bytes": len(data)}
         for path, data in sorted(generated.items())
@@ -445,8 +472,8 @@ def build_v1_contract_assets() -> dict[str, bytes]:
                 "crucible_rust": {
                     "repository": "tesseract-trading/crucible-rust",
                     "consumes": "StrategyArtifactPreImportVerificationReceiptV1",
-                    "receipt": None,
-                    "status": "PENDING_CANONICAL_V1_CONSUMER_RECEIPT",
+                    "receipt": crucible_receipt_pin,
+                    "status": "EXACT_V1_CONTRACT_CONSUMER_RECEIPT_ACCEPTED",
                 },
             },
             "contract_consumer_ready": False,
@@ -479,7 +506,7 @@ def build_v1_contract_assets() -> dict[str, bytes]:
                 },
                 "crucible_rust": {
                     "repository": "tesseract-trading/crucible-rust",
-                    "receipt": None,
+                    "receipt": crucible_receipt_pin,
                 },
             },
             "policy_boundary": {
@@ -493,8 +520,7 @@ def build_v1_contract_assets() -> dict[str, bytes]:
             "production_ready": False,
             "open_blockers": [
                 "PS Plan 54 canonical V1 consumer receipt",
-                "Crucible Plan 88 canonical V1 consumer receipt",
-                "final exact-byte relock after both consumer receipts",
+                "final exact-byte relock after the remaining consumer receipt",
             ],
         }
     )

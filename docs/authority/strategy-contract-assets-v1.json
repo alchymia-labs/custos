@@ -47,9 +47,15 @@
   "consumer_receipts": {
     "crucible_rust": {
       "consumes": "StrategyArtifactPreImportVerificationReceiptV1",
-      "receipt": null,
+      "receipt": {
+        "commit": "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5",
+        "path": "docs/authority/receipts/crucible-plan-88-v1-contract-consumer-receipt.json",
+        "repository": "tesseract-trading/crucible-rust",
+        "sha256": "a15431a54c51356c5993d1874474fbcbf428b50f3171b86e775e2453364c39f2",
+        "vendored_path": "docs/authority/receipts/vendor/crucible-plan-88-v1-contract-consumer-receipt.json"
+      },
       "repository": "tesseract-trading/crucible-rust",
-      "status": "PENDING_CANONICAL_V1_CONSUMER_RECEIPT"
+      "status": "EXACT_V1_CONTRACT_CONSUMER_RECEIPT_ACCEPTED"
     },
     "philosophers_stone": {
       "consumes": "StrategyArtifactRefV1",

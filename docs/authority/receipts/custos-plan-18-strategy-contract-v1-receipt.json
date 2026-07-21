@@ -3,7 +3,13 @@
   "command_consumer_ready": false,
   "consumers": {
     "crucible_rust": {
-      "receipt": null,
+      "receipt": {
+        "commit": "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5",
+        "path": "docs/authority/receipts/crucible-plan-88-v1-contract-consumer-receipt.json",
+        "repository": "tesseract-trading/crucible-rust",
+        "sha256": "a15431a54c51356c5993d1874474fbcbf428b50f3171b86e775e2453364c39f2",
+        "vendored_path": "docs/authority/receipts/vendor/crucible-plan-88-v1-contract-consumer-receipt.json"
+      },
       "repository": "tesseract-trading/crucible-rust"
     },
     "philosophers_stone": {
@@ -13,14 +19,13 @@
   },
   "contract_asset_index": {
     "path": "docs/authority/strategy-contract-assets-v1.json",
-    "sha256": "b4a24ad9184817ea466bc72fea39e238cb7861e8239ec0af9bffef75ac6170e1",
-    "size_bytes": 3416
+    "sha256": "ef476e686dfcf243d251bfcc7619af4e94fccb52631ff41891423216595cbaec",
+    "size_bytes": 3835
   },
   "contract_consumer_ready": false,
   "open_blockers": [
     "PS Plan 54 canonical V1 consumer receipt",
-    "Crucible Plan 88 canonical V1 consumer receipt",
-    "final exact-byte relock after both consumer receipts"
+    "final exact-byte relock after the remaining consumer receipt"
   ],
   "policy_boundary": {
     "crucible_local_policy_decision_reused": false,

@@ -290,6 +290,10 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
         "pre_import_golden": resolve(CANONICAL_PRE_IMPORT_GOLDEN_PATH),
         "pre_import_negative": resolve(CANONICAL_PRE_IMPORT_NEGATIVE_PATH),
         "receipt": resolve(TASK_2_RECEIPT_PATH),
+        "crucible_consumer_receipt": resolve(
+            "docs/authority/receipts/vendor/"
+            "crucible-plan-88-v1-contract-consumer-receipt.json"
+        ),
     }
     missing = [str(path) for path in required_paths.values() if not path.is_file()]
     if missing:
@@ -303,6 +307,9 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
             required_paths["pre_import_schema"].read_text(encoding="utf-8")
         )
         receipt = json.loads(required_paths["receipt"].read_text(encoding="utf-8"))
+        crucible_consumer_receipt = json.loads(
+            required_paths["crucible_consumer_receipt"].read_text(encoding="utf-8")
+        )
     except (OSError, json.JSONDecodeError) as exc:
         errors.append(f"Plan 18 canonical V1 contract assets are unreadable: {exc}")
         return
@@ -415,6 +422,42 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
         errors.append(
             "canonical V1 readiness flags must remain false until the coordinated reset is pinned"
         )
+
+    crucible_receipt_pin = {
+        "repository": "tesseract-trading/crucible-rust",
+        "commit": "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5",
+        "path": (
+            "docs/authority/receipts/"
+            "crucible-plan-88-v1-contract-consumer-receipt.json"
+        ),
+        "vendored_path": (
+            "docs/authority/receipts/vendor/"
+            "crucible-plan-88-v1-contract-consumer-receipt.json"
+        ),
+        "sha256": sha256_file(required_paths["crucible_consumer_receipt"]),
+    }
+    index_consumers = index.get("consumer_receipts", {})
+    receipt_consumers = receipt.get("consumers", {})
+    if index_consumers.get("philosophers_stone", {}).get("receipt") is not None:
+        errors.append("PS V1 consumer receipt must remain pending until PS publishes it")
+    if receipt_consumers.get("philosophers_stone", {}).get("receipt") is not None:
+        errors.append("Custos receipt must not fabricate the pending PS consumer receipt")
+    if index_consumers.get("crucible_rust", {}).get("receipt") != crucible_receipt_pin:
+        errors.append("Custos asset index does not pin the exact Crucible Plan 88 receipt")
+    if receipt_consumers.get("crucible_rust", {}).get("receipt") != crucible_receipt_pin:
+        errors.append("Custos producer receipt does not pin the exact Crucible Plan 88 receipt")
+    if (
+        crucible_consumer_receipt.get("producers", {})
+        .get("custos", {})
+        .get("commit")
+        != "8c4454f35c5189063bad1516d77e260f034d3da7"
+    ):
+        errors.append("vendored Crucible receipt does not consume the canonical Custos V1 commit")
+    if (
+        crucible_consumer_receipt.get("runtime_ready") is not False
+        or crucible_consumer_receipt.get("production_ready") is not False
+    ):
+        errors.append("vendored Crucible contract receipt must remain fail closed")
 
 
 def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
