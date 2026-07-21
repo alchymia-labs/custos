@@ -1062,14 +1062,12 @@ class RunnerFactOutbox:
                 CREATE TABLE IF NOT EXISTS runner_cap_policy (
                     policy_id TEXT PRIMARY KEY,
                     policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
-                    generation INTEGER NOT NULL CHECK (generation > 0),
                     policy_digest TEXT NOT NULL,
                     tenant_scope TEXT NOT NULL,
                     trading_mode TEXT NOT NULL,
                     runner_id TEXT NOT NULL,
                     previous_policy_id TEXT,
                     previous_policy_revision INTEGER,
-                    previous_generation INTEGER,
                     previous_policy_digest TEXT,
                     settlement_currency TEXT NOT NULL,
                     max_order_notional TEXT NOT NULL,
@@ -1093,7 +1091,6 @@ class RunnerFactOutbox:
                     runner_id TEXT NOT NULL,
                     policy_id TEXT NOT NULL,
                     policy_revision INTEGER NOT NULL CHECK (policy_revision > 0),
-                    generation INTEGER NOT NULL CHECK (generation > 0),
                     policy_digest TEXT NOT NULL,
                     updated_at_ns INTEGER NOT NULL,
                     PRIMARY KEY (tenant_scope, trading_mode, runner_id),
@@ -1193,8 +1190,8 @@ class RunnerFactOutbox:
             )
             connection.execute(
                 """
-                CREATE UNIQUE INDEX IF NOT EXISTS runner_cap_policy_scope_generation
-                ON runner_cap_policy(tenant_scope, trading_mode, runner_id, generation)
+                CREATE UNIQUE INDEX IF NOT EXISTS runner_cap_policy_scope_revision
+                ON runner_cap_policy(tenant_scope, trading_mode, runner_id, policy_revision)
                 """
             )
             connection.execute(
@@ -2334,12 +2331,11 @@ class RunnerStateStore:
                 (self._tenant_id, policy.trading_mode, str(self._runner_id)),
             ).fetchone()
             if head is not None:
-                head_generation = int(head["generation"])
                 head_revision = int(head["policy_revision"])
                 head_digest = str(head["policy_digest"])
-                if policy.generation < head_generation:
-                    raise RunnerStateAuthorityError("runner policy generation is stale")
-                if policy.generation == head_generation:
+                if policy.revision < head_revision:
+                    raise RunnerStateAuthorityError("runner policy revision is stale")
+                if policy.revision == head_revision:
                     if policy.policy_digest == head_digest:
                         connection.rollback()
                         return RunnerPolicyCommitResult(
@@ -2348,23 +2344,17 @@ class RunnerStateStore:
                             policy_id=policy.policy_id,
                             policy_digest=policy.policy_digest,
                         )
-                    raise RunnerStateAuthorityError("runner policy generation conflict")
-                previous = policy.previous_policy
+                    raise RunnerStateAuthorityError("runner policy revision conflict")
+                previous = policy.previous
                 if (
-                    policy.generation != head_generation + 1
-                    or policy.policy_version != head_revision + 1
+                    policy.revision != head_revision + 1
                     or previous is None
                     or str(previous.policy_id) != head["policy_id"]
-                    or previous.policy_version != head_revision
-                    or previous.generation != head_generation
+                    or previous.revision != head_revision
                     or previous.policy_digest != head_digest
                 ):
                     raise RunnerStateAuthorityError("runner policy prior fence differs")
-            elif (
-                policy.generation != 1
-                or policy.policy_version != 1
-                or policy.previous_policy is not None
-            ):
+            elif policy.revision != 1 or policy.previous is not None:
                 raise RunnerStateAuthorityError("runner policy initial fence differs")
 
             existing_id = connection.execute(
@@ -2374,35 +2364,32 @@ class RunnerStateStore:
             if existing_id is not None:
                 raise RunnerStateAuthorityError("runner policy id conflict")
 
-            previous = policy.previous_policy
+            previous = policy.previous
             effective_at_ns = int(policy.effective_at.timestamp() * 1_000_000_000)
             expires_at_ns = int(policy.expires_at.timestamp() * 1_000_000_000)
             consumed_at_ns = time.time_ns()
             connection.execute(
                 """
                 INSERT INTO runner_cap_policy (
-                    policy_id, policy_revision, generation, policy_digest,
+                    policy_id, policy_revision, policy_digest,
                     tenant_scope, trading_mode, runner_id, previous_policy_id,
-                    previous_policy_revision, previous_generation,
-                    previous_policy_digest, settlement_currency,
+                    previous_policy_revision, previous_policy_digest, settlement_currency,
                     max_order_notional, max_notional, effective_at_ns,
                     expires_at_ns, policy_status, signer_key_id,
                     signature_profile, exact_subject, fingerprint,
                     verified_event_bytes_digest, exact_event_bytes, signed_policy,
                     policy_json, consumed_at_ns
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(policy.policy_id),
-                    policy.policy_version,
-                    policy.generation,
+                    policy.revision,
                     policy.policy_digest,
                     self._tenant_id,
                     policy.trading_mode,
                     str(self._runner_id),
                     str(previous.policy_id) if previous is not None else None,
-                    previous.policy_version if previous is not None else None,
-                    previous.generation if previous is not None else None,
+                    previous.revision if previous is not None else None,
                     previous.policy_digest if previous is not None else None,
                     policy.settlement_currency,
                     policy.max_order_notional,
@@ -2425,12 +2412,11 @@ class RunnerStateStore:
                 """
                 INSERT INTO runner_cap_policy_head (
                     tenant_scope, trading_mode, runner_id, policy_id,
-                    policy_revision, generation, policy_digest, updated_at_ns
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    policy_revision, policy_digest, updated_at_ns
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(tenant_scope, trading_mode, runner_id) DO UPDATE SET
                     policy_id = excluded.policy_id,
                     policy_revision = excluded.policy_revision,
-                    generation = excluded.generation,
                     policy_digest = excluded.policy_digest,
                     updated_at_ns = excluded.updated_at_ns
                 """,
@@ -2439,8 +2425,7 @@ class RunnerStateStore:
                     policy.trading_mode,
                     str(self._runner_id),
                     str(policy.policy_id),
-                    policy.policy_version,
-                    policy.generation,
+                    policy.revision,
                     policy.policy_digest,
                     consumed_at_ns,
                 ),

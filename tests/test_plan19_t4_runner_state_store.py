@@ -43,12 +43,12 @@ POLICY_ID = UUID("60000000-0000-4000-8000-000000000006")
 def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
     policy = RunnerAggregateCapPolicyV1(
         schema_version=1,
+        authority_coordinate="crucible.runner-aggregate-cap-policy.v1",
         policy_id=POLICY_ID,
         runner_id=T4_RUNNER_ID,
         tenant_id="acme",
         trading_mode="sandbox",
-        policy_version=1,
-        generation=1,
+        revision=1,
         settlement_currency="USDT",
         max_order_notional="100",
         max_total_notional="1000",
@@ -58,12 +58,12 @@ def _t4_runner_policy() -> VerifiedRunnerSafetyPolicy:
         effective_at=datetime(2026, 1, 1, tzinfo=UTC),
         expires_at=datetime(2027, 1, 1, tzinfo=UTC),
         status="active",
-        previous_policy=None,
+        previous=None,
         policy_digest="c" * 64,
     )
     return VerifiedRunnerSafetyPolicy(
         policy=policy,
-        exact_subject="crucible.v1.acme.sandbox.runner.runner-policy",
+        exact_subject=f"crucible.runner.policy.v1.acme.{T4_RUNNER_ID}.sandbox",
         exact_event_bytes=b'{"verified":"test-only"}',
         exact_signed_envelope_bytes=b'{"signature":"test-only"}',
         signature_key_id="crucible-policy-key",

@@ -67,16 +67,16 @@ def _store(path: Path) -> RunnerStateStore:
         connection.execute(
             """
             INSERT OR IGNORE INTO runner_cap_policy (
-                policy_id, policy_revision, generation, policy_digest,
+                policy_id, policy_revision, policy_digest,
                 tenant_scope, trading_mode, runner_id, previous_policy_id,
-                previous_policy_revision, previous_generation, previous_policy_digest,
+                previous_policy_revision, previous_policy_digest,
                 settlement_currency, max_order_notional, max_notional,
                 effective_at_ns, expires_at_ns, policy_status, signer_key_id,
                 signature_profile, exact_subject, fingerprint,
                 verified_event_bytes_digest, exact_event_bytes, signed_policy,
                 policy_json, consumed_at_ns
             ) VALUES (
-                ?, 1, 1, ?, ?, 'sandbox', ?, NULL, NULL, NULL, NULL,
+                ?, 1, ?, ?, 'sandbox', ?, NULL, NULL, NULL,
                 'USDT', '100', '150', 1, 4102444800000000000, 'active',
                 'policy-key', 'test', 'policy.subject', ?, ?, ?, ?, '{}', 1
             )
@@ -96,8 +96,8 @@ def _store(path: Path) -> RunnerStateStore:
             """
             INSERT OR IGNORE INTO runner_cap_policy_head (
                 tenant_scope, trading_mode, runner_id, policy_id,
-                policy_revision, generation, policy_digest, updated_at_ns
-            ) VALUES (?, 'sandbox', ?, ?, 1, 1, ?, 1)
+                policy_revision, policy_digest, updated_at_ns
+            ) VALUES (?, 'sandbox', ?, ?, 1, ?, 1)
             """,
             (TENANT_ID, str(RUNNER_ID), str(POLICY_ID), "d" * 64),
         )

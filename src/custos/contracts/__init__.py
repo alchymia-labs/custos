@@ -20,7 +20,7 @@ from custos_toolkit.contracts.strategy_execution import (
 from custos.contracts.crucible_runner_command import CrucibleRunnerDeploymentCommandV1
 from custos.contracts.crucible_runner_safety_policy import (
     CrucibleRunnerSafetyPolicyAuthenticator,
-    RunnerAggregateCapPolicyPriorV1,
+    RunnerAggregateCapPolicyRefV1,
     RunnerAggregateCapPolicyV1,
     RunnerSafetyPolicyVerificationError,
     RunnerSafetyPolicyVerificationReason,
@@ -47,7 +47,7 @@ __all__ = [
     "DeploymentSpec",
     "LifecycleState",
     "RunnerExecutionConfigV1",
-    "RunnerAggregateCapPolicyPriorV1",
+    "RunnerAggregateCapPolicyRefV1",
     "RunnerAggregateCapPolicyV1",
     "RunnerSafetyPolicyVerificationError",
     "RunnerSafetyPolicyVerificationReason",

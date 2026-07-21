@@ -1,9 +1,10 @@
 """Strict consumer for the Crucible-owned runner aggregate-cap policy.
 
-The producer uses Rust struct-order compact JSON rather than key-sorted JCS.
-This consumer therefore validates the exact event bytes, policy field order,
-digest, subject framing, fingerprint, Ed25519 signature, and runner scope before
-returning a typed policy.  DeploymentSpec is deliberately absent from this API.
+The signed event preserves Rust struct-order compact JSON while the embedded
+policy digest uses the CR99 recursively key-sorted canonical JSON profile. This
+consumer validates both representations, the subject framing, fingerprint,
+Ed25519 signature, and runner scope before returning a typed policy.
+DeploymentSpec is deliberately absent from this API.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ SIGNATURE_CONTEXT = b"CRUCIBLE-DOMAIN-EVENT-V1\0"
 FINGERPRINT_CONTEXT = b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0"
 SIGNATURE_PROFILE = "crucible-domain-event-v1-exact-bytes"
 SIGNATURE_ENCODING = "application/json;base64url"
-SUBJECT_PREFIX = "crucible_rust.domain"
+SUBJECT_PREFIX = "crucible.runner.policy.v1"
 
 _ENVELOPE_FIELDS = frozenset(
     {
@@ -62,12 +63,12 @@ _EVENT_FIELDS = (
 )
 _POLICY_FIELDS = (
     "schema_version",
+    "authority_coordinate",
     "policy_id",
-    "runner_id",
     "tenant_id",
+    "runner_id",
     "trading_mode",
-    "policy_version",
-    "generation",
+    "revision",
     "settlement_currency",
     "max_order_notional",
     "max_total_notional",
@@ -77,10 +78,10 @@ _POLICY_FIELDS = (
     "effective_at",
     "expires_at",
     "status",
-    "previous_policy",
+    "previous",
     "policy_digest",
 )
-_PREVIOUS_FIELDS = ("policy_id", "policy_version", "generation", "policy_digest")
+_POLICY_REF_FIELDS = ("policy_id", "revision", "policy_digest")
 _TENANT_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _CURRENCY_PATTERN = re.compile(r"^[A-Z0-9]{3,12}$")
 _DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -108,12 +109,11 @@ class RunnerSafetyPolicyVerificationError(ValueError):
         self.reason_code = reason_code
 
 
-class RunnerAggregateCapPolicyPriorV1(BaseModel):
+class RunnerAggregateCapPolicyRefV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     policy_id: UUID
-    policy_version: StrictInt = Field(ge=1)
-    generation: StrictInt = Field(ge=1)
+    revision: StrictInt = Field(ge=1)
     policy_digest: Digest
 
     @model_validator(mode="after")
@@ -129,12 +129,12 @@ class RunnerAggregateCapPolicyV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     schema_version: Literal[1]
+    authority_coordinate: Literal["crucible.runner-aggregate-cap-policy.v1"]
     policy_id: UUID
-    runner_id: UUID
     tenant_id: TenantId
+    runner_id: UUID
     trading_mode: Literal["live", "sandbox", "testnet"]
-    policy_version: StrictInt = Field(ge=1)
-    generation: StrictInt = Field(ge=1)
+    revision: StrictInt = Field(ge=1)
     settlement_currency: Annotated[str, Field(pattern=_CURRENCY_PATTERN.pattern)]
     max_order_notional: PositiveCanonicalDecimal
     max_total_notional: PositiveCanonicalDecimal
@@ -144,7 +144,7 @@ class RunnerAggregateCapPolicyV1(BaseModel):
     effective_at: datetime
     expires_at: datetime
     status: Literal["active", "superseded", "revoked", "expired"]
-    previous_policy: RunnerAggregateCapPolicyPriorV1 | None
+    previous: RunnerAggregateCapPolicyRefV1 | None
     policy_digest: Digest
 
     @property
@@ -165,16 +165,12 @@ class RunnerAggregateCapPolicyV1(BaseModel):
             raise ValueError("policy effective and expiry timestamps must be timezone aware")
         if self.expires_at <= self.effective_at:
             raise ValueError("policy expiry must be after its effective time")
-        if self.previous_policy is None:
-            if self.policy_version != 1 or self.generation != 1:
-                raise ValueError("initial policy must use version and generation 1")
+        if self.previous is None:
+            if self.revision != 1:
+                raise ValueError("initial policy must use revision 1")
         else:
-            previous = self.previous_policy
-            if (
-                previous.policy_id == self.policy_id
-                or self.policy_version != previous.policy_version + 1
-                or self.generation != previous.generation + 1
-            ):
+            previous = self.previous
+            if previous.policy_id == self.policy_id or self.revision != previous.revision + 1:
                 raise ValueError("successor policy fence is invalid")
         return self
 
@@ -344,11 +340,11 @@ def _parse_exact_event(
     if not isinstance(payload, dict):
         raise ValueError("event payload must be an object")
     _require_exact_keys(payload, _POLICY_FIELDS, "policy", ordered=True)
-    previous = payload["previous_policy"]
+    previous = payload["previous"]
     if previous is not None:
         if not isinstance(previous, dict):
-            raise ValueError("previous_policy must be an object or null")
-        _require_exact_keys(previous, _PREVIOUS_FIELDS, "previous_policy", ordered=True)
+            raise ValueError("previous must be an object or null")
+        _require_exact_keys(previous, _POLICY_REF_FIELDS, "previous", ordered=True)
     for field in ("policy_id", "runner_id"):
         _require_canonical_uuid(payload[field], f"policy.{field}")
     _require_timestamp(payload["effective_at"], "policy.effective_at")
@@ -357,13 +353,13 @@ def _parse_exact_event(
         _require_positive_canonical_decimal(payload[field], f"policy.{field}")
 
     body = {key: payload[key] for key in _POLICY_FIELDS[:-1]}
-    actual_digest = hashlib.sha256(_compact_json_bytes(body)).hexdigest()
+    actual_digest = hashlib.sha256(_canonical_json_bytes(body)).hexdigest()
     if payload["policy_digest"] != actual_digest:
-        raise ValueError("policy digest differs from exact Rust struct-order body bytes")
+        raise ValueError("policy digest differs from CR99 canonical JSON")
     policy = RunnerAggregateCapPolicyV1.model_validate(payload)
 
     expected_subject = (
-        f"{SUBJECT_PREFIX}.{policy.tenant_id}.{policy.trading_mode}.risk.runner_safety_policy.v1"
+        f"{SUBJECT_PREFIX}.{policy.tenant_id}.{policy.runner_id}.{policy.trading_mode}"
     )
     if subject != expected_subject:
         raise ValueError("subject differs from policy tenant and trading mode")
@@ -373,10 +369,10 @@ def _parse_exact_event(
         or event["bounded_context"] != "risk"
         or event["aggregate_type"] != "runner_aggregate_cap_policy"
         or event["aggregate_id"] != str(policy.policy_id)
-        or event["aggregate_version"] != policy.generation
+        or event["aggregate_version"] != policy.revision
         or event["event_type"] != "RunnerAggregateCapPolicyV1"
     ):
-        raise ValueError("event target differs from policy scope or generation")
+        raise ValueError("event target differs from policy scope or revision")
     fingerprint = hashlib.sha256(_frame(FINGERPRINT_CONTEXT, subject, event_bytes)).hexdigest()
     if fingerprint != expected_fingerprint:
         raise ValueError("policy event fingerprint differs")
@@ -451,6 +447,15 @@ def _decode_base64url(value: object, label: str) -> bytes:
 
 def _compact_json_bytes(value: object) -> bytes:
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
 
 
 def _frame(context: bytes, subject: str, event_bytes: bytes) -> bytes:

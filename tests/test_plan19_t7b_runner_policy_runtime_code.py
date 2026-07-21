@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from custos.contracts.crucible_runner_safety_policy import (
     CrucibleRunnerSafetyPolicyAuthenticator,
-    RunnerAggregateCapPolicyPriorV1,
+    RunnerAggregateCapPolicyRefV1,
     VerifiedRunnerSafetyPolicy,
 )
 from custos.core.fallback_breaker import FallbackBreakerConfig
@@ -62,9 +62,8 @@ def _frame(context: bytes, subject: str, event_bytes: bytes) -> bytes:
 def _verified_policy(
     private_key: Ed25519PrivateKey,
     *,
-    version: int = 1,
-    generation: int = 1,
-    previous: RunnerAggregateCapPolicyPriorV1 | None = None,
+    revision: int = 1,
+    previous: RunnerAggregateCapPolicyRefV1 | None = None,
     status: str = "active",
     trading_mode: str = "sandbox",
     tenant_id: str = TENANT_ID,
@@ -76,12 +75,12 @@ def _verified_policy(
 ) -> VerifiedRunnerSafetyPolicy:
     body = {
         "schema_version": 1,
-        "policy_id": str(POLICY_IDS[version]),
-        "runner_id": str(runner_id),
+        "authority_coordinate": "crucible.runner-aggregate-cap-policy.v1",
+        "policy_id": str(POLICY_IDS[revision]),
         "tenant_id": tenant_id,
+        "runner_id": str(runner_id),
         "trading_mode": trading_mode,
-        "policy_version": version,
-        "generation": generation,
+        "revision": revision,
         "settlement_currency": "USDT",
         "max_order_notional": max_order,
         "max_total_notional": max_total,
@@ -91,10 +90,10 @@ def _verified_policy(
         "effective_at": effective_at,
         "expires_at": expires_at,
         "status": status,
-        "previous_policy": previous.model_dump(mode="json") if previous else None,
+        "previous": previous.model_dump(mode="json") if previous else None,
     }
-    compact_body = json.dumps(body, separators=(",", ":")).encode()
-    payload = {**body, "policy_digest": hashlib.sha256(compact_body).hexdigest()}
+    canonical_body = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    payload = {**body, "policy_digest": hashlib.sha256(canonical_body).hexdigest()}
     event = {
         "schema_version": 1,
         "event_id": "30000000-0000-4000-8000-000000000001",
@@ -102,8 +101,8 @@ def _verified_policy(
         "event_plane": {"kind": "mode", "trading_mode": trading_mode},
         "bounded_context": "risk",
         "aggregate_type": "runner_aggregate_cap_policy",
-        "aggregate_id": str(POLICY_IDS[version]),
-        "aggregate_version": generation,
+        "aggregate_id": str(POLICY_IDS[revision]),
+        "aggregate_version": revision,
         "event_type": "RunnerAggregateCapPolicyV1",
         "payload": payload,
         "correlation_id": "30000000-0000-4000-8000-000000000002",
@@ -111,7 +110,7 @@ def _verified_policy(
         "occurred_at": "2026-07-15T00:00:01Z",
     }
     event_bytes = json.dumps(event, separators=(",", ":")).encode()
-    subject = f"crucible_rust.domain.{tenant_id}.{trading_mode}.risk.runner_safety_policy.v1"
+    subject = f"crucible.runner.policy.v1.{tenant_id}.{runner_id}.{trading_mode}"
     signature_input = _frame(b"CRUCIBLE-DOMAIN-EVENT-V1\0", subject, event_bytes)
     fingerprint = hashlib.sha256(
         _frame(b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0", subject, event_bytes)
@@ -147,12 +146,11 @@ def _store(path: Path, *, tenant_id: str = TENANT_ID) -> RunnerStateStore:
     )
 
 
-def _prior(verified: VerifiedRunnerSafetyPolicy) -> RunnerAggregateCapPolicyPriorV1:
+def _prior(verified: VerifiedRunnerSafetyPolicy) -> RunnerAggregateCapPolicyRefV1:
     policy = verified.policy
-    return RunnerAggregateCapPolicyPriorV1(
+    return RunnerAggregateCapPolicyRefV1(
         policy_id=policy.policy_id,
-        policy_version=policy.policy_version,
-        generation=policy.generation,
+        revision=policy.revision,
         policy_digest=policy.policy_digest,
     )
 
@@ -188,7 +186,7 @@ async def test_verified_policy_is_durable_and_recovers_from_same_database(
 
 
 @pytest.mark.asyncio
-async def test_policy_generation_digest_and_prior_fence_fail_closed(tmp_path: Path) -> None:
+async def test_policy_revision_digest_and_prior_fence_fail_closed(tmp_path: Path) -> None:
     private_key = Ed25519PrivateKey.generate()
     store = _store(tmp_path / "runner-state.sqlite3")
     first = _verified_policy(private_key)
@@ -204,8 +202,7 @@ async def test_policy_generation_digest_and_prior_fence_fail_closed(tmp_path: Pa
 
     second = _verified_policy(
         private_key,
-        version=2,
-        generation=2,
+        revision=2,
         previous=_prior(first),
     )
     accepted = await store.record_verified_runner_safety_policy(second)
@@ -217,12 +214,10 @@ async def test_policy_generation_digest_and_prior_fence_fail_closed(tmp_path: Pa
     unrelated_first = _verified_policy(private_key, max_total="499")
     wrong_fence = _verified_policy(
         private_key,
-        version=3,
-        generation=3,
-        previous=RunnerAggregateCapPolicyPriorV1(
+        revision=3,
+        previous=RunnerAggregateCapPolicyRefV1(
             policy_id=unrelated_first.policy.policy_id,
-            policy_version=2,
-            generation=2,
+            revision=2,
             policy_digest=unrelated_first.policy.policy_digest,
         ),
     )
