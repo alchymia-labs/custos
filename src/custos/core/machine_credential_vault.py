@@ -38,11 +38,11 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _HTTP_TIMEOUT_SECS = 30
 _MAX_RESPONSE_BYTES = 1_048_576
-_ENROLLMENT_DOMAIN = "arx.runner.enrollment.pop.v1"
-_ROTATION_DOMAIN = "arx.runner.credential.rotation.pop.v1"
-_REVOCATION_DOMAIN = "arx.runner.credential.revocation.pop.v1"
-_REQUEST_DOMAIN = "arx.runner.machine.request.v1"
-_NATS_DOMAIN = "arx.runner.machine.nats.v1"
+_ENROLLMENT_DOMAIN = "crucible.runner.enrollment.pop.v1"
+_ROTATION_DOMAIN = "crucible.runner.credential.rotation.pop.v1"
+_REVOCATION_DOMAIN = "crucible.runner.credential.revocation.pop.v1"
+_REQUEST_DOMAIN = "crucible.runner.machine.request.v1"
+_NATS_DOMAIN = "custos.runner.machine.nats.v1"
 
 
 class MachineCredentialError(RuntimeError):
@@ -267,12 +267,16 @@ class MachineCredential:
         path: str,
         body: Mapping[str, Any],
         correlation_id: UUID,
+        issued_at: datetime | None = None,
         deployment_instance_id: str | None = None,
         deployment_spec_id: str | None = None,
         deployment_spec_digest: str | None = None,
     ) -> dict[str, str]:
         self.assert_active()
         body_digest = _sha256(_canonical_json_bytes(body))
+        request_id = _uuid(correlation_id, "correlation_id")
+        request_issued_at = (issued_at or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
+        issued_at_text = request_issued_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         proof = "\n".join(
             (
                 _REQUEST_DOMAIN,
@@ -283,7 +287,8 @@ class MachineCredential:
                 f"credential_id={self.credential_id}",
                 f"credential_version={self.credential_version}",
                 f"machine_key_id={self.machine_key_id}",
-                f"correlation_id={correlation_id}",
+                f"request_id={request_id}",
+                f"issued_at={issued_at_text}",
                 f"deployment_instance_id={deployment_instance_id or '-'}",
                 f"deployment_spec_id={deployment_spec_id or '-'}",
                 f"deployment_spec_digest={deployment_spec_digest or '-'}",
@@ -291,18 +296,19 @@ class MachineCredential:
             )
         ).encode("utf-8")
         return {
-            "Authorization": f"Bearer {self.machine_credential}",
-            "X-Arx-Tenant-Id": self.tenant_id,
-            "X-Arx-Runner-Id": str(self.runner_id),
-            "X-Arx-Credential-Id": str(self.credential_id),
-            "X-Arx-Credential-Version": str(self.credential_version),
-            "X-Arx-Machine-Key-Id": self.machine_key_id,
-            "X-Arx-Correlation-Id": str(correlation_id),
-            "X-Arx-Deployment-Instance-Id": deployment_instance_id or "-",
-            "X-Arx-Deployment-Spec-Id": deployment_spec_id or "-",
-            "X-Arx-Deployment-Spec-Digest": deployment_spec_digest or "-",
-            "X-Arx-Body-Sha256": body_digest,
-            "X-Arx-Machine-Signature": self.sign(proof),
+            "X-Crucible-Credential": self.machine_credential,
+            "X-Crucible-Tenant-Id": self.tenant_id,
+            "X-Crucible-Runner-Id": str(self.runner_id),
+            "X-Crucible-Credential-Id": str(self.credential_id),
+            "X-Crucible-Credential-Version": str(self.credential_version),
+            "X-Crucible-Machine-Key-Id": self.machine_key_id,
+            "X-Crucible-Request-Id": str(request_id),
+            "X-Crucible-Issued-At": issued_at_text,
+            "X-Crucible-Deployment-Instance-Id": deployment_instance_id or "-",
+            "X-Crucible-Deployment-Spec-Id": deployment_spec_id or "-",
+            "X-Crucible-Deployment-Spec-Digest": deployment_spec_digest or "-",
+            "X-Crucible-Body-Sha256": body_digest,
+            "X-Crucible-Machine-Signature": self.sign(proof),
         }
 
     def nats_authority(
@@ -506,7 +512,7 @@ class MachineCredentialVault:
 
 
 class MachineCredentialHttpClient:
-    """Typed public ARX proxy client; error text never includes secrets."""
+    """Typed direct Crucible machine client; error text never includes secrets."""
 
     def __init__(self, backend_url: str, credential: MachineCredential) -> None:
         self.backend_url = backend_url.rstrip("/")

@@ -1,0 +1,30 @@
+{
+  "body_sha256": "87213647afd3af8f1e215d836c122a4295b42f59bd55516ec10dfccbff6a730a",
+  "canonical_body": "{\"correlation_id\":\"33333333-3333-4333-8333-333333333333\",\"credential_id\":\"22222222-2222-4222-8222-222222222222\",\"credential_version\":1,\"runner_id\":\"11111111-1111-4111-8111-111111111111\",\"tenant_id\":\"acme\"}",
+  "credential_header": {
+    "fixture_value_sha256": "bc8664bb176b65e85a4142c8859a22e70647f7d91dba01a9ed16401a2775f939",
+    "name": "X-Crucible-Credential",
+    "value_included": false
+  },
+  "fixture_schema_version": 1,
+  "headers": {
+    "X-Crucible-Body-Sha256": "87213647afd3af8f1e215d836c122a4295b42f59bd55516ec10dfccbff6a730a",
+    "X-Crucible-Credential-Id": "22222222-2222-4222-8222-222222222222",
+    "X-Crucible-Credential-Version": "1",
+    "X-Crucible-Deployment-Instance-Id": "-",
+    "X-Crucible-Deployment-Spec-Digest": "-",
+    "X-Crucible-Deployment-Spec-Id": "-",
+    "X-Crucible-Issued-At": "2026-07-21T00:00:00Z",
+    "X-Crucible-Machine-Key-Id": "ed25519-65b60673d6ed884bf01c2c222d82ada0",
+    "X-Crucible-Machine-Signature": "fg7khhw3ExOCJcUDmBOd5MEgupMWfNWsbQ79ROo+ExEHm+05UJXCq+AjvC4gRNkeXOYWR5ZIFvtHDuLANjQWBg==",
+    "X-Crucible-Request-Id": "33333333-3333-4333-8333-333333333333",
+    "X-Crucible-Runner-Id": "11111111-1111-4111-8111-111111111111",
+    "X-Crucible-Tenant-Id": "acme"
+  },
+  "machine_public_key_base64": "ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=",
+  "max_clock_skew_seconds": 60,
+  "method": "POST",
+  "path": "/api/v1/runner-credentials/verify",
+  "request_domain": "crucible.runner.machine.request.v1",
+  "signing_frame": "crucible.runner.machine.request.v1\nmethod=POST\npath=/api/v1/runner-credentials/verify\ntenant_id=acme\nrunner_id=11111111-1111-4111-8111-111111111111\ncredential_id=22222222-2222-4222-8222-222222222222\ncredential_version=1\nmachine_key_id=ed25519-65b60673d6ed884bf01c2c222d82ada0\nrequest_id=33333333-3333-4333-8333-333333333333\nissued_at=2026-07-21T00:00:00Z\ndeployment_instance_id=-\ndeployment_spec_id=-\ndeployment_spec_digest=-\nbody_sha256=87213647afd3af8f1e215d836c122a4295b42f59bd55516ec10dfccbff6a730a"
+}

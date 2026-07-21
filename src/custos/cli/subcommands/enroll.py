@@ -27,7 +27,7 @@ from custos.core.machine_credential_vault import (
 )
 from custos.core.runner_toml import RunnerToml
 
-_ENROLLMENT_PATH = "/api/v1/enrollments"
+_ENROLLMENT_PATH = "/api/v1/runner-enrollments"
 _HTTP_TIMEOUT_SECS = 30
 _MAX_RESPONSE_BYTES = 1_048_576
 
@@ -139,10 +139,17 @@ def run(args: argparse.Namespace) -> int:
 
 
 def _post_enrollment(backend: str, body: dict[str, object]) -> dict[str, object]:
+    tenant_id = body.get("tenant_id")
+    if not isinstance(tenant_id, str):
+        raise MachineCredentialError("enrollment tenant_id is invalid")
     request = urllib.request.Request(
         f"{backend.rstrip('/')}{_ENROLLMENT_PATH}",
         data=json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-Crucible-Tenant-Id": tenant_id,
+            "X-Crucible-Request-Id": str(uuid4()),
+        },
         method="POST",
     )
     try:

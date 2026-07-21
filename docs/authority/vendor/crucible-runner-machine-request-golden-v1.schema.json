@@ -1,0 +1,81 @@
+{
+  "$id": "https://schemas.alephain.guild/crucible/runner-machine-request-golden-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "canonical_body": {
+      "minLength": 2,
+      "type": "string"
+    },
+    "credential_header": {
+      "additionalProperties": false,
+      "properties": {
+        "fixture_value_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "name": {
+          "const": "X-Crucible-Credential"
+        },
+        "value_included": {
+          "const": false
+        }
+      },
+      "required": [
+        "name",
+        "fixture_value_sha256",
+        "value_included"
+      ],
+      "type": "object"
+    },
+    "fixture_schema_version": {
+      "const": 1
+    },
+    "headers": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "minProperties": 12,
+      "type": "object"
+    },
+    "machine_public_key_base64": {
+      "type": "string"
+    },
+    "max_clock_skew_seconds": {
+      "const": 60
+    },
+    "method": {
+      "const": "POST"
+    },
+    "path": {
+      "pattern": "^/api/v1/runner-",
+      "type": "string"
+    },
+    "request_domain": {
+      "const": "crucible.runner.machine.request.v1"
+    },
+    "signing_frame": {
+      "minLength": 64,
+      "type": "string"
+    }
+  },
+  "required": [
+    "fixture_schema_version",
+    "request_domain",
+    "method",
+    "path",
+    "canonical_body",
+    "body_sha256",
+    "credential_header",
+    "headers",
+    "machine_public_key_base64",
+    "signing_frame",
+    "max_clock_skew_seconds"
+  ],
+  "title": "Crucible Runner Machine Request Golden V1",
+  "type": "object"
+}
