@@ -1,5 +1,5 @@
 {
-  "code_commit": null,
+  "code_commit": "8c4454f35c5189063bad1516d77e260f034d3da7",
   "command_intake_authority_composed": false,
   "daemon_boundary_factory_wired": true,
   "daemon_policy_resolver_wired": true,
@@ -11,7 +11,6 @@
   "missing_owner_policy_fails_closed": true,
   "native_execution_client_interception_ready": true,
   "open_blockers": [
-    "focused and repository validation after canonical V1 reset",
     "Crucible signed runner policy V1 producer receipt and exact-byte pin",
     "real owner policy consumption by the team daemon",
     "live runtime and production promotion"
@@ -21,7 +20,7 @@
   "plan": "2026-07/19-crucible-command-runner-fact-runtime-convergence",
   "policy_head_required": true,
   "production_ready": false,
-  "receipt_status": "PENDING_CANONICAL_V1_REVALIDATION",
+  "receipt_status": "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT",
   "receipt_version": 1,
   "reduce_only_and_cancel_non_blocking": true,
   "reservation_event_dedup_table": "runner_order_reservation_event",
@@ -40,19 +39,21 @@
   "single_database": true,
   "single_outbox": "runner_fact_outbox",
   "sources": {
-    "src/custos/cli/_daemon.py": "752dded1c93c1272cb5ba56140d62949db655780f7c09d5978e7d8c3ab617fd8",
-    "src/custos/engines/nautilus/host.py": "6851c4a189976dd86829f7fc10f2a0a0846b6913710209966df0ec6d1776ec42",
-    "src/custos/engines/nautilus/runner_safety.py": "f98aec99f36b0a02f67fdbaab2fdb5f734fb0f33a229150d6dc27458f767dec9",
-    "tests/cli/test_runner_safety_daemon_composition.py": "b7a6b41729c2c36cf85e53c7600bb766d78279abcd2d4f1868c7ebe2eabd5306",
-    "tests/engines/nautilus/test_runner_safety_execution_boundary.py": "c4740679bdde19c423cef19bcc4a66273bd48ec2943c36d6f138ede7d193b0a8",
-    "tests/engines/nautilus/test_runner_safety_host_wiring.py": "e737e4fe52612f6415123b0682007cf504e7ebaed22a66ba7a9f877169eb63a0"
+    "src/custos/cli/_daemon.py": "9e366503e48303e5aa9a92890e33f009aca60c376e94f5a296414a02571c5cb2",
+    "src/custos/engines/nautilus/host.py": "f4784f3e56031b7b811122343347bd78855bfe808e40063ef03e5e49815fb49f",
+    "src/custos/engines/nautilus/runner_safety.py": "7c42f73a5cd4e3123246c63484993f414b9b637cadadce51ec8ad8b7c0a183ff",
+    "tests/cli/test_runner_safety_daemon_composition.py": "51f2e0f52b2833c4cded40d1281c5f2cce02209659c3a215acbbd3c3594dba5c",
+    "tests/engines/nautilus/test_runner_safety_execution_boundary.py": "24428710f62e4f6646f06b80f03e80c6a2ae9ef58bea8a2de7a3f05340456772",
+    "tests/engines/nautilus/test_runner_safety_host_wiring.py": "172c4da8961178c04be6de048842c36f847a2a5ee925434e28b6e62e4294f7c4"
   },
   "standard_nt_rejection_emission_ready": true,
   "strategy_direct_submit_bypass_proven": true,
   "task": "7B",
   "team_daemon_enabled": false,
   "validation": {
-    "required_before_ready": true,
-    "status": "NOT_RUN_AFTER_CANONICAL_V1_RESET"
+    "command": "uv run pytest tests/test_plan19_*.py tests/cli/test_runner_safety_daemon_composition.py -q",
+    "passed": 90,
+    "required_before_runtime_ready": true,
+    "status": "FOCUSED_CANONICAL_V1_PASS"
   }
 }

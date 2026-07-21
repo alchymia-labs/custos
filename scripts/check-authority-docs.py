@@ -1120,8 +1120,8 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         errors.append("runner policy receipt_version must be 1")
     if receipt.get("runner_state_schema_version") != 1:
         errors.append("runner policy must use canonical runner state schema V1")
-    if receipt.get("receipt_status") != "PENDING_CANONICAL_V1_REVALIDATION":
-        errors.append("runner policy must remain pending canonical V1 revalidation")
+    if receipt.get("receipt_status") != "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT":
+        errors.append("runner policy code status differs from the canonical V1 evidence")
     if (ROOT / "docs/authority/vendor/crucible-plan-99").exists():
         errors.append("superseded Crucible runner policy vendor pins must be deleted")
 
@@ -1133,10 +1133,15 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         return
     receipt = load_json(receipt_path)
     if receipt.get("validation") != {
-        "required_before_ready": True,
-        "status": "NOT_RUN_AFTER_CANONICAL_V1_RESET",
+        "command": (
+            "uv run pytest tests/test_plan19_*.py "
+            "tests/cli/test_runner_safety_daemon_composition.py -q"
+        ),
+        "passed": 90,
+        "required_before_runtime_ready": True,
+        "status": "FOCUSED_CANONICAL_V1_PASS",
     }:
-        errors.append("runner policy V1 receipt must not reuse pre-reset validation evidence")
+        errors.append("runner policy V1 focused validation evidence differs")
     if receipt.get("runtime_policy_consumed") is not False:
         errors.append("runner policy V1 must remain fail-closed before owner policy consumption")
     if receipt.get("runtime_ready") is not False or receipt.get("production_ready") is not False:

@@ -895,6 +895,13 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
    release through the existing outbox.
 5. Do not copy authorization or approval logic from Crucible.
 
+> **Execution status (2026-07-21)**:
+> `READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT`. The canonical V1 Plan 19
+> focused suite is `90 passed`. Durable policy generation, reservation/exposure
+> recovery and native order interception are locally verified. The exact CR99
+> producer receipt, real daemon policy consumption and runtime/live promotion
+> remain false and are not inferred from synthetic test policy.
+
 #### 7C Authenticated NATS transport V1
 
 1. Introduce one local `RunnerNatsTransportSet` per supervisor, keyed by the
@@ -1043,7 +1050,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | Signed command V1 consumer | implemented | consumes real DeploymentSpec domain events |
 | RunnerFact SQLite V1 deep module | implemented | one store and one outbox |
 | Engine lifecycle | code-ready, blocked | artifact authority and live gates not composed |
-| Runner policy V1 | code-ready, blocked | real Crucible publication/runtime receipt pending |
+| Runner policy V1 | focused code gate pass, blocked | exact CR99 producer receipt and real daemon consumption pending |
 | Machine credential and NATS vault V1 | source reset | real Crucible credential authority and broker evidence pending |
 | RunnerFact V1 cross-repo acceptance | pending | Crucible consumer receipt required |
 | Production/live | STOP | full command-to-fact runtime round trip not yet evidenced |

@@ -85,11 +85,12 @@ the breaker fails closed. This receipt does not authorize a runner aggregate cap
 T7 must consume the Crucible Plan 99 signed versioned policy, DeploymentSpec
 `risk_config` cannot override it, and live/runtime/production remain false.
 
-Plan 19 T7B is `PENDING_CANONICAL_V1_REVALIDATION`. Custos consumes a signed
-Crucible runner-policy V1 producer receipt and exact pins at the runtime boundary;
-it does not vendor a second owner asset set. Authority is tenant + logical mode +
-runner UUID. Until that receipt is available and the team daemon consumes a real
-owner policy, live, runtime and production remain false.
+Plan 19 T7B is `READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT`. The canonical V1
+focused suite passes and Custos durably enforces verified policy, reservation and
+native order boundaries, but it does not vendor a second owner asset set. Authority
+is tenant + logical mode + runner UUID. Until the exact Crucible producer receipt is
+available and the team daemon consumes a real owner policy, policy capability,
+live, runtime and production remain false.
 
 Plan 19 T8a defines the sole `custos.runner-fact.v1` contract: the
 instance-keyed, generation-non-reset schema, signed golden, exact

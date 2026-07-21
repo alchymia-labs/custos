@@ -12,7 +12,10 @@ def test_runner_policy_has_one_pending_v1_authority() -> None:
 
     assert receipt["receipt_version"] == 1
     assert receipt["runner_state_schema_version"] == 1
-    assert receipt["receipt_status"] == "PENDING_CANONICAL_V1_REVALIDATION"
+    assert receipt["receipt_status"] == "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT"
+    assert receipt["code_commit"] == "8c4454f35c5189063bad1516d77e260f034d3da7"
+    assert receipt["validation"]["status"] == "FOCUSED_CANONICAL_V1_PASS"
+    assert receipt["validation"]["passed"] == 90
     assert receipt["runtime_policy_consumed"] is False
     assert receipt["runner_policy_capability_ready"] is False
     assert receipt["runtime_ready"] is False

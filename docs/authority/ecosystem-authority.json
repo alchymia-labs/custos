@@ -151,10 +151,11 @@
   "runner_safety_policy_consumer": {
     "owner": "crucible-rust",
     "consumer": "custos",
-    "status": "PENDING_CANONICAL_V1_PRODUCER_RECEIPT",
+    "status": "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT",
     "receipt": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
     "contract_receipt": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
     "policy_contract_consumer_ready": false,
+    "local_code_ready": true,
     "authority_scope": [
       "tenant_id",
       "trading_mode",
