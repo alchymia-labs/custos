@@ -5,7 +5,7 @@
   "plan": "2026-07/19-crucible-command-runner-fact-runtime-convergence",
   "task": "7B",
   "generated_at": "2026-07-21",
-  "code_commit": "b3d0ae134742ee220a91e8e721e6f375403dd5bc",
+  "code_commit": "24109d0355229c2e2368335008d07de02a1056ff",
   "contract_asset_index": {
     "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
     "sha256": "df4642323957fccdccaa851a581bd1d4fcbe688deb370c8e8e01a55fc7a97cf4",
