@@ -1,4 +1,4 @@
-"""Inbound-only Crucible command transport over an existing CR100 durable."""
+"""Inbound-only Crucible control transport over an existing CR100 durable."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from custos.core.nats_transport import (
 
 @dataclass
 class CrucibleNatsClient:
-    """Bind, but never create, the exact tenant+runner command consumer."""
+    """Bind, but never create, the exact tenant+runner command+policy consumer."""
 
     connection_profile: RunnerNatsTransportConnectionProfile
     tenant_id: str
@@ -43,7 +43,7 @@ class CrucibleNatsClient:
         self.connection_profile.assert_active()
         self._nc = await self.connection_profile.connect(
             name=(
-                f"custos-command-{self.tenant_id}-{self.runner_id}-"
+                f"custos-control-{self.tenant_id}-{self.runner_id}-"
                 f"{self.connection_profile.trading_mode}"
             )
         )
@@ -57,7 +57,7 @@ class CrucibleNatsClient:
         self._js = None
         self._jsm = None
 
-    async def subscribe_deployment_spec(self) -> Any:
+    async def subscribe_control(self) -> Any:
         self.machine_credential.assert_active()
         self.connection_profile.assert_active()
         if self._js is None or self._jsm is None:
@@ -79,13 +79,26 @@ class CrucibleNatsClient:
         """Bind the broker subject and verified payload to this exact-mode session."""
 
         expected_subjects = list(self.connection_profile.durable_config["filter_subjects"])
-        if expected_subjects != [subject]:
+        if len(expected_subjects) != 2 or expected_subjects[0] != subject:
             raise RunnerNatsTransportError(
                 "runner command subject is outside the exact CR100 mode authority"
             )
         if getattr(command, "trading_mode", None) != self.connection_profile.trading_mode:
             raise RunnerNatsTransportError(
                 "runner command payload mode differs from the authenticated session"
+            )
+
+    def assert_policy_binding(self, subject: str, policy: Any) -> None:
+        """Bind the CR99 policy subject and verified body to this exact-mode session."""
+
+        expected_subjects = list(self.connection_profile.durable_config["filter_subjects"])
+        if len(expected_subjects) != 2 or expected_subjects[1] != subject:
+            raise RunnerNatsTransportError(
+                "runner policy subject is outside the exact CR100 mode authority"
+            )
+        if getattr(policy, "trading_mode", None) != self.connection_profile.trading_mode:
+            raise RunnerNatsTransportError(
+                "runner policy payload mode differs from the authenticated session"
             )
 
 
@@ -117,5 +130,5 @@ def _assert_existing_consumer(config: Any, expected: Any) -> None:
     }
     if actual != required:
         raise RunnerNatsTransportError(
-            "existing CR100 command durable does not match signed authority"
+            "existing CR100 control durable does not match signed authority"
         )

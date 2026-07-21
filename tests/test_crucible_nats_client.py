@@ -1,4 +1,4 @@
-"""Inbound-only CR100 command durable binding tests."""
+"""Inbound-only CR100 command+policy control durable binding tests."""
 
 from __future__ import annotations
 
@@ -36,10 +36,13 @@ class _TransportProfile:
     durable_config: dict[str, object] = field(
         default_factory=lambda: {
             "transport_domain": "sim",
-            "stream_name": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-            "durable_name": f"custos-v1-acme-{_RUNNER_ID}-sandbox",
-            "delivery_subject": (f"custos.runner.command.v1.delivery.acme.{_RUNNER_ID}.sandbox"),
-            "filter_subjects": [f"crucible.runner.command.v1.acme.{_RUNNER_ID}.sandbox"],
+            "stream_name": "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+            "durable_name": f"custos-control-v1-acme-{_RUNNER_ID}-sandbox",
+            "delivery_subject": (f"custos.runner.control.v1.delivery.acme.{_RUNNER_ID}.sandbox"),
+            "filter_subjects": [
+                f"crucible.runner.command.v1.acme.{_RUNNER_ID}.sandbox",
+                f"crucible.runner.policy.v1.acme.{_RUNNER_ID}.sandbox",
+            ],
         }
     )
 
@@ -98,17 +101,17 @@ async def test_subscribe_binds_existing_exact_tenant_runner_durable() -> None:
         subscribe_bind=AsyncMock(return_value=subscription)
     )
 
-    result = await client.subscribe_deployment_spec()
+    result = await client.subscribe_control()
 
     assert result is subscription
     client._jsm.consumer_info.assert_awaited_once_with(  # noqa: SLF001
-        "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-        f"custos-v1-acme-{_RUNNER_ID}-sandbox",
+        "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+        f"custos-control-v1-acme-{_RUNNER_ID}-sandbox",
     )
     client._js.subscribe_bind.assert_awaited_once_with(  # noqa: SLF001
-        stream="CRUCIBLE_RUNNER_COMMAND_SIM_V1",
+        stream="CRUCIBLE_RUNNER_CONTROL_SIM_V1",
         config=config,
-        consumer=f"custos-v1-acme-{_RUNNER_ID}-sandbox",
+        consumer=f"custos-control-v1-acme-{_RUNNER_ID}-sandbox",
         manual_ack=True,
     )
 
@@ -117,8 +120,8 @@ async def test_subscribe_binds_existing_exact_tenant_runner_durable() -> None:
 async def test_existing_consumer_drift_fails_before_subscription() -> None:
     client = _client()
     config = ConsumerConfig(
-        durable_name=f"custos-v1-acme-{_RUNNER_ID}-sandbox",
-        deliver_subject="custos.runner.command.v1.delivery.other.runner.sandbox",
+        durable_name=f"custos-control-v1-acme-{_RUNNER_ID}-sandbox",
+        deliver_subject="custos.runner.control.v1.delivery.other.runner.sandbox",
         filter_subjects=[],
         deliver_policy=DeliverPolicy.ALL,
         ack_policy=AckPolicy.EXPLICIT,
@@ -131,7 +134,7 @@ async def test_existing_consumer_drift_fails_before_subscription() -> None:
     client._js = MagicMock(subscribe_bind=AsyncMock())  # noqa: SLF001
 
     with pytest.raises(RunnerNatsTransportError, match="does not match"):
-        await client.subscribe_deployment_spec()
+        await client.subscribe_control()
 
     client._js.subscribe_bind.assert_not_awaited()  # noqa: SLF001
 
@@ -139,7 +142,7 @@ async def test_existing_consumer_drift_fails_before_subscription() -> None:
 @pytest.mark.asyncio
 async def test_subscribe_before_connect_fails_closed() -> None:
     with pytest.raises(RuntimeError, match="before connect"):
-        await _client().subscribe_deployment_spec()
+        await _client().subscribe_control()
 
 
 def test_command_subject_and_verified_payload_must_match_exact_mode_session() -> None:
@@ -155,3 +158,18 @@ def test_command_subject_and_verified_payload_must_match_exact_mode_session() ->
         )
     with pytest.raises(RunnerNatsTransportError, match="payload mode differs"):
         client.assert_command_binding(subject, SimpleNamespace(trading_mode="live"))
+
+
+def test_policy_subject_and_verified_payload_must_match_exact_mode_session() -> None:
+    client = _client()
+    subject = str(client.connection_profile.durable_config["filter_subjects"][1])
+
+    client.assert_policy_binding(subject, SimpleNamespace(trading_mode="sandbox"))
+
+    with pytest.raises(RunnerNatsTransportError, match="subject is outside"):
+        client.assert_policy_binding(
+            subject.removesuffix("sandbox") + "live",
+            SimpleNamespace(trading_mode="sandbox"),
+        )
+    with pytest.raises(RunnerNatsTransportError, match="payload mode differs"):
+        client.assert_policy_binding(subject, SimpleNamespace(trading_mode="live"))

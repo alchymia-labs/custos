@@ -40,11 +40,12 @@ from custos.core.machine_credential_vault import (
 
 RUNNER_NATS_TRANSPORT_SCHEMA_VERSION = 1
 RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE = "crucible.runner-nats-transport.v1"
-RUNNER_COMMAND_STREAM_SIM = "CRUCIBLE_RUNNER_COMMAND_SIM_V1"
-RUNNER_COMMAND_STREAM_LIVE = "CRUCIBLE_RUNNER_COMMAND_LIVE_V1"
+RUNNER_CONTROL_STREAM_SIM = "CRUCIBLE_RUNNER_CONTROL_SIM_V1"
+RUNNER_CONTROL_STREAM_LIVE = "CRUCIBLE_RUNNER_CONTROL_LIVE_V1"
 RUNNER_COMMAND_SUBJECT_PREFIX = "crucible.runner.command.v1"
+RUNNER_POLICY_SUBJECT_PREFIX = "crucible.runner.policy.v1"
 RUNNER_FACT_SUBJECT_PREFIX = "crucible.runner.fact.v1"
-RUNNER_COMMAND_DELIVERY_SUBJECT_PREFIX = "custos.runner.command.v1.delivery"
+RUNNER_CONTROL_DELIVERY_SUBJECT_PREFIX = "custos.runner.control.v1.delivery"
 TRADING_MODES = ("sandbox", "testnet", "live")
 _ISSUE_PATH = "/internal/v1/runner-nats-transport/enroll"
 _ROTATE_PATH = "/internal/v1/runner-nats-transport/rotate"
@@ -212,11 +213,11 @@ def runner_nats_transport_domain(trading_mode: str) -> str:
     raise RunnerNatsTransportError("trading_mode is outside the closed V1 enum")
 
 
-def runner_command_stream(trading_mode: str) -> str:
+def runner_control_stream(trading_mode: str) -> str:
     return (
-        RUNNER_COMMAND_STREAM_LIVE
+        RUNNER_CONTROL_STREAM_LIVE
         if runner_nats_transport_domain(trading_mode) == "live"
-        else RUNNER_COMMAND_STREAM_SIM
+        else RUNNER_CONTROL_STREAM_SIM
     )
 
 
@@ -227,8 +228,8 @@ def _expected_permission_profile(
 ) -> dict[str, Any]:
     runner = str(runner_id)
     domain = runner_nats_transport_domain(trading_mode)
-    stream = runner_command_stream(trading_mode)
-    durable = f"custos-v1-{tenant_id}-{runner}-{trading_mode}"
+    stream = runner_control_stream(trading_mode)
+    durable = f"custos-control-v1-{tenant_id}-{runner}-{trading_mode}"
     return {
         "schema_version": RUNNER_NATS_TRANSPORT_SCHEMA_VERSION,
         "profile": RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE,
@@ -242,7 +243,7 @@ def _expected_permission_profile(
             f"$JS.API.CONSUMER.INFO.{stream}.{durable}",
         ],
         "subscribe_allow": [
-            f"{RUNNER_COMMAND_DELIVERY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}",
+            f"{RUNNER_CONTROL_DELIVERY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}",
             "_INBOX.>",
         ],
         "publish_deny": [
@@ -266,12 +267,15 @@ def _expected_durable_config(
     return {
         "schema_version": RUNNER_NATS_TRANSPORT_SCHEMA_VERSION,
         "transport_domain": domain,
-        "stream_name": runner_command_stream(trading_mode),
-        "durable_name": f"custos-v1-{tenant_id}-{runner}-{trading_mode}",
+        "stream_name": runner_control_stream(trading_mode),
+        "durable_name": f"custos-control-v1-{tenant_id}-{runner}-{trading_mode}",
         "delivery_subject": (
-            f"{RUNNER_COMMAND_DELIVERY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}"
+            f"{RUNNER_CONTROL_DELIVERY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}"
         ),
-        "filter_subjects": [f"{RUNNER_COMMAND_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}"],
+        "filter_subjects": [
+            f"{RUNNER_COMMAND_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}",
+            f"{RUNNER_POLICY_SUBJECT_PREFIX}.{tenant_id}.{runner}.{trading_mode}",
+        ],
         "deliver_policy": "all",
         "ack_policy": "explicit",
         "replay_policy": "instant",

@@ -110,8 +110,8 @@ def _encode_nats_jwt(
 
 def _permission_profile() -> dict[str, Any]:
     runner = str(_RUNNER)
-    durable = f"custos-v1-{_TENANT}-{runner}-{_MODE}"
-    stream = "CRUCIBLE_RUNNER_COMMAND_SIM_V1"
+    durable = f"custos-control-v1-{_TENANT}-{runner}-{_MODE}"
+    stream = "CRUCIBLE_RUNNER_CONTROL_SIM_V1"
     return {
         "schema_version": 1,
         "profile": "crucible.runner-nats-transport.v1",
@@ -125,7 +125,7 @@ def _permission_profile() -> dict[str, Any]:
             f"$JS.API.CONSUMER.INFO.{stream}.{durable}",
         ],
         "subscribe_allow": [
-            f"custos.runner.command.v1.delivery.{_TENANT}.{runner}.{_MODE}",
+            f"custos.runner.control.v1.delivery.{_TENANT}.{runner}.{_MODE}",
             "_INBOX.>",
         ],
         "publish_deny": [
@@ -144,10 +144,13 @@ def _durable_config() -> dict[str, Any]:
     return {
         "schema_version": 1,
         "transport_domain": _DOMAIN,
-        "stream_name": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-        "durable_name": f"custos-v1-{_TENANT}-{runner}-{_MODE}",
-        "delivery_subject": (f"custos.runner.command.v1.delivery.{_TENANT}.{runner}.{_MODE}"),
-        "filter_subjects": [f"crucible.runner.command.v1.{_TENANT}.{runner}.{_MODE}"],
+        "stream_name": "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+        "durable_name": f"custos-control-v1-{_TENANT}-{runner}-{_MODE}",
+        "delivery_subject": (f"custos.runner.control.v1.delivery.{_TENANT}.{runner}.{_MODE}"),
+        "filter_subjects": [
+            f"crucible.runner.command.v1.{_TENANT}.{runner}.{_MODE}",
+            f"crucible.runner.policy.v1.{_TENANT}.{runner}.{_MODE}",
+        ],
         "deliver_policy": "all",
         "ack_policy": "explicit",
         "replay_policy": "instant",

@@ -1,19 +1,27 @@
 {
   "receipt_schema_version": 1,
   "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
-  "receipt_status": "PENDING_CRUCIBLE_V1_CREDENTIAL_AUTHORITY",
+  "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME",
   "repository": "tesseract-trading/custos",
   "plan": "Custos Plan 19",
   "task": "T7C authenticated NATS transport",
   "producer_authority": {
     "repository": "tesseract-trading/crucible-rust",
+    "producer_commit": "95fdc87de77c8d996bc633a6514f9dd70258f280",
+    "contract_assets": {
+      "schema": "docs/authority/vendor/crucible-runner-nats-transport-authority-v1.schema.json",
+      "schema_sha256": "d0868bddde5cc64c93233940cf36be6be2d2b00203af0707fe878ddfa95606a0",
+      "golden": "docs/authority/vendor/crucible-runner-nats-transport-authority-golden-v1.json",
+      "golden_sha256": "ff2d4c892bf3455dec9a17de35bd5e5b1758a5338f2350d48cb79b71476b0ec5"
+    },
     "authority_receipt": null,
     "authority_ready": false,
-    "command_streams": {
-      "sim": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-      "live": "CRUCIBLE_RUNNER_COMMAND_LIVE_V1"
+    "control_streams": {
+      "sim": "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+      "live": "CRUCIBLE_RUNNER_CONTROL_LIVE_V1"
     },
-    "command_subject_prefix": "crucible.runner.command.v1"
+    "command_subject_prefix": "crucible.runner.command.v1",
+    "policy_subject_prefix": "crucible.runner.policy.v1"
   },
   "implementation": {
     "transport_authority": "src/custos/core/nats_transport.py",
@@ -30,8 +38,12 @@
       "testnet": "sim",
       "live": "live"
     },
-    "durable_name_prefix": "custos-v1-",
-    "delivery_subject_prefix": "custos.runner.command.v1.delivery.",
+    "durable_name_prefix": "custos-control-v1-",
+    "delivery_subject_prefix": "custos.runner.control.v1.delivery.",
+    "control_filter_order": [
+      "crucible.runner.command.v1.<tenant>.<runner>.<mode>",
+      "crucible.runner.policy.v1.<tenant>.<runner>.<mode>"
+    ],
     "runner_fact_subject_prefix": "crucible.runner.fact.v1.",
     "one_authority_per_mode": true,
     "one_encrypted_vault_per_mode": true,
@@ -44,7 +56,7 @@
     "custos_user_nkey_seed_owner": true,
     "per_mode_sops_age_transport_vaults": true,
     "supervisor_transport_set_implemented": true,
-    "per_mode_connection_and_command_consumer_implemented": true,
+    "per_mode_connection_and_control_consumer_implemented": true,
     "runner_fact_mode_router_implemented": true,
     "command_subject_payload_mode_double_binding_implemented": true,
     "sim_live_account_issuer_stream_binding_implemented": true,
@@ -71,7 +83,7 @@
     "production_ready": false
   },
   "open_blockers": [
-    "Crucible has not published the canonical V1 credential and durable authority receipt",
+    "Crucible has published contract bytes but not the credential, durable and broker-readback authority receipt",
     "production tenant runner mode durables have no exact SIM/LIVE runtime readback receipt",
     "CR100-issued production credential rotation and reconnect-denial evidence is absent",
     "real NATS SIM/LIVE account isolation has not passed the explicit integration gate",

@@ -304,11 +304,15 @@
   "runner_nats_transport_consumer": {
     "owner": "crucible-rust",
     "consumer": "custos",
-    "status": "PENDING_CRUCIBLE_V1_CREDENTIAL_AUTHORITY",
-    "command_streams": {
-      "sim": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-      "live": "CRUCIBLE_RUNNER_COMMAND_LIVE_V1"
+    "status": "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME",
+    "control_streams": {
+      "sim": "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+      "live": "CRUCIBLE_RUNNER_CONTROL_LIVE_V1"
     },
+    "control_filter_subjects": [
+      "crucible.runner.command.v1.<tenant>.<runner>.<mode>",
+      "crucible.runner.policy.v1.<tenant>.<runner>.<mode>"
+    ],
     "mode_to_domain": {
       "sandbox": "sim",
       "testnet": "sim",

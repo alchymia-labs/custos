@@ -931,9 +931,9 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
    delete `authorized_modes`, multi-mode JWTs, runner-only durables and wildcard
    mode permissions.
 4. Verify the closed transport-domain mapping: `sandbox` and `testnet` use the
-   SIM NATS account, issuer and `CRUCIBLE_RUNNER_COMMAND_SIM_V1`; `live` uses
+   SIM NATS account, issuer and `CRUCIBLE_RUNNER_CONTROL_SIM_V1`; `live` uses
    the separately configured LIVE account, issuer and
-   `CRUCIBLE_RUNNER_COMMAND_LIVE_V1`. A caller cannot select the domain.
+   `CRUCIBLE_RUNNER_CONTROL_LIVE_V1`. A caller cannot select the domain.
 5. Open one independent TLS/NKey connection, exact durable command consumer and
    RunnerFact publisher per enabled mode. Shared process capacity, engine
    coordination and watchdog state remain supervisor-owned and do not widen
@@ -955,12 +955,13 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
     and real per-mode round-trip receipts exist, daemon production readiness and
     all live readiness remain false.
 
-> **Execution status (2026-07-21)**: `CORRECTED_CODE_ONLY_PENDING_CR100_RUNTIME`.
+> **Execution status (2026-07-21)**: `READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME`.
 > Custos now consumes the exact CR100 authority shape, stores one encrypted vault
 > per mode, composes a supervisor-local `RunnerNatsTransportSet`, opens independent
-> mode sessions, double-binds command mode and routes RunnerFact batches by their
-> signed mode. Focused transport/runtime tests pass, but the real CR100 producer,
-> SIM/LIVE broker readback and production credential evidence remain mandatory.
+> mode sessions, binds the exact CR89 command and CR99 policy filters, double-binds
+> payload mode and routes RunnerFact batches by their signed mode. Exact CR100
+> schema/golden bytes are vendored and pinned, but credential issuance, durable
+> readback, SIM/LIVE broker evidence and production readiness remain mandatory.
 > The local `make verify-nats-revocation` gate passes against real
 > `nats:2.10-alpine` TLS/User-JWT transport and proves forced disconnect plus
 > old-generation reconnect denial; it is not a CR100 or dual-broker receipt.

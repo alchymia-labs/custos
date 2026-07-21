@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alephain.com/crucible/runner-nats-transport-authority-v1.schema.json",
+  "title": "Runner NATS Transport Authority V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authority_coordinate",
+    "authority_id",
+    "tenant_id",
+    "runner_id",
+    "trading_mode",
+    "transport_domain",
+    "credential_generation",
+    "user_public_key",
+    "user_jwt",
+    "user_jwt_sha256",
+    "issuer_public_key",
+    "signing_key_id",
+    "claims_sha256",
+    "permission_profile",
+    "permission_profile_sha256",
+    "durable_config",
+    "durable_config_sha256",
+    "issued_at",
+    "not_before",
+    "expires_at",
+    "status",
+    "operation_id",
+    "authority_digest"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "authority_coordinate": { "const": "crucible.runner-nats-transport.v1" },
+    "authority_id": { "type": "string", "format": "uuid" },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "runner_id": { "type": "string", "format": "uuid" },
+    "trading_mode": { "enum": ["sandbox", "testnet", "live"] },
+    "transport_domain": { "enum": ["sim", "live"] },
+    "credential_generation": { "type": "integer", "minimum": 1 },
+    "user_public_key": { "type": "string", "pattern": "^U[A-Z2-7]{55}$" },
+    "user_jwt": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+    },
+    "user_jwt_sha256": { "$ref": "#/$defs/sha256" },
+    "issuer_public_key": { "type": "string", "pattern": "^A[A-Z2-7]{55}$" },
+    "signing_key_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "claims_sha256": { "$ref": "#/$defs/sha256" },
+    "permission_profile": { "$ref": "#/$defs/permission_profile" },
+    "permission_profile_sha256": { "$ref": "#/$defs/sha256" },
+    "durable_config": { "$ref": "#/$defs/durable_config" },
+    "durable_config_sha256": { "$ref": "#/$defs/sha256" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "not_before": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "enum": [
+        "pending_provisioning",
+        "active",
+        "rotating",
+        "revoked",
+        "expired",
+        "failed"
+      ]
+    },
+    "operation_id": { "type": "string", "format": "uuid" },
+    "authority_digest": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "trading_mode": { "enum": ["sandbox", "testnet"] } }
+      },
+      "then": {
+        "properties": {
+          "transport_domain": { "const": "sim" },
+          "permission_profile": {
+            "properties": { "transport_domain": { "const": "sim" } }
+          },
+          "durable_config": {
+            "properties": {
+              "transport_domain": { "const": "sim" },
+              "stream_name": { "const": "CRUCIBLE_RUNNER_CONTROL_SIM_V1" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "trading_mode": { "const": "live" } }
+      },
+      "then": {
+        "properties": {
+          "transport_domain": { "const": "live" },
+          "permission_profile": {
+            "properties": { "transport_domain": { "const": "live" } }
+          },
+          "durable_config": {
+            "properties": {
+              "transport_domain": { "const": "live" },
+              "stream_name": { "const": "CRUCIBLE_RUNNER_CONTROL_LIVE_V1" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "subject_list": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "permission_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "profile",
+        "tenant_id",
+        "runner_id",
+        "trading_mode",
+        "transport_domain",
+        "publish_allow",
+        "subscribe_allow",
+        "publish_deny",
+        "subscribe_deny"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "profile": { "const": "crucible.runner-nats-transport.v1" },
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "runner_id": { "type": "string", "format": "uuid" },
+        "trading_mode": { "enum": ["sandbox", "testnet", "live"] },
+        "transport_domain": { "enum": ["sim", "live"] },
+        "publish_allow": { "$ref": "#/$defs/subject_list" },
+        "subscribe_allow": { "$ref": "#/$defs/subject_list" },
+        "publish_deny": { "$ref": "#/$defs/subject_list" },
+        "subscribe_deny": { "$ref": "#/$defs/subject_list" }
+      }
+    },
+    "durable_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "transport_domain",
+        "stream_name",
+        "durable_name",
+        "delivery_subject",
+        "filter_subjects",
+        "deliver_policy",
+        "ack_policy",
+        "replay_policy",
+        "max_ack_pending",
+        "consumer_mode"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "transport_domain": { "enum": ["sim", "live"] },
+        "stream_name": {
+          "enum": [
+            "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+            "CRUCIBLE_RUNNER_CONTROL_LIVE_V1"
+          ]
+        },
+        "durable_name": {
+          "type": "string",
+          "pattern": "^custos-control-v1-[A-Za-z0-9_-]+-[0-9a-f-]{36}-(sandbox|testnet|live)$"
+        },
+        "delivery_subject": {
+          "type": "string",
+          "pattern": "^custos\\.runner\\.control\\.v1\\.delivery\\.[A-Za-z0-9_-]+\\.[0-9a-f-]{36}\\.(sandbox|testnet|live)$"
+        },
+        "filter_subjects": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "prefixItems": [
+            {
+              "type": "string",
+              "pattern": "^crucible\\.runner\\.command\\.v1\\.[A-Za-z0-9_-]+\\.[0-9a-f-]{36}\\.(sandbox|testnet|live)$"
+            },
+            {
+              "type": "string",
+              "pattern": "^crucible\\.runner\\.policy\\.v1\\.[A-Za-z0-9_-]+\\.[0-9a-f-]{36}\\.(sandbox|testnet|live)$"
+            }
+          ],
+          "items": false
+        },
+        "deliver_policy": { "const": "all" },
+        "ack_policy": { "const": "explicit" },
+        "replay_policy": { "const": "instant" },
+        "max_ack_pending": { "const": 1 },
+        "consumer_mode": { "const": "push_existing_only" }
+      }
+    }
+  }
+}

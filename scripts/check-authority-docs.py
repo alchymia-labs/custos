@@ -1162,20 +1162,35 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         return
 
     receipt = load_json(receipt_path)
-    if receipt.get("receipt_status") != "PENDING_CRUCIBLE_V1_CREDENTIAL_AUTHORITY":
-        errors.append("Plan 19 T7C must remain pending before Crucible V1 authority")
+    if receipt.get("receipt_status") != "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME":
+        errors.append("Plan 19 T7C contract-only status differs")
     producer = receipt.get("producer_authority")
     if not isinstance(producer, dict) or producer.get("authority_ready") is not False:
         errors.append("Plan 19 T7C producer authority truth differs")
     elif producer.get("authority_receipt") is not None:
         errors.append("Plan 19 T7C cannot pin an unpublished producer receipt")
-    if producer.get("command_streams") != {
-        "sim": "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-        "live": "CRUCIBLE_RUNNER_COMMAND_LIVE_V1",
+    if producer.get("control_streams") != {
+        "sim": "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+        "live": "CRUCIBLE_RUNNER_CONTROL_LIVE_V1",
     }:
-        errors.append("Plan 19 T7C command stream domains differ")
+        errors.append("Plan 19 T7C control stream domains differ")
     if producer.get("command_subject_prefix") != "crucible.runner.command.v1":
         errors.append("Plan 19 T7C command subject prefix differs")
+    if producer.get("policy_subject_prefix") != "crucible.runner.policy.v1":
+        errors.append("Plan 19 T7C policy subject prefix differs")
+    assets = producer.get("contract_assets")
+    if not isinstance(assets, dict):
+        errors.append("Plan 19 T7C producer contract assets are missing")
+    else:
+        for path_key, digest_key in (("schema", "schema_sha256"), ("golden", "golden_sha256")):
+            asset_path = assets.get(path_key)
+            expected_digest = assets.get(digest_key)
+            if not isinstance(asset_path, str) or not isinstance(expected_digest, str):
+                errors.append(f"Plan 19 T7C {path_key} asset pin is invalid")
+                continue
+            resolved = resolve(asset_path)
+            if not resolved.is_file() or hashlib.sha256(resolved.read_bytes()).hexdigest() != expected_digest:
+                errors.append(f"Plan 19 T7C {path_key} asset digest differs")
 
     contract = receipt.get("v1_contract")
     if not isinstance(contract, dict):
@@ -1183,8 +1198,12 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
     else:
         expected = {
             "authority_coordinate": "crucible.runner-nats-transport.v1",
-            "durable_name_prefix": "custos-v1-",
-            "delivery_subject_prefix": "custos.runner.command.v1.delivery.",
+            "durable_name_prefix": "custos-control-v1-",
+            "delivery_subject_prefix": "custos.runner.control.v1.delivery.",
+            "control_filter_order": [
+                "crucible.runner.command.v1.<tenant>.<runner>.<mode>",
+                "crucible.runner.policy.v1.<tenant>.<runner>.<mode>",
+            ],
             "runner_fact_subject_prefix": "crucible.runner.fact.v1.",
             "one_authority_per_mode": True,
             "one_encrypted_vault_per_mode": True,
@@ -1225,16 +1244,27 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
 
     transport = source_paths["transport"].read_text(encoding="utf-8")
     required_markers = (
-        "custos-v1-",
-        "custos.runner.command.v1.delivery",
+        "custos-control-v1-",
+        "custos.runner.control.v1.delivery",
         "crucible.runner.command.v1",
+        "crucible.runner.policy.v1",
         "crucible.runner.fact.v1",
-        "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
-        "CRUCIBLE_RUNNER_COMMAND_LIVE_V1",
+        "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
+        "CRUCIBLE_RUNNER_CONTROL_LIVE_V1",
         "runner_nats_transport_domain",
     )
     if any(marker not in transport for marker in required_markers):
         errors.append("Plan 19 T7C transport does not implement the sole V1 subject profile")
+    if any(
+        marker in transport
+        for marker in (
+            "CRUCIBLE_RUNNER_COMMAND_SIM_V1",
+            "CRUCIBLE_RUNNER_COMMAND_LIVE_V1",
+            "custos.runner.command.v1.delivery",
+            "custos-v1-",
+        )
+    ):
+        errors.append("Plan 19 T7C transport retains the superseded command-only profile")
     if re.search(
         r"(?:custos-v|runner_command_v|RunnerDeploymentCommandV)"
         r"(?:[2-9]|[1-9][0-9]+)",
@@ -1247,7 +1277,7 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
     snapshot = ecosystem.get("runner_nats_transport_consumer")
     if not isinstance(snapshot, dict):
         errors.append("Plan 19 T7C ecosystem snapshot is missing")
-    elif snapshot.get("status") != "PENDING_CRUCIBLE_V1_CREDENTIAL_AUTHORITY":
+    elif snapshot.get("status") != "READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME":
         errors.append("Plan 19 T7C ecosystem status differs")
 
 

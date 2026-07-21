@@ -34,7 +34,7 @@ from custos.core.nats_transport import (
     RunnerNatsTransportSet,
     RunnerNatsTransportVault,
     assert_old_generation_reconnect_denied,
-    runner_command_stream,
+    runner_control_stream,
     runner_nats_transport_domain,
 )
 
@@ -98,8 +98,8 @@ def _keypair(prefix: int) -> tuple[bytes, object, str]:
 
 def _permission_profile(trading_mode: str = _MODE) -> dict[str, object]:
     domain = runner_nats_transport_domain(trading_mode)
-    durable = f"custos-v1-{_TENANT}-{_RUNNER}-{trading_mode}"
-    stream = runner_command_stream(trading_mode)
+    durable = f"custos-control-v1-{_TENANT}-{_RUNNER}-{trading_mode}"
+    stream = runner_control_stream(trading_mode)
     return {
         "schema_version": 1,
         "profile": "crucible.runner-nats-transport.v1",
@@ -113,7 +113,7 @@ def _permission_profile(trading_mode: str = _MODE) -> dict[str, object]:
             f"$JS.API.CONSUMER.INFO.{stream}.{durable}",
         ],
         "subscribe_allow": [
-            f"custos.runner.command.v1.delivery.{_TENANT}.{_RUNNER}.{trading_mode}",
+            f"custos.runner.control.v1.delivery.{_TENANT}.{_RUNNER}.{trading_mode}",
             "_INBOX.>",
         ],
         "publish_deny": [
@@ -132,12 +132,15 @@ def _durable_config(trading_mode: str = _MODE) -> dict[str, object]:
     return {
         "schema_version": 1,
         "transport_domain": domain,
-        "stream_name": runner_command_stream(trading_mode),
-        "durable_name": f"custos-v1-{_TENANT}-{_RUNNER}-{trading_mode}",
+        "stream_name": runner_control_stream(trading_mode),
+        "durable_name": f"custos-control-v1-{_TENANT}-{_RUNNER}-{trading_mode}",
         "delivery_subject": (
-            f"custos.runner.command.v1.delivery.{_TENANT}.{_RUNNER}.{trading_mode}"
+            f"custos.runner.control.v1.delivery.{_TENANT}.{_RUNNER}.{trading_mode}"
         ),
-        "filter_subjects": [f"crucible.runner.command.v1.{_TENANT}.{_RUNNER}.{trading_mode}"],
+        "filter_subjects": [
+            f"crucible.runner.command.v1.{_TENANT}.{_RUNNER}.{trading_mode}",
+            f"crucible.runner.policy.v1.{_TENANT}.{_RUNNER}.{trading_mode}",
+        ],
         "deliver_policy": "all",
         "ack_policy": "explicit",
         "replay_policy": "instant",
@@ -313,8 +316,8 @@ def test_issued_credential_verifies_jwt_acl_durable_and_redacts_secrets() -> Non
 
     rendered = repr(credential)
 
-    assert credential.durable_config["stream_name"] == "CRUCIBLE_RUNNER_COMMAND_SIM_V1"
-    assert credential.durable_config["durable_name"] == (f"custos-v1-{_TENANT}-{_RUNNER}-{_MODE}")
+    assert credential.durable_config["stream_name"] == "CRUCIBLE_RUNNER_CONTROL_SIM_V1"
+    assert credential.durable_config["durable_name"] == (f"custos-control-v1-{_TENANT}-{_RUNNER}-{_MODE}")
     assert credential.user_jwt not in rendered
     assert base64.b64encode(credential.user_seed).decode("ascii") not in rendered
 
@@ -337,8 +340,8 @@ def test_supervisor_transport_set_keeps_exact_mode_authorities_independent(
     assert transports.active("sandbox").authority_id == sandbox.authority_id
     assert transports.active("testnet").permission_profile != sandbox.permission_profile
     assert transports.active("live").transport_domain == "live"
-    assert runner_command_stream("sandbox") == runner_command_stream("testnet")
-    assert runner_command_stream("live") != runner_command_stream("sandbox")
+    assert runner_control_stream("sandbox") == runner_control_stream("testnet")
+    assert runner_control_stream("live") != runner_control_stream("sandbox")
     assert RunnerNatsTransportVault(tmp_path, "sandbox").path == tmp_path / "sandbox.enc"
     assert RunnerNatsTransportVault(tmp_path, "live").path == tmp_path / "live.enc"
 
