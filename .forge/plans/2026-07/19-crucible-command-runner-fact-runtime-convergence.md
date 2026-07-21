@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A/T7B exact CR99 V1 contract, durable policy + reservation lifecycle and native interception READY-CONTRACT-ONLY; T7C corrected per-mode SIM/LIVE consumer CODE-ONLY; T8a exact-subject candidate READY and T8b Phase-A REOPENED; real policy/control runtime attestation and T9-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A/T7B exact CR99 V1 contract, durable policy + reservation lifecycle and native interception READY-CONTRACT-ONLY; T7C direct Crucible machine credential V1 READY while per-mode SIM/LIVE NATS consumer remains CODE-ONLY; T8a exact-subject candidate READY and T8b Phase-A REOPENED; real policy/control runtime attestation and T9-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-21 through exact CR89/CR99/CR100 runner-control contract convergence
 > **Project**: Custos
@@ -960,8 +960,12 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
     and real per-mode round-trip receipts exist, daemon production readiness and
     all live readiness remain false.
 
-> **Execution status (2026-07-21)**: `READY_CONTRACT_ONLY_PENDING_CR100_RUNTIME`.
-> Custos now consumes the exact CR100 authority shape, stores one encrypted vault
+> **Execution status (2026-07-21)**: `DIRECT_MACHINE_CREDENTIAL_V1_READY_PENDING_CR100_0029_NATS_RUNTIME`.
+> Custos now consumes the owner-generated CR100 machine-request golden and calls
+> Crucible directly for enrollment and credential verify/rotate/revoke using the
+> sole request-ID/freshness/body/binding proof and `X-Crucible-*` header set. ARX
+> is absent from this path. Custos also consumes the exact CR100 NATS authority
+> shape, stores one encrypted vault
 > per mode, composes a supervisor-local `RunnerNatsTransportSet`, opens independent
 > mode sessions, binds the exact CR89 command and CR99 policy filters, double-binds
 > payload mode and routes RunnerFact batches by their signed mode. Exact CR100
@@ -1081,9 +1085,16 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | RunnerFact SQLite V1 deep module | implemented | one store and one outbox |
 | Engine lifecycle | code-ready, blocked | artifact authority and live gates not composed |
 | Runner policy V1 | exact contract gate pass, blocked | CR99 signed event/outbox runtime receipt and real daemon consumption pending |
-| Machine credential and NATS vault V1 | source reset | real Crucible credential authority and broker evidence pending |
+| Machine credential and NATS vault V1 | direct credential contract ready; NATS runtime blocked | Crucible `d9df475` and Custos `09b870c` exact machine-request golden pass; control `0029`, durable replay receipt, JWT/ACL/durable readback and dual-domain broker evidence pending |
 | RunnerFact V1 producer candidate | ready for Phase A | immutable `8c4454f` assets pinned; Crucible consumer receipt required |
 | Production/live | STOP | full command-to-fact runtime round trip not yet evidenced |
+
+The machine-readable boundary is pinned by
+`docs/authority/crucible-runner-machine-request-consumer-assets-v1.json` and
+`docs/authority/receipts/custos-plan-19-runner-machine-request-v1-receipt.json`.
+Those records deliberately keep durable replay, per-mode NATS issuance, and
+production transport claims false until CR100 migration `0029` and runtime
+receipts exist.
 
 ## Deviations and Improvements
 
@@ -1095,6 +1106,9 @@ git commit -m "docs(custos): mark plan 19 as completed"
   sole CR99 `revision` axis and immutable per-revision policy identity.
 - Replaced generic audit subjects and the temporary policy-only envelope with
   CR100 exact command/policy subjects over one signed-domain-event V1 envelope.
+- Deleted the ARX machine-request domain/header/proxy contract in place. Direct
+  Custos-Crucible enrollment and credential lifecycle now share one exact
+  owner-generated V1 golden; no alias or fallback parser remains.
 - Removed planning receipt digests from artifact runtime readiness.
 
 ## v1.team Scope

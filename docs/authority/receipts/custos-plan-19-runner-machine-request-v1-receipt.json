@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "stable_receipt_id": "CUSTOS-PLAN19-CR100-MACHINE-REQUEST-V1",
+  "status": "DIRECT_CREDENTIAL_V1_READY_PENDING_CR100_0029_RUNTIME_RECEIPT",
+  "producer": {
+    "repository": "tesseract-trading/crucible-rust",
+    "plan": 100,
+    "commit": "d9df47501f7a871c5b0691b8daf6d83fc3cd82c0"
+  },
+  "consumer": {
+    "repository": "tesseract-trading/custos",
+    "plan": 19,
+    "commit": "09b870c60b2745b0baaee551183efbd8da03a8ab"
+  },
+  "asset_index": {
+    "path": "docs/authority/crucible-runner-machine-request-consumer-assets-v1.json",
+    "sha256": "f77da9784c12b9218a935679b2e00919393fb5b3e36991de20ccdfc871400127",
+    "size_bytes": 2499
+  },
+  "contract": {
+    "request_domain": "crucible.runner.machine.request.v1",
+    "machine_header_prefix": "X-Crucible-",
+    "enrollment_path": "/api/v1/runner-enrollments",
+    "credential_paths": [
+      "/api/v1/runner-credentials/verify",
+      "/api/v1/runner-credentials/rotate",
+      "/api/v1/runner-credentials/revoke"
+    ]
+  },
+  "claims": {
+    "exact_cross_language_golden_verified": true,
+    "direct_enrollment_and_credential_client_ready": true,
+    "arx_machine_relay_absent": true,
+    "durable_request_replay_ledger_verified": false,
+    "per_mode_nats_issuance_verified": false,
+    "production_transport_ready": false
+  },
+  "verification": [
+    {
+      "command": "uv run pytest -q tests/test_runner_machine_request_contract.py tests/test_cli_enroll.py",
+      "result": "15 passed"
+    },
+    {
+      "command": "uv run ruff check src/custos/core/machine_credential_vault.py src/custos/cli/subcommands/enroll.py tests/test_runner_machine_request_contract.py tests/test_cli_enroll.py",
+      "result": "passed"
+    }
+  ],
+  "open_blockers": [
+    "CR100 control migration 0029 after executed CR88 0028",
+    "durable same-request replay and conflict receipt",
+    "per-mode NATS JWT, ACL, durable readback, rotation and revocation receipt"
+  ]
+}

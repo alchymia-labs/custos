@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "asset_index_id": "custos.crucible-runner-machine-request-consumer.v1",
+  "status": "DIRECT_CREDENTIAL_V1_READY_PENDING_CR100_0029_RUNTIME_RECEIPT",
+  "producer": {
+    "repository": "tesseract-trading/crucible-rust",
+    "plan": 100,
+    "commit": "d9df47501f7a871c5b0691b8daf6d83fc3cd82c0",
+    "status": "T8_COMPLETE_T9_T10_PARTIAL"
+  },
+  "consumer": {
+    "repository": "tesseract-trading/custos",
+    "plan": 19,
+    "commit": "09b870c60b2745b0baaee551183efbd8da03a8ab",
+    "status": "DIRECT_CREDENTIAL_CLIENT_READY_NATS_TRANSPORT_PENDING"
+  },
+  "contract": {
+    "request_domain": "crucible.runner.machine.request.v1",
+    "machine_header_prefix": "X-Crucible-",
+    "enrollment_path": "/api/v1/runner-enrollments",
+    "credential_paths": [
+      "/api/v1/runner-credentials/verify",
+      "/api/v1/runner-credentials/rotate",
+      "/api/v1/runner-credentials/revoke"
+    ],
+    "max_clock_skew_seconds": 60,
+    "legacy_aliases": []
+  },
+  "producer_assets": [
+    {
+      "path": "docs/authority/runner-machine-request-golden-v1.json",
+      "sha256": "16bc6cb389a22c1d66708a768db4d9bcf0a1b049d308f76731f13e6cde3d2ab1",
+      "size_bytes": 2126
+    },
+    {
+      "path": "docs/authority/runner-machine-request-golden-v1.schema.json",
+      "sha256": "3c8861a688b0ec6ef9228bc3b325f488a3e3227f3bd74b91e4b88aa867565bbd",
+      "size_bytes": 1793
+    }
+  ],
+  "consumer_assets": [
+    {
+      "path": "src/custos/core/machine_credential_vault.py",
+      "sha256": "b0b62d3bd7803d44dad8bfe306999889c8d364c0aad543725eb6e2112dba018a",
+      "size_bytes": 25754
+    },
+    {
+      "path": "src/custos/cli/subcommands/enroll.py",
+      "sha256": "9751ebd14bd3c2c490eff32097be91eec4d15069b777a563886d8422e1b5ff1b",
+      "size_bytes": 9707
+    },
+    {
+      "path": "tests/test_runner_machine_request_contract.py",
+      "sha256": "e4333e6bd0b83887ee56b7911278d54413b579b0dd81836121a3b17c28b69617",
+      "size_bytes": 5425
+    }
+  ],
+  "claims": {
+    "exact_cross_language_golden_verified": true,
+    "direct_enrollment_and_credential_client_ready": true,
+    "arx_machine_relay_required": false,
+    "durable_request_replay_ledger_verified": false,
+    "per_mode_nats_issuance_verified": false,
+    "production_transport_ready": false
+  },
+  "open_blockers": [
+    "CR100 control migration 0029 after executed CR88 0028",
+    "durable same-request replay and conflict receipt",
+    "per-mode NATS JWT, ACL, durable readback, rotation and revocation receipt"
+  ]
+}
