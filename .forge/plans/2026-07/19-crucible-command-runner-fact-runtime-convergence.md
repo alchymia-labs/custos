@@ -1,8 +1,8 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable policy + reservation lifecycle and native interception READY-CODE-ONLY; T7C corrected per-mode SIM/LIVE consumer CODE-ONLY; T8a exact-subject candidate READY and T8b Phase-A REOPENED; real T7C runtime attestation and T9-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A/T7B exact CR99 V1 contract, durable policy + reservation lifecycle and native interception READY-CONTRACT-ONLY; T7C corrected per-mode SIM/LIVE consumer CODE-ONLY; T8a exact-subject candidate READY and T8b Phase-A REOPENED; real policy/control runtime attestation and T9-T10 open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-20 through T7C two-stage revocation consumer code
+> **Revised**: 2026-07-21 through exact CR99 V1 consumer convergence
 > **Project**: Custos
 > **Source**: Audit of pre-plan migration `324da6e`, PS Plan 53, and v1.team review
 > **For Claude**: Use `/forge:execute` to implement this plan.
@@ -902,7 +902,7 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 
 1. Consume the Crucible-signed V1 aggregate-cap policy and reject unknown,
    expired, revoked, wrong-runner, wrong-tenant, wrong-mode or rollback input.
-2. Persist policy generation and reservations in the existing RunnerFact SQLite
+2. Persist the sole policy revision and reservations in the existing RunnerFact SQLite
    transaction boundary.
 3. Intercept every native order submission and reservation change before
    network access; risk-reducing orders remain explicitly modeled.
@@ -911,11 +911,12 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 5. Do not copy authorization or approval logic from Crucible.
 
 > **Execution status (2026-07-21)**:
-> `READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT`. The canonical V1 Plan 19
-> focused suite is `90 passed`. Durable policy generation, reservation/exposure
-> recovery and native order interception are locally verified. The exact CR99
-> producer receipt, real daemon policy consumption and runtime/live promotion
-> remain false and are not inferred from synthetic test policy.
+> `READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT`. Custos now pins the exact
+> CR99 producer commit, schema, golden and SHA sidecar; the current exact-contract,
+> durable revision/reservation slice is `18 passed`. Policy identity is one immutable
+> `policy_id` per revision with an exact prior reference; the former parallel
+> `policy_version`/`generation` axis is deleted. Signed event/outbox publication,
+> real daemon policy consumption and runtime/live promotion remain false.
 
 #### 7C Authenticated NATS transport V1
 
@@ -1075,7 +1076,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | Signed command V1 consumer | implemented | consumes real DeploymentSpec domain events |
 | RunnerFact SQLite V1 deep module | implemented | one store and one outbox |
 | Engine lifecycle | code-ready, blocked | artifact authority and live gates not composed |
-| Runner policy V1 | focused code gate pass, blocked | exact CR99 producer receipt and real daemon consumption pending |
+| Runner policy V1 | exact contract gate pass, blocked | CR99 signed event/outbox runtime receipt and real daemon consumption pending |
 | Machine credential and NATS vault V1 | source reset | real Crucible credential authority and broker evidence pending |
 | RunnerFact V1 producer candidate | ready for Phase A | immutable `8c4454f` assets pinned; Crucible consumer receipt required |
 | Production/live | STOP | full command-to-fact runtime round trip not yet evidenced |
@@ -1086,6 +1087,8 @@ git commit -m "docs(custos): mark plan 19 as completed"
   actual Crucible DeploymentSpec event types.
 - Removed additive SQLite/vault versioning and kept the technically correct
   current shapes as V1.
+- Replaced the runner-policy `policy_version + generation` double fence with the
+  sole CR99 `revision` axis and immutable per-revision policy identity.
 - Removed planning receipt digests from artifact runtime readiness.
 
 ## v1.team Scope

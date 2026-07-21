@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT",
+  "producer_authority": {
+    "repository": "tesseract-trading/crucible-rust",
+    "producer_commit": "9ba70ce60648a3b3df6a669a112143b601c13b62",
+    "contract": "RunnerAggregateCapPolicyV1",
+    "authority_coordinate": "crucible.runner-aggregate-cap-policy.v1",
+    "subject_template": "crucible.runner.policy.v1.<tenant>.<runner>.<mode>",
+    "signature_profile": "crucible-domain-event-v1-exact-bytes",
+    "runtime_receipt": null
+  },
+  "producer_assets": [
+    {
+      "role": "schema",
+      "path": "docs/authority/vendor/crucible-runner-safety-policy-v1.schema.json",
+      "source_path": "docs/authority/runner-safety-policy-v1.schema.json",
+      "sha256": "460b2a820a2dee3df057f8f69db6d8e42e423b0ec843d736f1736dbd47b0926d",
+      "size_bytes": 2529
+    },
+    {
+      "role": "golden",
+      "path": "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json",
+      "source_path": "docs/authority/runner-safety-policy-golden-v1.json",
+      "sha256": "ebd5c7679ff1182ea991fb72417ffa379180a4b8a50103552d06500842c7054a",
+      "size_bytes": 1276
+    },
+    {
+      "role": "golden_sha256",
+      "path": "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json.sha256",
+      "source_path": "docs/authority/runner-safety-policy-golden-v1.json.sha256",
+      "sha256": "16cb4ecce1744d7c2fe82fb80a34b9fdf49769512793615b62314804d286e2bf",
+      "size_bytes": 102
+    }
+  ],
+  "consumer_model": {
+    "path": "src/custos/contracts/crucible_runner_safety_policy.py",
+    "sha256": "0c86e8a4edc9e38568dff84424ced5f18c5fc5af69cb40a7e80c672cb6d3f308",
+    "size_bytes": 18806
+  },
+  "policy_identity": "immutable policy_id per revision with exact previous reference",
+  "policy_revision_axis": "revision",
+  "legacy_policy_version_or_generation_allowed": false,
+  "runtime_ready": false,
+  "live_ready": false,
+  "production_ready": false
+}

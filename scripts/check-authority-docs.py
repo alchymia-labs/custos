@@ -42,9 +42,6 @@ PLAN_19_T6_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
 )
 PLAN_19_T7A_INDEX_PATH = "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
-PLAN_19_T7A_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-task-7a-runner-policy-consumer-receipt.json"
-)
 PLAN_19_T7A_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
 PLAN_19_T7B_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
 PLAN_19_T7C_RECEIPT_PATH = (
@@ -1111,17 +1108,81 @@ def verify_plan_19_task_6_portfolio_semantics(manifest: dict[str, Any], errors: 
 def verify_plan_19_task_7a_runner_policy_consumer(
     manifest: dict[str, Any], errors: list[str]
 ) -> None:
-    receipt_path = ROOT / "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
-    if not receipt_path.is_file():
-        errors.append(f"missing canonical runner policy V1 receipt: {receipt_path}")
+    index_path = resolve(PLAN_19_T7A_INDEX_PATH)
+    receipt_path = resolve(PLAN_19_T7B_RECEIPT_PATH)
+    consumer_path = resolve(PLAN_19_T7A_CONSUMER_SOURCE)
+    if not all(path.is_file() for path in (index_path, receipt_path, consumer_path)):
+        errors.append("Plan 19 T7A runner policy V1 consumer inventory is incomplete")
         return
+
+    index = load_json(index_path)
+    expected_status = "READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT"
+    if index.get("schema_version") != 1 or index.get("status") != expected_status:
+        errors.append("runner policy consumer asset index status differs")
+    expected_assets = {
+        "docs/authority/vendor/crucible-runner-safety-policy-v1.schema.json",
+        "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json",
+        "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json.sha256",
+    }
+    assets = _asset_table(
+        index.get("producer_assets"), label="runner policy producer assets", errors=errors
+    )
+    if assets is not None:
+        if set(assets) != expected_assets:
+            errors.append("runner policy producer asset paths differ")
+        for path, (digest, size) in assets.items():
+            local = resolve(path)
+            if not local.is_file():
+                errors.append(f"missing runner policy producer asset: {local}")
+            elif hashlib.sha256(local.read_bytes()).hexdigest() != digest:
+                errors.append(f"runner policy producer asset digest differs: {path}")
+            elif local.stat().st_size != size:
+                errors.append(f"runner policy producer asset size differs: {path}")
+    model = index.get("consumer_model")
+    if not isinstance(model, dict) or model.get("path") != PLAN_19_T7A_CONSUMER_SOURCE:
+        errors.append("runner policy consumer model differs")
+    else:
+        if model.get("sha256") != hashlib.sha256(consumer_path.read_bytes()).hexdigest():
+            errors.append("runner policy consumer model digest differs")
+        if model.get("size_bytes") != consumer_path.stat().st_size:
+            errors.append("runner policy consumer model size differs")
+    producer = index.get("producer_authority")
+    if not isinstance(producer, dict):
+        errors.append("runner policy producer authority is missing")
+    elif (
+        producer.get("contract") != "RunnerAggregateCapPolicyV1"
+        or producer.get("authority_coordinate")
+        != "crucible.runner-aggregate-cap-policy.v1"
+        or producer.get("subject_template")
+        != "crucible.runner.policy.v1.<tenant>.<runner>.<mode>"
+        or not re.fullmatch(r"[0-9a-f]{40}", str(producer.get("producer_commit") or ""))
+        or producer.get("runtime_receipt") is not None
+    ):
+        errors.append("runner policy producer authority binding differs")
+    if index.get("policy_revision_axis") != "revision":
+        errors.append("runner policy must have one revision axis")
+    if index.get("legacy_policy_version_or_generation_allowed") is not False:
+        errors.append("runner policy cannot retain version or generation aliases")
+
     receipt = load_json(receipt_path)
     if receipt.get("receipt_version") != 1:
         errors.append("runner policy receipt_version must be 1")
     if receipt.get("runner_state_schema_version") != 1:
         errors.append("runner policy must use canonical runner state schema V1")
-    if receipt.get("receipt_status") != "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT":
-        errors.append("runner policy code status differs from the canonical V1 evidence")
+    if receipt.get("receipt_status") != expected_status:
+        errors.append("runner policy contract status differs from the canonical V1 evidence")
+    bound_index = receipt.get("contract_asset_index")
+    if (
+        not isinstance(bound_index, dict)
+        or bound_index.get("path") != PLAN_19_T7A_INDEX_PATH
+        or bound_index.get("sha256") != hashlib.sha256(index_path.read_bytes()).hexdigest()
+        or bound_index.get("size_bytes") != index_path.stat().st_size
+    ):
+        errors.append("runner policy receipt does not bind the current asset index")
+    if receipt.get("producer_authority", {}).get("producer_commit") != producer.get(
+        "producer_commit"
+    ):
+        errors.append("runner policy receipt producer commit differs from asset index")
     if (ROOT / "docs/authority/vendor/crucible-plan-99").exists():
         errors.append("superseded Crucible runner policy vendor pins must be deleted")
 
@@ -1133,13 +1194,12 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         return
     receipt = load_json(receipt_path)
     if receipt.get("validation") != {
-        "command": (
-            "uv run pytest tests/test_plan19_*.py "
-            "tests/cli/test_runner_safety_daemon_composition.py -q"
-        ),
-        "passed": 90,
+        "command": "uv run pytest -q tests/test_plan19_t7b_runner_policy_runtime_code.py "
+        "tests/test_plan19_t4_runner_state_store.py "
+        "tests/test_plan19_t7b_order_reservation.py",
+        "passed": 18,
         "required_before_runtime_ready": True,
-        "status": "FOCUSED_CANONICAL_V1_PASS",
+        "status": "FOCUSED_CR99_EXACT_CONTRACT_PASS",
     }:
         errors.append("runner policy V1 focused validation evidence differs")
     if receipt.get("runtime_policy_consumed") is not False:

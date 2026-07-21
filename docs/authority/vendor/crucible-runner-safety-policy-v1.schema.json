@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.alephain.com/crucible/runner-safety-policy-v1.schema.json",
+  "title": "Runner Aggregate Cap Policy V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authority_coordinate",
+    "policy_id",
+    "tenant_id",
+    "runner_id",
+    "trading_mode",
+    "revision",
+    "settlement_currency",
+    "max_order_notional",
+    "max_total_notional",
+    "exposure_model",
+    "breach_action",
+    "risk_reducing_orders",
+    "effective_at",
+    "expires_at",
+    "status",
+    "previous",
+    "policy_digest"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "authority_coordinate": { "const": "crucible.runner-aggregate-cap-policy.v1" },
+    "policy_id": { "type": "string", "format": "uuid" },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "runner_id": { "type": "string", "format": "uuid" },
+    "trading_mode": { "enum": ["sandbox", "testnet", "live"] },
+    "revision": { "type": "integer", "minimum": 1 },
+    "settlement_currency": { "enum": ["USD", "USDT", "USDC", "BTC", "ETH"] },
+    "max_order_notional": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+      "not": { "const": "0" }
+    },
+    "max_total_notional": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+      "not": { "const": "0" }
+    },
+    "exposure_model": { "const": "filled_plus_active_reservations" },
+    "breach_action": { "const": "freeze_risk_increasing" },
+    "risk_reducing_orders": { "const": "always_permitted" },
+    "effective_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["active", "superseded", "revoked", "expired"] },
+    "previous": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/policy_ref" }
+      ]
+    },
+    "policy_digest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "revision", "policy_digest"],
+      "properties": {
+        "policy_id": { "type": "string", "format": "uuid" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "policy_digest": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

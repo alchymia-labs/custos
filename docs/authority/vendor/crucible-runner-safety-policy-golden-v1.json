@@ -1,0 +1,16 @@
+{
+  "authority_coordinate": "crucible.runner-aggregate-cap-policy.v1",
+  "canonical_json": "{\"schema_version\":1,\"authority_coordinate\":\"crucible.runner-aggregate-cap-policy.v1\",\"policy_id\":\"99999999-9999-4999-8999-999999999999\",\"tenant_id\":\"acme\",\"runner_id\":\"11111111-1111-4111-8111-111111111111\",\"trading_mode\":\"live\",\"revision\":1,\"settlement_currency\":\"USDT\",\"max_order_notional\":\"25000\",\"max_total_notional\":\"1000000\",\"exposure_model\":\"filled_plus_active_reservations\",\"breach_action\":\"freeze_risk_increasing\",\"risk_reducing_orders\":\"always_permitted\",\"effective_at\":\"2026-07-21T00:00:00Z\",\"expires_at\":\"2026-08-20T00:00:00Z\",\"status\":\"active\",\"previous\":null,\"policy_digest\":\"cee3beeeebcbf30c3629813c2dce8d1af0e1994b5e6bb44a794c31f31b1484df\"}",
+  "consumer": "custos",
+  "fixture_schema_version": 1,
+  "forbidden_shapes": [
+    "floating-point max_total_notional",
+    "deployment_instance_id-scoped cap",
+    "DeploymentSpec embedded cap",
+    "unsigned policy",
+    "wildcard mode subject"
+  ],
+  "policy_digest": "cee3beeeebcbf30c3629813c2dce8d1af0e1994b5e6bb44a794c31f31b1484df",
+  "producer": "crucible-rust",
+  "subject": "crucible.runner.policy.v1.acme.11111111-1111-4111-8111-111111111111.live"
+}

@@ -179,6 +179,22 @@
       "role": "strategy_contract_receipt_v1"
     },
     {
+      "role": "runner_policy_consumer_asset_index_v1",
+      "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
+    },
+    {
+      "role": "crucible_runner_policy_schema_v1",
+      "path": "docs/authority/vendor/crucible-runner-safety-policy-v1.schema.json"
+    },
+    {
+      "role": "crucible_runner_policy_golden_v1",
+      "path": "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json"
+    },
+    {
+      "role": "crucible_runner_policy_golden_sha256_v1",
+      "path": "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json.sha256"
+    },
+    {
       "role": "runner_policy_receipt_v1",
       "path": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
     },
@@ -294,7 +310,11 @@
       "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json",
       "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
       "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json",
+      "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
       "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
+      "docs/authority/vendor/crucible-runner-safety-policy-v1.schema.json",
+      "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json",
+      "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json.sha256",
       "docs/authority/vendor/crucible-runner-nats-transport-authority-v1.schema.json",
       "docs/authority/vendor/crucible-runner-nats-transport-authority-golden-v1.json",
       "docs/authority/vendor/crucible-runner-nats-transport-authority-golden-v1.json.sha256",
