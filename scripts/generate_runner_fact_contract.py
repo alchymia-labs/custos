@@ -42,6 +42,7 @@ from custos.core.runner_fact import (
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTHORITY_COORDINATE = "custos.runner-fact.v1"
+PRODUCER_ASSET_COMMIT = "8c4454f35c5189063bad1516d77e260f034d3da7"
 TENANT_ID = "acme"
 MODE = "sandbox"
 RUNNER_ID = UUID("10000000-0000-4000-8000-000000000001")
@@ -952,9 +953,9 @@ def build_assets() -> dict[Path, bytes]:
         {
             "receipt_schema_version": 1,
             "canonical_name": "Custos RunnerFact V1 producer receipt",
-            "status": "CANONICAL_V1_PENDING_RUNTIME_RECEIPTS",
+            "status": "READY_FOR_CRUCIBLE_PHASE_A",
             "authority_coordinate": AUTHORITY_COORDINATE,
-            "producer_commit": None,
+            "producer_commit": PRODUCER_ASSET_COMMIT,
             "asset_index": {
                 "path": str(INDEX_PATH),
                 "sha256": _sha256(index_payload),

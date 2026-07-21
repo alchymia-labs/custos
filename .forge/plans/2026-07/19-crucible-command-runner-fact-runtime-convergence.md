@@ -957,6 +957,12 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
    these same V1 bytes; no predecessor stream or parser remains.
 4. Preserve idempotent event IDs and projector semantics across retry/restart.
 
+> **Execution status (2026-07-21)**: `READY_FOR_CRUCIBLE_PHASE_A`. The sole V1
+> asset index, schema, golden, signing preimage and projector matrix are pinned
+> to producer asset commit `8c4454f35c5189063bad1516d77e260f034d3da7`.
+> This opens the producer side of Phase A only; Crucible compatibility, runtime
+> RC, real round trip and all live/runtime/production flags remain false.
+
 ### Task 9: Publish the immutable runtime RC / final-candidate
 
 前置：
@@ -1037,7 +1043,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 - [ ] `telemetry_actor.md` 原子 rename 为 `runner_fact.md`，不删除 typed RunnerFact authority
 - [ ] sandbox/testnet/live negative matrix
 - [ ] journal/facts/logs 无 credential 或 secret
-- [ ] `19d-T8a` candidate 在 Plan 90 Phase A 前独立生成并可消费
+- [x] `19d-T8a` candidate 在 Plan 90 Phase A 前独立生成并可消费
 - [ ] Plan 90 Phase A receipt 只 gate runtime RC，不 gate 19d/T8a START
 - [ ] runtime RC/exact final-candidate 后已有 Plan 90 Phase-B real round-trip receipt
 - [ ] PS Plan 56 消费 exact final-candidate，不依赖 Plan 19 Completed
@@ -1052,7 +1058,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 | Engine lifecycle | code-ready, blocked | artifact authority and live gates not composed |
 | Runner policy V1 | focused code gate pass, blocked | exact CR99 producer receipt and real daemon consumption pending |
 | Machine credential and NATS vault V1 | source reset | real Crucible credential authority and broker evidence pending |
-| RunnerFact V1 cross-repo acceptance | pending | Crucible consumer receipt required |
+| RunnerFact V1 producer candidate | ready for Phase A | immutable `8c4454f` assets pinned; Crucible consumer receipt required |
 | Production/live | STOP | full command-to-fact runtime round trip not yet evidenced |
 
 ## Deviations and Improvements

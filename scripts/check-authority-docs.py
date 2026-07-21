@@ -1275,10 +1275,10 @@ def verify_plan_19_task_8a_runner_fact_v1(manifest: dict[str, Any], errors: list
     index_payload = index_path.read_bytes()
     if receipt.get("receipt_schema_version") != 1:
         errors.append("RunnerFact V1 producer receipt schema differs")
-    if receipt.get("status") != "CANONICAL_V1_PENDING_RUNTIME_RECEIPTS":
+    if receipt.get("status") != "READY_FOR_CRUCIBLE_PHASE_A":
         errors.append("RunnerFact V1 producer receipt status differs")
-    if receipt.get("producer_commit") is not None:
-        errors.append("RunnerFact V1 producer commit must remain null before close-out")
+    if receipt.get("producer_commit") != "8c4454f35c5189063bad1516d77e260f034d3da7":
+        errors.append("RunnerFact V1 producer receipt does not pin the immutable asset commit")
     expected_index_binding = {
         "path": PLAN_19_T8A_INDEX_PATH,
         "sha256": hashlib.sha256(index_payload).hexdigest(),

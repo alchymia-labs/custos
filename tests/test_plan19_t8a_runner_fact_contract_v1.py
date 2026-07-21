@@ -155,8 +155,8 @@ def test_v1_inventory_is_complete_and_byte_pinned() -> None:
         sidecar = path.with_name(path.name + ".sha256")
         assert sidecar.read_text(encoding="ascii") == (f"{asset['sha256']}  {path.name}\n")
     index_payload = INDEX_PATH.read_bytes()
-    assert receipt["status"] == "CANONICAL_V1_PENDING_RUNTIME_RECEIPTS"
-    assert receipt["producer_commit"] is None
+    assert receipt["status"] == "READY_FOR_CRUCIBLE_PHASE_A"
+    assert receipt["producer_commit"] == "8c4454f35c5189063bad1516d77e260f034d3da7"
     assert receipt["consumer_receipts"] == {"crucible_rust": None}
     assert receipt["asset_index"] == {
         "path": "docs/authority/runner-fact-contract-assets-v1.json",
