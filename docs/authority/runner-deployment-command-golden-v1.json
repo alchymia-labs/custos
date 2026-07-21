@@ -5,7 +5,7 @@
   "cases": [
     {
       "name": "deployment_spec_ready_for_runner",
-      "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentSpecReadyForRunner.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+      "subject": "crucible.runner.command.v1.acme.10000000-0000-4000-8000-000000000001.sandbox",
       "event_document": {
         "schema_version": 1,
         "event_id": "90000000-0000-4000-8000-000000000009",
@@ -90,7 +90,7 @@
     },
     {
       "name": "deployment_instance_desired_state_changed",
-      "subject": "crucible_rust.domain.acme.sandbox.deployment.DeploymentInstanceDesiredStateChanged.10000000-0000-4000-8000-000000000001.20000000-0000-4000-8000-000000000002",
+      "subject": "crucible.runner.command.v1.acme.10000000-0000-4000-8000-000000000001.sandbox",
       "event_document": {
         "schema_version": 1,
         "event_id": "90000000-0000-4000-8000-000000000010",

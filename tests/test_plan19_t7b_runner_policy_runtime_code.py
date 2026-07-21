@@ -112,19 +112,13 @@ def _verified_policy(
     event_bytes = json.dumps(event, separators=(",", ":")).encode()
     subject = f"crucible.runner.policy.v1.{tenant_id}.{runner_id}.{trading_mode}"
     signature_input = _frame(b"CRUCIBLE-DOMAIN-EVENT-V1\0", subject, event_bytes)
-    fingerprint = hashlib.sha256(
-        _frame(b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0", subject, event_bytes)
-    ).hexdigest()
     envelope = {
-        "envelope_schema_version": 1,
-        "subject": subject,
-        "event_bytes_base64url": _b64url(event_bytes),
+        "schema_version": 1,
         "signature_profile": "crucible-domain-event-v1-exact-bytes",
-        "signature_encoding": "application/json;base64url",
-        "signature_input_base64url": _b64url(signature_input),
+        "event_encoding": "application/json;base64url",
         "signature_key_id": "cr99-runtime-test",
-        "signature_base64url": _b64url(private_key.sign(signature_input)),
-        "fingerprint": fingerprint,
+        "event_bytes": _b64url(event_bytes),
+        "signature": _b64url(private_key.sign(signature_input)),
     }
     envelope_bytes = json.dumps(envelope, separators=(",", ":")).encode()
     return CrucibleRunnerSafetyPolicyAuthenticator(
@@ -132,7 +126,7 @@ def _verified_policy(
         expected_runner_id=runner_id,
         allowed_trading_modes=frozenset({"live", "sandbox", "testnet"}),
         signature_keys={"cr99-runtime-test": private_key.public_key()},
-    ).verify(signed_envelope_bytes=envelope_bytes)
+    ).verify(subject=subject, signed_envelope_bytes=envelope_bytes)
 
 
 def _store(path: Path, *, tenant_id: str = TENANT_ID) -> RunnerStateStore:

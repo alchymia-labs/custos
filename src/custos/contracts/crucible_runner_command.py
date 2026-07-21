@@ -23,7 +23,7 @@ __all__ = ["CrucibleRunnerDeploymentCommandV1"]
 
 _SIGNATURE_PROFILE = "crucible-domain-event-v1-exact-bytes"
 _EVENT_ENCODING = "application/json;base64url"
-_SUBJECT_PREFIX = "crucible_rust.domain"
+_SUBJECT_PREFIX = "crucible.runner.command.v1"
 _EVENT_TYPE_PREFIXES = frozenset(
     {
         "DeploymentSpecReadyForRunner",
@@ -242,7 +242,7 @@ class CrucibleRunnerDeploymentCommandV1(BaseModel):
         ):
             raise ValueError("event_type differs from command runner and deployment instance")
         expected_subject = (
-            f"{_SUBJECT_PREFIX}.{command.tenant_id}.{command.mode}.deployment.{event_type}"
+            f"{_SUBJECT_PREFIX}.{command.tenant_id}.{command.runner_id}.{command.mode}"
         )
         if subject != expected_subject:
             raise ValueError("NATS subject differs from the signed V1 command")

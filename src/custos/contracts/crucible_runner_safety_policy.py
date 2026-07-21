@@ -30,21 +30,16 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 SIGNATURE_CONTEXT = b"CRUCIBLE-DOMAIN-EVENT-V1\0"
 FINGERPRINT_CONTEXT = b"CRUCIBLE-RUNNER-SAFETY-POLICY-V1\0"
 SIGNATURE_PROFILE = "crucible-domain-event-v1-exact-bytes"
-SIGNATURE_ENCODING = "application/json;base64url"
+EVENT_ENCODING = "application/json;base64url"
 SUBJECT_PREFIX = "crucible.runner.policy.v1"
 
-_ENVELOPE_FIELDS = frozenset(
-    {
-        "envelope_schema_version",
-        "subject",
-        "event_bytes_base64url",
-        "signature_profile",
-        "signature_encoding",
-        "signature_input_base64url",
-        "signature_key_id",
-        "signature_base64url",
-        "fingerprint",
-    }
+_ENVELOPE_FIELDS = (
+    "schema_version",
+    "signature_profile",
+    "event_encoding",
+    "event_bytes",
+    "signature_key_id",
+    "signature",
 )
 _EVENT_FIELDS = (
     "schema_version",
@@ -212,11 +207,11 @@ class CrucibleRunnerSafetyPolicyAuthenticator:
         object.__setattr__(self, "allowed_trading_modes", modes)
         object.__setattr__(self, "signature_keys", MappingProxyType(keys))
 
-    def verify(self, *, signed_envelope_bytes: bytes) -> VerifiedRunnerSafetyPolicy:
+    def verify(self, *, subject: str, signed_envelope_bytes: bytes) -> VerifiedRunnerSafetyPolicy:
         try:
             envelope = _strict_json_object(signed_envelope_bytes, "signed envelope")
             _require_exact_keys(envelope, _ENVELOPE_FIELDS, "signed envelope")
-            material = _parse_envelope(envelope)
+            material = _parse_envelope(envelope, subject)
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise RunnerSafetyPolicyVerificationError(
                 RunnerSafetyPolicyVerificationReason.INVALID_SCHEMA,
@@ -241,7 +236,6 @@ class CrucibleRunnerSafetyPolicyAuthenticator:
             policy = _parse_exact_event(
                 subject=material.subject,
                 event_bytes=material.event_bytes,
-                expected_fingerprint=material.fingerprint,
             )
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise RunnerSafetyPolicyVerificationError(
@@ -270,7 +264,9 @@ class CrucibleRunnerSafetyPolicyAuthenticator:
             exact_event_bytes=material.event_bytes,
             exact_signed_envelope_bytes=signed_envelope_bytes,
             signature_key_id=material.signature_key_id,
-            fingerprint=material.fingerprint,
+            fingerprint=hashlib.sha256(
+                _frame(FINGERPRINT_CONTEXT, material.subject, material.event_bytes)
+            ).hexdigest(),
             verified_event_bytes_sha256=hashlib.sha256(material.event_bytes).hexdigest(),
         )
 
@@ -282,46 +278,35 @@ class _EnvelopeMaterial:
     signature_input: bytes
     signature_key_id: str
     signature: bytes
-    fingerprint: str
 
 
-def _parse_envelope(envelope: dict[str, Any]) -> _EnvelopeMaterial:
-    if envelope["envelope_schema_version"] != 1:
-        raise ValueError("envelope_schema_version must be exactly 1")
+def _parse_envelope(envelope: dict[str, Any], subject: str) -> _EnvelopeMaterial:
+    if envelope["schema_version"] != 1:
+        raise ValueError("envelope schema_version must be exactly 1")
     if envelope["signature_profile"] != SIGNATURE_PROFILE:
         raise ValueError("signature_profile differs from CR99")
-    if envelope["signature_encoding"] != SIGNATURE_ENCODING:
-        raise ValueError("signature_encoding differs from CR99")
-    subject = envelope["subject"]
+    if envelope["event_encoding"] != EVENT_ENCODING:
+        raise ValueError("event_encoding differs from CR99")
     key_id = envelope["signature_key_id"]
-    fingerprint = envelope["fingerprint"]
     if not isinstance(subject, str) or not subject:
         raise ValueError("subject must be non-empty")
     if not isinstance(key_id, str) or not key_id.strip():
         raise ValueError("signature_key_id must be non-empty")
-    if not isinstance(fingerprint, str) or not _DIGEST_PATTERN.fullmatch(fingerprint):
-        raise ValueError("fingerprint must be lowercase SHA-256")
-    event_bytes = _decode_base64url(envelope["event_bytes_base64url"], "event bytes")
-    signature_input = _decode_base64url(envelope["signature_input_base64url"], "signature input")
-    signature = _decode_base64url(envelope["signature_base64url"], "signature")
+    event_bytes = _decode_base64url(envelope["event_bytes"], "event bytes")
+    signature_input = _frame(SIGNATURE_CONTEXT, subject, event_bytes)
+    signature = _decode_base64url(envelope["signature"], "signature")
     if len(signature) != 64:
         raise ValueError("signature must contain exactly 64 Ed25519 bytes")
-    expected_input = _frame(SIGNATURE_CONTEXT, subject, event_bytes)
-    if signature_input != expected_input:
-        raise ValueError("signature input differs from exact subject/event framing")
     return _EnvelopeMaterial(
         subject=subject,
         event_bytes=event_bytes,
         signature_input=signature_input,
         signature_key_id=key_id,
         signature=signature,
-        fingerprint=fingerprint,
     )
 
 
-def _parse_exact_event(
-    *, subject: str, event_bytes: bytes, expected_fingerprint: str
-) -> RunnerAggregateCapPolicyV1:
+def _parse_exact_event(*, subject: str, event_bytes: bytes) -> RunnerAggregateCapPolicyV1:
     event = _strict_json_object(event_bytes, "event document")
     _require_exact_keys(event, _EVENT_FIELDS, "event document", ordered=True)
     if _compact_json_bytes(event) != event_bytes:
@@ -373,9 +358,6 @@ def _parse_exact_event(
         or event["event_type"] != "RunnerAggregateCapPolicyV1"
     ):
         raise ValueError("event target differs from policy scope or revision")
-    fingerprint = hashlib.sha256(_frame(FINGERPRINT_CONTEXT, subject, event_bytes)).hexdigest()
-    if fingerprint != expected_fingerprint:
-        raise ValueError("policy event fingerprint differs")
     return policy
 
 

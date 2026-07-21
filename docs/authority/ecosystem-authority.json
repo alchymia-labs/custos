@@ -53,7 +53,7 @@
   },
   "runner_command_golden_fixture": {
     "path": "docs/authority/runner-deployment-command-golden-v1.json",
-    "sha256": "0c891a6b059731b58f12d4f541c3767be8d95710f0f2a5e1a3b3f5f7841dd87e",
+    "sha256": "b7cfe71fb5d15079c248f57017fe3d9c7025bd28c8756aeb27d6ac0968a1f5ea",
     "sha256_sidecar": "docs/authority/runner-deployment-command-golden-v1.json.sha256",
     "optional_sibling_path": "../crucible-rust/docs/authority/runner-deployment-command-golden-v1.json",
     "cases": [
