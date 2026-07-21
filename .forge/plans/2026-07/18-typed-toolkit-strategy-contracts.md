@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — canonical first-production V1 reset is the current blocking slice; prior T5/T6 evidence is non-current until republished against the reset contract
+> **Status**: ⏳ In progress — canonical first-production V1 local artifact/toolkit gates pass; authenticated Crucible resolution, protected PS publication and final cross-repo acceptance remain open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-20 for the canonical first-production V1 reset
 > **Project**: Custos
@@ -517,7 +517,9 @@ Execution checkpoint (2026-07-21):
   activation rather than treating its directory as a conflict.
 - The old `DeploymentReconciler`, G6 module, strategy loader, local DeploymentSpec
   schema and their compatibility tests/fixtures are removed.
-- Focused verification has not been rerun after this canonical V1 reset.
+- Focused canonical V1 artifact/toolkit verification is `138 passed`; the
+  repository authority gate also passes after repairing its canonical consumer
+  receipt digest check.
 - Status remains `READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER`: daemon,
   runtime, live and production readiness remain false until the real resolver,
   protected PS publication and Crucible acceptance are composed.
@@ -586,13 +588,13 @@ git commit -m "docs(custos): mark plan 18 as completed"
 - [x] 独立 Nautilus distribution 使用 Python >=3.12,<3.13 和 exact NT 1.230.0
 - [x] Python 3.11 安装 Nautilus distribution fail closed，不静默跳过 NT
 - [x] effective config 是 recursive typed/deep-frozen JSON 并匹配 signed digest
-- [ ] production 只接受 signed wheel
+- [x] production 只接受 signed wheel
 - [x] source-path contract 仅允许 sandbox、non-promotable、non-live
 - [x] attestation schema 绑定 issuer/workflow/bundle/trust policy
 - [x] canonical `StrategyArtifactRefV1` is pre-sign only and contains no bundle/policy field
-- [ ] full PS `StrategyReleaseBomV1` object replaces any member-array wire authority
-- [ ] detached statement/attestation/evidence chain has no self-signed composite digest
-- [ ] trust roots/policy 只来自 runner-local signed release configuration
+- [x] full PS `StrategyReleaseBomV1` object replaces any member-array wire authority
+- [x] detached statement/attestation/evidence chain has no self-signed composite digest
+- [x] trust roots/policy 只来自 runner-local signed release configuration
 - [ ] candidate/final receipts 绑定 release BOM 和全部 member digests
 - [x] schema 由 source model 生成并经 Crucible/PS requirements review
 - [x] wheel 不提供顶层 `shared` 或 `pandas_ta`
@@ -610,8 +612,8 @@ git commit -m "docs(custos): mark plan 18 as completed"
 
 | Work | State | Current boundary |
 |---|---|---|
-| Canonical V1 models and source | in progress | sole V1 names landed; generated assets are being refreshed |
-| Old contract/runtime generations | in progress | old runtime module and command-owned evidence path removed |
+| Canonical V1 models and source | local gates pass | sole V1 source, generated assets and focused verification are current |
+| Old contract/runtime generations | removed | old runtime module and command-owned evidence path are absent |
 | PS V1 handoff | pending final pins | PS source uses the sole V1 OCI topology |
 | Crucible V1 handoff | blocked by active Plan 88 work | must consume final Custos/PS V1 bytes |
 | Runtime activation | code-ready boundary only | authenticated StrategyRelease resolver and real publication remain absent |

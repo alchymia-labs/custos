@@ -445,7 +445,9 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
             "docs/authority/receipts/vendor/"
             "crucible-plan-88-v1-contract-consumer-receipt.json"
         ),
-        "sha256": sha256_file(required_paths["crucible_consumer_receipt"]),
+        "sha256": hashlib.sha256(
+            required_paths["crucible_consumer_receipt"].read_bytes()
+        ).hexdigest(),
     }
     receipt_consumers = receipt.get("consumers", {})
     if receipt_consumers.get("philosophers_stone", {}).get("receipt") is not None:
