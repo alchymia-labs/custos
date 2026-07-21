@@ -675,6 +675,9 @@ git commit -m "docs(custos): mark plan 18 as completed"
   deployment binding.
 - Planning and cross-repository receipt digests are no longer runtime feature
   flags. Runtime readiness is derived from composed production capabilities.
+- Producer handoff receipts are producer-scoped. Custos pins the business-named
+  Crucible Custos-contract consumer receipt only; PS schema/BOM/attestation pins
+  remain between PS and Crucible and cannot invalidate the Custos contract handoff.
 - No compatibility parser or predecessor asset remains an accepted input.
 
 ## Quantitative Summary

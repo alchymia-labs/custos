@@ -12,7 +12,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "authority-manifest.json"
-TASK_2_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+STRATEGY_CONTRACT_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+)
 CANONICAL_INDEX_PATH = "docs/authority/strategy-contract-assets-v1.json"
 CANONICAL_ARTIFACT_REF_SCHEMA_PATH = "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"
 CANONICAL_ARTIFACT_REF_GOLDEN_PATH = "docs/authority/strategy-artifact-ref-v1.golden.json"
@@ -55,7 +57,6 @@ REVIEW_VENDOR_ROOT = "docs/authority/receipts/vendor"
 CURRENT_STRATEGY_CONTRACT_SOURCE = (
     "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py"
 )
-EXPECTED_TASK_2_RECEIPT_SHA256 = "f3c3d11b3609e644c982c82d1f3796a106a976e47e909cd94cf638b770b70e88"
 EXPECTED_CONTRACT_SUMMARY = {
     "canonicalization": "sha256-canonical-json-v1",
     "execution_abi": "alephain.strategy_runtime.v1",
@@ -275,7 +276,7 @@ def verify_strategy_contract_assets(errors: list[str]) -> None:
             errors.append(f"strategy contract asset size differs: {path}")
 
 
-def verify_plan_18_canonical_contract(errors: list[str]) -> None:
+def verify_strategy_contract_authority(errors: list[str]) -> None:
     """Verify the sole first-production strategy contract asset set."""
     import hashlib
 
@@ -286,15 +287,15 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
         "pre_import_schema": resolve(CANONICAL_PRE_IMPORT_SCHEMA_PATH),
         "pre_import_golden": resolve(CANONICAL_PRE_IMPORT_GOLDEN_PATH),
         "pre_import_negative": resolve(CANONICAL_PRE_IMPORT_NEGATIVE_PATH),
-        "receipt": resolve(TASK_2_RECEIPT_PATH),
+        "receipt": resolve(STRATEGY_CONTRACT_RECEIPT_PATH),
         "crucible_consumer_receipt": resolve(
             "docs/authority/receipts/vendor/"
-            "crucible-plan-88-v1-contract-consumer-receipt.json"
+            "crucible-custos-strategy-contract-v1-consumer-receipt.json"
         ),
     }
     missing = [str(path) for path in required_paths.values() if not path.is_file()]
     if missing:
-        errors.append("Plan 18 canonical V1 contract assets are missing: " + ", ".join(missing))
+        errors.append("canonical V1 strategy contract assets are missing: " + ", ".join(missing))
         return
 
     try:
@@ -308,7 +309,7 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
             required_paths["crucible_consumer_receipt"].read_text(encoding="utf-8")
         )
     except (OSError, json.JSONDecodeError) as exc:
-        errors.append(f"Plan 18 canonical V1 contract assets are unreadable: {exc}")
+        errors.append(f"canonical V1 strategy contract assets are unreadable: {exc}")
         return
 
     if index.get("asset_index_schema_version") != 1:
@@ -433,14 +434,13 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
 
     crucible_receipt_pin = {
         "repository": "tesseract-trading/crucible-rust",
-        "commit": "80e62ff379811bff32eb287eeed6149925a7f606",
+        "commit": "1ff349b9c2b6faf89fea822470cea8e5e554cec5",
         "path": (
-            "docs/authority/receipts/"
-            "crucible-plan-88-v1-contract-consumer-receipt.json"
+            "docs/authority/receipts/crucible-custos-strategy-contract-v1-consumer-receipt.json"
         ),
         "vendored_path": (
             "docs/authority/receipts/vendor/"
-            "crucible-plan-88-v1-contract-consumer-receipt.json"
+            "crucible-custos-strategy-contract-v1-consumer-receipt.json"
         ),
         "sha256": hashlib.sha256(
             required_paths["crucible_consumer_receipt"].read_bytes()
@@ -450,14 +450,30 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
     if receipt_consumers.get("philosophers_stone", {}).get("receipt") is not None:
         errors.append("Custos receipt must not fabricate the pending PS consumer receipt")
     if receipt_consumers.get("crucible_rust", {}).get("receipt") != crucible_receipt_pin:
-        errors.append("Custos producer receipt does not pin the exact Crucible Plan 88 receipt")
+        errors.append("Custos producer receipt does not pin the exact Crucible consumer receipt")
+    expected_consumer_keys = {
+        "canonical_name",
+        "consumer",
+        "producer",
+        "production_ready",
+        "receipt_schema_version",
+        "runtime_ready",
+        "status",
+    }
+    if set(crucible_consumer_receipt) != expected_consumer_keys:
+        errors.append("Crucible consumer receipt must contain one producer-scoped shape")
     if (
-        crucible_consumer_receipt.get("producers", {})
-        .get("custos", {})
-        .get("commit")
+        crucible_consumer_receipt.get("producer", {}).get("commit")
         != "41611ff574f90c04562a5e32e8eca04113e504e5"
     ):
         errors.append("vendored Crucible receipt does not consume the canonical Custos V1 commit")
+    if crucible_consumer_receipt.get("consumer") != "crucible-rust":
+        errors.append("vendored Crucible receipt consumer identity differs")
+    if (
+        crucible_consumer_receipt.get("status")
+        != "EXACT_CUSTOS_V1_CONTRACT_PINNED_PENDING_PRODUCER_HANDOFF"
+    ):
+        errors.append("vendored Crucible receipt status differs")
     if (
         crucible_consumer_receipt.get("runtime_ready") is not False
         or crucible_consumer_receipt.get("production_ready") is not False
@@ -512,10 +528,8 @@ def verify_plan_18_task_5d_b_command_consumer(errors: list[str]) -> None:
     elif (
         producer.get("contract") != "CrucibleRunnerDeploymentCommandV1"
         or producer.get("status") != "CONTRACT_V1_PINNED_RUNTIME_RECEIPT_PENDING"
-        or producer.get("producer_commit")
-        != "750dd10f204198c90e5a1a827a36f2f1907bae04"
-        or producer.get("subject_template")
-        != "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
+        or producer.get("producer_commit") != "750dd10f204198c90e5a1a827a36f2f1907bae04"
+        or producer.get("subject_template") != "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
     ):
         errors.append("Plan 18 T5d-B V1 producer contract differs")
     if index.get("command_contains_deployment_spec_only") is not True:
@@ -568,7 +582,7 @@ def verify_plan_18_canonical_source(
     if legacy_shim.exists():
         errors.append(f"legacy strategy contract shim must be deleted: {legacy_shim}")
 
-    receipt_path = resolve(TASK_2_RECEIPT_PATH, root=root)
+    receipt_path = resolve(STRATEGY_CONTRACT_RECEIPT_PATH, root=root)
     if not receipt_path.is_file():
         errors.append(f"missing canonical V1 contract receipt: {receipt_path}")
         return
@@ -1231,10 +1245,8 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         errors.append("runner policy producer authority is missing")
     elif (
         producer.get("contract") != "RunnerAggregateCapPolicyV1"
-        or producer.get("authority_coordinate")
-        != "crucible.runner-aggregate-cap-policy.v1"
-        or producer.get("subject_template")
-        != "crucible.runner.policy.v1.<tenant>.<runner>.<mode>"
+        or producer.get("authority_coordinate") != "crucible.runner-aggregate-cap-policy.v1"
+        or producer.get("subject_template") != "crucible.runner.policy.v1.<tenant>.<runner>.<mode>"
         or not re.fullmatch(r"[0-9a-f]{40}", str(producer.get("producer_commit") or ""))
         or producer.get("runtime_receipt") is not None
     ):
@@ -1329,7 +1341,10 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
                 errors.append(f"Plan 19 T7C {path_key} asset pin is invalid")
                 continue
             resolved = resolve(asset_path)
-            if not resolved.is_file() or hashlib.sha256(resolved.read_bytes()).hexdigest() != expected_digest:
+            if (
+                not resolved.is_file()
+                or hashlib.sha256(resolved.read_bytes()).hexdigest() != expected_digest
+            ):
                 errors.append(f"Plan 19 T7C {path_key} asset digest differs")
 
     contract = receipt.get("v1_contract")
@@ -1363,9 +1378,7 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
         if truth.get("local_real_nats_revocation_gate") != {
             "command": "make verify-nats-revocation",
             "image": "nats:2.10-alpine",
-            "image_id": (
-                "sha256:dcadf8f23b60edaaafbe901db7773e2c07947f269c475d8d33d3b46a18b0a7f9"
-            ),
+            "image_id": ("sha256:dcadf8f23b60edaaafbe901db7773e2c07947f269c475d8d33d3b46a18b0a7f9"),
             "status": "PASS",
             "tests_passed": 1,
         }:
@@ -1553,7 +1566,7 @@ def main() -> int:
                             f"runner command golden differs from optional sibling: {sibling_path}"
                         )
     verify_strategy_contract_assets(errors)
-    verify_plan_18_canonical_contract(errors)
+    verify_strategy_contract_authority(errors)
     verify_plan_18_task_5d_b_command_consumer(errors)
     verify_plan_18_task_5e_runtime(manifest, errors)
     verify_plan_19_task_4_durable_state(manifest, errors)

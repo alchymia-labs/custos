@@ -4,11 +4,11 @@
   "consumers": {
     "crucible_rust": {
       "receipt": {
-        "commit": "80e62ff379811bff32eb287eeed6149925a7f606",
-        "path": "docs/authority/receipts/crucible-plan-88-v1-contract-consumer-receipt.json",
+        "commit": "1ff349b9c2b6faf89fea822470cea8e5e554cec5",
+        "path": "docs/authority/receipts/crucible-custos-strategy-contract-v1-consumer-receipt.json",
         "repository": "tesseract-trading/crucible-rust",
-        "sha256": "3508f9c064f688741a08e29b75bf25f9cb63fb2820dfdaecfde17c70fb622bfa",
-        "vendored_path": "docs/authority/receipts/vendor/crucible-plan-88-v1-contract-consumer-receipt.json"
+        "sha256": "d58332183a8701a28cb3c420b327af0bef80cd9e5f99477d50b2d592572770ac",
+        "vendored_path": "docs/authority/receipts/vendor/crucible-custos-strategy-contract-v1-consumer-receipt.json"
       },
       "repository": "tesseract-trading/crucible-rust"
     },
@@ -24,8 +24,8 @@
   },
   "contract_consumer_ready": false,
   "open_blockers": [
-    "PS Plan 54 canonical V1 consumer receipt",
-    "final exact-byte relock after the remaining consumer receipt"
+    "Philosophers Stone canonical V1 consumer receipt",
+    "final exact-byte relock after the remaining producer consumer receipt"
   ],
   "policy_boundary": {
     "crucible_local_policy_decision_reused": false,

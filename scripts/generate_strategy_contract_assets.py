@@ -411,28 +411,25 @@ def build_v1_contract_assets() -> dict[str, bytes]:
         f"{PRE_IMPORT_NEGATIVE_PATH}.sha256": _sidecar(PRE_IMPORT_NEGATIVE_PATH, negative),
     }
     crucible_receipt_vendor_path = (
-        "docs/authority/receipts/vendor/"
-        "crucible-plan-88-v1-contract-consumer-receipt.json"
+        "docs/authority/receipts/vendor/crucible-custos-strategy-contract-v1-consumer-receipt.json"
     )
     crucible_receipt_bytes = (ROOT / crucible_receipt_vendor_path).read_bytes()
     crucible_receipt_document = json.loads(crucible_receipt_bytes)
     if (
         crucible_receipt_document.get("status")
-        != "EXACT_V1_CONTRACTS_PINNED_PENDING_RUNTIME_ACCEPTANCE"
+        != "EXACT_CUSTOS_V1_CONTRACT_PINNED_PENDING_PRODUCER_HANDOFF"
         or crucible_receipt_document.get("runtime_ready") is not False
         or crucible_receipt_document.get("production_ready") is not False
-        or crucible_receipt_document.get("producers", {})
-        .get("custos", {})
-        .get("commit")
+        or crucible_receipt_document.get("producer", {}).get("commit")
         != "41611ff574f90c04562a5e32e8eca04113e504e5"
+        or crucible_receipt_document.get("consumer") != "crucible-rust"
     ):
-        raise ValueError("Crucible Plan 88 consumer receipt does not pin canonical Custos V1")
+        raise ValueError("Crucible consumer receipt does not pin canonical Custos V1")
     crucible_receipt_pin = {
         "repository": "tesseract-trading/crucible-rust",
-        "commit": "80e62ff379811bff32eb287eeed6149925a7f606",
+        "commit": "1ff349b9c2b6faf89fea822470cea8e5e554cec5",
         "path": (
-            "docs/authority/receipts/"
-            "crucible-plan-88-v1-contract-consumer-receipt.json"
+            "docs/authority/receipts/crucible-custos-strategy-contract-v1-consumer-receipt.json"
         ),
         "vendored_path": crucible_receipt_vendor_path,
         "sha256": sha256(crucible_receipt_bytes),
@@ -503,8 +500,8 @@ def build_v1_contract_assets() -> dict[str, bytes]:
             "runtime_ready": False,
             "production_ready": False,
             "open_blockers": [
-                "PS Plan 54 canonical V1 consumer receipt",
-                "final exact-byte relock after the remaining consumer receipt",
+                "Philosophers Stone canonical V1 consumer receipt",
+                "final exact-byte relock after the remaining producer consumer receipt",
             ],
         }
     )

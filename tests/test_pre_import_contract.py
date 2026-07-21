@@ -21,9 +21,8 @@ NEGATIVE = ROOT / "docs/authority/strategy-artifact-pre-import-verification-v1.n
 INDEX = ROOT / "docs/authority/strategy-contract-assets-v1.json"
 RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
 CRUCIBLE_RECEIPT = (
-    ROOT
-    / "docs/authority/receipts/vendor/"
-    "crucible-plan-88-v1-contract-consumer-receipt.json"
+    ROOT / "docs/authority/receipts/vendor/"
+    "crucible-custos-strategy-contract-v1-consumer-receipt.json"
 )
 
 
@@ -64,9 +63,8 @@ def test_schema_golden_and_index_are_the_same_v1_contract() -> None:
     assert "consumer_receipts" not in index
     assert "runtime_ready" not in index
     crucible_receipt = json.loads(CRUCIBLE_RECEIPT.read_text(encoding="utf-8"))
-    assert crucible_receipt["producers"]["custos"]["commit"] == (
-        "41611ff574f90c04562a5e32e8eca04113e504e5"
-    )
+    assert crucible_receipt["producer"]["commit"] == ("41611ff574f90c04562a5e32e8eca04113e504e5")
+    assert crucible_receipt["consumer"] == "crucible-rust"
     assert crucible_receipt["runtime_ready"] is False
     assert crucible_receipt["production_ready"] is False
 
@@ -93,7 +91,5 @@ def test_contract_receipt_stays_pending_until_both_consumers_pin_v1() -> None:
     assert receipt["production_ready"] is False
     assert receipt["consumers"]["philosophers_stone"]["receipt"] is None
     crucible_pin = receipt["consumers"]["crucible_rust"]["receipt"]
-    assert crucible_pin["commit"] == (
-        "80e62ff379811bff32eb287eeed6149925a7f606"
-    )
+    assert crucible_pin["commit"] == ("1ff349b9c2b6faf89fea822470cea8e5e554cec5")
     assert crucible_pin["sha256"] == hashlib.sha256(CRUCIBLE_RECEIPT.read_bytes()).hexdigest()
