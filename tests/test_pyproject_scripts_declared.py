@@ -61,7 +61,7 @@ def test_hatch_custom_build_hook_declared():
     assert "custom" in hooks, f"missing [tool.hatch.build.hooks.custom]; got {hooks}"
 
 
-def test_pytest_markers_cover_plan_12_test_gates():
+def test_pytest_markers_cover_release_test_gates():
     """Plan 12 introduces `docker` / `ci_only` / `slow` markers (T2/T3/T8).
 
     Without registration pytest emits ``PytestUnknownMarkWarning`` (which the

@@ -4,7 +4,7 @@ The lifecycle supervisor binds a single host from the clean-break ``--engine`` e
 ``nautilus`` selects the real ``NtTradingNodeHost`` and ``noop`` selects the
 explicit contract-test stub. Execution admission still guards every live deploy.
 
-Post-Plan-11: ``_build_host`` lives in ``custos.cli._daemon`` (the flat
+After the CLI package split: ``_build_host`` lives in ``custos.cli._daemon`` (the flat
 ``custos.cli.main`` module was retired). Tests build the ``Namespace``
 directly rather than routing through a legacy parser.
 """
