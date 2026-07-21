@@ -45,29 +45,38 @@ This plan defines one production contract generation only.
 5. All three repositories regenerate local authority manifests and truthful
    readiness receipts from the final bytes.
 
-### CR88 runner resolution producer contract
+### CR89 runner resolution producer contract
 
-Plan 18 T5e can close only after Crucible Plan 88 publishes one
-machine-authenticated runner resolution contract. It is a direct
-Custos-to-Crucible interface and MUST NOT reuse the ActorAssertion-protected ARX
-control-plane GET route.
+Plan 18 T5e can close only after Crucible Plan 89 publishes one
+instance-authorized runner resolution contract over the reusable Crucible Plan
+100 machine-request V1 authentication capability. Plan 88 owns the immutable
+StrategyRelease snapshot deep module, but it does not know about runners or
+deployment instances. The runtime endpoint is a direct Custos-to-Crucible
+interface and MUST NOT reuse the ActorAssertion-protected ARX control-plane GET
+route.
 
 - Input binds the authenticated runner, tenant, trading mode, exact
-  `deployment_instance_id`, signed command fingerprint and
-  `strategy_release_id`.
+  `deployment_instance_id`, `deployment_spec_id`, spec digest, generation,
+  signed command fingerprint and `strategy_release_id`.
 - The response returns strict V1 canonical StrategyRelease snapshot bytes,
   ArtifactRef, full PS BOM, statement/detached-attestation coordinates and
   digests, Crucible evidence and acceptance bytes/digests. It never returns a
   local filesystem path, trust root, selectable policy or mutable tag.
+- The signed command binds the complete execution-binding digest. Custos must
+  recompute that digest over the resolved response before using any coordinate;
+  the endpoint does not invent a second release schema or an unnecessary second
+  response-signing authority.
 - Custos fetches immutable OCI members into a runner-local quarantine area and
   independently verifies every byte, Sigstore proof and signed local policy
   before import. Crucible does not download into the runner filesystem.
-- Authentication reuses the enrolled Custos machine credential and proof of
-  possession. ARX neither relays this request nor receives artifact material.
-- The producer receipt must pin the exact response schema/golden, signing
-  profile, endpoint, Crucible commit and control `0028` head. Until that receipt
-  is consumed, `StrategyReleaseArtifactResolverV1` remains unavailable and the
-  daemon reconcile path stays fail closed.
+- Authentication reuses the enrolled Custos machine credential, the sole
+  `crucible.runner.machine.request.v1` proof domain and `X-Crucible-*` headers.
+  ARX neither relays this request nor receives artifact material.
+- The producer receipt must pin the exact request/response schema and golden,
+  command signing profile, machine-request proof profile, endpoint, Crucible
+  commit, Plan 88 acceptance receipt, control `0029` and mode `0116` heads.
+  Until that receipt is consumed, `StrategyReleaseArtifactResolverV1` remains
+  unavailable and the daemon reconcile path stays fail closed.
 
 ## 上下文 (Context)
 
@@ -520,9 +529,10 @@ T4b 可与 T5 实现并行，但属于 18b close-out hard gate。
 2. Consume PS-owned BOM, release statement, detached attestation and OCI
    publication receipt by exact-byte pins; do not copy their schemas into a
    second authority model.
-3. Consume Crucible-owned StrategyRelease material through an authenticated
-   resolver and bind it to the signed DeploymentSpec release, snapshot,
-   artifact and manifest digests.
+3. Consume Crucible-owned StrategyRelease material through the Plan 89
+   instance-authorized resolver over Plan 100 machine-request V1 and bind it to
+   the signed command's instance, spec, generation, release, snapshot, artifact
+   and manifest digests.
 4. Verify every BOM member, detached Sigstore bundle, trusted identity, archive
    limit, entry point and runner-local policy before Python import.
 5. Persist staged/active/quarantined activation state under
