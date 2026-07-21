@@ -1,6 +1,6 @@
 # 19 - Converge Crucible command, RunnerFact, and local execution runtime
 
-> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable policy + reservation lifecycle and native interception READY-CODE-ONLY; T7C CR100 authenticated transport consumer READY-CODE-ONLY; T8a producer candidate and T8b Phase-A compatibility READY; real T7C runtime attestation and T9-T10 open
+> **Status**: ⏳ In progress — T2-T4 READY at scoped boundaries; T5 engine adapter is PREPARED-BLOCKED on the real Plan 18 T5e artifact capability; T6 reliable portfolio semantics READY; T7A CR99 contract consumer READY; T7B durable policy + reservation lifecycle and native interception READY-CODE-ONLY; T7C reopened for approved per-mode SIM/LIVE transport correction; T8a producer candidate and T8b Phase-A compatibility READY; real T7C runtime attestation and T9-T10 open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-20 through T7C two-stage revocation consumer code
 > **Project**: Custos
@@ -36,84 +36,18 @@
 本修订直接替换错误设计。不得通过兼容 fallback、第二个 database/outbox 或
 Custos-only fixture 修改绕过 producer 缺口。
 
-## 当前验证基线
+## Current V1 baseline
 
-- `make check-authority`: PASS。
-- focused command/reconcile/lifecycle tests: 14 passed。
-- 当前测试未覆盖 single-transaction journal、same-generation conflict、
-  restart recovery、多实例 cap、ready lifecycle 或 DLQ。
-- Crucible clean HEAD `abbd3fc` 的 golden fixture 仍缺完整 versioned
-  runner-runtime/code-provenance producer contract。
-
-Task 1 可立即执行。Task 2 以后受 cross-repo hard gates 约束。
-
-### 19a/T1 characterization checkpoint (2026-07-15)
-
-`R-C19-T1-CHARACTERIZATION` is **READY_CHARACTERIZATION** at
-`docs/authority/receipts/custos-plan-19-task-1-characterization-receipt.json`.
-The test-only implementation is commit
-`c567f1dc7ee974acda31f042a48e3fb2833241ed`; the exact full-repository
-verification head is `f3adde2870a53a4bb52cc2a260d2c7c1c852eee2`.
-
-- Direct RunnerFact outbox and EngineProtocol characterization: 7 passed.
-- Full `make verify`: 522 passed, 4 skipped, 1 xfailed; formatter, Ruff, assets,
-  extraction, typing, authority and mypy gates passed.
-- The checkpoint changes no production behavior. It freezes current per-stream sequence,
-  event deduplication, signed pending-batch reopen durability, failure retention, outbound
-  PubAck deletion, and the complete existing EngineProtocol method/async boundary.
-- This receipt is not a T2 producer-contract receipt, does not activate desired/applied runtime
-  state, and is not a runtime RC, image, promotion or production-readiness receipt.
-
-The receipt's historical `T1 characterization` label is a characterization sub-checkpoint of
-19a. It does not silently replace the numbered Task 1 verification-floor command set below;
-unrecorded commands remain open until separately evidenced.
-
-### 19b/T3 intake-policy checkpoint (2026-07-15)
-
-Task 3 is **PREPARED_FOR_T4_DURABILITY**, not complete runtime wiring. The
-production intake module freezes the Plan 19 command fingerprint separately
-from the CR89 producer fingerprint, verifies exact subject/event bytes and all
-T2 schema/evidence/acceptance bindings before any disposition, and exposes only
-typed inbound ACK/NAK/TERM/in-progress plus a T4 durability port.
-
-- same-generation/same-exact-bytes is idempotent; different exact bytes is a
-  terminal conflict;
-- poison commands TERM only after a typed untrusted-rejection receipt;
-- transient failures use bounded NAK/backoff; exhausted retries TERM only after
-  a typed terminal receipt;
-- long operations renew only the inbound command ACK lease;
-- JetStream subscription now pins ack wait, max deliveries and backoff;
-- no SQLite table, second database/outbox, daemon/reconciler/engine apply or
-  outbound PubAck path is added by T3.
-
-The durability port is intentionally unimplemented in production until Task 4
-adapts it to the sole existing RunnerFact SQLite deep module and its atomic
-RunnerFact lifecycle transaction. Therefore this checkpoint does not claim
-durable outcome, runtime, handoff or production readiness.
-
-### 19b/T4 durable-state checkpoint (2026-07-15)
-
-Task 4 is **READY_DURABLE_STATE_STORE_ONLY** at
-`docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json`.
-Migration/store commit A is `0400b5c8726b49d1476650dd084265533c5ea64b`;
-the T3 durability adapter and atomic lifecycle transaction land in the independent
-Task 4 implementation commit.
-
-- desired exact command bytes/receipt, trusted and untrusted outcomes, in-progress
-  lease, applied generation, activation/quarantine, policy, reservation, exposure,
-  RunnerFact sequence and pending PubAck share one SQLite database and the existing
-  `runner_fact_outbox`;
-- stream identity is tenant + mode + runner + `deployment_instance_id`; spec id,
-  spec digest and generation are signed fencing/provenance only;
-- old spec-keyed streams require explicit intake freeze, pending PubAck drain and
-  per-instance sequence continuation without rewriting/deleting pending payloads;
-- deterministic outcome/lifecycle identities make restart and redelivery exact,
-  and applied state + signed lifecycle enqueue commit in one transaction;
-- focused T4/T3/outbox/lifecycle/NATS verification is 47 passed.
-
-This checkpoint implements the T3 durability port but does not wire engine apply,
-supervision or daemon composition. Runtime and production readiness remain false;
-Task 5 is the next executable gate.
+- The only command input is a signed Crucible V1 domain event carrying the
+  canonical DeploymentSpec and identity
+  `deployment_instance_id + deployment_spec_id + digest + generation`.
+- RunnerFact desired/applied state, lifecycle and outbox use one SQLite deep
+  module and schema V1. No second journal or compatibility store exists.
+- ACK follows durable command outcome; PubAck follows durable outbox delivery.
+- Runner aggregate-cap policy, machine credential, NATS vault and event
+  envelopes use their sole first-production V1 shapes.
+- Live remains fail closed until Crucible policy/credential authority, real NATS
+  transport, artifact resolver and engine lifecycle are all composed.
 
 ## 目标 (Goal)
 
@@ -570,10 +504,12 @@ signed RunnerFacts ──PubAck──> existing outbox deletion
 | `src/custos/engines/nautilus/host.py` | 修改 | readiness/equity/risk |
 | `src/custos/engines/nautilus/risk.py` | 修改 | native per-order config |
 | `src/custos/engines/nautilus/portfolio_snapshot.py` | 新增 | shared reliable snapshot |
-| `src/custos/engines/nautilus/strategy_loader.py` | 修改 | exact artifact provenance |
+| `src/custos/engines/nautilus/runtime_loader.py` | 新增 | verified activation 的唯一 V1 entry-point loader |
+| `src/custos/core/runner_command_runtime.py` | 新增 | command/resolver/activation/engine/ACK 单一路径 |
+| `src/custos/core/deployment_reconciler.py`, `src/custos/core/g6_gate.py` | 删除 | 移除 path/hash 驱动的平行部署链 |
 | `tests/test_runner_fact_outbox.py` | 新增 | direct characterization + transaction tests |
-| `tests/test_deployment_contract.py` | 修改 | producer schema/fingerprint tests |
-| `tests/test_deployment_reconciler.py` | 修改 | restart/conflict/quarantine tests |
+| `tests/test_runner_deployment_command_golden.py` | 修改 | producer exact-byte/fingerprint tests |
+| `tests/test_plan19_t5f_runner_command_runtime.py` | 新增 | resolver/activation/lifecycle/ACK/retry tests |
 | `tests/test_runner_deployment_command_golden.py` | 修改 | exact Crucible receipt |
 | `tests/test_runner_fact_parity.py` | 新增 | capability/projector matrix |
 | `tests/integration/test_crucible_runner_runtime.py` | 新增 | current real acceptance |
@@ -660,10 +596,9 @@ ID is `R-CR99-M0117`; the completed signed policy receipt is
    `deployment_spec_id`, `deployment_spec_digest` and `generation` are signed
    fencing/provenance fields only and MUST NOT allocate a new stream or reset
    sequence.
-7. The old spec/digest-keyed stream migration freezes command intake, drains every
-   old un-PubAcked batch, computes an explicit per-instance sequence continuation,
-   then activates the instance-keyed stream. It MUST NOT rewrite, delete or
-   silently orphan an old signed pending batch.
+7. This is the first production stream contract. No spec/digest-keyed stream,
+   cutover table, migration API or compatibility parser exists. The instance-keyed
+   stream starts at sequence 1 and continues across spec/generation changes.
 
 ### Observability and release acceptance
 
@@ -695,7 +630,7 @@ Plan 19 是 `multi_session_scope: true`，只允许按以下四个 slice 顺序�
 无环 release graph：
 
 ```text
-Custos Plan 18 T5c StrategyArtifactRefV2
+Custos Plan 18 T5c StrategyArtifactRefV1
   -> PS Plan 54 BOM/statement/detached attestation
   -> Crucible Plan 88 ArtifactEvidence/acceptance
   -> Custos Plan 18 T5d-A producer-owned evidence consumption
@@ -721,7 +656,7 @@ Custos Plan 18 T5c StrategyArtifactRefV2
 Handoff 不得倒置：Plan 90 Phase A 不是 19d START gate，而只是 runtime RC gate；
 Plan 90 Phase B 不是 runtime RC prerequisite，而是该 exact RC/final-candidate 的 consumer；
 PS Plan 56 依赖 exact final-candidate digest，不依赖 Plan 19 `Completed` 状态。任何失败都
-递增 candidate coordinate 并从 Phase A 起重跑受影响 receipts，禁止验收后重建或 repoint。
+在唯一 V1 内修正并从 Phase A 起重跑受影响 receipts，禁止验收后重建或 repoint。
 
 ## Tasks
 
@@ -764,31 +699,31 @@ Hard gate：Custos Plan 18 T5d-A STOP；Crucible Plan 89 独立 plan-first、typ
 producer、new golden、clean landed SHA。Crucible Plan 90 在此只登记后续
 schema/golden compatibility receipt owner；Task 2 不生成、不要求也不消费该 receipt。
 
-1. 仅在 Crucible 生成 versioned runner-runtime/code-provenance schema 和 golden；
+1. 仅在 Crucible 生成 V1 DeploymentSpec/domain-event schema 和 golden；
    Custos 不生成、不重定义、不发布 command schema。
 2. 记录 producer SHA、schema digest、fixture digest。
-3. Command 必须绑定完整 PS `StrategyReleaseBomV1` object、
-   `StrategyArtifactRefV2`、detached `ArtifactAttestationRefV1`、Crucible
-   完整 `ArtifactEvidenceV1`、`ArtifactAcceptanceReceiptV1` /
-   `artifact_evidence_digest`、effective config digest 与完整
-   instance/spec/generation provenance；禁止
-   `release_bom_members` 第二真相。
-4. Custos 先写 byte-identical、unknown version、missing field、V1 fallback、
-   BOM-as-array、acceptance mismatch 和 digest mismatch tests。
+3. Command 只携带 Crucible-owned canonical DeploymentSpec，并绑定
+   `strategy_release_id`、release snapshot/artifact/manifest digest 与完整
+   instance/spec/generation provenance。完整 BOM、attestation、evidence 和
+   acceptance 由 authenticated StrategyRelease resolver 提供，禁止复制进
+   command 或形成第二真相。
+4. Custos 先写 byte-identical、unknown version、missing field、release
+   binding mismatch 和 digest mismatch tests。
 5. 删除 legacy `parameters`/`code_hash`/command-provided `strategy_path`
    fallback；显式 sandbox `DevelopmentSourceRefV1` 不是 production fallback。
 6. 双仓 compatibility gate 必须从同一 fixture/schema 计算。
 7. 本 Task 与 Plan 18 T5d-B 是同一 implementation slice、consumer model 和
    receipt；禁止各自实现一套 DTO 或验收链。
 
-> **Execution status (2026-07-15)**: Task 2 STOP is
-> `READY_COMMAND_CONSUMER_CONTRACT_ONLY` and is exactly the Plan 18 T5d-B
-> receipt. Corrected CR89 contract commit `51d23eba8aaefb30e936fc9fae1eac0e791164aa`
-> and publication commit `06b2cbc0bafc0eda2b92fc2bc3f36ba1626abc3d`
-> are pinned byte-for-byte. Old `fe7be511...`, `56743f09...`, and `a20f7116...`
-> producer slices are `NON_CURRENT`. The sole Custos consumer retains exact event
-> bytes and computes the CR producer fingerprint, but does not alter subscription,
-> ACK, daemon, reconciler, SQLite or runtime composition. Those remain Task 3+.
+> **Execution status (2026-07-20)**: Task 2 consumer code uses the sole
+> `CrucibleRunnerDeploymentCommandV1` DeploymentSpec event and is
+> `READY_V1_CONSUMER_CODE_PENDING_CRUCIBLE_PRODUCER_RECEIPT`. Custos retains
+> exact signed event bytes and computes its command fingerprint; StrategyRelease
+> material is resolved from authenticated Crucible authority and is never embedded
+> in the command. The canonical payload now has one typed `execution_config` and
+> rejects `parameters`, `code_provenance`, `strategy_path` and `code_hash`.
+> Contract/runtime readiness remains fail closed until the current producer receipt
+> and authenticated resolver wiring exist.
 
 Custos 提交：
 
@@ -834,9 +769,9 @@ pending 和 PubAck deletion。
    `deployment_instance_id`。`deployment_spec_id`、`deployment_spec_digest`、
    `generation` 只进入 signed fencing/provenance header；任一 generation/spec
    变化都不得重置 stream sequence。
-6. 实现旧 spec/digest-keyed stream 的显式迁移：冻结 intake，先 drain 全部旧
-   pending PubAck，计算 per-instance sequence continuation，再启用新 stream；
-   禁止重写、删除或遗失旧 signed batch。
+6. 以 `deployment_instance_id` 直接初始化首次生产 stream；sequence 从 1 开始，
+   spec/generation 变化不重置。不得实现 spec-keyed stream、cutover table、迁移
+   API 或兼容 parser。
 7. lifecycle event ID deterministic。
 8. 覆盖 desired 后 crash、ready 后 commit 前 crash、commit 后 publish 前 crash、
    duplicate delivery 和 restart replay。
@@ -878,6 +813,18 @@ Execution checkpoint (2026-07-15):
 - Focused lifecycle/store/protocol and host/daemon/watchdog/breaker suites are 52 passed.
 - Status remains `PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY`: the real Plan 18 T5e
   capability is false, team daemon composition is disabled, and live remains false.
+
+Canonical V1 reset checkpoint (2026-07-21):
+
+- Engine deploy now requires the verified activated artifact as a third ABI input.
+- `RunnerCommandRuntimeCoordinator` owns intake-to-disposition ordering and durable
+  activation replay; the old in-memory `DeploymentReconciler` path is deleted.
+- Lifecycle/supervision code is ready, but no focused verification has been rerun
+  after the reset. The daemon intentionally fails closed until an authenticated
+  Crucible StrategyRelease resolver is composed.
+- Current status is
+  `READY_V1_CODE_PENDING_AUTHENTICATED_STRATEGY_RELEASE_RESOLVER`; runtime, live
+  and production readiness remain false.
 
 提交：
 
@@ -923,233 +870,64 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 3. 黑盒证明超过单笔上限的 order intent 在 engine boundary 被拒。
 4. missing/invalid live policy fail closed。
 
-#### 7B Runner-level aggregate cap
+#### 7B Runner-level aggregate cap V1
 
-Hard gate：Crucible Plan 99 runner-safety-policy-authority 的 clean landed signed policy receipt。
+1. Consume the Crucible-signed V1 aggregate-cap policy and reject unknown,
+   expired, revoked, wrong-runner, wrong-tenant, wrong-mode or rollback input.
+2. Persist policy generation and reservations in the existing RunnerFact SQLite
+   transaction boundary.
+3. Intercept every native order submission and reservation change before
+   network access; risk-reducing orders remain explicitly modeled.
+4. Emit durable RunnerFacts for policy application, breach, reservation and
+   release through the existing outbox.
+5. Do not copy authorization or approval logic from Crucible.
 
-1. 覆盖多 active instances 和 policy revision。
-2. 独立验证并 durable 保存 policy；禁止从 DeploymentSpec `risk_config` 派生正式 runner cap。
-3. 实现 instance+client-order durable reservation contract。
-4. 覆盖 reject/cancel/replace/partial-fill/fill/close/restart/reconciliation rebuild。
-5. 证明 strategy direct submit 不能绕过。
-6. 证明 flatten/close/reduce-only 不被阻止。
-7. policy 未落地时仅 sandbox/testnet strictest-cap fallback；live capability=false。
+#### 7C Authenticated NATS transport V1
 
-如 NT 1.230.0 无公开不可绕过 seam，Plan 19 保持未完成并另起 upstream adapter
-实现；不得 monkey patch。
+1. Introduce one local `RunnerNatsTransportSet` per supervisor, keyed by the
+   closed `TradingMode` enum. The set is composition only and never represents
+   cross-mode authority.
+2. Store one encrypted V1 vault per enabled mode at the configured transport
+   vault directory. Each document contains only that mode's active, pending,
+   retiring and revocation state; there is no aggregate document, upgrade
+   parser or compatibility fallback.
+3. Generate a distinct user NKey seed for every mode. Consume one Crucible
+   authority response bound to exactly one tenant, runner, mode and generation;
+   delete `authorized_modes`, multi-mode JWTs, runner-only durables and wildcard
+   mode permissions.
+4. Verify the closed transport-domain mapping: `sandbox` and `testnet` use the
+   SIM NATS account, issuer and `CRUCIBLE_RUNNER_COMMAND_SIM_V1`; `live` uses
+   the separately configured LIVE account, issuer and
+   `CRUCIBLE_RUNNER_COMMAND_LIVE_V1`. A caller cannot select the domain.
+5. Open one independent TLS/NKey connection, exact durable command consumer and
+   RunnerFact publisher per enabled mode. Shared process capacity, engine
+   coordination and watchdog state remain supervisor-owned and do not widen
+   any session permission.
+6. Require a mode on enrollment, rotation, activation, revocation and inspection
+   CLI operations. Daemon configuration declares enabled modes explicitly and
+   readiness reports every mode independently; a healthy SIM session cannot
+   mask missing, expired, revoked or drifted LIVE authority.
+7. Bind command mode twice: the exact delivery/filter subject mode and the
+   verified signed command payload mode must equal the selected session.
+   Mismatch is terminal before execution or ACK.
+8. Route each RunnerFact batch through the session matching its signed
+   `trading_mode`; missing or mismatched session fails closed before publish.
+   Inbound command ACK and outbound RunnerFact PubAck remain distinct.
+9. Rotation is two-phase, restart-safe and per mode. Revocation requires
+   replacement, forced disconnect and old-generation reconnect-denial evidence
+   for that mode without disturbing healthy sessions for other modes.
+10. Until Crucible V1 credential authority, separate SIM/LIVE broker evidence
+    and real per-mode round-trip receipts exist, daemon production readiness and
+    all live readiness remain false.
 
-Execution checkpoint T7A (2026-07-15):
+### Task 8: Complete the sole RunnerFact V1 contract
 
-- Byte-vendored the exact CR99 current branch schema, golden, sidecars and
-  producer-v3 receipt from producer `0f8c9af` / receipt `36082e6`.
-- Added the sole strict consumer for Rust struct-order policy digest, exact event
-  subject/fingerprint/Ed25519 signature and tenant/mode/runner scope.
-- Focused consumer and negative-injection suite is 5 passed.
-- Status is `READY_CONTRACT_CONSUMER_ONLY`. The producer chain is not on
-  crucible-rust main; 0117 is prepared but unexecuted; runtime publication and
-  real policy consumption are false. T7B must retain these blockers.
-
-Execution checkpoint T7B code-only (2026-07-15):
-
-- Evolved the existing RunnerFact SQLite store to additive schema v3 and stored
-  verified CR99 policy bytes, signature evidence and one tenant/mode/runner head;
-  no second database or outbox was introduced.
-- Enforced exact generation/version/prior fencing, idempotence and fail-closed
-  stale/conflict/scope/status/effective/expiry handling across restart.
-- Removed DeploymentSpec `risk_config` construction from local cap, fallback
-  breaker and reconciler. Only verified owner policy or explicit sandbox/testnet
-  strictest fallback can configure guards; live without capability fails closed.
-- Focused T7B plus local-cap, breaker, reconciler and durable-store suites are
-  31 passed. Status is `READY_CONTRACT_CONSUMER_CODE_ONLY`.
-- Native engine-boundary interception, full reservation transitions/rebuild,
-  direct-submit bypass proof and real daemon publication consumption remain open.
-  CR99 main/0117/publication and all live/runtime/production flags remain false.
-
-Execution checkpoint T7B reservation lifecycle v2 (2026-07-19):
-
-- Commit `34f0a617c24053a0088201c9b2a7a582a208cd97` evolves the same
-  RunnerFact SQLite deep module to schema v4; no second database or outbox is
-  introduced.
-- `runner_order_reservation_event` provides payload-fingerprinted event
-  idempotency. Reserve, replace, reject/cancel, partial fill, fill, close and
-  trusted restart rebuild execute under `BEGIN IMMEDIATE` with the active
-  tenant/mode/runner policy head.
-- Filled exposure and active reservations form one runner-wide aggregate across
-  deployment instances. Restart rebuild records the trusted exposure digest and
-  releases stale reservations without hiding an observed over-cap state.
-- Focused policy, durable-store and reservation suites are 22 passed. The
-  additive v2 receipt is
-  `docs/authority/receipts/custos-plan-19-task-7b-runner-policy-reservation-v2-receipt.json`.
-- Custos `4298719` adds the public Nautilus `LiveExecClientFactory` facade,
-  standard NT rejection events, synchronous direct-submit reservations,
-  reduce-only/cancel non-blocking behavior and the order-event lifecycle bridge.
-  Focused adapter tests are 11 passed; the real Sandbox builder smoke registers
-  `GuardedLiveExecutionClient` without network access. The additive v3 receipt is
-  `docs/authority/receipts/custos-plan-19-task-7b-runner-policy-native-interception-v3-receipt.json`.
-- Production daemon policy/store composition, real CR99
-  publication/consumption and all live/runtime/production flags remain false.
-- Custos `fb4cdd1` now constructs `RunnerStateStore` from the existing
-  `RunnerFactOutbox`, passes one `DurableRunnerSafetyPolicyResolver` to both the
-  reconciler and async host boundary factory, and fails closed when no durable
-  owner policy exists. Adjacent CLI/policy/reservation/adapter suites are 41
-  passed. The additive v4 receipt is
-  `docs/authority/receipts/custos-plan-19-task-7b-runner-policy-daemon-composition-v4-receipt.json`.
-- The CR89 command-authority resolver remains deliberately uncomposed because
-  its current command contract exposes `strategy_release_id`, not the
-  `strategy_id` required by `RunnerFactAuthority`; no identity substitution is
-  permitted. Real CR99 publication/consumption and all capability,
-  live/runtime/production flags remain false.
-
-提交：
-
-```bash
-git commit -m "feat(custos): enforce signed local notional policy"
-```
-
-#### 7C CR100 authenticated NATS transport and revocation evidence
-
-Hard gate: exact Crucible Plan 100 contract, provisioner and revocation
-receipts. Code-only consumption may begin from receipts whose
-`runtime_ready=false`; Task 9 remains blocked until production credential,
-durable and cross-repository runtime receipts exist.
-
-1. Generate the NATS User NKey locally. Persist the seed and returned User JWT
-   only in the encrypted runner-local vault, keyed by transport credential ID
-   and generation. The seed never enters an enrollment body, log, SQLite
-   RunnerFact state, receipt, ARX or Crucible.
-2. Complete the separate machine-authenticated transport-enrollment request.
-   The User NKey proof binds the exact tenant, runner, machine credential
-   version, idempotency key and request time. Custos accepts only the pinned
-   Account issuer and server-derived permission/durable digests.
-3. Replace anonymous `nats://` connections with a single authenticated
-   transport profile: `tls://`, explicit CA, exact server-name verification,
-   User JWT callback and local NKey signature callback. Production startup
-   rejects plaintext, missing pins, expired JWT and direct signer/admin
-   configuration.
-4. Bind command consumption to the exact CR100 tenant+runner delivery subject
-   and durable readback. Remove mode wildcard filters and runner-only durable
-   construction. Custos has no `$SYS` or `$JS.API` mutation authority.
-5. Use the same authenticated profile for outbound RunnerFact publication
-   while keeping inbound command ACK and outbound PubAck as distinct durable
-   state machines.
-6. Rotation stages generation N+1, verifies authenticated connectivity and
-   exact durable identity, asks Crucible to activate it, then persists
-   `active=N+1` plus `retiring=N` before requesting targeted superseded
-   revocation. This is a fail-closed retry state, not a cross-system atomicity
-   claim. Failed activation keeps N active; failed or incomplete old-generation
-   revocation blocks execution and another rotation.
-7. Produce an authenticated local durable revocation observation containing
-   only public identity and digests: replacement credential/generation and
-   connection time, fresh challenge outcome, forced disconnect, exact old JWT
-   reconnect denial and observation times. The encrypted local document is
-   authenticated by sops; the exact CR100 evidence body is machine-signed on
-   every submission/retry. Crucible remains suspended until it consumes the
-   exact evidence.
-8. Cover response loss, restart, JWT expiry, resolver delay, NATS unavailable,
-   credential-generation rollback, cross-tenant/mode/runner denial and secret
-   redaction with unit and real-NATS tests.
-
-Execution checkpoint T7C two-stage consumer code (2026-07-20):
-
-- Custos commits `9bfde546d2a69cbce8a23d1d3ca5af3f9f5e1277` and
-  `ed5e59dd0b35c058996d1dd8ed9d769006eb1f30` add the backward-compatible
-  vault-v2 `active/pending/retiring/revocation` state machine. Old seed/JWT
-  material remains encrypted until Crucible accepts the exact evidence.
-- Commit `dcd1ca09d01c0c7e9861b06b80fda7d384e5326b` repairs the real nats-py
-  connect-handshake classification. Commit
-  `51fdc9ae514d1670dde492d8cc2da4dde2d24f62` upgrades the opt-in
-  `make verify-nats-revocation` gate to dynamically signed Operator, Account
-  and two User JWTs. The isolated TLS NATS 2.10 memory-resolver gate is
-  `1 passed`: Account JWT reload revokes only the old User, forces its
-  disconnect, rejects its exact reconnect through the Custos transport profile
-  and leaves N+1 connected and publish-capable. This is real local NATS
-  integration evidence, not a production credential/durable or Crucible
-  challenge/evidence receipt.
-- Rotation consumes Crucible's explicit machine-auth
-  `/revoke-superseded` route with old credential/generation plus the active
-  replacement revision. The emergency current-generation `/revoke` route is
-  not reused for rotation cleanup.
-- Only a typed NATS `AuthorizationError` or the exact canonical
-  `nats.errors.Error("nats: 'Authorization Violation'")` emitted by the
-  nats-py 2.x connect-handshake FIXME proves old-generation reconnect denial.
-  Custos maps that one protocol response into its local typed revocation
-  boundary; timeout, EOF, TLS, resolver delay, `NoServersError`, unrelated
-  protocol errors and generic network failure remain unconfirmed and fail
-  closed.
-- Submission response loss preserves the complete local observation and
-  `arx-runner nats-transport activate` exact-reads the persisted challenge
-  before resubmission. Daemon startup, local verify and another rotation all
-  reject unresolved `retiring` state.
-- The current focused transport/client verification is 21 passed; the
-  isolated real-NATS User JWT memory-resolver gate is 1 passed; scoped Ruff and
-  mypy gates are clean. This remains code plus local integration evidence only:
-  no production-equivalent User JWT/resolver forced-disconnect receipt,
-  production credential/durable or runtime readiness is claimed.
-
-T7C publishes a code/consumer receipt first. It must keep
-`production_transport_credential_provisioned`,
-`production_durable_verified`, `runtime_ready`, `live_ready` and
-`production_ready` false until T8/Task 9 consumes real production-equivalent
-receipts.
-
-提交：
-
-```bash
-git commit -m "feat(custos): authenticate runner NATS transport"
-```
-
-### Task 8: Complete RunnerFact and documentation compatibility
-
-#### 19d-T8a: Produce the immutable RunnerFact contract candidate
-
-此 subtask 的 START gate 只有 19c STOP，**不得等待 Crucible Plan 90 Phase A**。
-
-1. 建立 runtime-event → existing fact/log parity matrix。
-2. 冻结带 signed generation fence 的 RunnerFact schema、golden 和 capability
-   manifest revision。schema 必须声明 `deployment_instance_id` 是唯一 runtime
-   stream identity，spec id/digest/generation 只作 signed fencing/provenance。
-3. 生成 immutable candidate coordinate、clean producer commit、schema/golden/capability digests。
-   producer assets 与绑定 receipt 必须分为两个 atomic commits：A 提交 immutable bytes，
-   B 在 clean A commit 上记录 exact SHA/digests 与 verification receipt。
-4. local deny/reject 使用 sanitized `RunnerRuntimeLogFact.v1`。
-5. 原子 rename `telemetry_actor.md` → `runner_fact.md`。
-6. 同步 CLAUDE、authority manifest/checker 和 active docs。
-7. 不恢复 unsigned telemetry/status。
-8. 证明新 generation/spec 不会重置 sequence，并提供旧 spec/digest-keyed stream
-   drain + sequence-continuation migration fixture。T8a 只发布该输入证据；Crucible
-   Plan 90 projector 对同一规则的 compatibility receipt 明确属于 T8b。
-9. payload 递归拒绝 Python binary float；跨语言数值只能是 integer 或 canonical
-   decimal string，并有 schema + production outbox negative evidence。
-10. synthetic signing key/signature 随 golden 分发，但 receipt 必须声明
-    `golden_signature_is_runtime_evidence=false`。
-11. runtime-log event identity 必须包含 tenant/mode/runner/instance stream authority，
-    禁止全局 dedup 表跨 stream 误删同内容事件。
-12. lifecycle event identity 使用 stream + spec/digest + generation + state + stable
-    command/apply fingerprint + outcome；`observed_at` 仅为 payload。
-13. capability loader 除 digest 外必须精确钉住 closed projector map 与 unknown-kind disposition。
-14. signing-preimage golden 必须固定 closed header、canonical JSON、facts digest、直接
-    `DOMAIN || canonical_json(header)` bytes、synthetic key/signature；不完整则
-    `phase_a_input_ready=false`。
-
-`19d-T8a` STOP 是 A producer commit 与 B authority receipt 都已落地，exact candidate
-可被外部仓库消费；它不宣称 Crucible projector compatible，也不允许发布 runtime
-RC、engine、daemon、live 或 production readiness。任何 candidate bytes 变化使 B
-receipt 失效，必须重新发布新 coordinate。
-
-#### 19d-T8b: Consume Crucible Plan 90 Phase-A compatibility receipt
-
-1. 把 `19d-T8a` exact candidate bytes/digests 与 B authority receipt 交给 Crucible
-   Plan 90 Phase A；T8a receipt 中 `crucible_phase_a_compatible=false` 是预期状态。
-2. 取得 verifier/inbox/projector compatibility receipt，必须引用同一 candidate coordinate、
-   Custos clean commit 和全部 schema/golden/capability digests。
-3. candidate 变化使 Phase-A receipt 失效并回到 `19d-T8a`。
-4. `19d-T8b` STOP 只放行 Task 9 runtime RC/final-candidate，不代表 real runtime acceptance。
-
-提交：
-
-```bash
-git commit -m "feat(custos): complete RunnerFact runtime compatibility"
-```
+1. Generate one RunnerFact V1 schema, golden, negative set and asset index.
+2. Bind every fact to tenant, runner, mode, deployment instance, deployment
+   spec, generation and command fingerprint.
+3. Consume Crucible compatibility and persistence receipts only after they bind
+   these same V1 bytes; no predecessor stream or parser remains.
+4. Preserve idempotent event IDs and projector semantics across retry/restart.
 
 ### Task 9: Publish the immutable runtime RC / final-candidate
 
@@ -1203,11 +981,11 @@ git commit -m "docs(custos): mark plan 19 as completed"
 - [ ] existing seq/dedup/sign/PubAck semantics 保持
 - [ ] stream identity 只有 tenant + mode + runner + `deployment_instance_id`
 - [ ] spec id/digest/generation 只作 signed fencing/provenance，generation 不重置 sequence
-- [ ] 旧 spec/digest-keyed streams 全部 drain 后显式 sequence continuation，无 pending batch 丢失或重写
+- [ ] 首次生产只创建 instance-keyed stream；无 spec-keyed/cutover compatibility
 - [ ] lifecycle event ID deterministic
 - [ ] signed RunnerFact header 带 generation，stream key/sequence 不按 generation 重置
 - [ ] Crucible projector 拒绝或隔离 old-generation facts
-- [ ] engine protocol 只 additive、不 shrink
+- [ ] engine protocol 是唯一首次生产 V1，不保留 predecessor protocol
 - [ ] readiness 覆盖 task/connectivity/portfolio/reconciliation/strategy
 - [ ] restart budget/backoff/quarantine
 - [ ] equity/unrealized 使用真实 NT API
@@ -1218,9 +996,14 @@ git commit -m "docs(custos): mark plan 19 as completed"
 - [ ] unsupported live capability fail closed
 - [ ] NATS User seed is generated and encrypted locally and never leaves Custos
 - [ ] production NATS requires User JWT/NKey authentication, pinned TLS CA and exact server name
+- [ ] one supervisor composes a `RunnerNatsTransportSet`; every enabled mode has an independent encrypted vault, seed, JWT, connection, durable, publisher and readiness result
+- [ ] `authorized_modes`, multi-mode JWT, aggregate transport vault, runner-only durable and wildcard mode permission do not exist
+- [ ] sandbox/testnet bind only to the SIM account/issuer/stream and live binds only to the LIVE account/issuer/stream
 - [ ] command subscription uses the exact CR100 tenant+runner delivery subject and durable; no mode wildcard or runner-only durable
+- [ ] command subject mode and signed payload mode both equal the selected session before execution/ACK
+- [ ] every RunnerFact batch is published through the session matching its signed trading mode
 - [ ] command ACK and RunnerFact PubAck remain distinct over the authenticated transport
-- [ ] rotation rollback preserves the prior generation; incomplete revocation suspends execution
+- [ ] per-mode rotation rollback preserves the prior generation; incomplete revocation suspends that mode and cannot be hidden by another mode's health
 - [ ] Custos old-generation reconnect-denial receipt is consumed by Crucible before broker revocation completes
 - [ ] RunnerFact capability revision + Crucible projector receipt
 - [ ] `telemetry_actor.md` 原子 rename 为 `runner_fact.md`，不删除 typed RunnerFact authority
@@ -1234,69 +1017,33 @@ git commit -m "docs(custos): mark plan 19 as completed"
 
 ## Progress
 
-| Task | Status | Completed | Notes |
-|---|---|---|---|
-| T0 Live-plan repair | [~] | — | supersedes erroneous decisions in `3ce4048` |
-| T1 Verification floor | [~] | 2026-07-15 | characterization sub-checkpoint READY at `c567f1d`; full `make verify` green at `f3adde2`; remaining verification-floor commands require separate evidence |
-| T2 Crucible producer/consumer | [x] | 2026-07-15 | Same STOP as Plan 18 T5d-B: corrected CR89 A2/B2 bytes, sole consumer parser, full evidence/acceptance bindings and frozen producer fingerprint; contract-only, runtime false |
-| T3 Fingerprint/ACK | [x] | 2026-07-15 | frozen algorithm + bounded inbound policy; production durability port implemented by T4 |
-| T4 Single durable store | [x] | 2026-07-15 | `READY_DURABLE_STATE_STORE_ONLY`; one DB/outbox, atomic outcome/lifecycle, explicit instance-stream cutover; runtime false |
-| T5 Engine lifecycle | [~] | 2026-07-15 | Additive ready/terminal adapter, durable bounded restart and daemon supervision implemented; team daemon/live remain blocked on real Plan 18 T5e capability |
-| T6 Portfolio/equity | [x] | 2026-07-15 | `READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY`; real portfolio equity, trusted marked PnL/notional, shared provider and breaker fail closed; no runtime/live promotion |
-| T7 Signed local safety | [~] | 2026-07-19 | T7A contract consumer plus T7B `READY_DAEMON_POLICY_BOUNDARY_COMPOSITION_CODE_ONLY`; schema v4, native NT facade and daemon now share one outbox/store and fail closed without an owner policy. CR89 command authority identity plus CR99 main/0117/publication/runtime receipts remain open |
-| T7C Authenticated NATS transport | [~] | 2026-07-20 | `READY_AUTHENTICATED_TRANSPORT_CONSUMER_CODE_ONLY`: exact CR100 two-stage evidence assets vendored; vault-v2 retains old material through targeted superseded revocation, persists replacement/challenge/disconnect/denial evidence, resumes response-loss submission and blocks daemon/verify/rotation while unresolved. Local TLS User JWT memory-resolver integration is 1 passed at `51fdc9a`; production credential/durable and real Crucible attestation remain open; runtime/production false |
-| T8a RunnerFact candidate | [x] | 2026-07-15 | `READY_CONTRACT_PRODUCER_CANDIDATE_ONLY`；current `.2` A2 producer `af8a391` + v2 authority receipt；`.1` unchanged `NON_CURRENT_SUPERSEDED`；stream-safe/stable event IDs、exact signing preimage、13 kind/5 projector、float fail-closed；Plan 90 compatibility/runtime flags 保持 false |
-| T8b Plan 90 Phase A | [x] | 2026-07-19 | `READY_PHASE_A_COMPATIBILITY_CONSUMER_ONLY`; exact candidate coordinate, producer/authority commits and all seven asset digests bind Crucible receipt `e4f936c6...`; only the Task 9 Phase-A gate is open, runtime/Phase-B/live/production remain false |
-| T9 Runtime RC/final-candidate | [ ] | — | Plan 18 BOM + Plan 89/90A/99 receipts；交给 Plan 90B |
-| T10 Accept/promote/close-out | [ ] | — | Plan 90B + PS 56 exact-candidate receipts；unchanged promotion |
+| Work | State | Current boundary |
+|---|---|---|
+| Signed command V1 consumer | implemented | consumes real DeploymentSpec domain events |
+| RunnerFact SQLite V1 deep module | implemented | one store and one outbox |
+| Engine lifecycle | code-ready, blocked | artifact authority and live gates not composed |
+| Runner policy V1 | code-ready, blocked | real Crucible publication/runtime receipt pending |
+| Machine credential and NATS vault V1 | source reset | real Crucible credential authority and broker evidence pending |
+| RunnerFact V1 cross-repo acceptance | pending | Crucible consumer receipt required |
+| Production/live | STOP | full command-to-fact runtime round trip not yet evidenced |
 
 ## Deviations and Improvements
 
-| 类型 | 位置 | 描述 | 状态 |
-|---|---|---|---|
-| PRE-PLAN | `324da6e` | authority migration landed before Plan 19 | Recorded |
-| PLAN-REPAIR | Durable store | 撤回第二套 outbox；journal 合入 existing RunnerFact SQLite deep module | Accepted 2026-07-14 |
-| IDENTITY | Journal | primary key 改为 `deployment_instance_id`；spec/digest 只作 provenance | Accepted 2026-07-14 |
-| CONTRACT | Command | Custos-only schema freeze 改为 Crucible producer-first | Accepted 2026-07-14 |
-| SAFETY | Runner cap | last-command overwrite 改为 signed runner-level policy | Accepted 2026-07-14 |
-| LIFECYCLE | Engine | 保留全部 protocol，ready/terminal additive | Accepted 2026-07-14 |
-| DOCUMENTATION | RunnerFact | `telemetry_actor.md` 改为 atomic rename，不直接删除 | Accepted 2026-07-14 |
-| DURABILITY | Command outcomes | success/terminal/untrusted paths 全部改为 commit-before-ACK/TERM | Accepted 2026-07-14 |
-| FINGERPRINT | Command | 冻结 domain+subject+exact-event-bytes，排除 signature bytes | Accepted 2026-07-14 |
-| TASK-BOUNDARY | T3/T4 | T3 只落 intake policy + durability port；SQLite/outcome/fact transaction 保留给 T4，状态诚实降级 PREPARED | Accepted 2026-07-15 |
-| SINGLE-STORE | T4 | desired/applied/outcome/lease/activation/policy/reservation/exposure 与 RunnerFact sequence/outbox 共用同一 SQLite deep module | Accepted 2026-07-15 |
-| STREAM-CUTOVER | T4 | 旧 spec-keyed stream 显式 freeze + pending PubAck drain + per-instance sequence continuation；禁止 payload rewrite/delete | Accepted 2026-07-15 |
-| FENCING | RunnerFact | generation 进入 signed header，但不改变 stream key/sequence | Accepted 2026-07-14 |
-| POLICY | Runner cap | owner 锁定 Crucible Plan 99；policy/reservation/exposure durable | Accepted 2026-07-14 |
-| DAG | Cross-repo release | T8a 先产 candidate；Plan 90A 只 gate RC；Plan 90B + PS56 gate unchanged promotion/close-out | Accepted 2026-07-14 |
-| HISTORY | `3ce4048` | 保留为 original plan-first，不再代表有效 runtime design approval | Recorded |
-| ATOMIC-RECEIPT | T8a | A producer commit 冻结 bytes；B authority commit 绑定 clean A SHA，避免 self-reference；asset 变化须新 coordinate | Accepted 2026-07-15 |
-| TYPING-BASELINE | T8a gate | broad raw strict mypy 首轮 60 项；修复本轮 UUID 类型后剩 59 项历史 `runner_fact.py`/Nautilus debt；以显式 baseline-profiled scoped 0-error gate 收口，不夹带重构 | Recorded 2026-07-15 |
-| CANDIDATE-REVISION | T8a `.1` → `.2` | `.1` 缺少跨 stream runtime identity、稳定 lifecycle identity、exact signing preimage 与 capability semantic pin，且 authority commit 超出 producer tree；旧 receipt 保持原 bytes，新 A2/B2 coordinate 取代其 current 状态 | Accepted 2026-07-15 |
-| TRANSPORT-AUTH | T7C | Replace anonymous/plaintext and wildcard NATS usage with CR100 User JWT/NKey, pinned TLS, exact tenant+runner durable identity and fail-closed revocation evidence; Custos retains only its local User seed and never receives signer/admin authority | Accepted 2026-07-19 |
-| TWO-STAGE-REVOCATION | T7C | Keep current-generation emergency revoke separate from targeted superseded cleanup; persist active/retiring and public observation state until exact machine-auth evidence acceptance | Accepted 2026-07-20 |
+- Removed the nonexistent runner-command generation and now consumes the two
+  actual Crucible DeploymentSpec event types.
+- Removed additive SQLite/vault versioning and kept the technically correct
+  current shapes as V1.
+- Removed planning receipt digests from artifact runtime readiness.
 
 ## v1.team Scope
 
-| v1.team capability | Plan 19 coverage |
-|---|---|
-| A2/A3 deploy/reconcile | core scope |
-| B3 health/status | ready/terminal/lifecycle facts |
-| C1-C3 reconciliation | Custos emits facts; Crucible remains canonical |
-| D1 local pre-trade safety | exact signed policy enforcement |
-| D2-D4 portfolio risk | out of scope; Crucible-owned |
-| E1/E2 buffering/retry/seq | existing RunnerFactOutbox, extended transactionally |
-| H1/H2 mode/credential isolation | negative acceptance matrix |
-| I1/I2 runner trust boundary | signed command and runtime acceptance |
-| I3 transport trust boundary | CR100 JWT/NKey/TLS/durable consumer and revocation attestation |
-| A4, G1/G2/G4, J1-J6 | out of scope; Crucible/ARX-owned |
+This plan closes Custos local execution only. ARX owns authorization intent,
+Crucible owns business decisions and facts, PS owns artifact publication, and
+Custos owns local execution plus signed RunnerFacts.
 
 ## Quantitative Summary
 
-- Durable stores/outboxes: exactly 1
-- Runtime primary key: `deployment_instance_id`
-- Canonical slices: 19a command/provenance → 19b durable lifecycle → 19c safety → T7C CR100 transport → 19d-T8a candidate → Plan 90A → runtime RC/final-candidate → Plan 90B → PS56 → close-out
-- External producer gates: Crucible Plan 89 command schema + Plan 90 receipts + Plan 99 runner policy + Plan 100 NATS transport authority
-- Engine change: additive lifecycle only
-- Implementation tasks: 10 after live-plan repair
-- Release acceptance: Crucible producer/projector + PS Docker consumer
+- Production protocol generations: 1 (`V1`).
+- Runtime databases in Custos: 1 SQLite deep module.
+- Runtime outboxes in Custos: 1 `runner_fact_outbox`.
+- Command event types: 2 canonical DeploymentSpec events.
