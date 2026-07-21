@@ -1,15 +1,13 @@
 {
   "schema_version": 1,
-  "stable_receipt_id": "CUSTOS-PLAN19-CR100-MACHINE-REQUEST-V1",
-  "status": "DIRECT_CREDENTIAL_V1_READY_PENDING_CR100_0029_RUNTIME_RECEIPT",
+  "stable_receipt_id": "CUSTOS-RUNNER-MACHINE-REQUEST-V1",
+  "status": "DIRECT_CREDENTIAL_V1_READY_PENDING_CONTROL_DATABASE_AND_NATS_RUNTIME",
   "producer": {
     "repository": "tesseract-trading/crucible-rust",
-    "plan": 100,
     "commit": "d9df47501f7a871c5b0691b8daf6d83fc3cd82c0"
   },
   "consumer": {
     "repository": "tesseract-trading/custos",
-    "plan": 19,
     "commit": "09b870c60b2745b0baaee551183efbd8da03a8ab"
   },
   "asset_index": {
@@ -46,7 +44,7 @@
     }
   ],
   "open_blockers": [
-    "CR100 control migration 0029 after executed CR88 0028",
+    "control migration 0029 after executed StrategyRelease evidence migration 0028",
     "durable same-request replay and conflict receipt",
     "per-mode NATS JWT, ACL, durable readback, rotation and revocation receipt"
   ]

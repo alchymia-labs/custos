@@ -1091,7 +1091,7 @@ git commit -m "docs(custos): mark plan 19 as completed"
 
 The machine-readable boundary is pinned by
 `docs/authority/crucible-runner-machine-request-consumer-assets-v1.json` and
-`docs/authority/receipts/custos-plan-19-runner-machine-request-v1-receipt.json`.
+`docs/authority/receipts/custos-runner-machine-request-v1-consumer-receipt.json`.
 Those records deliberately keep durable replay, per-mode NATS issuance, and
 production transport claims false until CR100 migration `0029` and runtime
 receipts exist.

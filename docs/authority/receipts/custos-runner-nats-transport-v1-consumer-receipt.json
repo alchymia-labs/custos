@@ -1,10 +1,8 @@
 {
   "receipt_schema_version": 1,
-  "receipt_id": "CUSTOS-PLAN-19-T7C-NATS-TRANSPORT-CONSUMER-V1",
+  "receipt_id": "CUSTOS-RUNNER-NATS-TRANSPORT-CONSUMER-V1",
   "receipt_status": "READY_CONTRACT_ONLY_PENDING_TRANSPORT_RUNTIME",
   "repository": "tesseract-trading/custos",
-  "plan": "Custos Plan 19",
-  "task": "T7C authenticated NATS transport",
   "producer_authority": {
     "repository": "tesseract-trading/crucible-rust",
     "producer_commit": "95fdc87de77c8d996bc633a6514f9dd70258f280",
@@ -85,7 +83,7 @@
   "open_blockers": [
     "Crucible has published contract bytes but not the credential, durable and broker-readback authority receipt",
     "production tenant runner mode durables have no exact SIM/LIVE runtime readback receipt",
-    "CR100-issued production credential rotation and reconnect-denial evidence is absent",
+    "production credential rotation and reconnect-denial evidence is absent",
     "real NATS SIM/LIVE account isolation has not passed the explicit integration gate",
     "team execution remains blocked on the authenticated StrategyRelease resolver"
   ]

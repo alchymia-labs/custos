@@ -34,28 +34,30 @@ RUNNER_COMMAND_CONSUMER_RECEIPT_PATH = (
     "docs/authority/receipts/custos-crucible-runner-command-v1-consumer-receipt.json"
 )
 RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
+    "docs/authority/receipts/custos-runner-durable-state-v1-receipt.json"
 )
 ARTIFACT_RUNTIME_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json"
+    "docs/authority/receipts/custos-strategy-artifact-runtime-v1-receipt.json"
 )
 ARTIFACT_RUNTIME_SOURCE = "src/custos/artifacts/runtime.py"
 ENGINE_LIFECYCLE_RECEIPT_PATH = "docs/authority/receipts/custos-engine-lifecycle-v1-receipt.json"
 ENGINE_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
 PORTFOLIO_SEMANTICS_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
+    "docs/authority/receipts/custos-runner-portfolio-semantics-v1-receipt.json"
 )
 RUNNER_POLICY_CONSUMER_INDEX_PATH = (
     "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json"
 )
 RUNNER_POLICY_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_safety_policy.py"
-RUNNER_POLICY_RECEIPT_PATH = "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
+RUNNER_POLICY_RECEIPT_PATH = (
+    "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json"
+)
 RUNNER_NATS_TRANSPORT_CONSUMER_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-task-7c-nats-transport-consumer-receipt.json"
+    "docs/authority/receipts/custos-runner-nats-transport-v1-consumer-receipt.json"
 )
 RUNNER_FACT_CONTRACT_INDEX_PATH = "docs/authority/runner-fact-contract-assets-v1.json"
 RUNNER_FACT_CONTRACT_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json"
+    "docs/authority/receipts/custos-runner-fact-v1-producer-receipt.json"
 )
 RUNNER_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 RUNNER_COMMAND_GOLDEN_PATH = "docs/authority/runner-deployment-command-golden-v1.json"
@@ -1289,7 +1291,9 @@ def verify_runner_policy_consumer(manifest: dict[str, Any], errors: list[str]) -
 
 
 def verify_runner_policy_runtime(manifest: dict[str, Any], errors: list[str]) -> None:
-    receipt_path = ROOT / "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
+    receipt_path = (
+        ROOT / "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json"
+    )
     if not receipt_path.is_file():
         errors.append(f"missing canonical runner policy V1 receipt: {receipt_path}")
         return

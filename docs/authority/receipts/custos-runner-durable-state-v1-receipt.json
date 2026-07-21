@@ -1,10 +1,8 @@
 {
   "schema_version": 1,
-  "receipt_id": "CUSTOS-PLAN-19-T4-DURABLE-STATE-V1",
+  "receipt_id": "CUSTOS-RUNNER-DURABLE-STATE-V1",
   "receipt_status": "READY_DURABLE_STATE_STORE_ONLY",
   "repository": "tesseract-trading/custos",
-  "plan": "Custos Plan 19",
-  "task": "T4",
   "store_migration_commit": "0400b5c8726b49d1476650dd084265533c5ea64b",
   "single_database": true,
   "database_owner": "RunnerFactOutbox",
@@ -57,5 +55,5 @@
   "daemon_wired": false,
   "runtime_ready": false,
   "production_ready": false,
-  "next_gate": "Custos Plan 19 T5 engine readiness, terminal lifecycle and supervision"
+  "next_gate": "engine readiness, terminal lifecycle and supervision"
 }

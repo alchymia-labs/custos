@@ -1,17 +1,15 @@
 {
   "schema_version": 1,
-  "receipt_id": "CUSTOS-PLAN-18-T5E-ARTIFACT-RUNTIME-V1",
+  "receipt_id": "CUSTOS-STRATEGY-ARTIFACT-RUNTIME-V1",
   "receipt_status": "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
   "repository": "tesseract-trading/custos",
-  "plan": "Custos Plan 18",
-  "task": "T5e",
   "runtime_candidate_prepared": true,
   "engine_abi_requires_activated_artifact": true,
   "runner_command_runtime_coordinator_present": true,
   "durable_idempotent_activation_replay": true,
   "legacy_deployment_reconciler_present": false,
   "daemon_reconcile_fail_closed": true,
-  "command_source": "Plan 19 T4 durable CrucibleRunnerDeploymentCommandV1 after signature verification and intake",
+  "command_source": "durable CrucibleRunnerDeploymentCommandV1 after signature verification and intake",
   "owner_contracts": [
     "Philosophers-Stone StrategyReleaseBomV1 and detached release statement",
     "Custos StrategyArtifactRefV1 and StrategyExecutionContext",
@@ -66,6 +64,6 @@
     "authenticated Crucible StrategyRelease material resolver composition",
     "real Philosophers-Stone OCI publication and Crucible StrategyRelease acceptance",
     "daemon composition of the authenticated resolver and command coordinator",
-    "Custos Plan 19 T7 live activation gates"
+    "signed runner safety policy and authenticated transport activation gates"
   ]
 }

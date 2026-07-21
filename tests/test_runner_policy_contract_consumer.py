@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RECEIPT = ROOT / "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
+RECEIPT = ROOT / "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json"
 
 
 def test_runner_policy_has_one_pending_v1_authority() -> None:
@@ -14,7 +14,7 @@ def test_runner_policy_has_one_pending_v1_authority() -> None:
     assert receipt["receipt_version"] == 1
     assert receipt["runner_state_schema_version"] == 1
     assert receipt["receipt_status"] == "READY_CONTRACT_ONLY_PENDING_RUNNER_POLICY_RUNTIME_RECEIPT"
-    assert receipt["code_commit"] == "b3d0ae134742ee220a91e8e721e6f375403dd5bc"
+    assert receipt["code_commit"] == "24109d0355229c2e2368335008d07de02a1056ff"
     assert receipt["producer_authority"]["producer_commit"] == (
         "9ba70ce60648a3b3df6a669a112143b601c13b62"
     )

@@ -122,7 +122,7 @@
   "runner_state_store": {
     "owner": "custos",
     "status": "READY_DURABLE_STATE_STORE_ONLY",
-    "receipt": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+    "receipt": "docs/authority/receipts/custos-runner-durable-state-v1-receipt.json",
     "store_migration_commit": "0400b5c8726b49d1476650dd084265533c5ea64b",
     "runtime_identity": "deployment_instance_id",
     "stream_key_fields": [
@@ -139,7 +139,7 @@
     "single_database": true,
     "single_outbox": "runner_fact_outbox",
     "runner_state_schema_version": 1,
-    "current_schema_receipt": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
+    "current_schema_receipt": "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json",
     "durability_port_implemented": true,
     "applied_lifecycle_atomic": true,
     "pending_signed_payload_rewrite_allowed": false,
@@ -152,8 +152,8 @@
     "owner": "crucible-rust",
     "consumer": "custos",
     "status": "READY_CODE_ONLY_PENDING_CR99_PRODUCER_RECEIPT",
-    "receipt": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
-    "contract_receipt": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
+    "receipt": "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json",
+    "contract_receipt": "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json",
     "policy_contract_consumer_ready": false,
     "local_code_ready": true,
     "authority_scope": [
@@ -191,7 +191,7 @@
   "portfolio_semantics": {
     "owner": "custos",
     "status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
-    "receipt": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+    "receipt": "docs/authority/receipts/custos-runner-portfolio-semantics-v1-receipt.json",
     "portfolio_semantics_ready": true,
     "single_snapshot_provider": "NautilusPortfolioSnapshotProvider",
     "equity_source": "Nautilus portfolio.equity(venue)",
@@ -215,7 +215,7 @@
   "strategy_artifact_runtime": {
     "owner": "custos",
     "status": "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
-    "receipt": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+    "receipt": "docs/authority/receipts/custos-strategy-artifact-runtime-v1-receipt.json",
     "command_source": "Plan 19 T4 durable CrucibleRunnerDeploymentCommandV1 after signature verification and intake",
     "runner_local_policy_independent": true,
     "bom_member_source": "StrategyReleaseBomV1.members only",
@@ -357,7 +357,7 @@
     "status": "READY_FOR_CRUCIBLE_CONSUMER_VALIDATION",
     "producer_commit": "8c4454f35c5189063bad1516d77e260f034d3da7",
     "asset_index": "docs/authority/runner-fact-contract-assets-v1.json",
-    "receipt": "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json",
+    "receipt": "docs/authority/receipts/custos-runner-fact-v1-producer-receipt.json",
     "signing_preimage_golden": "docs/authority/runner-fact-signing-preimage-golden-v1.json",
     "signing_preimage_complete": true,
     "capability_projector_contract_exact_pin": true,

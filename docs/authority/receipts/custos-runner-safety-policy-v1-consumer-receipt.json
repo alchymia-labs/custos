@@ -2,8 +2,6 @@
   "receipt_version": 1,
   "receipt_status": "READY_CONTRACT_ONLY_PENDING_RUNNER_POLICY_RUNTIME_RECEIPT",
   "repository": "tesseract-trading/custos",
-  "plan": "2026-07/19-crucible-command-runner-fact-runtime-convergence",
-  "task": "7B",
   "generated_at": "2026-07-21",
   "code_commit": "24109d0355229c2e2368335008d07de02a1056ff",
   "contract_asset_index": {

@@ -1,10 +1,8 @@
 {
   "schema_version": 1,
-  "receipt_id": "CUSTOS-PLAN-19-T6-PORTFOLIO-SEMANTICS-V1",
+  "receipt_id": "CUSTOS-RUNNER-PORTFOLIO-SEMANTICS-V1",
   "receipt_status": "READY_RELIABLE_PORTFOLIO_SEMANTICS_ONLY",
   "repository": "tesseract-trading/custos",
-  "plan": "Custos Plan 19",
-  "task": "T6",
   "portfolio_semantics_ready": true,
   "single_snapshot_provider": "NautilusPortfolioSnapshotProvider",
   "equity_source": "Nautilus portfolio.equity(venue)",
@@ -27,15 +25,15 @@
   "focused_verification": {
     "result": "20 passed",
     "suites": [
-      "Plan 19 T6 reliable portfolio semantics",
+      "reliable portfolio semantics",
       "Nautilus state snapshot regressions",
       "deployment reconciler and fallback breaker regressions"
     ]
   },
   "open_blockers": [
-    "Custos Plan 19 T7 requires the clean landed Crucible Plan 99 signed versioned runner safety policy receipt",
+    "the signed versioned runner safety policy runtime receipt is absent",
     "DeploymentSpec risk_config is not runner aggregate-cap authority",
-    "team daemon remains disabled while the real Plan 18 T5e artifact capability is false",
+    "team daemon remains disabled while the real artifact capability is false",
     "live, runtime and production readiness remain false"
   ]
 }

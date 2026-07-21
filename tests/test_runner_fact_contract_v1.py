@@ -28,7 +28,7 @@ from custos.core.runner_fact import (
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_PATH = ROOT / "docs/authority/runner-fact-contract-assets-v1.json"
-RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json"
+RECEIPT_PATH = ROOT / "docs/authority/receipts/custos-runner-fact-v1-producer-receipt.json"
 SCHEMA_PATH = ROOT / "docs/gateway-contract/v1/runner_fact_batch_v1.schema.json"
 GOLDEN_PATH = ROOT / "docs/authority/runner-fact-golden-v1.json"
 CAPABILITY_MANIFEST_PATH = ROOT / "docs/authority/runner-fact-capability-manifest-v1.json"

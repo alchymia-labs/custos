@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_INDEX = ROOT / "docs/authority/crucible-runner-machine-request-consumer-assets-v1.json"
-RECEIPT = ROOT / "docs/authority/receipts/custos-plan-19-runner-machine-request-v1-receipt.json"
+RECEIPT = ROOT / "docs/authority/receipts/custos-runner-machine-request-v1-consumer-receipt.json"
 
 
 def _load(path: Path) -> dict[str, object]:

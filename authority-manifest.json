@@ -200,7 +200,7 @@
     },
     {
       "role": "runner_policy_receipt_v1",
-      "path": "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json"
+      "path": "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json"
     },
     {
       "role": "crucible_runner_nats_transport_schema_v1",
@@ -220,7 +220,7 @@
     },
     {
       "role": "runner_fact_receipt_v1",
-      "path": "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json"
+      "path": "docs/authority/receipts/custos-runner-fact-v1-producer-receipt.json"
     },
     {
       "role": "crucible_runner_command_consumer_asset_index_v1",
@@ -242,14 +242,14 @@
     },
     {
       "role": "strategy_artifact_runtime_receipt_v1",
-      "path": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+      "path": "docs/authority/receipts/custos-strategy-artifact-runtime-v1-receipt.json",
       "receipt_status": "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
       "runtime_ready": false,
       "production_ready": false
     },
     {
       "role": "runner_fact_durable_state_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
+      "path": "docs/authority/receipts/custos-runner-durable-state-v1-receipt.json"
     },
     {
       "role": "engine_lifecycle_receipt",
@@ -257,7 +257,7 @@
     },
     {
       "role": "portfolio_semantics_receipt",
-      "path": "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
+      "path": "docs/authority/receipts/custos-runner-portfolio-semantics-v1-receipt.json"
     },
     {
       "role": "toolkit_rc_authority_receipt_v1",
@@ -327,19 +327,19 @@
       "docs/authority/receipts/custos-toolkit-rc-authority-v1.json",
       "docs/authority/receipts/custos-toolkit-rc-authority-v1.json.sha256",
       "docs/authority/receipts/custos-crucible-runner-command-v1-consumer-receipt.json",
-      "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
-      "docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json",
+      "docs/authority/receipts/custos-strategy-artifact-runtime-v1-receipt.json",
+      "docs/authority/receipts/custos-runner-fact-v1-producer-receipt.json",
       "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
-      "docs/authority/receipts/custos-plan-19-runner-policy-v1-receipt.json",
+      "docs/authority/receipts/custos-runner-safety-policy-v1-consumer-receipt.json",
       "docs/authority/vendor/crucible-runner-safety-policy-v1.schema.json",
       "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json",
       "docs/authority/vendor/crucible-runner-safety-policy-golden-v1.json.sha256",
       "docs/authority/vendor/crucible-runner-nats-transport-authority-v1.schema.json",
       "docs/authority/vendor/crucible-runner-nats-transport-authority-golden-v1.json",
       "docs/authority/vendor/crucible-runner-nats-transport-authority-golden-v1.json.sha256",
-      "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json",
+      "docs/authority/receipts/custos-runner-durable-state-v1-receipt.json",
       "docs/authority/receipts/custos-engine-lifecycle-v1-receipt.json",
-      "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json",
+      "docs/authority/receipts/custos-runner-portfolio-semantics-v1-receipt.json",
       "docs/authority/runner-fact-contract-assets-v1.json",
       "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
       "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json",
@@ -506,7 +506,7 @@
       ]
     },
     {
-      "path": "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json",
+      "path": "docs/authority/receipts/custos-strategy-artifact-runtime-v1-receipt.json",
       "must_contain": [
         "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER",
         "StrategyReleaseArtifactResolverV1",

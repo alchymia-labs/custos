@@ -64,7 +64,7 @@ CAPABILITY_RECEIPT_PATH = Path("docs/authority/runner-fact-capability-receipt-go
 PARITY_PATH = Path("docs/authority/runner-fact-parity-matrix-v1.json")
 SIGNING_PREIMAGE_PATH = Path("docs/authority/runner-fact-signing-preimage-golden-v1.json")
 INDEX_PATH = Path("docs/authority/runner-fact-contract-assets-v1.json")
-RECEIPT_PATH = Path("docs/authority/receipts/custos-plan-19-runner-fact-v1-receipt.json")
+RECEIPT_PATH = Path("docs/authority/receipts/custos-runner-fact-v1-producer-receipt.json")
 
 
 def _canonical(value: object) -> bytes:
