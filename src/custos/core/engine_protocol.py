@@ -329,7 +329,7 @@ class ExecutionEngineProtocol(Protocol):
 
     async def get_engine_status(self, deployment_instance_id: str) -> EngineStatus: ...
 
-    # -- Additive Plan 19 lifecycle supervision ---------------------------
+    # -- Additive lifecycle supervision ---------------------------
     async def wait_ready(
         self,
         authority: EngineLifecycleAuthority,

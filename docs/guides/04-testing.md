@@ -26,7 +26,7 @@
 | enrollment | `test_enrollment.py` | 一次性 token / paper_only 默认 |
 | credential_vault | `test_credential_vault.py` + `test_credential_vault_sops.py` | 加密/解密 / sops CLI 集成 |
 | nats_client | `test_nats_client_telemetry.py` + `test_nats_envelope.py` + `test_nats_wal_resilience.py` | telemetry uplink / envelope schema / WAL 断线暂存 |
-| command runtime | `test_plan19_t5f_runner_command_runtime.py` + `test_plan19_t4_runner_state_store.py` | signed command、durable replay、ACK/NAK/TERM |
+| command runtime | `test_runner_command_runtime.py` + `test_runner_fact_store.py` | signed command、durable replay、ACK/NAK/TERM |
 | nautilus_host | `test_nt_trading_node_host.py` + `test_nautilus_host_capability.py` + `test_nt_risk_engine.py` | verified artifact ABI / host admission / 本地 breaker |
 | telemetry_actor | `test_telemetry_actor.py` + `test_telemetry_actor_failure_modes.py` + `test_telemetry_money_contract.py` | 白名单 / 脱敏 / silent drop / Decimal wire (红线 0.4) |
 | 跨模块 | `test_subject_builder_contract.py` + `test_log.py` + `test_smoke.py` | subject naming 契约 / structlog / 端到端 |

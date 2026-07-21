@@ -47,7 +47,7 @@ test:  ## Run full pytest (base profile; NT tests importorskip; includes known-f
 	uv run pytest tests/
 
 verify-nats-revocation:  ## Run opt-in real NATS User-JWT resolver revocation gate
-	CUSTOS_RUN_REAL_NATS_REVOCATION=1 uv run pytest tests/integration/test_plan19_t7c_nats_revocation.py -v
+	CUSTOS_RUN_REAL_NATS_REVOCATION=1 uv run pytest tests/integration/test_nats_revocation.py -v
 
 test-baseline:  ## Run the standalone green baseline
 	# Base gate does not hard-require NT: if nautilus is missing, NT host tests are skipped by pytest.importorskip.

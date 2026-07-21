@@ -46,8 +46,8 @@
   "focused_verification": {
     "result": "59 passed",
     "tests": [
-      "tests/test_plan19_t4_runner_state_store.py",
-      "tests/test_plan19_t3_command_intake.py",
+      "tests/test_runner_fact_store.py",
+      "tests/test_command_intake.py",
       "tests/test_runner_fact_outbox.py",
       "tests/test_runner_deployment_lifecycle_fact.py",
       "tests/test_crucible_nats_client.py"

@@ -63,7 +63,7 @@ class RunnerSafetyPolicyResolver(Protocol):
 class DurableRunnerSafetyPolicyResolver:
     """Code-only resolver over the existing RunnerFact SQLite state.
 
-    The current CR99 producer has no real 0117 execution/publication receipt,
+    The current runner-safety policy producer has no real 0117 execution/publication receipt,
     so this candidate deliberately cannot claim live capability.
     """
 
@@ -81,7 +81,7 @@ class DurableRunnerSafetyPolicyResolver:
     async def resolve(self, trading_mode: str) -> RunnerSafetyLimits:
         if trading_mode == "live" and not self.live_capability:
             raise RunnerSafetyPolicyUnavailableError(
-                "live policy capability requires a real CR99 runtime publication receipt"
+                "live policy capability requires a real runner-safety policy runtime publication receipt"
             )
         durable = await self.store.load_effective_runner_safety_policy(
             trading_mode,

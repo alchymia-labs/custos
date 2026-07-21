@@ -524,13 +524,13 @@ signed RunnerFacts ──PubAck──> existing outbox deletion
 | `src/custos/core/deployment_reconciler.py`, `src/custos/core/g6_gate.py` | 删除 | 移除 path/hash 驱动的平行部署链 |
 | `tests/test_runner_fact_outbox.py` | 新增 | direct characterization + transaction tests |
 | `tests/test_runner_deployment_command_golden.py` | 修改 | producer exact-byte/fingerprint tests |
-| `tests/test_plan19_t5f_runner_command_runtime.py` | 新增 | resolver/activation/lifecycle/ACK/retry tests |
+| `tests/test_runner_command_runtime.py` | 新增 | resolver/activation/lifecycle/ACK/retry tests |
 | `tests/test_runner_deployment_command_golden.py` | 修改 | exact Crucible receipt |
 | `tests/test_runner_fact_parity.py` | 新增 | capability/projector matrix |
 | `tests/integration/test_crucible_runner_runtime.py` | 新增 | current real acceptance |
-| `tests/test_plan19_t7c_nats_transport.py` | 新增 | Enrollment, local custody, TLS, exact ACL/durable and fail-closed configuration |
-| `tests/test_plan19_t7b_order_reservation.py` | 新增 | Atomic runner-wide reserve/replace/cancel/fill/close/rebuild and restart recovery |
-| `tests/integration/test_plan19_t7c_nats_revocation.py` | 新增 | Real NATS rotation, forced disconnect and old-generation reconnect denial |
+| `tests/test_nats_transport.py` | 新增 | Enrollment, local custody, TLS, exact ACL/durable and fail-closed configuration |
+| `tests/test_order_reservation.py` | 新增 | Atomic runner-wide reserve/replace/cancel/fill/close/rebuild and restart recovery |
+| `tests/integration/test_nats_revocation.py` | 新增 | Real NATS rotation, forced disconnect and old-generation reconnect denial |
 | `docs/design/telemetry_actor.md` | rename | `docs/design/runner_fact.md` |
 | `docs/authority/**`, `CLAUDE.md` | 修改 | producer/projector receipts and active references |
 | `docs/ops/05-deployment.md` | 修改 | v0.4 mode/policy runbook |
@@ -913,7 +913,7 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 5. Do not copy authorization or approval logic from Crucible.
 
 > **Execution status (2026-07-21)**:
-> `READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT`. Custos now pins the exact
+> `READY_CONTRACT_ONLY_PENDING_RUNNER_POLICY_RUNTIME_RECEIPT`. Custos now pins the exact
 > CR99 producer commit, schema, golden and SHA sidecar; the current exact-contract,
 > durable revision/reservation slice is `18 passed`. Policy identity is one immutable
 > `policy_id` per revision with an exact prior reference; the former parallel

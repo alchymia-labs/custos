@@ -1,4 +1,4 @@
-"""Runner aggregate-cap enforcement from verified CR99 policy only.
+"""Runner aggregate-cap enforcement from verified runner-safety policy only.
 
 The guard rejects risk-increasing orders beyond the signed per-order or total
 ceiling and always permits explicitly risk-reducing orders.  DeploymentSpec is
@@ -41,7 +41,7 @@ class LocalCapConfig:
     @classmethod
     def from_verified_policy(cls, policy: RunnerAggregateCapPolicyV1) -> LocalCapConfig:
         if not isinstance(policy, RunnerAggregateCapPolicyV1):
-            raise TypeError("local cap requires a verified CR99 policy model")
+            raise TypeError("local cap requires a verified runner-safety policy model")
         return cls(
             max_order_notional=policy.max_order_notional_decimal,
             max_total_notional=policy.max_total_notional_decimal,

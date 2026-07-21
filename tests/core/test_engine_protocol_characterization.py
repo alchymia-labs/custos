@@ -1,4 +1,4 @@
-"""Plan 19 T1 characterization of the additive engine protocol boundary."""
+"""Additive engine protocol boundary characterization."""
 
 from __future__ import annotations
 

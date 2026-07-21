@@ -1,4 +1,4 @@
-"""Inbound-only CR100 command+policy control durable binding tests."""
+"""Inbound-only runner-control command and policy durable binding tests."""
 
 from __future__ import annotations
 

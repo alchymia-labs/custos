@@ -57,8 +57,8 @@
   "focused_verification": {
     "result": "not_run_after_canonical_v1_reset",
     "tests": [
-      "tests/test_plan18_t5e_artifact_runtime.py",
-      "tests/test_plan19_t5f_runner_command_runtime.py",
+      "tests/test_artifact_runtime.py",
+      "tests/test_runner_command_runtime.py",
       "tests/engines/nautilus/test_runtime_entry_point_loader_v1.py"
     ]
   },

@@ -33,7 +33,7 @@ def candidate(tmp_path_factory: pytest.TempPathFactory) -> ToolkitRcBuildCandida
         source_commit=_head(),
         source_date_epoch=SOURCE_DATE_EPOCH,
         candidate_version="0.1.0rc1",
-        output_root=tmp_path_factory.mktemp("plan18-t6b") / "toolkit-rc-candidate",
+        output_root=tmp_path_factory.mktemp("toolkit-release-build") / "toolkit-rc-candidate",
     )
 
 

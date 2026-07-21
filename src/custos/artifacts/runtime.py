@@ -499,7 +499,7 @@ class StrategyArtifactRuntimeV1:
         if not isinstance(command, CrucibleRunnerDeploymentCommandV1):
             raise ArtifactVerificationError(
                 ArtifactVerificationCode.COMMAND_BINDING_INVALID,
-                "T5e requires the T4 durable CR89 command model",
+                "artifact runtime requires the durable runner-command model",
             )
         if command.deployment_instance_id != deployment_instance_id:
             raise ArtifactVerificationError(

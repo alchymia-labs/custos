@@ -202,7 +202,7 @@ def _validate_jwt(
         (subscribe, "deny", permission_profile["subscribe_deny"]),
     )
     if any(claim.get(key) != value for claim, key, value in expected):
-        raise RunnerNatsTransportError("NATS User JWT permissions diverge from CR100 profile")
+        raise RunnerNatsTransportError("NATS User JWT permissions diverge from the runner-control transport profile")
 
 
 def runner_nats_transport_domain(trading_mode: str) -> str:
@@ -436,12 +436,12 @@ class RunnerNatsTransportCredential:
             self.tenant_id, self.runner_id, self.trading_mode
         )
         if self.permission_profile != expected_permission:
-            raise RunnerNatsTransportError("permission profile is not exact CR100 authority")
+            raise RunnerNatsTransportError("permission profile is not exact runner-control authority")
         expected_durable = _expected_durable_config(
             self.tenant_id, self.runner_id, self.trading_mode
         )
         if self.durable_config != expected_durable:
-            raise RunnerNatsTransportError("durable config is not exact CR100 authority")
+            raise RunnerNatsTransportError("durable config is not exact runner-control authority")
         _validate_jwt(
             self.user_jwt,
             expected_issuer=self.issuer_public_key,
@@ -555,17 +555,17 @@ class RunnerNatsTransportCredential:
             "authority_digest",
         }
         if set(response) != expected_fields:
-            raise RunnerNatsTransportError("CR100 issuance response shape is invalid")
+            raise RunnerNatsTransportError("runner-control issuance response shape is invalid")
         if response["authority_coordinate"] != RUNNER_NATS_TRANSPORT_AUTHORITY_COORDINATE:
-            raise RunnerNatsTransportError("CR100 transport profile is unsupported")
+            raise RunnerNatsTransportError("runner-control transport profile is unsupported")
         if response["issuer_public_key"] != expected_issuer_public_key:
-            raise RunnerNatsTransportError("CR100 issuer Account pin mismatch")
+            raise RunnerNatsTransportError("runner-control issuer Account pin mismatch")
         if response["tenant_id"] != expected_tenant_id:
-            raise RunnerNatsTransportError("CR100 tenant binding mismatch")
+            raise RunnerNatsTransportError("runner-control tenant binding mismatch")
         if response["runner_id"] != str(expected_runner_id):
-            raise RunnerNatsTransportError("CR100 runner binding mismatch")
+            raise RunnerNatsTransportError("runner-control runner binding mismatch")
         if response["trading_mode"] != expected_trading_mode:
-            raise RunnerNatsTransportError("CR100 trading mode binding mismatch")
+            raise RunnerNatsTransportError("runner-control trading mode binding mismatch")
         return cls(
             schema_version=response["schema_version"],
             authority_coordinate=str(response["authority_coordinate"]),
@@ -616,7 +616,7 @@ class RunnerNatsRevocationChallenge:
 
     def __post_init__(self) -> None:
         if self.profile != _REVOCATION_CHALLENGE_PROFILE:
-            raise RunnerNatsTransportError("CR100 revocation challenge profile is invalid")
+            raise RunnerNatsTransportError("runner-control revocation challenge profile is invalid")
         if not _SAFE_ID.fullmatch(self.tenant_id):
             raise RunnerNatsTransportError("revocation challenge tenant_id is invalid")
         object.__setattr__(self, "runner_id", _required_uuid(self.runner_id, "runner_id"))
@@ -654,7 +654,7 @@ class RunnerNatsRevocationChallenge:
 
     def assert_fresh(self, *, now: datetime | None = None) -> None:
         if self.expires_at <= (now or datetime.now(UTC)).astimezone(UTC):
-            raise RunnerNatsTransportError("CR100 revocation challenge is expired")
+            raise RunnerNatsTransportError("runner-control revocation challenge is expired")
 
     def assert_credential_binding(self, credential: RunnerNatsTransportCredential) -> None:
         expected = (
@@ -667,7 +667,7 @@ class RunnerNatsRevocationChallenge:
             and self.user_public_key == credential.user_public_key
         )
         if not expected:
-            raise RunnerNatsTransportError("CR100 revocation challenge credential binding mismatch")
+            raise RunnerNatsTransportError("runner-control revocation challenge credential binding mismatch")
 
     def to_document(self) -> dict[str, Any]:
         return {
@@ -706,7 +706,7 @@ class RunnerNatsRevocationChallenge:
             "expires_at",
         }
         if set(value) != expected_fields:
-            raise RunnerNatsTransportError("CR100 revocation challenge shape is invalid")
+            raise RunnerNatsTransportError("runner-control revocation challenge shape is invalid")
         return cls(
             profile=str(value["profile"]),
             tenant_id=str(value["tenant_id"]),
@@ -1334,9 +1334,9 @@ class RunnerNatsTransportAuthorityClient:
             "status": "active",
         }
         if any(response.get(key) != value for key, value in expected.items()):
-            raise RunnerNatsTransportError("CR100 activation response binding mismatch")
+            raise RunnerNatsTransportError("runner-control activation response binding mismatch")
         if type(response.get("revision")) is not int or response["revision"] < 1:
-            raise RunnerNatsTransportError("CR100 activation revision is invalid")
+            raise RunnerNatsTransportError("runner-control activation revision is invalid")
         return response
 
     def revoke_superseded(
@@ -1454,7 +1454,7 @@ class RunnerNatsTransportAuthorityClient:
         if set(response) != expected_fields or any(
             response.get(key) != value for key, value in expected_values.items()
         ):
-            raise RunnerNatsTransportError("CR100 revocation completion binding mismatch")
+            raise RunnerNatsTransportError("runner-control revocation completion binding mismatch")
         return _required_timestamp(response["completed_at"], "completed_at")
 
     def _assert_credential_binding(self, credential: RunnerNatsTransportCredential) -> None:
@@ -1548,7 +1548,7 @@ class RunnerNatsTransportConnectionProfile:
         self.assert_active()
         allowed = self.credential.permission_profile["publish_allow"]
         if not any(_subject_matches(pattern, subject) for pattern in allowed):
-            raise RunnerNatsTransportError("RunnerFact subject is outside CR100 authority")
+            raise RunnerNatsTransportError("RunnerFact subject is outside runner-control authority")
 
     async def connect(
         self,

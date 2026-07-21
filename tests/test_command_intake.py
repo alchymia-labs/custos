@@ -35,7 +35,7 @@ from custos.core.runner_command_intake import (
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_PATH = ROOT / "docs/authority/runner-deployment-command-golden-v1.json"
-VECTOR_PATH = ROOT / "tests/fixtures/plan19/runner_command_fingerprint_v1.json"
+VECTOR_PATH = ROOT / "tests/fixtures/runner_command/runner_command_fingerprint_v1.json"
 KEY_A = Ed25519PrivateKey.from_private_bytes(bytes(range(1, 33)))
 KEY_B = Ed25519PrivateKey.from_private_bytes(bytes(range(33, 65)))
 

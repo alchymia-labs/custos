@@ -1,4 +1,4 @@
-"""Plan 19 T7C real-NATS User JWT resolver revocation acceptance."""
+"""Real-NATS User JWT resolver revocation acceptance."""
 
 from __future__ import annotations
 

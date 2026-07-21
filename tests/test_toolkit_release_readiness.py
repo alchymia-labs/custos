@@ -35,7 +35,7 @@ class BuildCandidateFixture:
 def build_candidate(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> BuildCandidateFixture:
-    build_root = tmp_path_factory.mktemp("plan18-t6d-build") / "candidate"
+    build_root = tmp_path_factory.mktemp("toolkit-release-readiness") / "candidate"
     records: dict[str, dict[str, object]] = {}
     policies = {
         "custos-strategy-toolkit": {

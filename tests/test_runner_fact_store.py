@@ -89,7 +89,7 @@ def _authority() -> RunnerFactAuthority:
 
 
 def _identity() -> RunnerFactIdentity:
-    return RunnerFactIdentity(Ed25519PrivateKey.generate(), "plan19-t4-test-key")
+    return RunnerFactIdentity(Ed25519PrivateKey.generate(), "runner-fact-test-key")
 
 
 def _fact(label: str) -> dict[str, str]:

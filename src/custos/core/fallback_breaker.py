@@ -43,7 +43,7 @@ class FallbackBreakerConfig:
     @classmethod
     def from_verified_policy(cls, policy: RunnerAggregateCapPolicyV1) -> FallbackBreakerConfig:
         if not isinstance(policy, RunnerAggregateCapPolicyV1):
-            raise TypeError("fallback breaker requires a verified CR99 policy model")
+            raise TypeError("fallback breaker requires a verified runner-safety policy model")
         return cls(
             max_notional=policy.max_total_notional_decimal,
             max_drawdown_pct=STRICTEST_LOCAL_MAX_DRAWDOWN_PCT,

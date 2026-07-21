@@ -2305,7 +2305,7 @@ class RunnerStateStore:
     async def record_verified_runner_safety_policy(
         self, verified: VerifiedRunnerSafetyPolicy
     ) -> RunnerPolicyCommitResult:
-        """Advance one verified CR99 scope head or reject the policy fail closed."""
+        """Advance one verified runner-safety policy scope head or reject the policy fail closed."""
 
         return await asyncio.to_thread(self._record_verified_runner_safety_policy, verified)
 

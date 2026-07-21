@@ -1,7 +1,7 @@
 """Verified Crucible command identity and inbound delivery policy.
 
 This module intentionally stops before engine apply and before SQLite storage.
-Plan 19 Task 4 must implement :class:`CommandIntakeDurability` with the existing
+The command intake boundary implements :class:`CommandIntakeDurability` with the existing
 RunnerFact SQLite deep module.  The coordinator only permits ACK or TERM after
 that port returns a typed durable receipt.  JetStream PubAck is an unrelated
 outbound RunnerFact concern and has no surface here.
@@ -238,7 +238,7 @@ class _SignatureMaterial:
 
 @dataclass(frozen=True, slots=True)
 class CrucibleRunnerCommandAuthenticator:
-    """Authenticate CR89 bytes, then invoke the sole T2 command consumer model."""
+    """Authenticate runner-command bytes, then invoke the sole command consumer model."""
 
     expected_tenant_id: str
     expected_runner_id: UUID
@@ -559,7 +559,7 @@ class CommandIntakeCoordinator:
 
 
 def compute_command_fingerprint(*, subject: str, verified_exact_event_bytes: bytes) -> str:
-    """Freeze Plan 19 identity without including outer signature bytes."""
+    """Freeze command identity without including outer signature bytes."""
 
     if not isinstance(subject, str) or not subject:
         raise ValueError("command fingerprint subject is required")

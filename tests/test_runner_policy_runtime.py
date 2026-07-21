@@ -1,4 +1,4 @@
-"""Plan 19 T7B: durable verified policy state and local guard consumption."""
+"""Durable verified policy state and local guard consumption."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def _verified_policy(
         "schema_version": 1,
         "signature_profile": "crucible-domain-event-v1-exact-bytes",
         "event_encoding": "application/json;base64url",
-        "signature_key_id": "cr99-runtime-test",
+        "signature_key_id": "runner-policy-runtime-test",
         "event_bytes": _b64url(event_bytes),
         "signature": _b64url(private_key.sign(signature_input)),
     }
@@ -125,7 +125,7 @@ def _verified_policy(
         expected_tenant_id=tenant_id,
         expected_runner_id=runner_id,
         allowed_trading_modes=frozenset({"live", "sandbox", "testnet"}),
-        signature_keys={"cr99-runtime-test": private_key.public_key()},
+        signature_keys={"runner-policy-runtime-test": private_key.public_key()},
     ).verify(subject=subject, signed_envelope_bytes=envelope_bytes)
 
 

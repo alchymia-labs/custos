@@ -1,4 +1,4 @@
-"""Plan 19 T8a canonical first-production RunnerFact V1 contract."""
+"""Canonical first-production RunnerFact V1 contract."""
 
 from __future__ import annotations
 

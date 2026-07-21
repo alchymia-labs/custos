@@ -1,4 +1,4 @@
-"""Plan 19 T7B durable runner-level reservation lifecycle."""
+"""Durable runner-level reservation lifecycle."""
 
 from __future__ import annotations
 

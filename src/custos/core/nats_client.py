@@ -1,4 +1,4 @@
-"""Inbound-only Crucible control transport over an existing CR100 durable."""
+"""Inbound-only Crucible control transport over an existing runner-control durable."""
 
 from __future__ import annotations
 
@@ -81,7 +81,7 @@ class CrucibleNatsClient:
         expected_subjects = list(self.connection_profile.durable_config["filter_subjects"])
         if len(expected_subjects) != 2 or expected_subjects[0] != subject:
             raise RunnerNatsTransportError(
-                "runner command subject is outside the exact CR100 mode authority"
+                "runner command subject is outside the exact runner-control mode authority"
             )
         if getattr(command, "trading_mode", None) != self.connection_profile.trading_mode:
             raise RunnerNatsTransportError(
@@ -89,12 +89,12 @@ class CrucibleNatsClient:
             )
 
     def assert_policy_binding(self, subject: str, policy: Any) -> None:
-        """Bind the CR99 policy subject and verified body to this exact-mode session."""
+        """Bind the runner-safety policy subject and verified body to this exact-mode session."""
 
         expected_subjects = list(self.connection_profile.durable_config["filter_subjects"])
         if len(expected_subjects) != 2 or expected_subjects[1] != subject:
             raise RunnerNatsTransportError(
-                "runner policy subject is outside the exact CR100 mode authority"
+                "runner policy subject is outside the exact runner-control mode authority"
             )
         if getattr(policy, "trading_mode", None) != self.connection_profile.trading_mode:
             raise RunnerNatsTransportError(
@@ -130,5 +130,5 @@ def _assert_existing_consumer(config: Any, expected: Any) -> None:
     }
     if actual != required:
         raise RunnerNatsTransportError(
-            "existing CR100 control durable does not match signed authority"
+            "existing runner-control durable does not match signed authority"
         )

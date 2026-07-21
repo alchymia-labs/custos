@@ -1,7 +1,7 @@
 """Strict consumer for the Crucible-owned runner aggregate-cap policy.
 
 The signed event preserves Rust struct-order compact JSON while the embedded
-policy digest uses the CR99 recursively key-sorted canonical JSON profile. This
+policy digest uses the runner-safety policy recursively key-sorted canonical JSON profile. This
 consumer validates both representations, the subject framing, fingerprint,
 Ed25519 signature, and runner scope before returning a typed policy.
 DeploymentSpec is deliberately absent from this API.
@@ -119,7 +119,7 @@ class RunnerAggregateCapPolicyRefV1(BaseModel):
 
 
 class RunnerAggregateCapPolicyV1(BaseModel):
-    """Closed CR99 policy body after exact-byte and digest verification."""
+    """Closed runner-safety policy body after exact-byte and digest verification."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -183,7 +183,7 @@ class VerifiedRunnerSafetyPolicy:
 
 @dataclass(frozen=True, slots=True)
 class CrucibleRunnerSafetyPolicyAuthenticator:
-    """Verify one exact CR99 envelope against runner-local authority keys."""
+    """Verify one exact runner-safety policy envelope against runner-local authority keys."""
 
     expected_tenant_id: str
     expected_runner_id: UUID
@@ -284,9 +284,9 @@ def _parse_envelope(envelope: dict[str, Any], subject: str) -> _EnvelopeMaterial
     if envelope["schema_version"] != 1:
         raise ValueError("envelope schema_version must be exactly 1")
     if envelope["signature_profile"] != SIGNATURE_PROFILE:
-        raise ValueError("signature_profile differs from CR99")
+        raise ValueError("signature_profile differs from the runner-safety policy contract")
     if envelope["event_encoding"] != EVENT_ENCODING:
-        raise ValueError("event_encoding differs from CR99")
+        raise ValueError("event_encoding differs from the runner-safety policy contract")
     key_id = envelope["signature_key_id"]
     if not isinstance(subject, str) or not subject:
         raise ValueError("subject must be non-empty")
@@ -340,7 +340,7 @@ def _parse_exact_event(*, subject: str, event_bytes: bytes) -> RunnerAggregateCa
     body = {key: payload[key] for key in _POLICY_FIELDS[:-1]}
     actual_digest = hashlib.sha256(_canonical_json_bytes(body)).hexdigest()
     if payload["policy_digest"] != actual_digest:
-        raise ValueError("policy digest differs from CR99 canonical JSON")
+        raise ValueError("policy digest differs from runner-safety policy canonical JSON")
     policy = RunnerAggregateCapPolicyV1.model_validate(payload)
 
     expected_subject = (
@@ -387,7 +387,7 @@ def _require_exact_keys(
     ordered: bool = False,
 ) -> None:
     if set(value) != set(expected):
-        raise ValueError(f"{label} fields differ from the closed CR99 contract")
+        raise ValueError(f"{label} fields differ from the closed runner-safety policy contract")
     if ordered and tuple(value) != tuple(expected):
         raise ValueError(f"{label} fields are not in Rust struct order")
 

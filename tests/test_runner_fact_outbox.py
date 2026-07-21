@@ -1,4 +1,4 @@
-"""Plan 19 T1 characterization of the existing RunnerFact SQLite outbox."""
+"""RunnerFact SQLite outbox characterization."""
 
 from __future__ import annotations
 

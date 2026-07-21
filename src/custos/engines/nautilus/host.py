@@ -538,7 +538,7 @@ class NtTradingNodeHost:
         timeout_secs: float,
     ) -> EngineReadyReceipt:
         if authority.trading_mode == "live":
-            raise RuntimeError("Plan 19 T5 live readiness remains fail closed")
+            raise RuntimeError("live readiness remains fail closed until engine supervision is complete")
         deadline = asyncio.get_running_loop().time() + timeout_secs
         instance_id = str(authority.deployment_instance_id)
         while asyncio.get_running_loop().time() < deadline:

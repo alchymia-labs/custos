@@ -1,4 +1,4 @@
-"""Plan 19 T7C CR100 transport authority consumer acceptance."""
+"""Transport authority consumer acceptance."""
 
 from __future__ import annotations
 
@@ -366,7 +366,7 @@ def test_permission_or_stream_drift_is_rejected_before_socket_open() -> None:
         response["durable_config_sha256"] = _digest(
             response["durable_config"]  # type: ignore[arg-type]
         )
-        with pytest.raises(RunnerNatsTransportError, match="exact CR100"):
+        with pytest.raises(RunnerNatsTransportError, match="exact runner-control authority"):
             RunnerNatsTransportCredential.from_issued_response(
                 response,
                 user_seed=user_seed,

@@ -1,4 +1,4 @@
-"""CR100 User NKey/JWT transport enrollment and rotation."""
+"""Runner-control User NKey/JWT transport enrollment and rotation."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ DEFAULT_NATS_CA = Path.home() / ".arx" / "certs" / "crucible-nats-ca.pem"
 def register(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser(
         "nats-transport",
-        help="Enroll, rotate, activate or verify the CR100 runner NATS credential.",
+        help="Enroll, rotate, activate or verify the runner-control NATS credential.",
     )
     actions = parser.add_subparsers(
         dest="transport_action",
@@ -80,7 +80,7 @@ def _add_nats_connection_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--issuer-public-key",
         default=os.environ.get("CRUCIBLE_NATS_ISSUER_ACCOUNT_NKEY", ""),
-        help="Pinned CR100 NATS Account public NKey.",
+        help="Pinned runner-control NATS Account public NKey.",
     )
 
 
@@ -250,7 +250,7 @@ def _remaining_timeout(args: argparse.Namespace, expires_at: datetime) -> float:
         raise RunnerNatsTransportError("revocation timeout must be positive")
     remaining = (expires_at - datetime.now(UTC)).total_seconds()
     if remaining <= 0:
-        raise RunnerNatsTransportError("CR100 revocation challenge expired")
+        raise RunnerNatsTransportError("runner-control revocation challenge expired")
     return min(configured, remaining)
 
 

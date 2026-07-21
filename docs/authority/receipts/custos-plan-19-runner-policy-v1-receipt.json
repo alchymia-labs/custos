@@ -1,6 +1,6 @@
 {
   "receipt_version": 1,
-  "receipt_status": "READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT",
+  "receipt_status": "READY_CONTRACT_ONLY_PENDING_RUNNER_POLICY_RUNTIME_RECEIPT",
   "repository": "tesseract-trading/custos",
   "plan": "2026-07/19-crucible-command-runner-fact-runtime-convergence",
   "task": "7B",
@@ -8,8 +8,8 @@
   "code_commit": "b3d0ae134742ee220a91e8e721e6f375403dd5bc",
   "contract_asset_index": {
     "path": "docs/authority/crucible-runner-safety-policy-consumer-assets-v1.json",
-    "sha256": "85f9546a39f754d67517d1d15e5aed23578c5d33c00c9a3774c30500b3eaca6a",
-    "size_bytes": 2115
+    "sha256": "df4642323957fccdccaa851a581bd1d4fcbe688deb370c8e8e01a55fc7a97cf4",
+    "size_bytes": 2124
   },
   "producer_authority": {
     "repository": "tesseract-trading/crucible-rust",
@@ -60,16 +60,16 @@
     "live runtime and production promotion"
   ],
   "sources": {
-    "src/custos/contracts/crucible_runner_safety_policy.py": "d9a2e2ad2e57e6865e8f53a7f9cb59af96aef8593ee72f85732aacd752c3dfc4",
-    "src/custos/core/runner_fact.py": "05c87dad27446dd71113f8d5e356e9ffb3536bdbd7a1ce09e6176562e22c46d7",
-    "tests/test_plan19_t7b_runner_policy_runtime_code.py": "a7ae56d63cd21126152e1ee86d45f17a8f9677a1a939ea75245edec7b118b668",
-    "tests/test_plan19_t4_runner_state_store.py": "97fc38940f856c9501e9a5a86cb2a8de6a80659231b6ffc97a52036dd2027cfa",
-    "tests/test_plan19_t7b_order_reservation.py": "23d96c9ffdc580fe02f6947b4aee379bb169f02e8c4432a6a6ebf83700bf3548"
+    "src/custos/contracts/crucible_runner_safety_policy.py": "f1eac3cf951df9a7eefa569306574384734453a19b3bc974daceb7e36e1d88ab",
+    "src/custos/core/runner_fact.py": "da0b5714407b6d8fcfc02b1a71b1e9b679023ae795039fe7deaa0e2f6e499c5f",
+    "tests/test_runner_policy_runtime.py": "b0e71434ae56c0d498f04e182da60f18e3b06ff2c78f799ff40bfa424774f336",
+    "tests/test_runner_fact_store.py": "768cdd57a75b224d78d887f186cd8a703126689f8ef79f3805cd3b731d263642",
+    "tests/test_order_reservation.py": "774fb53aec057f1979373e49b9e6e095ed581fe43b402e18b28ee3e5bf46ad2d"
   },
   "validation": {
-    "command": "uv run pytest -q tests/test_plan19_t7b_runner_policy_runtime_code.py tests/test_plan19_t4_runner_state_store.py tests/test_plan19_t7b_order_reservation.py",
+    "command": "uv run pytest -q tests/test_runner_policy_runtime.py tests/test_runner_fact_store.py tests/test_order_reservation.py",
     "passed": 18,
     "required_before_runtime_ready": true,
-    "status": "FOCUSED_CR99_EXACT_CONTRACT_PASS"
+    "status": "FOCUSED_RUNNER_POLICY_EXACT_CONTRACT_PASS"
   }
 }

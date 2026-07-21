@@ -1123,7 +1123,7 @@ def verify_plan_19_task_7a_runner_policy_consumer(
         return
 
     index = load_json(index_path)
-    expected_status = "READY_CONTRACT_ONLY_PENDING_CR99_RUNTIME_RECEIPT"
+    expected_status = "READY_CONTRACT_ONLY_PENDING_RUNNER_POLICY_RUNTIME_RECEIPT"
     if index.get("schema_version") != 1 or index.get("status") != expected_status:
         errors.append("runner policy consumer asset index status differs")
     expected_assets = {
@@ -1201,12 +1201,12 @@ def verify_plan_19_task_7b_runner_policy_code(manifest: dict[str, Any], errors: 
         return
     receipt = load_json(receipt_path)
     if receipt.get("validation") != {
-        "command": "uv run pytest -q tests/test_plan19_t7b_runner_policy_runtime_code.py "
-        "tests/test_plan19_t4_runner_state_store.py "
-        "tests/test_plan19_t7b_order_reservation.py",
+        "command": "uv run pytest -q tests/test_runner_policy_runtime.py "
+        "tests/test_runner_fact_store.py "
+        "tests/test_order_reservation.py",
         "passed": 18,
         "required_before_runtime_ready": True,
-        "status": "FOCUSED_CR99_EXACT_CONTRACT_PASS",
+        "status": "FOCUSED_RUNNER_POLICY_EXACT_CONTRACT_PASS",
     }:
         errors.append("runner policy V1 focused validation evidence differs")
     if receipt.get("runtime_policy_consumed") is not False:
