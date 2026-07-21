@@ -98,8 +98,11 @@ re-export shim is retained.
 
 Run `make strategy-contract-assets` to regenerate the sole canonical V1
 ArtifactRef schema, pre-sign golden, verification receipt assets, contract
-receipt, and digest index. The command rejects predecessor tracks rather than
-preserving them. `make check-toolkit-extraction` reconstructs every T4 target
+receipt, and immutable digest index. The digest index contains only producer
+assets and never consumer receipt/readiness state; that mutable handoff state
+lives exclusively in the separate contract receipt, avoiding circular relocks.
+The command rejects predecessor tracks rather than preserving them.
+`make check-toolkit-extraction` reconstructs every T4 target
 from the pinned T3 Git blob, and
 `strategy-toolkit-parity-golden-v1.json` independently freezes pre-move fixed-input
 signal/order-intent and private-vendor indicator behavior.

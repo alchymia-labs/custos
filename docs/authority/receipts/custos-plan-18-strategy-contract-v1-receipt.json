@@ -19,8 +19,8 @@
   },
   "contract_asset_index": {
     "path": "docs/authority/strategy-contract-assets-v1.json",
-    "sha256": "ef476e686dfcf243d251bfcc7619af4e94fccb52631ff41891423216595cbaec",
-    "size_bytes": 3835
+    "sha256": "d32c77dfe05171c3a25102622030df0950959d10bd681eb580697660236a8443",
+    "size_bytes": 2816
   },
   "contract_consumer_ready": false,
   "open_blockers": [

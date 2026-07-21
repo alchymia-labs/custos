@@ -102,7 +102,7 @@
     ],
     "artifact_ref_type": "StrategyArtifactRefV1",
     "artifact_ref_schema_version": 1,
-    "asset_index_status": "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS",
+    "asset_index_status": "CANONICAL_V1_CONTRACT_ASSETS_PUBLISHED",
     "task_5c_handoff_ready": false,
     "task_5d_b_status": "READY_COMMAND_CONSUMER_CONTRACT_ONLY",
     "task_5d_b_command_asset_index": "docs/authority/crucible-runner-command-consumer-assets-v1.json",

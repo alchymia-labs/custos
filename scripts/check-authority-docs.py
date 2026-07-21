@@ -316,9 +316,20 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
 
     if index.get("asset_index_schema_version") != 1:
         errors.append("strategy-contract-assets-v1.json must use asset_index_schema_version=1")
-    if index.get("status") != "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS":
+    if index.get("status") != "CANONICAL_V1_CONTRACT_ASSETS_PUBLISHED":
+        errors.append("strategy-contract-assets-v1.json must describe immutable published assets")
+    forbidden_handoff_keys = {
+        "consumer_receipts",
+        "contract_consumer_ready",
+        "command_consumer_ready",
+        "runtime_ready",
+        "production_ready",
+    }
+    present_handoff_keys = forbidden_handoff_keys.intersection(index)
+    if present_handoff_keys:
         errors.append(
-            "strategy-contract-assets-v1.json must remain pending until PS and Crucible receipts are pinned"
+            "immutable contract asset index must not contain handoff state: "
+            + ", ".join(sorted(present_handoff_keys))
         )
     forbidden_index_keys = {"legacy_non_production", "predecessor", "superseded"}
     present_forbidden = forbidden_index_keys.intersection(index)
@@ -436,14 +447,9 @@ def verify_plan_18_canonical_contract(errors: list[str]) -> None:
         ),
         "sha256": sha256_file(required_paths["crucible_consumer_receipt"]),
     }
-    index_consumers = index.get("consumer_receipts", {})
     receipt_consumers = receipt.get("consumers", {})
-    if index_consumers.get("philosophers_stone", {}).get("receipt") is not None:
-        errors.append("PS V1 consumer receipt must remain pending until PS publishes it")
     if receipt_consumers.get("philosophers_stone", {}).get("receipt") is not None:
         errors.append("Custos receipt must not fabricate the pending PS consumer receipt")
-    if index_consumers.get("crucible_rust", {}).get("receipt") != crucible_receipt_pin:
-        errors.append("Custos asset index does not pin the exact Crucible Plan 88 receipt")
     if receipt_consumers.get("crucible_rust", {}).get("receipt") != crucible_receipt_pin:
         errors.append("Custos producer receipt does not pin the exact Crucible Plan 88 receipt")
     if (

@@ -24,7 +24,9 @@ def test_asset_index_has_no_predecessor_or_compatibility_track() -> None:
     index = json.loads(INDEX.read_text(encoding="utf-8"))
     serialized = json.dumps(index, sort_keys=True)
 
-    assert index["status"] == "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS"
+    assert index["status"] == "CANONICAL_V1_CONTRACT_ASSETS_PUBLISHED"
+    assert "consumer_receipts" not in index
+    assert "runtime_ready" not in index
     assert {"legacy_non_production", "predecessor", "superseded"}.isdisjoint(index)
     assert "runtime_fallback_allowed" not in serialized
     assert re.search(r'"(?:[^"]+-)?v(?:[2-9]|[1-9][0-9]+)(?:/|\.json")', serialized) is None

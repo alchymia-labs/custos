@@ -443,7 +443,7 @@ def build_v1_contract_assets() -> dict[str, bytes]:
         {
             "asset_index_schema_version": 1,
             "canonical_name": "Custos Plan 18 canonical first-production V1 contracts",
-            "status": "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS",
+            "status": "CANONICAL_V1_CONTRACT_ASSETS_PUBLISHED",
             "current_contracts": {
                 "strategy_artifact_ref": {
                     "type": "StrategyArtifactRefV1",
@@ -462,24 +462,6 @@ def build_v1_contract_assets() -> dict[str, bytes]:
                 "source_path": str(SOURCE_MODEL.relative_to(ROOT)),
                 "source_sha256": sha256(SOURCE_MODEL.read_bytes()),
             },
-            "consumer_receipts": {
-                "philosophers_stone": {
-                    "repository": "alchymia-labs/philosophers-stone",
-                    "consumes": "StrategyArtifactRefV1",
-                    "receipt": None,
-                    "status": "PENDING_CANONICAL_V1_CONSUMER_RECEIPT",
-                },
-                "crucible_rust": {
-                    "repository": "tesseract-trading/crucible-rust",
-                    "consumes": "StrategyArtifactPreImportVerificationReceiptV1",
-                    "receipt": crucible_receipt_pin,
-                    "status": "EXACT_V1_CONTRACT_CONSUMER_RECEIPT_ACCEPTED",
-                },
-            },
-            "contract_consumer_ready": False,
-            "command_consumer_ready": False,
-            "runtime_ready": False,
-            "production_ready": False,
             "assets": index_entries,
         }
     )
