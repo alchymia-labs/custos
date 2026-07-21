@@ -219,12 +219,12 @@ def _load_wheels(
     build_root: Path,
 ) -> tuple[bytes, dict[str, Any], dict[str, _WheelInput]]:
     manifest_path = build_root / "toolkit-rc-build-manifest-input.json"
-    manifest_content, document = _read_json(manifest_path, "T6b build manifest")
+    manifest_content, document = _read_json(manifest_path, "build manifest")
     if document.get("status") != "BUILD_CANDIDATE_ONLY":
-        raise ReleaseReadinessError("T6b build status differs")
+        raise ReleaseReadinessError("build evidence build status differs")
     candidate_version = document.get("candidate_version")
     if not isinstance(candidate_version, str) or not RC_VERSION_RE.fullmatch(candidate_version):
-        raise ReleaseReadinessError("T6b candidate version is not immutable 0.1.0rcN")
+        raise ReleaseReadinessError("build candidate version is not immutable 0.1.0rcN")
     required_flags = {
         "reproducible": True,
         "registry_accessed": False,
@@ -232,22 +232,22 @@ def _load_wheels(
         "strategy_release_bom_created": False,
     }
     if any(document.get(name) != value for name, value in required_flags.items()):
-        raise ReleaseReadinessError("T6b candidate-only safety flags differ")
+        raise ReleaseReadinessError("build candidate-only safety flags differ")
     builds = document.get("builds")
     if not isinstance(builds, dict):
-        raise ReleaseReadinessError("T6b build records are absent")
+        raise ReleaseReadinessError("build evidence build records are absent")
     first = builds.get("build-1")
     second = builds.get("build-2")
     if not isinstance(first, dict) or not isinstance(second, dict):
-        raise ReleaseReadinessError("T6b requires two isolated build records")
+        raise ReleaseReadinessError("build evidence requires two isolated build records")
     if set(first) != set(DISTRIBUTION_ROLES) or first != second:
-        raise ReleaseReadinessError("T6b build records are not identical")
+        raise ReleaseReadinessError("build evidence build records are not identical")
 
     wheels: dict[str, _WheelInput] = {}
     for distribution in sorted(DISTRIBUTION_ROLES):
         record = first[distribution]
         if not isinstance(record, dict):
-            raise ReleaseReadinessError(f"T6b {distribution} record is invalid")
+            raise ReleaseReadinessError(f"build evidence {distribution} record is invalid")
         filename = record.get("filename")
         digest = record.get("sha256")
         size_bytes = record.get("size_bytes")
@@ -256,28 +256,34 @@ def _load_wheels(
             or not isinstance(digest, str)
             or not isinstance(size_bytes, int)
         ):
-            raise ReleaseReadinessError(f"T6b {distribution} wheel binding is invalid")
+            raise ReleaseReadinessError(f"build evidence {distribution} wheel binding is invalid")
         first_path = build_root / "build-1" / "dist" / distribution / filename
         second_path = build_root / "build-2" / "dist" / distribution / filename
         try:
             first_bytes = first_path.read_bytes()
             second_bytes = second_path.read_bytes()
         except OSError as exc:
-            raise ReleaseReadinessError(f"T6b {distribution} wheel is missing: {exc}") from exc
+            raise ReleaseReadinessError(
+                f"build evidence {distribution} wheel is missing: {exc}"
+            ) from exc
         if first_bytes != second_bytes:
-            raise ReleaseReadinessError(f"T6b {distribution} wheel bytes differ")
+            raise ReleaseReadinessError(f"build evidence {distribution} wheel bytes differ")
         if _sha256(first_bytes) != digest or len(first_bytes) != size_bytes:
-            raise ReleaseReadinessError(f"T6b {distribution} wheel digest or size differs")
+            raise ReleaseReadinessError(
+                f"build evidence {distribution} wheel digest or size differs"
+            )
         raw_dependencies = record.get("requires_dist")
         top_levels = record.get("top_level_modules")
         if not isinstance(raw_dependencies, list) or not all(
             isinstance(value, str) for value in raw_dependencies
         ):
-            raise ReleaseReadinessError(f"T6b {distribution} dependency evidence differs")
+            raise ReleaseReadinessError(
+                f"build evidence {distribution} dependency evidence differs"
+            )
         if not isinstance(top_levels, list) or not all(
             isinstance(value, str) for value in top_levels
         ):
-            raise ReleaseReadinessError(f"T6b {distribution} module evidence differs")
+            raise ReleaseReadinessError(f"build evidence {distribution} module evidence differs")
         wheels[distribution] = _WheelInput(
             distribution_name=distribution,
             version=str(record.get("version")),
@@ -396,9 +402,9 @@ def prepare_toolkit_rc_release_readiness(
     source_commit = build_document.get("source_commit")
     source_date_epoch = build_document.get("source_date_epoch")
     if not isinstance(source_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", source_commit):
-        raise ReleaseReadinessError("T6b source commit is not exact")
+        raise ReleaseReadinessError("build source commit is not exact")
     if not isinstance(source_date_epoch, int) or source_date_epoch < 315_532_800:
-        raise ReleaseReadinessError("T6b SOURCE_DATE_EPOCH is invalid")
+        raise ReleaseReadinessError("build SOURCE_DATE_EPOCH is invalid")
 
     lock_bytes = lock_path.read_bytes()
     dependency_sets = {
@@ -630,7 +636,7 @@ def assemble_toolkit_rc_publication_inputs(
     sigstore_bundle_path: Path,
     output_root: Path,
 ) -> PublicationAssemblyArtifacts:
-    """Assemble T6a/T6c inputs after the workflow verifies a production bundle."""
+    """Assemble publication inputs after the workflow verifies a production bundle."""
 
     build_root = build_root.resolve()
     readiness_root = readiness_root.resolve()
@@ -791,19 +797,19 @@ def _add_common_paths(parser: argparse.ArgumentParser) -> None:
         default=Path("docs/authority/strategy-contract-assets-v1.json"),
     )
     parser.add_argument(
-        "--t4-zero-rewrite-receipt",
+        "--toolkit-extraction-receipt",
         type=Path,
         default=Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),
     )
     parser.add_argument(
-        "--t4b-typing-closure-receipt",
+        "--toolkit-typing-closure-receipt",
         type=Path,
         default=Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
     )
     parser.add_argument(
-        "--t5-pre-import-verifier-receipt",
+        "--pre-import-verifier-receipt",
         type=Path,
-        default=Path("docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"),
+        default=Path("docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"),
     )
 
 

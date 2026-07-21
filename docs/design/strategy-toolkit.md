@@ -117,7 +117,7 @@ called strict or production-ready. Private third-party vendor code stays outside
 mypy and remains guarded by exact digests plus fixed-input parity.
 
 The current authority record is
-`custos-plan-18-strategy-contract-v1-receipt.json`. It remains
+`custos-strategy-contract-v1-producer-receipt.json`. It remains
 `CANONICAL_V1_PENDING_CONSUMER_RECEIPTS`, with handoff/runtime/production false.
 Crucible's owner-produced Plan 88 contract receipt is pinned by exact commit and
 vendored-byte hash. The PS consumer receipt remains absent; Custos must not fabricate

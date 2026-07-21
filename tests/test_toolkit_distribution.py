@@ -82,7 +82,9 @@ def test_contract_implementation_has_one_canonical_source() -> None:
 
 
 def test_canonical_v1_receipt_pins_the_only_contract_source() -> None:
-    receipt_path = ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+    receipt_path = (
+        ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
+    )
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     assert (
         hashlib.sha256(BASE_SOURCE.read_bytes()).hexdigest() == receipt["producer"]["source_sha256"]

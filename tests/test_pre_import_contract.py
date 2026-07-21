@@ -19,7 +19,7 @@ SCHEMA = (
 GOLDEN = ROOT / "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json"
 NEGATIVE = ROOT / "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json"
 INDEX = ROOT / "docs/authority/strategy-contract-assets-v1.json"
-RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+RECEIPT = ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
 CRUCIBLE_RECEIPT = (
     ROOT / "docs/authority/receipts/vendor/"
     "crucible-custos-strategy-contract-v1-consumer-receipt.json"

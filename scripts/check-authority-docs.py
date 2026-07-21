@@ -13,7 +13,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "authority-manifest.json"
 STRATEGY_CONTRACT_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+    "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
 )
 CANONICAL_INDEX_PATH = "docs/authority/strategy-contract-assets-v1.json"
 CANONICAL_ARTIFACT_REF_SCHEMA_PATH = "docs/gateway-contract/v1/strategy_artifact_ref_v1.schema.json"
@@ -31,7 +31,7 @@ RUNNER_COMMAND_CONSUMER_INDEX_PATH = (
     "docs/authority/crucible-runner-command-consumer-assets-v1.json"
 )
 RUNNER_COMMAND_CONSUMER_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
+    "docs/authority/receipts/custos-crucible-runner-command-v1-consumer-receipt.json"
 )
 RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-4-durable-state-receipt.json"
@@ -40,9 +40,7 @@ ARTIFACT_RUNTIME_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-18-task-5e-runtime-cutover-receipt.json"
 )
 ARTIFACT_RUNTIME_SOURCE = "src/custos/artifacts/runtime.py"
-ENGINE_LIFECYCLE_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-19-task-5-engine-lifecycle-receipt.json"
-)
+ENGINE_LIFECYCLE_RECEIPT_PATH = "docs/authority/receipts/custos-engine-lifecycle-v1-receipt.json"
 ENGINE_LIFECYCLE_SOURCE = "src/custos/core/engine_lifecycle.py"
 PORTFOLIO_SEMANTICS_RECEIPT_PATH = (
     "docs/authority/receipts/custos-plan-19-task-6-portfolio-semantics-receipt.json"
@@ -171,11 +169,11 @@ def _asset_table(
 def _validate_contract_summary(receipt: dict[str, Any], errors: list[str]) -> None:
     summary = receipt.get("contract_summary")
     if not isinstance(summary, dict):
-        errors.append("Plan 18 Task 2 receipt lacks a structured contract summary")
+        errors.append("strategy contract producer receipt lacks a structured contract summary")
         return
     for field, expected in EXPECTED_CONTRACT_SUMMARY.items():
         if summary.get(field) != expected:
-            errors.append(f"Plan 18 Task 2 contract summary {field} differs")
+            errors.append(f"strategy contract producer contract summary {field} differs")
 
 
 def _validate_requirement_review(
@@ -495,21 +493,21 @@ def verify_runner_command_consumer(errors: list[str]) -> None:
     source_path = resolve(RUNNER_COMMAND_CONSUMER_SOURCE)
     fixture_path = resolve(RUNNER_COMMAND_GOLDEN_PATH)
     if not all(path.is_file() for path in (index_path, receipt_path, source_path, fixture_path)):
-        errors.append("Plan 18 T5d-B V1 command consumer inventory is incomplete")
+        errors.append("runner command consumer V1 command consumer inventory is incomplete")
         return
 
     index = load_json(index_path)
     expected_code_status = "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT"
     if index.get("status") != expected_code_status:
-        errors.append("Plan 18 T5d-B code status differs")
+        errors.append("runner command consumer code status differs")
     model = index.get("consumer_model")
     if not isinstance(model, dict) or model.get("path") != RUNNER_COMMAND_CONSUMER_SOURCE:
-        errors.append("Plan 18 T5d-B consumer model differs")
+        errors.append("runner command consumer consumer model differs")
     else:
         if model.get("sha256") != hashlib.sha256(source_path.read_bytes()).hexdigest():
-            errors.append("Plan 18 T5d-B consumer model digest differs")
+            errors.append("runner command consumer consumer model digest differs")
         if model.get("size_bytes") != source_path.stat().st_size:
-            errors.append("Plan 18 T5d-B consumer model size differs")
+            errors.append("runner command consumer consumer model size differs")
     consumer_assets = index.get("consumer_assets")
     fixture = (
         next(
@@ -527,35 +525,35 @@ def verify_runner_command_consumer(errors: list[str]) -> None:
         not isinstance(fixture, dict)
         or fixture.get("sha256") != hashlib.sha256(fixture_path.read_bytes()).hexdigest()
     ):
-        errors.append("Plan 18 T5d-B V1 fixture digest differs")
+        errors.append("runner command consumer V1 fixture digest differs")
     producer = index.get("producer_authority")
     if not isinstance(producer, dict):
-        errors.append("Plan 18 T5d-B producer authority is missing")
+        errors.append("runner command consumer producer authority is missing")
     elif producer.get("receipt") is not None:
-        errors.append("Plan 18 T5d-B cannot pin an unpublished producer receipt")
+        errors.append("runner command consumer cannot pin an unpublished producer receipt")
     elif (
         producer.get("contract") != "CrucibleRunnerDeploymentCommandV1"
         or producer.get("status") != "CONTRACT_V1_PINNED_RUNTIME_RECEIPT_PENDING"
         or producer.get("producer_commit") != "750dd10f204198c90e5a1a827a36f2f1907bae04"
         or producer.get("subject_template") != "crucible.runner.command.v1.<tenant>.<runner>.<mode>"
     ):
-        errors.append("Plan 18 T5d-B V1 producer contract differs")
+        errors.append("runner command consumer V1 producer contract differs")
     if index.get("command_contains_deployment_spec_only") is not True:
-        errors.append("Plan 18 T5d-B command must contain DeploymentSpec only")
+        errors.append("runner command consumer command must contain DeploymentSpec only")
     if index.get("command_contract_consumer_ready") is not True:
-        errors.append("Plan 18 T5d-B exact command contract must be ready")
+        errors.append("runner command consumer exact command contract must be ready")
 
     receipt = load_json(receipt_path)
     if receipt.get("receipt_status") != expected_code_status:
-        errors.append("Plan 18 T5d-B receipt status differs")
+        errors.append("runner command consumer receipt status differs")
     bound_index = receipt.get("contract_asset_index")
     if (
         not isinstance(bound_index, dict)
         or bound_index.get("sha256") != hashlib.sha256(index_path.read_bytes()).hexdigest()
     ):
-        errors.append("Plan 18 T5d-B receipt does not bind the current index")
+        errors.append("runner command consumer receipt does not bind the current index")
     if receipt.get("runtime_ready") is not False or receipt.get("production_ready") is not False:
-        errors.append("Plan 18 T5d-B cannot claim runtime or production readiness")
+        errors.append("runner command consumer cannot claim runtime or production readiness")
 
     source = source_path.read_text(encoding="utf-8")
     required = (
@@ -565,14 +563,14 @@ def verify_runner_command_consumer(errors: list[str]) -> None:
         "signed envelope schema_version must be exactly 1",
     )
     if any(marker not in source for marker in required):
-        errors.append("Plan 18 T5d-B sole V1 parser markers are incomplete")
+        errors.append("runner command consumer sole V1 parser markers are incomplete")
     forbidden = (
         r"RunnerDeploymentCommandV(?:[2-9]|[1-9][0-9]+)",
         r"schema_version must be exactly (?:[2-9]|[1-9][0-9]+)",
         r"ArtifactRefV(?:[2-9]|[1-9][0-9]+)",
     )
     if any(re.search(pattern, source) for pattern in forbidden):
-        errors.append("Plan 18 T5d-B retains a superseded command parser")
+        errors.append("runner command consumer retains a superseded command parser")
 
 
 def verify_strategy_contract_canonical_source(
@@ -799,7 +797,7 @@ def _verify_toolkit_rc_receipt(errors: list[str]) -> None:
 def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = resolve(RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH)
     if not receipt_path.is_file():
-        errors.append("missing Plan 19 T4 durable-state receipt")
+        errors.append("missing RunnerFact durable state durable-state receipt")
         return
     receipt = load_json(receipt_path)
     expected = {
@@ -816,20 +814,20 @@ def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]
     }
     for key, value in expected.items():
         if receipt.get(key) != value:
-            errors.append(f"Plan 19 T4 receipt {key} differs")
+            errors.append(f"RunnerFact durable state receipt {key} differs")
     if receipt.get("stream_key_fields") != [
         "tenant_id",
         "trading_mode",
         "runner_id",
         "deployment_instance_id",
     ]:
-        errors.append("Plan 19 T4 receipt stream identity differs")
+        errors.append("RunnerFact durable state receipt stream identity differs")
     if receipt.get("signed_fencing_fields") != [
         "deployment_spec_id",
         "deployment_spec_digest",
         "generation",
     ]:
-        errors.append("Plan 19 T4 receipt signed fencing differs")
+        errors.append("RunnerFact durable state receipt signed fencing differs")
     initialization = receipt.get("stream_initialization")
     if not isinstance(initialization, dict) or initialization != {
         "first_production_contract": True,
@@ -837,7 +835,7 @@ def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]
         "generation_resets_sequence": False,
         "legacy_stream_compatibility": False,
     }:
-        errors.append("Plan 19 T4 receipt stream initialization differs")
+        errors.append("RunnerFact durable state receipt stream initialization differs")
 
     registrations = [
         entry
@@ -848,7 +846,7 @@ def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]
         len(registrations) != 1
         or registrations[0].get("path") != RUNNER_FACT_DURABLE_STATE_RECEIPT_PATH
     ):
-        errors.append("Plan 19 T4 receipt manifest registration differs")
+        errors.append("RunnerFact durable state receipt manifest registration differs")
 
     snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
     state = snapshot.get("runner_state_store")
@@ -877,7 +875,7 @@ def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]
     )
     for marker in markers:
         if marker not in source:
-            errors.append(f"Plan 19 T4 implementation lacks {marker!r}")
+            errors.append(f"RunnerFact durable state implementation lacks {marker!r}")
     for forbidden in (
         "runner_" + "stream_cutover",
         "RunnerFact" + "StreamCutover",
@@ -885,9 +883,11 @@ def verify_runner_fact_durable_state(manifest: dict[str, Any], errors: list[str]
         "legacy " + "spec-keyed",
     ):
         if forbidden in source:
-            errors.append(f"Plan 19 T4 retains pre-production compatibility: {forbidden!r}")
+            errors.append(
+                f"RunnerFact durable state retains pre-production compatibility: {forbidden!r}"
+            )
     if source.count("CREATE TABLE IF NOT EXISTS runner_fact_outbox") != 1:
-        errors.append("Plan 19 T4 must retain exactly one RunnerFact outbox table")
+        errors.append("RunnerFact durable state must retain exactly one RunnerFact outbox table")
 
 
 def verify_artifact_runtime(manifest: dict[str, Any], errors: list[str]) -> None:
@@ -896,11 +896,11 @@ def verify_artifact_runtime(manifest: dict[str, Any], errors: list[str]) -> None
     receipt_path = resolve(ARTIFACT_RUNTIME_RECEIPT_PATH)
     source_path = resolve(ARTIFACT_RUNTIME_SOURCE)
     if not receipt_path.is_file() or not source_path.is_file():
-        errors.append("missing Plan 18 T5e V1 artifact runtime authority assets")
+        errors.append("missing artifact runtime V1 artifact runtime authority assets")
         return
     receipt = load_json(receipt_path)
     if receipt.get("receipt_status") != "READY_V1_CODE_PENDING_STRATEGY_RELEASE_RESOLVER":
-        errors.append("Plan 18 T5e receipt status differs")
+        errors.append("artifact runtime receipt status differs")
     source = source_path.read_text(encoding="utf-8")
     required = (
         "class StrategyArtifactRuntimeV1",
@@ -910,14 +910,14 @@ def verify_artifact_runtime(manifest: dict[str, Any], errors: list[str]) -> None
         "release_authority.assert_command_binding(command)",
     )
     if any(marker not in source for marker in required):
-        errors.append("Plan 18 T5e V1 runtime markers are incomplete")
+        errors.append("artifact runtime V1 runtime markers are incomplete")
     forbidden = (
         "command.artifact_evidence",
         "command.release_bom",
         "command.artifact_ref",
     )
     if any(marker in source for marker in forbidden):
-        errors.append("Plan 18 T5e runtime retains superseded command-owned artifact state")
+        errors.append("artifact runtime runtime retains superseded command-owned artifact state")
 
     ecosystem_path = ROOT / "docs/authority/ecosystem-authority.json"
     runtime = load_json(ecosystem_path).get("strategy_artifact_runtime")
@@ -936,7 +936,7 @@ def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None
     receipt_path = resolve(ENGINE_LIFECYCLE_RECEIPT_PATH)
     lifecycle_path = resolve(ENGINE_LIFECYCLE_SOURCE)
     if not receipt_path.is_file() or not lifecycle_path.is_file():
-        errors.append("missing Plan 19 T5 engine lifecycle authority assets")
+        errors.append("missing engine lifecycle engine lifecycle authority assets")
         return
     receipt = load_json(receipt_path)
     expected = {
@@ -961,7 +961,7 @@ def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None
     }
     for key, value in expected.items():
         if receipt.get(key) != value:
-            errors.append(f"Plan 19 T5 receipt {key} differs")
+            errors.append(f"engine lifecycle receipt {key} differs")
     if receipt.get("readiness_checks") != [
         "node_task_alive",
         "data_connectivity_ready",
@@ -971,14 +971,14 @@ def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None
         "strategy_accepting_lifecycle",
         "mandatory_capabilities_active",
     ]:
-        errors.append("Plan 19 T5 readiness evidence set differs")
+        errors.append("engine lifecycle readiness evidence set differs")
     if receipt.get("shutdown_order") != [
         "stop intake and sibling tasks",
         "stop deployments",
         "flush RunnerFact outbox",
         "close publisher and NATS",
     ]:
-        errors.append("Plan 19 T5 shutdown order differs")
+        errors.append("engine lifecycle shutdown order differs")
 
     registrations = [
         entry
@@ -986,7 +986,7 @@ def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None
         if entry.get("role") == "engine_lifecycle_receipt"
     ]
     if len(registrations) != 1 or registrations[0].get("path") != ENGINE_LIFECYCLE_RECEIPT_PATH:
-        errors.append("Plan 19 T5 receipt manifest registration differs")
+        errors.append("engine lifecycle receipt manifest registration differs")
 
     snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
     state = snapshot.get("engine_lifecycle")
@@ -1022,7 +1022,7 @@ def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None
         artifact_runtime.get(key) is not False
         for key in ("capability_ready", "daemon_ready", "live_ready", "runtime_ready")
     ):
-        errors.append("Plan 19 T5 must not promote the blocked artifact runtime")
+        errors.append("engine lifecycle must not promote the blocked artifact runtime")
 
     lifecycle_source = lifecycle_path.read_text(encoding="utf-8")
     protocol_source = resolve("src/custos/core/engine_protocol.py").read_text(encoding="utf-8")
@@ -1066,20 +1066,20 @@ def verify_engine_lifecycle(manifest: dict[str, Any], errors: list[str]) -> None
     for label, required in markers.items():
         for marker in required:
             if marker not in sources[label]:
-                errors.append(f"Plan 19 T5 {label} lacks {marker!r}")
+                errors.append(f"engine lifecycle {label} lacks {marker!r}")
     for forbidden in ("sqlite3", "CREATE TABLE", "runner_fact_outbox"):
         if forbidden in lifecycle_source:
             errors.append(
-                f"Plan 19 T5 lifecycle creates a forbidden persistence seam {forbidden!r}"
+                f"engine lifecycle lifecycle creates a forbidden persistence seam {forbidden!r}"
             )
     if store_source.count("CREATE TABLE IF NOT EXISTS runner_fact_outbox") != 1:
-        errors.append("Plan 19 T5 must retain exactly one RunnerFact outbox table")
+        errors.append("engine lifecycle must retain exactly one RunnerFact outbox table")
 
 
 def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> None:
     receipt_path = resolve(PORTFOLIO_SEMANTICS_RECEIPT_PATH)
     if not receipt_path.is_file():
-        errors.append("missing Plan 19 T6 portfolio semantics receipt")
+        errors.append("missing portfolio semantics portfolio semantics receipt")
         return
     receipt = load_json(receipt_path)
     expected: dict[str, Any] = {
@@ -1106,10 +1106,10 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
     }
     for key, value in expected.items():
         if receipt.get(key) != value:
-            errors.append(f"Plan 19 T6 receipt {key} differs")
+            errors.append(f"portfolio semantics receipt {key} differs")
     focused = receipt.get("focused_verification")
     if not isinstance(focused, dict) or focused.get("result") != "20 passed":
-        errors.append("Plan 19 T6 focused verification differs")
+        errors.append("portfolio semantics focused verification differs")
 
     registrations = [
         entry
@@ -1117,7 +1117,7 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
         if entry.get("role") == "portfolio_semantics_receipt"
     ]
     if len(registrations) != 1 or registrations[0].get("path") != PORTFOLIO_SEMANTICS_RECEIPT_PATH:
-        errors.append("Plan 19 T6 receipt manifest registration differs")
+        errors.append("portfolio semantics receipt manifest registration differs")
 
     snapshot = load_json(resolve("docs/authority/ecosystem-authority.json"))
     state = snapshot.get("portfolio_semantics")
@@ -1141,7 +1141,7 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
     safety_path = resolve("src/custos/core/engine_safety.py")
     source_paths = (provider_path, host_path, protocol_path, breaker_path, safety_path)
     if not all(path.is_file() for path in source_paths):
-        errors.append("Plan 19 T6 source inventory is incomplete")
+        errors.append("portfolio semantics source inventory is incomplete")
         return
     provider_source = provider_path.read_text(encoding="utf-8")
     host_source = host_path.read_text(encoding="utf-8")
@@ -1158,13 +1158,13 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
     )
     for marker in provider_markers:
         if marker not in provider_source:
-            errors.append(f"Plan 19 T6 provider lacks {marker!r}")
+            errors.append(f"portfolio semantics provider lacks {marker!r}")
     provider_definitions = sum(
         path.read_text(encoding="utf-8").count("class NautilusPortfolioSnapshotProvider")
         for path in resolve("src/custos").rglob("*.py")
     )
     if provider_definitions != 1:
-        errors.append("Plan 19 T6 must have exactly one portfolio snapshot provider")
+        errors.append("portfolio semantics must have exactly one portfolio snapshot provider")
 
     for marker in (
         "self._portfolio_snapshot_provider.snapshot",
@@ -1174,19 +1174,19 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
         'unreliable_reason="deployment_not_active"',
     ):
         if marker not in host_source:
-            errors.append(f"Plan 19 T6 host lacks {marker!r}")
+            errors.append(f"portfolio semantics host lacks {marker!r}")
     for forbidden in (
         "open_notional + unrealized_total",
         'getattr(position, "unrealized_pnl"',
         "kernel.portfolio.equity",
     ):
         if forbidden in host_source:
-            errors.append(f"Plan 19 T6 host retains proxy valuation {forbidden!r}")
+            errors.append(f"portfolio semantics host retains proxy valuation {forbidden!r}")
     for marker in ("reliable: bool = True", "unreliable_reason: str | None = None"):
         if marker not in protocol_source:
-            errors.append(f"Plan 19 T6 EngineStatus lacks {marker!r}")
+            errors.append(f"portfolio semantics EngineStatus lacks {marker!r}")
     if "def fail_closed(" not in breaker_source:
-        errors.append("Plan 19 T6 breaker lacks fail_closed")
+        errors.append("portfolio semantics breaker lacks fail_closed")
 
     for marker in (
         "class EngineSafetySupervisor",
@@ -1196,9 +1196,9 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
         "self._engine.flatten_positions",
     ):
         if marker not in safety_source:
-            errors.append(f"Plan 19 T6 safety supervisor lacks {marker!r}")
+            errors.append(f"portfolio semantics safety supervisor lacks {marker!r}")
     if "get_open_notional" in safety_source:
-        errors.append("Plan 19 T6 breaker tick reads a second portfolio snapshot")
+        errors.append("portfolio semantics breaker tick reads a second portfolio snapshot")
 
     for section_name in ("engine_lifecycle", "strategy_artifact_runtime"):
         section = snapshot.get(section_name)
@@ -1207,7 +1207,7 @@ def verify_portfolio_semantics(manifest: dict[str, Any], errors: list[str]) -> N
             for key in ("team_daemon_enabled", "live_ready", "runtime_ready", "production_ready")
             if key in section
         ):
-            errors.append(f"Plan 19 T6 must not promote {section_name}")
+            errors.append(f"portfolio semantics must not promote {section_name}")
 
 
 def verify_runner_policy_consumer(manifest: dict[str, Any], errors: list[str]) -> None:
@@ -1215,7 +1215,7 @@ def verify_runner_policy_consumer(manifest: dict[str, Any], errors: list[str]) -
     receipt_path = resolve(RUNNER_POLICY_RECEIPT_PATH)
     consumer_path = resolve(RUNNER_POLICY_CONSUMER_SOURCE)
     if not all(path.is_file() for path in (index_path, receipt_path, consumer_path)):
-        errors.append("Plan 19 T7A runner policy V1 consumer inventory is incomplete")
+        errors.append("runner policy consumer runner policy V1 consumer inventory is incomplete")
         return
 
     index = load_json(index_path)
@@ -1319,46 +1319,46 @@ def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) ->
         "cli": resolve("src/custos/cli/subcommands/nats_transport.py"),
     }
     if not receipt_path.is_file() or not all(path.is_file() for path in source_paths.values()):
-        errors.append("Plan 19 T7C V1 inventory is incomplete")
+        errors.append("runner NATS transport V1 inventory is incomplete")
         return
 
     receipt = load_json(receipt_path)
     if receipt.get("receipt_status") != "READY_CONTRACT_ONLY_PENDING_TRANSPORT_RUNTIME":
-        errors.append("Plan 19 T7C contract-only status differs")
+        errors.append("runner NATS transport contract-only status differs")
     producer = receipt.get("producer_authority")
     if not isinstance(producer, dict) or producer.get("authority_ready") is not False:
-        errors.append("Plan 19 T7C producer authority truth differs")
+        errors.append("runner NATS transport producer authority truth differs")
     elif producer.get("authority_receipt") is not None:
-        errors.append("Plan 19 T7C cannot pin an unpublished producer receipt")
+        errors.append("runner NATS transport cannot pin an unpublished producer receipt")
     if producer.get("control_streams") != {
         "sim": "CRUCIBLE_RUNNER_CONTROL_SIM_V1",
         "live": "CRUCIBLE_RUNNER_CONTROL_LIVE_V1",
     }:
-        errors.append("Plan 19 T7C control stream domains differ")
+        errors.append("runner NATS transport control stream domains differ")
     if producer.get("command_subject_prefix") != "crucible.runner.command.v1":
-        errors.append("Plan 19 T7C command subject prefix differs")
+        errors.append("runner NATS transport command subject prefix differs")
     if producer.get("policy_subject_prefix") != "crucible.runner.policy.v1":
-        errors.append("Plan 19 T7C policy subject prefix differs")
+        errors.append("runner NATS transport policy subject prefix differs")
     assets = producer.get("contract_assets")
     if not isinstance(assets, dict):
-        errors.append("Plan 19 T7C producer contract assets are missing")
+        errors.append("runner NATS transport producer contract assets are missing")
     else:
         for path_key, digest_key in (("schema", "schema_sha256"), ("golden", "golden_sha256")):
             asset_path = assets.get(path_key)
             expected_digest = assets.get(digest_key)
             if not isinstance(asset_path, str) or not isinstance(expected_digest, str):
-                errors.append(f"Plan 19 T7C {path_key} asset pin is invalid")
+                errors.append(f"runner NATS transport {path_key} asset pin is invalid")
                 continue
             resolved = resolve(asset_path)
             if (
                 not resolved.is_file()
                 or hashlib.sha256(resolved.read_bytes()).hexdigest() != expected_digest
             ):
-                errors.append(f"Plan 19 T7C {path_key} asset digest differs")
+                errors.append(f"runner NATS transport {path_key} asset digest differs")
 
     contract = receipt.get("v1_contract")
     if not isinstance(contract, dict):
-        errors.append("Plan 19 T7C V1 contract is missing")
+        errors.append("runner NATS transport V1 contract is missing")
     else:
         expected = {
             "authority_coordinate": "crucible.runner-nats-transport.v1",
@@ -1378,11 +1378,11 @@ def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) ->
         }
         for key, value in expected.items():
             if contract.get(key) != value:
-                errors.append(f"Plan 19 T7C V1 contract {key} differs")
+                errors.append(f"runner NATS transport V1 contract {key} differs")
 
     truth = receipt.get("truth")
     if not isinstance(truth, dict):
-        errors.append("Plan 19 T7C truth is missing")
+        errors.append("runner NATS transport truth is missing")
     else:
         if truth.get("local_real_nats_revocation_gate") != {
             "command": "make verify-nats-revocation",
@@ -1391,7 +1391,7 @@ def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) ->
             "status": "PASS",
             "tests_passed": 1,
         }:
-            errors.append("Plan 19 T7C local real-NATS revocation evidence differs")
+            errors.append("runner NATS transport local real-NATS revocation evidence differs")
         for key in (
             "production_transport_credential_provisioned",
             "production_durable_verified",
@@ -1402,7 +1402,7 @@ def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) ->
             "production_ready",
         ):
             if truth.get(key) is not False:
-                errors.append(f"Plan 19 T7C pending truth {key} differs")
+                errors.append(f"runner NATS transport pending truth {key} differs")
 
     transport = source_paths["transport"].read_text(encoding="utf-8")
     required_markers = (
@@ -1416,7 +1416,9 @@ def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) ->
         "runner_nats_transport_domain",
     )
     if any(marker not in transport for marker in required_markers):
-        errors.append("Plan 19 T7C transport does not implement the sole V1 subject profile")
+        errors.append(
+            "runner NATS transport transport does not implement the sole V1 subject profile"
+        )
     if any(
         marker in transport
         for marker in (
@@ -1426,21 +1428,21 @@ def verify_runner_nats_transport(manifest: dict[str, Any], errors: list[str]) ->
             "custos-v1-",
         )
     ):
-        errors.append("Plan 19 T7C transport retains the superseded command-only profile")
+        errors.append("runner NATS transport transport retains the superseded command-only profile")
     if re.search(
         r"(?:custos-v|runner_command_v|RunnerDeploymentCommandV)"
         r"(?:[2-9]|[1-9][0-9]+)",
         transport,
     ):
-        errors.append("Plan 19 T7C transport retains a superseded subject profile")
+        errors.append("runner NATS transport transport retains a superseded subject profile")
 
     ecosystem_path = ROOT / "docs/authority/ecosystem-authority.json"
     ecosystem = load_json(ecosystem_path) if ecosystem_path.is_file() else {}
     snapshot = ecosystem.get("runner_nats_transport_consumer")
     if not isinstance(snapshot, dict):
-        errors.append("Plan 19 T7C ecosystem snapshot is missing")
+        errors.append("runner NATS transport ecosystem snapshot is missing")
     elif snapshot.get("status") != "READY_CONTRACT_ONLY_PENDING_TRANSPORT_RUNTIME":
-        errors.append("Plan 19 T7C ecosystem status differs")
+        errors.append("runner NATS transport ecosystem status differs")
 
 
 def verify_runner_fact_contract(manifest: dict[str, Any], errors: list[str]) -> None:

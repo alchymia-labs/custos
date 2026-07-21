@@ -1,10 +1,8 @@
 {
   "schema_version": 1,
-  "receipt_id": "CUSTOS-PLAN-19-T5-ENGINE-LIFECYCLE-V1",
+  "receipt_id": "CUSTOS-ENGINE-LIFECYCLE-V1",
   "receipt_status": "PREPARED_BLOCKED_ARTIFACT_RUNTIME_CAPABILITY",
   "repository": "tesseract-trading/custos",
-  "plan": "Custos Plan 19",
-  "task": "T5",
   "engine_adapter_ready": true,
   "protocol_change": "canonical_v1",
   "typed_ready_receipt": true,
@@ -43,15 +41,15 @@
   "focused_verification": {
     "result": "52 passed",
     "suites": [
-      "Plan 19 T5 lifecycle, daemon and actual T4 store",
+      "Runner lifecycle, daemon and actual RunnerFact store",
       "engine protocol and shipped host conformance",
       "deployment reconciler, watchdog and breaker regressions"
     ]
   },
   "open_blockers": [
-    "Custos Plan 18 T5e real artifact runtime capability remains false",
+    "real artifact runtime capability remains false",
     "real Philosophers-Stone strategy bundle receipt is absent",
     "real Crucible C6 artifact acceptance receipt is absent",
-    "live remains blocked through Custos Plan 19 T7 and Crucible Plan 99"
+    "live remains blocked until the signed runner-safety policy is consumed"
   ]
 }

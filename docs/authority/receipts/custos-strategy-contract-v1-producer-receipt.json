@@ -1,0 +1,44 @@
+{
+  "canonical_name": "Custos strategy contract V1 receipt",
+  "command_consumer_ready": false,
+  "consumers": {
+    "crucible_rust": {
+      "receipt": {
+        "commit": "1ff349b9c2b6faf89fea822470cea8e5e554cec5",
+        "path": "docs/authority/receipts/crucible-custos-strategy-contract-v1-consumer-receipt.json",
+        "repository": "tesseract-trading/crucible-rust",
+        "sha256": "d58332183a8701a28cb3c420b327af0bef80cd9e5f99477d50b2d592572770ac",
+        "vendored_path": "docs/authority/receipts/vendor/crucible-custos-strategy-contract-v1-consumer-receipt.json"
+      },
+      "repository": "tesseract-trading/crucible-rust"
+    },
+    "philosophers_stone": {
+      "receipt": null,
+      "repository": "alchymia-labs/philosophers-stone"
+    }
+  },
+  "contract_asset_index": {
+    "path": "docs/authority/strategy-contract-assets-v1.json",
+    "sha256": "7433b608bdc923e3e89b742dd926ce04de045185e6bb04ccf57c3acaf855bc72",
+    "size_bytes": 2827
+  },
+  "contract_consumer_ready": false,
+  "open_blockers": [
+    "Philosophers Stone canonical V1 consumer receipt",
+    "final exact-byte relock after the remaining producer consumer receipt"
+  ],
+  "policy_boundary": {
+    "crucible_local_policy_decision_reused": false,
+    "runner_local_policy_decision_required": true
+  },
+  "producer": {
+    "repository": "tesseract-trading/custos",
+    "source_path": "packages/custos-strategy-toolkit/src/custos_toolkit/contracts/strategy_execution.py",
+    "source_sha256": "c20520769326012ac4f077ac7fbea2bf107a55367a76d571930aefa35979b235"
+  },
+  "production_ready": false,
+  "receipt_schema_version": 1,
+  "runtime_ready": false,
+  "status": "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS",
+  "strategy_artifact_pre_import_verification_receipt_v1_published": true
+}

@@ -32,6 +32,10 @@
     "sha256": "b156413d6158a8efcc6ab932162ccecfd603c8ab50ab069e8755dda33722eee5",
     "size_bytes": 12654
   },
+  "consumer_scope": [
+    "deployment_spec_command",
+    "durable_runner_intake"
+  ],
   "custos_publishes_command_schema": false,
   "exact_signed_event_bytes_retained": true,
   "producer_authority": {
@@ -45,10 +49,6 @@
   "production_ready": false,
   "runtime_ready": false,
   "signature_bytes_in_fingerprint": false,
-  "slice_equivalence": [
-    "Custos Plan 18 T5d-B",
-    "Custos Plan 19 T2"
-  ],
   "status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
   "strategy_release_authority_resolution": "authenticated Crucible StrategyRelease resolver"
 }

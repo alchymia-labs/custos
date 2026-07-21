@@ -1,7 +1,7 @@
 {
   "base_golden": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
-  "base_golden_sha256": "fb78d43cc1a763945c86bb9c733dccde8c8d1bdaf9cd075f23b00bc3ab289d46",
-  "canonical_name": "Custos Plan 18 ReceiptV1 negative mutations",
+  "base_golden_sha256": "97c2137f76115d07828f7da0c4d7e9a7e7dd4d32d3f1e49bedeb7aebeea8c18e",
+  "canonical_name": "Custos canonical V1 pre-import receipt negative mutations",
   "cases": [
     {
       "mutation": {

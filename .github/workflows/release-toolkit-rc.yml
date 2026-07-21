@@ -102,7 +102,7 @@ jobs:
             --cert-oidc-issuer "$EXPECTED_SIGSTORE_ISSUER" \
             "$provenance"
 
-      - name: Assemble digest-pinned T6a and T6c inputs
+      - name: Assemble digest-pinned publication inputs
         shell: bash
         run: |
           set -euo pipefail

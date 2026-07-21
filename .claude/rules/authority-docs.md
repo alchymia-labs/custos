@@ -26,7 +26,7 @@ dataclass, schema, golden set, asset index and authority entry; predecessor
 assets and runtime fallbacks are deleted. Philosophers-Stone produces the
 canonical release BOM; Crucible owns StrategyRelease and artifact selection.
 
-`custos-plan-18-strategy-contract-v1-receipt.json` remains
+`custos-strategy-contract-v1-producer-receipt.json` remains
 `CANONICAL_V1_PENDING_CONSUMER_RECEIPTS`. Custos produces the execution ABI;
 PS and Crucible consumer receipts remain external and null until those owners
 pin the exact V1 bytes. Never invent, vendor or pre-register downstream receipts.

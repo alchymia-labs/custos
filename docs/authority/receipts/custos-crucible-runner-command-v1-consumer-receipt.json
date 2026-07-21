@@ -10,8 +10,8 @@
   },
   "contract_asset_index": {
     "path": "docs/authority/crucible-runner-command-consumer-assets-v1.json",
-    "sha256": "00fedbfdc55593a89f90edb49cfff791bfc11b0cc5219f4b15b92dc678fbdb6b",
-    "size_bytes": 2088
+    "sha256": "b7c5c252c526b73748b80743ae71e39e3f6ef1173fd0ec0c84e6afba859c6d18",
+    "size_bytes": 2092
   },
   "contract_guards": {
     "command_selected_root_policy_issuer_workflow": false,
@@ -34,7 +34,7 @@
   "open_blockers": [
     "Crucible signed command outbox and runtime producer receipt",
     "authenticated StrategyRelease authority resolver wiring",
-    "Custos Plan 19 durable state and engine lifecycle completion"
+    "Custos durable RunnerFact state and engine lifecycle completion"
   ],
   "production_ready": false,
   "receipt_schema_version": 1,

@@ -1,4 +1,4 @@
-"""Typed engine readiness, restart and terminal supervision over the T4 store."""
+"""Typed engine readiness, restart and terminal supervision over the RunnerFact store."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ class EngineLifecycleStateStore(Protocol):
 
 
 class EngineLifecycleSupervisor:
-    """Apply one verified command without bypassing T4 atomic lifecycle durability.
+    """Apply one verified command without bypassing RunnerFact atomic lifecycle durability.
 
     The live engine lifecycle remains fail closed until every external capability
     receipt is present and the team daemon composition gate opens.

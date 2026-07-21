@@ -186,30 +186,30 @@ def _validate_locked_dependencies(
     if not isinstance(raw_requirements, list) or not all(
         isinstance(value, str) for value in raw_requirements
     ):
-        raise ArtifactPublicationError("T6b wheel dependency evidence is invalid")
+        raise ArtifactPublicationError("wheel dependency evidence is invalid")
     for value in raw_requirements:
         try:
             requirement = Requirement(value)
         except InvalidRequirement as exc:
             raise ArtifactPublicationError(
-                f"T6b wheel dependency is not a valid requirement: {value}"
+                f"wheel dependency is not a valid requirement: {value}"
             ) from exc
         dependency = locked.get(canonicalize_name(requirement.name))
         if dependency is None:
             raise ArtifactPublicationError(
-                f"T6a manifest does not lock T6b dependency {requirement.name}"
+                f"release manifest does not lock build dependency {requirement.name}"
             )
         try:
             version = Version(dependency.version)
         except InvalidVersion as exc:
             raise ArtifactPublicationError(
-                f"T6a dependency version is invalid: {dependency.version}"
+                f"release manifest dependency version is invalid: {dependency.version}"
             ) from exc
         if requirement.url is not None or (
             requirement.specifier and version not in requirement.specifier
         ):
             raise ArtifactPublicationError(
-                f"T6a dependency lock does not satisfy T6b requirement {value}"
+                f"release manifest dependency lock does not satisfy build evidence requirement {value}"
             )
 
 
@@ -227,27 +227,29 @@ def _validate_build_evidence(
     }
     for name, expected in required_flags.items():
         if build_document.get(name) != expected:
-            raise ArtifactPublicationError(f"T6b build evidence has invalid {name}")
+            raise ArtifactPublicationError(f"build evidence has invalid {name}")
     source_commit = build_document.get("source_commit")
     if not isinstance(source_commit, str) or any(
         member.source_commit != source_commit for member in manifest.members
     ):
-        raise ArtifactPublicationError("T6a and T6b source commits differ")
+        raise ArtifactPublicationError("release manifest and build source commits differ")
     builds = build_document.get("builds")
     if not isinstance(builds, dict):
-        raise ArtifactPublicationError("T6b build evidence has no isolated builds")
+        raise ArtifactPublicationError("build evidence has no isolated builds")
     first = builds.get("build-1")
     second = builds.get("build-2")
     if not isinstance(first, dict) or not isinstance(second, dict):
-        raise ArtifactPublicationError("T6b build evidence requires build-1 and build-2")
+        raise ArtifactPublicationError("build evidence requires build-1 and build-2")
     if set(first) != BUILD_DISTRIBUTIONS or set(second) != BUILD_DISTRIBUTIONS:
-        raise ArtifactPublicationError("T6b build evidence distribution matrix differs")
+        raise ArtifactPublicationError("build evidence distribution matrix differs")
     members = {member.distribution_name: member for member in manifest.members}
     for distribution in sorted(BUILD_DISTRIBUTIONS):
         first_wheel = first[distribution]
         second_wheel = second[distribution]
         if not isinstance(first_wheel, dict) or first_wheel != second_wheel:
-            raise ArtifactPublicationError(f"T6b {distribution} build records are not reproducible")
+            raise ArtifactPublicationError(
+                f"build evidence {distribution} build records are not reproducible"
+            )
         member = members[distribution]
         for name, expected in {
             "distribution_name": member.distribution_name,
@@ -256,20 +258,24 @@ def _validate_build_evidence(
             "size_bytes": member.wheel.size_bytes,
         }.items():
             if first_wheel.get(name) != expected:
-                raise ArtifactPublicationError(f"T6a manifest and T6b {distribution} {name} differ")
+                raise ArtifactPublicationError(
+                    f"release manifest and build evidence {distribution} {name} differ"
+                )
         try:
             python_policy_matches = SpecifierSet(
                 str(first_wheel.get("requires_python", ""))
             ) == SpecifierSet(member.python_requires)
         except InvalidSpecifier as exc:
-            raise ArtifactPublicationError(f"T6b {distribution} Python policy is invalid") from exc
+            raise ArtifactPublicationError(
+                f"build evidence {distribution} Python policy is invalid"
+            ) from exc
         if not python_policy_matches:
             raise ArtifactPublicationError(
-                f"T6a manifest and T6b {distribution} requires_python differ"
+                f"release manifest and build evidence {distribution} requires_python differ"
             )
         if set(first_wheel.get("top_level_modules", ())) != set(member.top_level_modules):
             raise ArtifactPublicationError(
-                f"T6a manifest and T6b {distribution} top-level modules differ"
+                f"release manifest and build evidence {distribution} top-level modules differ"
             )
         _validate_locked_dependencies(member, first_wheel)
 
@@ -285,7 +291,7 @@ def _binding_objects(
         for field_name in BINDING_FIELDS:
             binding = getattr(member, field_name)
             if not isinstance(binding, ImmutableToolkitArtifactBindingV1):
-                raise ArtifactPublicationError(f"invalid T6a binding {field_name}")
+                raise ArtifactPublicationError(f"invalid release manifest binding {field_name}")
             coordinate = binding.coordinate
             expected_coordinates.add(coordinate)
             if not _contains_exact_version(coordinate, manifest.candidate_version):
@@ -432,12 +438,12 @@ def publish_toolkit_rc_candidate(
     pending_receipt_path = pending_receipt_path.resolve()
     if pending_receipt_path.exists():
         raise ArtifactPublicationError("pending publication evidence must not be overwritten")
-    manifest_content, manifest_document = _read_json(manifest_path, "T6a manifest")
+    manifest_content, manifest_document = _read_json(manifest_path, "release manifest")
     try:
         manifest = ToolkitRcReceiptManifestV1.model_validate(manifest_document)
     except ValueError as exc:
-        raise ArtifactPublicationError(f"T6a manifest contract differs: {exc}") from exc
-    build_content, build_document = _read_json(build_manifest_path, "T6b build manifest")
+        raise ArtifactPublicationError(f"release manifest contract differs: {exc}") from exc
+    build_content, build_document = _read_json(build_manifest_path, "build manifest")
     _validate_build_evidence(manifest, build_document)
     objects = _binding_objects(manifest=manifest, object_sources=object_sources)
     production_signature_verified = _verify_production_attestation(
@@ -448,13 +454,13 @@ def publish_toolkit_rc_candidate(
     objects.extend(
         (
             _provenance_object(
-                label="t6a_manifest",
+                label="release_manifest",
                 candidate_version=manifest.candidate_version,
                 filename="toolkit-rc-receipt-manifest.json",
                 content=manifest_content,
             ),
             _provenance_object(
-                label="t6b_build_manifest",
+                label="build_manifest",
                 candidate_version=manifest.candidate_version,
                 filename="toolkit-rc-build-manifest-input.json",
                 content=build_content,

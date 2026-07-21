@@ -39,12 +39,12 @@ PRE_IMPORT_GOLDEN_PATH = "docs/authority/strategy-artifact-pre-import-verificati
 PRE_IMPORT_NEGATIVE_PATH = (
     "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json"
 )
-CONTRACT_RECEIPT_PATH = "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+CONTRACT_RECEIPT_PATH = "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
 RUNNER_COMMAND_CONSUMER_INDEX_PATH = (
     "docs/authority/crucible-runner-command-consumer-assets-v1.json"
 )
 RUNNER_COMMAND_CONSUMER_RECEIPT_PATH = (
-    "docs/authority/receipts/custos-plan-18-task-5d-b-command-consumer-receipt.json"
+    "docs/authority/receipts/custos-crucible-runner-command-v1-consumer-receipt.json"
 )
 RUNNER_COMMAND_CONSUMER_SOURCE = "src/custos/contracts/crucible_runner_command.py"
 RUNNER_COMMAND_CONSUMER_TEST = "tests/test_runner_deployment_command_golden.py"
@@ -330,7 +330,7 @@ def build_v1_contract_assets() -> dict[str, bytes]:
     golden = json_bytes(
         {
             "fixture_schema_version": 1,
-            "canonical_name": "Custos Plan 18 canonical V1 contract golden",
+            "canonical_name": "Custos canonical V1 strategy execution contract golden",
             "status": "CANONICAL_V1_PENDING_CONSUMER_RECEIPTS",
             "contract_consumer_ready": False,
             "command_consumer_ready": False,
@@ -343,7 +343,7 @@ def build_v1_contract_assets() -> dict[str, bytes]:
     negative = json_bytes(
         {
             "fixture_schema_version": 1,
-            "canonical_name": "Custos Plan 18 ReceiptV1 negative mutations",
+            "canonical_name": "Custos canonical V1 pre-import receipt negative mutations",
             "base_golden": PRE_IMPORT_GOLDEN_PATH,
             "base_golden_sha256": sha256(golden),
             "cases": [
@@ -445,7 +445,7 @@ def build_v1_contract_assets() -> dict[str, bytes]:
     index = json_bytes(
         {
             "asset_index_schema_version": 1,
-            "canonical_name": "Custos Plan 18 canonical first-production V1 contracts",
+            "canonical_name": "Custos canonical first-production V1 strategy execution contracts",
             "status": "CANONICAL_V1_CONTRACT_ASSETS_PUBLISHED",
             "current_contracts": {
                 "strategy_artifact_ref": {
@@ -527,7 +527,7 @@ def build_runner_command_consumer_assets() -> dict[str, bytes]:
             "asset_index_schema_version": 1,
             "canonical_name": "Custos canonical V1 Crucible DeploymentSpec consumer assets",
             "status": "READY_CONTRACT_ONLY_PENDING_COMMAND_RUNTIME_RECEIPT",
-            "slice_equivalence": ["Custos Plan 18 T5d-B", "Custos Plan 19 T2"],
+            "consumer_scope": ["deployment_spec_command", "durable_runner_intake"],
             "producer_authority": {
                 "repository": "tesseract-trading/crucible-rust",
                 "contract": "CrucibleRunnerDeploymentCommandV1",
@@ -597,7 +597,7 @@ def build_runner_command_consumer_assets() -> dict[str, bytes]:
             "open_blockers": [
                 "Crucible signed command outbox and runtime producer receipt",
                 "authenticated StrategyRelease authority resolver wiring",
-                "Custos Plan 19 durable state and engine lifecycle completion",
+                "Custos durable RunnerFact state and engine lifecycle completion",
             ],
         }
     )

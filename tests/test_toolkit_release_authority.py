@@ -100,7 +100,7 @@ def _promotion_case(
     prerequisite_paths = (
         ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
         ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
-        ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json",
+        ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json",
     )
     dependency_document = {
         "schema_version": "alephain.custos.toolkit-rc-dependency-locks.v1",
@@ -324,9 +324,9 @@ def _promotion_case(
     for index, (coordinate, content) in enumerate(sorted(remote_objects.items())):
         filename = coordinate.rsplit("@sha256:", 1)[0].rsplit("/", 1)[-1]
         role = (
-            "t6a_manifest"
+            "release_manifest"
             if filename == "toolkit-rc-receipt-manifest.json"
-            else "t6b_build_manifest"
+            else "build_manifest"
             if filename == "toolkit-rc-build-manifest-input.json"
             else f"release_object_{index}"
         )
@@ -467,7 +467,7 @@ def test_nonproduction_publication_cannot_enter_promotion() -> None:
         digest="sha256:" + "b" * 64,
         size_bytes=1,
         title="manifest.json",
-        role="t6a_manifest",
+        role="release_manifest",
         source_coordinate=(
             "artifact://custos/toolkit-rc/0.1.0rc1/provenance/manifest.json@sha256:" + "b" * 64
         ),

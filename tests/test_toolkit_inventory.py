@@ -86,7 +86,7 @@ def test_repository_manifest_registers_the_inventory_as_authority() -> None:
     ]
 
 
-def test_task_4_receipt_is_extraction_only_with_open_blockers() -> None:
+def test_extraction_receipt_is_scoped_and_reports_open_blockers() -> None:
     receipt = _load(EXTRACTION_RECEIPT_PATH)
     extraction = _load(EXTRACTION_PATH)
 

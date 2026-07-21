@@ -249,7 +249,7 @@ def _coordinator(
     )
 
 
-def test_cross_language_fingerprint_vector_uses_exact_cr89_event_bytes() -> None:
+def test_cross_language_fingerprint_vector_uses_exact_signed_event_bytes() -> None:
     vector = json.loads(VECTOR_PATH.read_text(encoding="utf-8"))
     envelope_bytes, subject = _signed_fixture()
     envelope = json.loads(envelope_bytes)

@@ -8,7 +8,7 @@ from custos_toolkit import contracts as strategy_contracts
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "docs/authority/strategy-contract-assets-v1.json"
-RECEIPT = ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+RECEIPT = ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
 
 
 def test_public_contract_surface_has_one_artifact_and_receipt_version() -> None:

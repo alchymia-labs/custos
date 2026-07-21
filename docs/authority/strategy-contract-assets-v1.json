@@ -3,22 +3,22 @@
   "assets": [
     {
       "path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",
-      "sha256": "fb78d43cc1a763945c86bb9c733dccde8c8d1bdaf9cd075f23b00bc3ab289d46",
-      "size_bytes": 9886
+      "sha256": "97c2137f76115d07828f7da0c4d7e9a7e7dd4d32d3f1e49bedeb7aebeea8c18e",
+      "size_bytes": 9897
     },
     {
       "path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json.sha256",
-      "sha256": "e5b7049fd2819978a3d57fe0babdfa4ca597d581613e33a5a52982e0fad8c73e",
+      "sha256": "e8926cf69b6b39020d06aae7bea3ea8e322f37a7a8f32321040e6f50e103364e",
       "size_bytes": 123
     },
     {
       "path": "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json",
-      "sha256": "5a4954b838ec02f6dfa774d752fb6b65d6b4ade75f6e625d50315d717990a35d",
-      "size_bytes": 2307
+      "sha256": "49fa7262648ae6ae5df14abae0de4f6e5fe11514f1526d227b925c7dfd7e8df4",
+      "size_bytes": 2321
     },
     {
       "path": "docs/authority/strategy-artifact-pre-import-verification-v1.negative.json.sha256",
-      "sha256": "eaad4070d2c43b4987305939814945b319cd4250ea452be9e357deaccba310b4",
+      "sha256": "3c3533a8e47fd0012e03c4e2e74a3605a8bf1c8b393cb1b44058c2f69c0bd7f1",
       "size_bytes": 125
     },
     {
@@ -42,7 +42,7 @@
       "size_bytes": 4950
     }
   ],
-  "canonical_name": "Custos Plan 18 canonical first-production V1 contracts",
+  "canonical_name": "Custos canonical first-production V1 strategy execution contracts",
   "current_contracts": {
     "pre_import_verification_receipt": {
       "golden_path": "docs/authority/strategy-artifact-pre-import-verification-v1.golden.json",

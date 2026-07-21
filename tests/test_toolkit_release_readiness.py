@@ -119,7 +119,7 @@ def _prepare(build_root: Path, output_root: Path):
             ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
         ),
         pre_import_verifier_receipt_path=(
-            ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+            ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
         ),
         output_root=output_root,
     )
@@ -203,7 +203,7 @@ def test_provenance_binds_every_release_input_without_wall_clock_state(
         "strategy-contract-assets-v1.json",
         "custos-plan-18-task-4-extraction-receipt.json",
         "custos-plan-18-task-4b-typing-closure-receipt.json",
-        "custos-plan-18-strategy-contract-v1-receipt.json",
+        "custos-strategy-contract-v1-producer-receipt.json",
         "toolkit-rc-dependency-locks.json",
     }.issubset(subject_names)
     assert all(set(subject["digest"]) == {"sha256"} for subject in statement["subject"])
@@ -310,7 +310,7 @@ def test_unverified_sigstore_bundle_cannot_assemble_publication_inputs(
                 ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
             ),
             pre_import_verifier_receipt_path=(
-                ROOT / "docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"
+                ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
             ),
             sigstore_bundle_path=bundle,
             output_root=output_root,

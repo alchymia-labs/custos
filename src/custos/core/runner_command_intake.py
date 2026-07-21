@@ -195,9 +195,9 @@ class InboundCommandDelivery(Protocol):
 
 
 class CommandIntakeDurability(Protocol):
-    """T3 port; T4 must adapt this to the sole RunnerFact SQLite store.
+    """Intake port backed by the sole RunnerFact SQLite store.
 
-    ``commit_verified_terminal_outcome`` must delegate to T4's atomic
+    ``commit_verified_terminal_outcome`` must delegate to the RunnerFact store's atomic
     command-outcome plus lifecycle-fact transaction.  A second database or
     outbox is forbidden.
     """
@@ -348,7 +348,7 @@ class CrucibleRunnerCommandAuthenticator:
 
 
 class CommandIntakeCoordinator:
-    """Apply bounded inbound dispositions around a T4 durability port."""
+    """Apply bounded inbound dispositions around a RunnerFact durability port."""
 
     def __init__(
         self,

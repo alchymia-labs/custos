@@ -120,7 +120,7 @@ called strict or production-ready. Private third-party vendor code stays outside
 mypy and remains guarded by exact digests plus fixed-input parity.
 
 The current authority record is
-`custos-plan-18-strategy-contract-v1-receipt.json`. It remains
+`custos-strategy-contract-v1-producer-receipt.json`. It remains
 `CANONICAL_V1_PENDING_PRODUCER_RECEIPTS`, with handoff/runtime/production false.
 Custos must not fabricate PS or Crucible receipts; those owners must consume and
 pin the same exact V1 bytes before the coordinated production handoff closes.

@@ -43,7 +43,7 @@ STABLE_READY_PATH: Final = Path("docs/authority/receipts/custos-toolkit-rc-autho
 PREREQUISITE_PATHS: Final = (
     Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),
     Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
-    Path("docs/authority/receipts/custos-plan-18-strategy-contract-v1-receipt.json"),
+    Path("docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"),
 )
 SIGNED_SUBJECT_FIELDS: Final = (
     "wheel",
