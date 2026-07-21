@@ -425,13 +425,13 @@ def build_v1_contract_assets() -> dict[str, bytes]:
         or crucible_receipt_document.get("runtime_ready") is not False
         or crucible_receipt_document.get("production_ready") is not False
         or crucible_receipt_document.get("producer", {}).get("commit")
-        != "41611ff574f90c04562a5e32e8eca04113e504e5"
+        != "39493964e165afbd688beac7205ed4d6943c2c49"
         or crucible_receipt_document.get("consumer") != "crucible-rust"
     ):
         raise ValueError("Crucible consumer receipt does not pin canonical Custos V1")
     crucible_receipt_pin = {
         "repository": "tesseract-trading/crucible-rust",
-        "commit": "1ff349b9c2b6faf89fea822470cea8e5e554cec5",
+        "commit": "a30a62bb2e4115adaad9c036386ebb2b731e0526",
         "path": (
             "docs/authority/receipts/crucible-custos-strategy-contract-v1-consumer-receipt.json"
         ),

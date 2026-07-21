@@ -440,7 +440,7 @@ def verify_strategy_contract_authority(errors: list[str]) -> None:
 
     crucible_receipt_pin = {
         "repository": "tesseract-trading/crucible-rust",
-        "commit": "1ff349b9c2b6faf89fea822470cea8e5e554cec5",
+        "commit": "a30a62bb2e4115adaad9c036386ebb2b731e0526",
         "path": (
             "docs/authority/receipts/crucible-custos-strategy-contract-v1-consumer-receipt.json"
         ),
@@ -470,7 +470,7 @@ def verify_strategy_contract_authority(errors: list[str]) -> None:
         errors.append("Crucible consumer receipt must contain one producer-scoped shape")
     if (
         crucible_consumer_receipt.get("producer", {}).get("commit")
-        != "41611ff574f90c04562a5e32e8eca04113e504e5"
+        != "39493964e165afbd688beac7205ed4d6943c2c49"
     ):
         errors.append("vendored Crucible receipt does not consume the canonical Custos V1 commit")
     if crucible_consumer_receipt.get("consumer") != "crucible-rust":

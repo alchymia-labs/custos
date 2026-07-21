@@ -16,7 +16,7 @@
       "contract_asset_index": {
         "local_path": "docs/authority/custos-strategy-contract-assets-v1.json",
         "producer_path": "docs/authority/strategy-contract-assets-v1.json",
-        "sha256": "d32c77dfe05171c3a25102622030df0950959d10bd681eb580697660236a8443"
+        "sha256": "7433b608bdc923e3e89b742dd926ce04de045185e6bb04ccf57c3acaf855bc72"
       },
       "pre_import_receipt_schema": {
         "local_path": "docs/authority/custos-strategy-artifact-pre-import-verification-receipt-v1.schema.json",
@@ -24,7 +24,7 @@
         "sha256": "a59b24671851a35fd973b76685ac17bbbcb2c0c685b824f4c8287fff72beaa9e"
       }
     },
-    "commit": "41611ff574f90c04562a5e32e8eca04113e504e5",
+    "commit": "39493964e165afbd688beac7205ed4d6943c2c49",
     "repository": "tesseract-trading/custos"
   },
   "production_ready": false,
