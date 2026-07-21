@@ -45,6 +45,30 @@ This plan defines one production contract generation only.
 5. All three repositories regenerate local authority manifests and truthful
    readiness receipts from the final bytes.
 
+### CR88 runner resolution producer contract
+
+Plan 18 T5e can close only after Crucible Plan 88 publishes one
+machine-authenticated runner resolution contract. It is a direct
+Custos-to-Crucible interface and MUST NOT reuse the ActorAssertion-protected ARX
+control-plane GET route.
+
+- Input binds the authenticated runner, tenant, trading mode, exact
+  `deployment_instance_id`, signed command fingerprint and
+  `strategy_release_id`.
+- The response returns strict V1 canonical StrategyRelease snapshot bytes,
+  ArtifactRef, full PS BOM, statement/detached-attestation coordinates and
+  digests, Crucible evidence and acceptance bytes/digests. It never returns a
+  local filesystem path, trust root, selectable policy or mutable tag.
+- Custos fetches immutable OCI members into a runner-local quarantine area and
+  independently verifies every byte, Sigstore proof and signed local policy
+  before import. Crucible does not download into the runner filesystem.
+- Authentication reuses the enrolled Custos machine credential and proof of
+  possession. ARX neither relays this request nor receives artifact material.
+- The producer receipt must pin the exact response schema/golden, signing
+  profile, endpoint, Crucible commit and control `0028` head. Until that receipt
+  is consumed, `StrategyReleaseArtifactResolverV1` remains unavailable and the
+  daemon reconcile path stays fail closed.
+
 ## 上下文 (Context)
 
 Custos 当前仍把公共策略实现放在：

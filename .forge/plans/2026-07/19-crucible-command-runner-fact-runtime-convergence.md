@@ -82,6 +82,21 @@ canonical reconciliation 或结算。
 | Advisory strategy sizing | Toolkit/strategy | never substitutes mandatory safety |
 | Portfolio risk, approvals, capital, settlement | Crucible | out of scope |
 
+### Cross-repository interface completion order
+
+| Order | Producer -> consumer | Exact producer artifact | Custos stop gate |
+|---|---|---|---|
+| 1 | Crucible 88 -> Custos 18 T5e | machine-authenticated StrategyRelease material V1 schema/golden/receipt, control head `0028` | no daemon reconcile without the exact resolver receipt |
+| 2 | Crucible 89 -> Custos 19 T2-T5 | sole signed `CrucibleRunnerDeploymentCommandV1`, mode head `0116` and generation-storage receipt | no command runtime RC from fixture-only producer bytes |
+| 3 | Crucible 99 -> Custos 19 T7 | signed runner/tenant/mode policy V1 plus mode head `0117` | policy capability and live remain false without real owner policy |
+| 4 | Crucible 100 -> Custos 19 T7C | per-mode public-key enrollment, JWT/ACL/existing-durable/rotation/revocation receipt at control `0029` | no production transport from local JWT fixtures or one broker |
+| 5 | Custos 19 T8 -> Crucible 90 | immutable RunnerFact V1 candidate, then exact runtime RC | no Phase-B or ACK/PubAck readiness before Crucible persistence receipt |
+
+ARX is not a transport or business-fact hop in any row. ARX may authorize an
+operator intent and forward only ActorAssertion-bound public intent to
+Crucible; Custos machine enrollment, StrategyRelease resolution, commands and
+RunnerFacts remain direct Custos-Crucible paths.
+
 ## Single Durable State Deep Module
 
 Custos 已有 `RunnerFactOutbox`，负责：
@@ -945,7 +960,10 @@ git commit -m "fix(custos): use reliable Nautilus portfolio equity"
 > per mode, composes a supervisor-local `RunnerNatsTransportSet`, opens independent
 > mode sessions, double-binds command mode and routes RunnerFact batches by their
 > signed mode. Focused transport/runtime tests pass, but the real CR100 producer,
-> SIM/LIVE broker readback and explicit real-NATS gate remain mandatory.
+> SIM/LIVE broker readback and production credential evidence remain mandatory.
+> The local `make verify-nats-revocation` gate passes against real
+> `nats:2.10-alpine` TLS/User-JWT transport and proves forced disconnect plus
+> old-generation reconnect denial; it is not a CR100 or dual-broker receipt.
 
 ### Task 8: Complete the sole RunnerFact V1 contract
 

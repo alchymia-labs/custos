@@ -1201,6 +1201,16 @@ def verify_plan_19_task_7c_nats_transport(manifest: dict[str, Any], errors: list
     if not isinstance(truth, dict):
         errors.append("Plan 19 T7C truth is missing")
     else:
+        if truth.get("local_real_nats_revocation_gate") != {
+            "command": "make verify-nats-revocation",
+            "image": "nats:2.10-alpine",
+            "image_id": (
+                "sha256:dcadf8f23b60edaaafbe901db7773e2c07947f269c475d8d33d3b46a18b0a7f9"
+            ),
+            "status": "PASS",
+            "tests_passed": 1,
+        }:
+            errors.append("Plan 19 T7C local real-NATS revocation evidence differs")
         for key in (
             "production_transport_credential_provisioned",
             "production_durable_verified",

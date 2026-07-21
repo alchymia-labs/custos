@@ -57,6 +57,13 @@
     "jetstream_mutation_authority_present": false,
     "production_transport_credential_provisioned": false,
     "production_durable_verified": false,
+    "local_real_nats_revocation_gate": {
+      "command": "make verify-nats-revocation",
+      "image": "nats:2.10-alpine",
+      "image_id": "sha256:dcadf8f23b60edaaafbe901db7773e2c07947f269c475d8d33d3b46a18b0a7f9",
+      "status": "PASS",
+      "tests_passed": 1
+    },
     "real_nats_integration_passed": false,
     "team_daemon_enabled": false,
     "runtime_ready": false,
@@ -66,7 +73,7 @@
   "open_blockers": [
     "Crucible has not published the canonical V1 credential and durable authority receipt",
     "production tenant runner mode durables have no exact SIM/LIVE runtime readback receipt",
-    "production-equivalent credential rotation and reconnect-denial evidence is absent",
+    "CR100-issued production credential rotation and reconnect-denial evidence is absent",
     "real NATS SIM/LIVE account isolation has not passed the explicit integration gate",
     "team execution remains blocked on the authenticated StrategyRelease resolver"
   ]

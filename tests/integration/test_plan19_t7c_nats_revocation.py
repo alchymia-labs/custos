@@ -331,6 +331,11 @@ async def _exercise_revocation(
     active_config: Path,
     revoked_config: str,
 ) -> None:
+    connection_errors: list[str] = []
+
+    async def record_connection_error(error: Exception) -> None:
+        connection_errors.append(f"{type(error).__name__}: {error}")
+
     old_profile = RunnerNatsTransportConnectionProfile(
         old_credential,
         nats_url,
@@ -345,10 +350,19 @@ async def _exercise_revocation(
         "localhost",
         replacement_credential.issuer_public_key,
     )
-    old = await old_profile.connect(
-        name="custos-t7c-old",
-        max_reconnect_attempts=1,
-    )
+    try:
+        old = await old_profile.connect(
+            name="custos-t7c-old",
+            error_cb=record_connection_error,
+            max_reconnect_attempts=1,
+        )
+    except Exception as error:
+        logs = _run("docker", "logs", container, check=False)
+        detail = " | ".join(connection_errors) or "no client connection detail"
+        raise AssertionError(
+            "initial authenticated NATS connection failed: "
+            f"{detail}; broker logs: {logs.stdout}{logs.stderr}"
+        ) from error
     replacement = await replacement_profile.connect(
         name="custos-t7c-replacement",
         allow_reconnect=False,
