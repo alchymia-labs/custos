@@ -65,7 +65,7 @@ def test_schema_golden_and_index_are_the_same_v1_contract() -> None:
     assert "runtime_ready" not in index
     crucible_receipt = json.loads(CRUCIBLE_RECEIPT.read_text(encoding="utf-8"))
     assert crucible_receipt["producers"]["custos"]["commit"] == (
-        "8c4454f35c5189063bad1516d77e260f034d3da7"
+        "41611ff574f90c04562a5e32e8eca04113e504e5"
     )
     assert crucible_receipt["runtime_ready"] is False
     assert crucible_receipt["production_ready"] is False
@@ -94,6 +94,6 @@ def test_contract_receipt_stays_pending_until_both_consumers_pin_v1() -> None:
     assert receipt["consumers"]["philosophers_stone"]["receipt"] is None
     crucible_pin = receipt["consumers"]["crucible_rust"]["receipt"]
     assert crucible_pin["commit"] == (
-        "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5"
+        "80e62ff379811bff32eb287eeed6149925a7f606"
     )
     assert crucible_pin["sha256"] == hashlib.sha256(CRUCIBLE_RECEIPT.read_bytes()).hexdigest()

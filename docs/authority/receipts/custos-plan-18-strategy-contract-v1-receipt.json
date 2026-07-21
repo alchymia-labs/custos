@@ -4,10 +4,10 @@
   "consumers": {
     "crucible_rust": {
       "receipt": {
-        "commit": "43c9f14bf9fb9b66fd65b368db95ff8cd7083be5",
+        "commit": "80e62ff379811bff32eb287eeed6149925a7f606",
         "path": "docs/authority/receipts/crucible-plan-88-v1-contract-consumer-receipt.json",
         "repository": "tesseract-trading/crucible-rust",
-        "sha256": "a15431a54c51356c5993d1874474fbcbf428b50f3171b86e775e2453364c39f2",
+        "sha256": "3508f9c064f688741a08e29b75bf25f9cb63fb2820dfdaecfde17c70fb622bfa",
         "vendored_path": "docs/authority/receipts/vendor/crucible-plan-88-v1-contract-consumer-receipt.json"
       },
       "repository": "tesseract-trading/crucible-rust"
