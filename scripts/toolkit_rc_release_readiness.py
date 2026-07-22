@@ -799,12 +799,12 @@ def _add_common_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--toolkit-extraction-receipt",
         type=Path,
-        default=Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),
+        default=Path("docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"),
     )
     parser.add_argument(
         "--toolkit-typing-closure-receipt",
         type=Path,
-        default=Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
+        default=Path("docs/authority/receipts/strategy-toolkit-typing-closure-receipt-v1.json"),
     )
     parser.add_argument(
         "--pre-import-verifier-receipt",

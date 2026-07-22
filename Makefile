@@ -177,10 +177,10 @@ toolkit-sync-check:  ## Diff vendored toolkit against upstream ps shared/ (+ opt
 	fi; \
 	if [ -n "$$PS_DIFFSTAT" ]; then exit 1; else exit 0; fi
 
-strategy-contract-assets:  ## Generate Plan 18 execution schemas, inventory, and lifecycle golden
+strategy-contract-assets:  ## Generate strategy execution schemas, inventory, and lifecycle golden
 	uv run python scripts/generate_strategy_contract_assets.py
 
-check-strategy-contract-assets:  ## Fail when generated Plan 18 contract assets drift
+check-strategy-contract-assets:  ## Fail when generated strategy contract assets drift
 	uv run python scripts/generate_strategy_contract_assets.py --check
 
 # ---- Future targets (pending plan rollout) ----

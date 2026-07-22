@@ -113,10 +113,10 @@ def _prepare(build_root: Path, output_root: Path):
         ),
         contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v1.json"),
         toolkit_extraction_receipt_path=(
-            ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+            ROOT / "docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"
         ),
         toolkit_typing_closure_receipt_path=(
-            ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
+            ROOT / "docs/authority/receipts/strategy-toolkit-typing-closure-receipt-v1.json"
         ),
         pre_import_verifier_receipt_path=(
             ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"
@@ -201,8 +201,8 @@ def test_provenance_binds_every_release_input_without_wall_clock_state(
         "custos-strategy-toolkit-nautilus.cdx.json",
         "toolkit_rc_receipt_manifest_v1.schema.json",
         "strategy-contract-assets-v1.json",
-        "custos-plan-18-task-4-extraction-receipt.json",
-        "custos-plan-18-task-4b-typing-closure-receipt.json",
+        "strategy-toolkit-extraction-receipt-v1.json",
+        "strategy-toolkit-typing-closure-receipt-v1.json",
         "custos-strategy-contract-v1-producer-receipt.json",
         "toolkit-rc-dependency-locks.json",
     }.issubset(subject_names)
@@ -304,10 +304,10 @@ def test_unverified_sigstore_bundle_cannot_assemble_publication_inputs(
             ),
             contract_asset_index_path=(ROOT / "docs/authority/strategy-contract-assets-v1.json"),
             toolkit_extraction_receipt_path=(
-                ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+                ROOT / "docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"
             ),
             toolkit_typing_closure_receipt_path=(
-                ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
+                ROOT / "docs/authority/receipts/strategy-toolkit-typing-closure-receipt-v1.json"
             ),
             pre_import_verifier_receipt_path=(
                 ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"

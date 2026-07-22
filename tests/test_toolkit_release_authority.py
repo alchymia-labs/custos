@@ -98,8 +98,8 @@ def _promotion_case(
     *, omit_signed_subject: bool = False, drift_build_policy: bool = False
 ) -> tuple[FakePromotionClient, str]:
     prerequisite_paths = (
-        ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json",
-        ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json",
+        ROOT / "docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json",
+        ROOT / "docs/authority/receipts/strategy-toolkit-typing-closure-receipt-v1.json",
         ROOT / "docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json",
     )
     dependency_document = {

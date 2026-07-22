@@ -1,8 +1,8 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — business-named V1 code and Custos↔Crucible contract handoff READY; replacement RC4 awaits protected review; authenticated Crucible resolution, protected PS publication and final cross-repo acceptance remain open
+> **Status**: ⏳ In progress — sole V1 code and Custos↔Crucible contract handoff READY; business-named RC5 rebuild is required before PS consumption; authenticated Crucible resolution, protected PS publication and final cross-repo acceptance remain open
 > **Created**: 2026-07-14
-> **Revised**: 2026-07-21 for the canonical first-production V1 handoff relock
+> **Revised**: 2026-07-22 for the business-named first-production V1 release relock
 > **Project**: Custos
 > **Source**: PS Plan 53 strategy/toolkit convergence roadmap and v1.team review
 > **For Claude**: Use `/forge:execute` for exactly one canonical slice per session.
@@ -592,15 +592,22 @@ Execution checkpoint (2026-07-21):
   it was bound to pre-relock Custos commit
   `39493964e165afbd688beac7205ed4d6943c2c49`; its candidate identifier is not
   reused or repointed.
-- Replacement `0.1.0rc4` run `29861323881` is bound to final Custos handoff
-  commit `3b738162a9223498078075be537093252caec21d` and is waiting for the required
-  `toolkit-rc-release` protected-environment reviewer. No RC4 bytes or authority
-  receipt are claimed before that run succeeds and independent readback passes.
+- Replacement `0.1.0rc4` run `29861323881` completed protected publication at
+  commit `3b738162a9223498078075be537093252caec21d`; independent run
+  `29879590051` read manifest
+  `sha256:e75897a20c5d0b6c8db9c2c7d81fc39a46bdc6b0cefd33c7838c5a9bbff7e719`
+  and emitted `READY_TOOLKIT_RC`. That immutable receipt exposed two remaining
+  plan/task-derived prerequisite filenames, so RC4 is audit evidence only and is
+  not a current consumer pin.
+- The source authority now renames those prerequisite receipts and their internal
+  fields by business purpose, deletes the superseded duplicate receipt and
+  regenerates the exact-byte digest chain in place. The next available immutable
+  identifier is `0.1.0rc5`; no alias or compatibility reader is introduced.
 - The business-named contract handshake is exact before publication: Crucible
   consumer commit `a30a62bb2e4115adaad9c036386ebb2b731e0526` is bound by the Custos producer
   handoff, and Crucible final readback commit `014edd4` pins that handoff while
   keeping runtime and production readiness false.
-- Engine/runtime/production readiness remains false until the replacement toolkit
+- Engine/runtime/production readiness remains false until the RC5 toolkit
   handoff plus the PS artifact and Crucible StrategyRelease receipts complete Tasks
   7-9. The `rc2` tag and receipt must not be overwritten or repointed.
 
@@ -679,7 +686,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | Work | State | Current boundary |
 |---|---|---|
 | Canonical V1 models and source | local gates pass | sole V1 source, generated assets and focused verification are current |
-| Immutable toolkit RC | protected review pending | `0.1.0rc2` remains immutable historical evidence; `0.1.0rc3` was cancelled before execution; RC4 run `29861323881` is bound to `3b738162a9223498078075be537093252caec21d` and requires protected publication plus independent readback before handoff is READY again |
+| Immutable toolkit RC | business-name relock in progress | RC4 protected publication and independent readback succeeded, but its prerequisite layer filenames exposed plan/task identifiers; those bytes remain immutable audit evidence while RC5 is rebuilt from the sole cleaned V1 source for consumer pinning |
 | Old contract/runtime generations | removed | old runtime module and command-owned evidence path are absent |
 | PS V1 handoff | pending final pins | PS source uses the sole V1 OCI topology |
 | Crucible V1 handoff | Custos contract exact; artifact acceptance open | final Custos producer receipt is pinned at Crucible `014edd4`; real PS publication and Plan 88 C6 native acceptance remain open |
@@ -698,10 +705,11 @@ git commit -m "docs(custos): mark plan 18 as completed"
   Crucible Custos-contract consumer receipt only; PS schema/BOM/attestation pins
   remain between PS and Crucible and cannot invalidate the Custos contract handoff.
 - No compatibility parser or predecessor asset remains an accepted input.
-- Plan/task-derived identifiers were removed from current files, classes, fields,
-  functions and status values. Published `rc2` receipt bytes and their historical
-  schema coordinate remain immutable evidence only; they are not accepted as the
-  current runtime contract and are never parsed through a compatibility path.
+- Plan/task-derived identifiers are removed from current files, classes, fields,
+  functions and status values, including toolkit prerequisite receipt paths and
+  exact-byte authority members. Published earlier RC bytes remain registry audit
+  evidence only; no current runtime contract parses them through a compatibility
+  path.
 
 ## Quantitative Summary
 

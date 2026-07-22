@@ -55,9 +55,15 @@ def _member(role: ToolkitRcMemberRole, **overrides: object) -> ToolkitRcMemberV1
         "sigstore_attestation": _artifact(f"{role.value}.sigstore.json", DIGESTS[6]),
         "source_repository": "https://github.com/alchymia-labs/custos",
         "source_commit": "a" * 40,
-        "toolkit_extraction_receipt": _artifact(f"{role.value}.t4-zero.json", DIGESTS[7]),
-        "toolkit_typing_closure_receipt": _artifact(f"{role.value}.t4b-typing.json", DIGESTS[8]),
-        "pre_import_verifier_receipt": _artifact(f"{role.value}.t5.json", DIGESTS[9]),
+        "toolkit_extraction_receipt": _artifact(
+            f"{role.value}.extraction.json", DIGESTS[7]
+        ),
+        "toolkit_typing_closure_receipt": _artifact(
+            f"{role.value}.typing-closure.json", DIGESTS[8]
+        ),
+        "pre_import_verifier_receipt": _artifact(
+            f"{role.value}.pre-import-verifier.json", DIGESTS[9]
+        ),
     }
     values.update(overrides)
     return ToolkitRcMemberV1.model_validate(values)

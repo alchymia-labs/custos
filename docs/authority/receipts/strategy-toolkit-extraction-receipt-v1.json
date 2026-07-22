@@ -2,15 +2,15 @@
   "blockers": [
     {
       "reason": "exact typing baseline remains 75 platform-neutral and 289 Nautilus-adapter errors",
-      "task": "Custos Plan 18 Task 4b"
+      "capability": "strict extracted-source typing closure"
     },
     {
       "reason": "artifact verifier and attestation-before-import runtime policy are not implemented",
-      "task": "Custos Plan 18 Task 5"
+      "capability": "public pre-import verifier and attestation"
     }
   ],
   "canonical_move_active": true,
-  "canonical_name": "Custos Plan 18 Task 4 zero-rewrite extraction receipt",
+  "canonical_name": "Custos strategy toolkit zero-rewrite extraction receipt",
   "current_canonical_source": {
     "nautilus_adapter": "packages/custos-strategy-toolkit-nautilus/src/custos_toolkit_nautilus/adapter",
     "platform_neutral": "packages/custos-strategy-toolkit/src/custos_toolkit",
@@ -19,13 +19,13 @@
   "extraction": {
     "legacy_implementation_present": false,
     "path": "docs/authority/strategy-toolkit-extraction-v1.json",
-    "sha256": "e0567ac6c6d59e39a164555279a6cf90aae3b14b923844d3bcbf558b84a14ac1",
+    "sha256": "9f0a2fd5da971c84a1b4d3b8157dbda44e20f8f5cd8ca797d05e40e5a7797ff7",
     "status": "PASS_241_OF_241_ZERO_REWRITE",
     "top_level_aliases_present": false
   },
   "handoff_ready": false,
   "implementation": {
-    "commit_requirement": "exact implementation commit verified; extraction evidence does not close Task 4b or Task 5",
+    "commit_requirement": "exact implementation commit verified; extraction evidence does not close typing or pre-import verification",
     "implementation_commit": "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805",
     "source_commit": "efc01da67b432e9b35beee3498415efc1bc46b98",
     "worktree_clean": true
@@ -38,14 +38,14 @@
     },
     "file_count": 241,
     "path": "docs/authority/strategy-toolkit-inventory-v1.json",
-    "sha256": "98dba9e60e906c4943c3b768465b66ddb38c42e2bde0bae6ffbadfc7fe6eef68"
+    "sha256": "7d2e46db63899fc0a1a42477ce0de2d25955c42a93a683dfcbeed8371ca1a0ec"
   },
   "legacy_shim": {
     "distribution_shim": false,
     "implementation_free": true,
     "path": "src/custos/engines/nautilus/toolkit/__init__.py",
-    "retirement_task": "Custos Plan 18 Task 8",
-    "sys_path_mutation": false
+    "sys_path_mutation": false,
+    "retirement_condition": "consumer cutover complete"
   },
   "parity": {
     "oracle_source_commit": "efc01da67b432e9b35beee3498415efc1bc46b98",
@@ -55,17 +55,17 @@
   },
   "receipt_schema_version": 1,
   "receipt_status": "VERIFIED_EXTRACTION_ONLY",
-  "scope_ceiling": "Task 4 extraction only. Task 4b typing closure, Task 5 verifier/attestation, runtime activation, immutable RC, consumer cutover, and production readiness remain open.",
+  "scope_ceiling": "Zero-rewrite extraction only. Strict typing closure, public pre-import verification, immutable RC publication, runtime activation, consumer cutover, and production readiness are separate gates.",
   "typing": {
     "baseline_path": "docs/authority/strategy-toolkit-typing-baseline-v1.json",
-    "baseline_sha256": "c4d603ff083e3b3ecb5efe36426fc678cb4bd89ebb6158c02e60a3bf2e9b0592",
-    "closure_task": "Custos Plan 18 Task 4b",
+    "baseline_sha256": "d9a7ab112639d62a248cd5990565267e12280f61ea3a2f055a9655060510b181",
     "custos_owned_contracts": "STRICT_PASS",
     "extracted_implementation": "ACK_EXACT_BASELINE_NOT_STRICT",
     "nautilus_adapter_errors": 289,
     "nautilus_package_shell": "STRICT_PASS",
     "platform_neutral_errors": 75,
-    "production_ready": false
+    "production_ready": false,
+    "closure_requirement": "strict extracted-source typing closure"
   },
   "verification": {
     "environment": {

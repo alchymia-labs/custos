@@ -10,7 +10,7 @@ INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
 AUTHORITY_MANIFEST_PATH = ROOT / "authority-manifest.json"
 EXTRACTION_RECEIPT_PATH = (
-    ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+    ROOT / "docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"
 )
 BASE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
@@ -103,8 +103,8 @@ def test_extraction_receipt_is_scoped_and_reports_open_blockers() -> None:
     assert receipt["parity"]["oracle_source_commit"] == extraction["source_commit"]
     assert receipt["typing"]["extracted_implementation"] == ("ACK_EXACT_BASELINE_NOT_STRICT")
     assert receipt["typing"]["production_ready"] is False
-    assert receipt["typing"]["closure_task"] == "Custos Plan 18 Task 4b"
-    assert [blocker["task"] for blocker in receipt["blockers"]] == [
-        "Custos Plan 18 Task 4b",
+    assert receipt["typing"]["closure_requirement"] == "strict extracted-source typing closure"
+    assert [blocker["capability"] for blocker in receipt["blockers"]] == [
+        "strict extracted-source typing closure",
         "Custos Plan 18 Task 5",
     ]

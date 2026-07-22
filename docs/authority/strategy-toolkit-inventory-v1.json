@@ -7,7 +7,7 @@
     "ps_owned_hummingbot": 0,
     "ps_owned_strategy": 0
   },
-  "current_canonical_source": "legacy Custos vendored snapshot until Plan 18 consumer cutover",
+  "current_canonical_source": "legacy Custos vendored snapshot retained as the immutable extraction origin until consumer cutover",
   "cutover_rule": "each file has one target authority; legacy source is removed only after receipt-backed cutover",
   "file_count": 241,
   "files": [

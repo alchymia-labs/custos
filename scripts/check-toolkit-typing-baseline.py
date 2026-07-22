@@ -100,7 +100,7 @@ def _current_payload() -> dict[str, Any]:
         "typing_baseline_schema_version": 1,
         "mypy_version": _mypy_version(),
         "scope": "inventory-extracted implementation typing debt; not a strict PASS",
-        "closure_task": "Custos Plan 18 Task 4b",
+        "closure_requirement": "strict extracted-source typing closure",
         "private_vendor_policy": "excluded third-party source; covered by digest and parity gates",
         "profiles": profiles,
     }
@@ -126,7 +126,7 @@ def main() -> int:
     expected = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
     if current != expected:
         print(
-            "toolkit typing debt drifted; review changes and update Plan 18 Task 4b",
+            "toolkit typing debt drifted; review changes and update the typing closure",
             file=sys.stderr,
         )
         return 1
@@ -136,7 +136,7 @@ def main() -> int:
     }
     print(
         "inventory-extracted typing debt: ACK exact baseline "
-        f"{counts}; NOT strict, closure required by Plan 18 Task 4b"
+        f"{counts}; NOT strict, extracted-source typing closure required"
     )
     return 0
 

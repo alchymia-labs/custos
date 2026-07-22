@@ -1945,6 +1945,6 @@
     }
   ],
   "inventory_path": "docs/authority/strategy-toolkit-inventory-v1.json",
-  "inventory_sha256": "98dba9e60e906c4943c3b768465b66ddb38c42e2bde0bae6ffbadfc7fe6eef68",
+  "inventory_sha256": "7d2e46db63899fc0a1a42477ce0de2d25955c42a93a683dfcbeed8371ca1a0ec",
   "source_commit": "efc01da67b432e9b35beee3498415efc1bc46b98"
 }

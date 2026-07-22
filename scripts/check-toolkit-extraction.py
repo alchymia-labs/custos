@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = ROOT / "docs/authority/strategy-toolkit-inventory-v1.json"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
 EXTRACTION_RECEIPT_PATH = (
-    ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+    ROOT / "docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"
 )
 BASE_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"

@@ -41,8 +41,8 @@ WORKFLOW_REF: Final = (
 OIDC_ISSUER: Final = "https://token.actions.githubusercontent.com"
 STABLE_READY_PATH: Final = Path("docs/authority/receipts/custos-toolkit-rc-authority-v1.json")
 PREREQUISITE_PATHS: Final = (
-    Path("docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"),
-    Path("docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"),
+    Path("docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"),
+    Path("docs/authority/receipts/strategy-toolkit-typing-closure-receipt-v1.json"),
     Path("docs/authority/receipts/custos-strategy-contract-v1-producer-receipt.json"),
 )
 SIGNED_SUBJECT_FIELDS: Final = (

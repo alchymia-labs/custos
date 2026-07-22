@@ -16,12 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 EXTRACTION_IMPLEMENTATION_COMMIT = "b5ff7ee9cea0e78f4462a478bafa42f8f6e18805"
 EXTRACTION_PATH = ROOT / "docs/authority/strategy-toolkit-extraction-v1.json"
 EXTRACTION_RECEIPT_PATH = (
-    ROOT / "docs/authority/receipts/custos-plan-18-task-4-extraction-receipt.json"
+    ROOT / "docs/authority/receipts/strategy-toolkit-extraction-receipt-v1.json"
 )
 BASELINE_PATH = ROOT / "docs/authority/strategy-toolkit-typing-baseline-v1.json"
 CLOSURE_PATH = ROOT / "docs/authority/strategy-toolkit-typing-closure-v1.json"
 CLOSURE_RECEIPT_PATH = (
-    ROOT / "docs/authority/receipts/custos-plan-18-task-4b-typing-closure-receipt.json"
+    ROOT / "docs/authority/receipts/strategy-toolkit-typing-closure-receipt-v1.json"
 )
 BASE_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit/src"
 NAUTILUS_SOURCE_ROOT = ROOT / "packages/custos-strategy-toolkit-nautilus/src"
@@ -139,10 +139,10 @@ def check() -> list[str]:
             errors.append("committed T4b closure must be READY_TYPING_CLOSURE")
         if receipt.get("handoff_ready") is not True:
             errors.append("committed T4b closure must be handoff-ready for its scoped artifact")
-        if receipt.get("handoff_scope") != "Custos Plan 18 Task 4b typing closure only":
+        if receipt.get("handoff_scope") != "Custos strategy toolkit typing closure only":
             errors.append("T4b handoff scope is missing or broader than typing closure")
         if receipt.get("production_ready") is not False:
-            errors.append("T4b typing closure cannot claim Plan 18 production readiness")
+            errors.append("typing closure cannot claim Plan 18 production readiness")
 
     extraction_files = cast(list[dict[str, object]], extraction["files"])
     closure_files = cast(list[dict[str, object]], closure["files"])
@@ -165,9 +165,9 @@ def check() -> list[str]:
         extraction_digest = _sha256(extraction_content)
         historical_digest = cast(str, extraction_record["target_sha256"])
         if extraction_digest != historical_digest:
-            errors.append(f"T4 commit/extraction digest mismatch: {target_name}")
-        if closure_record.get("t4_target_sha256") != extraction_digest:
-            errors.append(f"T4b source digest mismatch: {target_name}")
+            errors.append(f"extraction commit digest mismatch: {target_name}")
+        if closure_record.get("extracted_target_sha256") != extraction_digest:
+            errors.append(f"typing closure source digest mismatch: {target_name}")
         typed_content = _candidate_content(target, typed_commit)
         typed_digest = _sha256(typed_content)
         if closure_record.get("typed_target_sha256") != typed_digest:
@@ -298,7 +298,7 @@ def main() -> int:
             print(error, file=sys.stderr)
         return 1
     status = _json_object(CLOSURE_RECEIPT_PATH)["receipt_status"]
-    print(f"strategy toolkit T4b typing closure: strict zero, {status}")
+    print(f"strategy toolkit typing closure: strict zero, {status}")
     return 0
 
 
