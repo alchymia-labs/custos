@@ -1,6 +1,6 @@
 # 18 - Publish typed toolkit and strategy execution contracts
 
-> **Status**: ⏳ In progress — sole V1 code and Custos↔Crucible contract handoff READY; business-named RC5 rebuild is required before PS consumption; authenticated Crucible resolution, protected PS publication and final cross-repo acceptance remain open
+> **Status**: ⏳ In progress — sole V1 code, Custos↔Crucible contract handoff and business-named RC5 authority READY; authenticated Crucible resolution, immutable PS publication and final cross-repo acceptance remain open
 > **Created**: 2026-07-14
 > **Revised**: 2026-07-22 for the business-named first-production V1 release relock
 > **Project**: Custos
@@ -23,7 +23,8 @@ This plan defines one production contract generation only.
   runner-local pre-import verification receipt, and toolkit authority V1.
 - PS owns `StrategyOciArtifactRefV1`,
   `StrategyArtifactOciPublicationReceiptV1`, deterministic artifact bytes and
-  protected OCI publication.
+  internal immutable OCI publication. Publishing an artifact is not production
+  deployment approval; Crucible owns that business lifecycle.
 - Crucible owns verified publication facts, immutable `StrategyRelease`
   snapshots and signed `DeploymentSpec` desired state.
 - Superseded parsers, models, schemas, goldens, indexes, receipts, vendor pins
@@ -538,7 +539,7 @@ T4b 可与 T5 实现并行，但属于 18b close-out hard gate。
 5. Persist staged/active/quarantined activation state under
    `deployment_instance_id`; no path, mutable tag or historical receipt may
    authorize execution.
-6. Keep runtime and live fail closed until the real resolver, protected PS
+6. Keep runtime and live fail closed until the real resolver, immutable PS
    publication and Crucible acceptance are present.
 
 Execution checkpoint (2026-07-21):
@@ -599,17 +600,26 @@ Execution checkpoint (2026-07-21):
   and emitted `READY_TOOLKIT_RC`. That immutable receipt exposed two remaining
   plan/task-derived prerequisite filenames, so RC4 is audit evidence only and is
   not a current consumer pin.
-- The source authority now renames those prerequisite receipts and their internal
-  fields by business purpose, deletes the superseded duplicate receipt and
-  regenerates the exact-byte digest chain in place. The next available immutable
-  identifier is `0.1.0rc5`; no alias or compatibility reader is introduced.
+- Protected release run `29880238705` published `0.1.0rc5` from the sole
+  business-named V1 source commit
+  `a3fd88c4e7e25433b508b2fece94be876630f380`; its immutable OCI manifest is
+  `sha256:670a50cf3725e03744bc2e9efeff74230db934bd83d10a927839254f3d6283d5`.
+- Independent read-only promotion run `29883298628` resolved that exact digest,
+  verified the production signature and emitted the current
+  `READY_TOOLKIT_RC` artifact
+  `sha256:940bd28ca11b5a8d92f814a0cf39113d93afa89d571648041c5bf002ad418acb`.
+  The canonical receipt checksum is
+  `570f69cbb9c796bfa82a57543ba163a4f3586d4fd57ca08a4174ed52ee713702`.
+- RC5 is the sole current V1 consumer pin. No alias, old parser or compatibility
+  reader is introduced; earlier immutable RC bytes remain registry audit
+  evidence only.
 - The business-named contract handshake is exact before publication: Crucible
   consumer commit `a30a62bb2e4115adaad9c036386ebb2b731e0526` is bound by the Custos producer
   handoff, and Crucible final readback commit `014edd4` pins that handoff while
   keeping runtime and production readiness false.
-- Engine/runtime/production readiness remains false until the RC5 toolkit
-  handoff plus the PS artifact and Crucible StrategyRelease receipts complete Tasks
-  7-9. The `rc2` tag and receipt must not be overwritten or repointed.
+- Engine/runtime/production readiness remains false until the PS artifact and
+  Crucible StrategyRelease receipts complete Tasks 7-9. Historical tags and
+  receipts must not be overwritten or repointed.
 
 ### Task 7: Collect v1.team artifact-chain receipts
 
@@ -686,7 +696,7 @@ git commit -m "docs(custos): mark plan 18 as completed"
 | Work | State | Current boundary |
 |---|---|---|
 | Canonical V1 models and source | local gates pass | sole V1 source, generated assets and focused verification are current |
-| Immutable toolkit RC | business-name relock in progress | RC4 protected publication and independent readback succeeded, but its prerequisite layer filenames exposed plan/task identifiers; those bytes remain immutable audit evidence while RC5 is rebuilt from the sole cleaned V1 source for consumer pinning |
+| Immutable toolkit RC | READY | RC5 protected publication and independent digest readback succeeded; its business-named receipt is the sole current V1 consumer pin |
 | Old contract/runtime generations | removed | old runtime module and command-owned evidence path are absent |
 | PS V1 handoff | pending final pins | PS source uses the sole V1 OCI topology |
 | Crucible V1 handoff | Custos contract exact; artifact acceptance open | final Custos producer receipt is pinned at Crucible `014edd4`; real PS publication and Plan 88 C6 native acceptance remain open |
